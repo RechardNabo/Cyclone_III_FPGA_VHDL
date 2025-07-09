@@ -1,0 +1,73 @@
+|Basic_Logic_Top
+A => AND_gate:AND_inst.x
+A => OR_gate:OR_inst.x
+A => NAND_gate:NAND_inst.x
+A => NOR_gate:NOR_inst.x
+A => XOR_gate:XOR_inst.x
+A => XNOR_L:XNOR_inst.x
+A => Inverter:INV_inst.x
+B => AND_gate:AND_inst.y
+B => OR_gate:OR_inst.y
+B => NAND_gate:NAND_inst.y
+B => NOR_gate:NOR_inst.y
+B => XOR_gate:XOR_inst.y
+B => XNOR_L:XNOR_inst.y
+and_out <= AND_gate:AND_inst.f
+or_out <= OR_gate:OR_inst.f
+nand_out <= NAND_gate:NAND_inst.f
+nor_out <= NOR_gate:NOR_inst.f
+xor_out <= XOR_gate:XOR_inst.f
+xnor_out <= XNOR_L:XNOR_inst.f
+inv_out <= Inverter:INV_inst.f
+driver_in => Driver:DRV_inst.x
+driver_out <= Driver:DRV_inst.f
+
+
+|Basic_Logic_Top|AND_gate:AND_inst
+x => f.IN0
+y => f.IN1
+f <= f.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|OR_gate:OR_inst
+x => f.IN0
+y => f.IN1
+f <= f.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|NAND_gate:NAND_inst
+x => f.IN0
+y => f.IN1
+f <= f.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|NOR_gate:NOR_inst
+x => f.IN0
+y => f.IN1
+f <= f.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|XOR_gate:XOR_inst
+x => process_0.IN0
+x => process_0.IN0
+y => process_0.IN1
+y => process_0.IN1
+f <= process_0.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|XNOR_L:XNOR_inst
+x => f.IN0
+y => f.IN1
+f <= f.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|Inverter:INV_inst
+x => f.DATAIN
+f <= x.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|Basic_Logic_Top|Driver:DRV_inst
+x => f.DATAIN
+f <= x.DB_MAX_OUTPUT_PORT_TYPE
+
+
