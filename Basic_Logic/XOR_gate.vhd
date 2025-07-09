@@ -9,7 +9,7 @@ entity XOR_gate is
     );
 end entity;
 
-architecture XOR_gate of NAND_gate is
+architecture XOR_gate_arch of XOR_gate is
     begin
         process(x,y)
         begin
