@@ -1,0 +1,822 @@
+-- ============================================================================
+-- Moore Finite State Machine (FSM) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a Moore Finite State Machine, where outputs depend only
+-- on the current state, not on the inputs. Moore machines provide stable outputs
+-- and are fundamental sequential logic components used for control logic,
+-- protocol implementation, and system coordination in digital design.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand Moore FSM architecture and operation principles
+-- 2. Learn state-only output logic design
+-- 3. Practice stable output implementation
+-- 4. Explore timing advantages of Moore machines
+-- 5. Compare Moore vs Mealy FSM characteristics
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations (if needed)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (if arithmetic operations needed)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the Moore FSM
+--
+-- Entity Requirements:
+-- - Name: fsm_moore (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - Input signals for state transitions only
+-- - Output signals that depend only on current state
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input)
+-- - rst : in std_logic (Reset input - active high or low)
+-- - input_signal : in std_logic (Primary input for transitions)
+-- - output_signal : out std_logic (Primary output)
+--
+-- Optional Ports (depending on application):
+-- - enable : in std_logic (Enable signal)
+-- - additional_inputs : in std_logic_vector (Multiple inputs)
+-- - additional_outputs : out std_logic_vector (Multiple outputs)
+-- - state_out : out std_logic_vector (Current state output for debugging)
+--
+-- Design Considerations:
+-- - Reset strategy (synchronous vs asynchronous)
+-- - Input synchronization requirements
+-- - Output stability characteristics
+-- - State encoding method
+-- - Number of states required
+--
+-- TODO: Declare entity with appropriate ports
+-- TODO: Add comprehensive port comments
+-- TODO: Consider reset polarity and timing
+-- TODO: Plan for state and output requirements
+--
+-- ============================================================================
+-- STEP 3: MOORE FSM OPERATION DEFINITIONS
+-- ============================================================================
+--
+-- MOORE FSM PRINCIPLES:
+-- - Outputs depend ONLY on current state
+-- - State transitions occur on clock edges
+-- - Outputs are stable during state residence
+-- - Generally requires more states than Mealy machines
+-- - Simpler timing analysis
+--
+-- MOORE FSM CHARACTERISTICS:
+-- - Output = f(current_state)
+-- - Next_state = f(current_state, inputs)
+-- - Outputs are glitch-free
+-- - Easier timing analysis
+-- - More predictable behavior
+--
+-- STATE TRANSITION TABLE EXAMPLE (Sequence Detector for "101"):
+-- Current State | Input | Next State | Output (Sequence Found)
+-- --------------|-------|------------|------------------------
+--     IDLE      |   0   |    IDLE    |           0
+--     IDLE      |   1   |    S1      |           0
+--     S1        |   0   |    S2      |           0
+--     S1        |   1   |    S1      |           0
+--     S2        |   0   |    IDLE    |           0
+--     S2        |   1   |    FOUND   |           0
+--     FOUND     |   0   |    S2      |           1
+--     FOUND     |   1   |    S1      |           1
+--
+-- TIMING CHARACTERISTICS:
+-- - Setup time: Inputs stable before clock edge
+-- - Hold time: Inputs stable after clock edge
+-- - Clock-to-output delay: Time from clock to output change
+-- - No input-to-output combinational path
+-- - Output changes only on clock edges
+--
+-- TODO: Define state transition table for your application
+-- TODO: Specify output for each state
+-- TODO: Determine timing requirements
+-- TODO: Choose appropriate state encoding
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC MOORE FSM (Three-Process Model)
+-- ----------------------------------------------------------------------------
+-- Standard implementation with separate processes for state, transitions, and outputs
+--
+-- Implementation Approach:
+-- - Enumerated type for states
+-- - Clocked process for state register
+-- - Combinational process for next state logic
+-- - Combinational process for output logic
+-- - Clear separation of concerns
+--
+-- Example Structure:
+-- architecture behavioral of fsm_moore is
+--     type state_type is (IDLE, STATE1, STATE2, STATE3);
+--     signal current_state, next_state : state_type := IDLE;
+-- begin
+--     -- State register process (synchronous)
+--     state_register: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Next state logic (combinational)
+--     next_state_logic: process(current_state, input_signal)
+--     begin
+--         -- Default assignment
+--         next_state <= current_state;
+--         
+--         case current_state is
+--             when IDLE =>
+--                 if input_signal = '1' then
+--                     next_state <= STATE1;
+--                 end if;
+--             
+--             when STATE1 =>
+--                 if input_signal = '0' then
+--                     next_state <= STATE2;
+--                 else
+--                     next_state <= STATE1;  -- Stay in STATE1
+--                 end if;
+--             
+--             when STATE2 =>
+--                 if input_signal = '1' then
+--                     next_state <= STATE3;
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--             
+--             when STATE3 =>
+--                 next_state <= IDLE;  -- Always return to IDLE
+--         end case;
+--     end process;
+--     
+--     -- Output logic (combinational, depends only on state)
+--     output_logic: process(current_state)
+--     begin
+--         -- Default assignment
+--         output_signal <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 output_signal <= '0';
+--             
+--             when STATE1 =>
+--                 output_signal <= '0';
+--             
+--             when STATE2 =>
+--                 output_signal <= '0';
+--             
+--             when STATE3 =>
+--                 output_signal <= '1';  -- Output active only in STATE3
+--         end case;
+--     end process;
+-- end behavioral;
+--
+-- Three-Process Advantages:
+-- - Very clear separation of logic types
+-- - Easy to understand and maintain
+-- - Excellent for complex state machines
+-- - Synthesis-friendly structure
+-- - Easy to modify individual aspects
+--
+-- Three-Process Disadvantages:
+-- - More verbose code
+-- - Multiple processes to maintain
+-- - Potential for inconsistencies
+--
+-- TODO: Implement three-process Moore FSM
+-- TODO: Define all states and transitions
+-- TODO: Implement output logic for each state
+-- TODO: Verify complete case coverage
+--
+-- OPTION 2: TWO-PROCESS MOORE FSM
+-- ----------------------------------------------------------------------------
+-- Compact implementation combining next state and output logic
+--
+-- Implementation Approach:
+-- - Enumerated type for states
+-- - Clocked process for state register
+-- - Combined process for next state and output logic
+-- - More compact structure
+--
+-- Example Structure:
+-- architecture two_process of fsm_moore is
+--     type state_type is (IDLE, ACTIVE, PROCESSING, DONE);
+--     signal current_state, next_state : state_type := IDLE;
+-- begin
+--     -- State register process (synchronous)
+--     state_register: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Combined next state and output logic (combinational)
+--     state_output_logic: process(current_state, input_signal)
+--     begin
+--         -- Default assignments
+--         next_state <= current_state;
+--         output_signal <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 output_signal <= '0';  -- Output for IDLE state
+--                 if input_signal = '1' then
+--                     next_state <= ACTIVE;
+--                 end if;
+--             
+--             when ACTIVE =>
+--                 output_signal <= '1';  -- Output for ACTIVE state
+--                 if input_signal = '0' then
+--                     next_state <= PROCESSING;
+--                 end if;
+--             
+--             when PROCESSING =>
+--                 output_signal <= '0';  -- Output for PROCESSING state
+--                 -- Automatic transition after one cycle
+--                 next_state <= DONE;
+--             
+--             when DONE =>
+--                 output_signal <= '1';  -- Output for DONE state
+--                 next_state <= IDLE;
+--         end case;
+--     end process;
+-- end two_process;
+--
+-- Two-Process Advantages:
+-- - More compact than three-process
+-- - Fewer processes to maintain
+-- - Good balance of clarity and conciseness
+-- - Still maintains Moore characteristics
+--
+-- Two-Process Disadvantages:
+-- - Mixed logic types in one process
+-- - Slightly less clear separation
+-- - Potential for output/transition coupling
+--
+-- TODO: Implement two-process Moore FSM
+-- TODO: Ensure outputs depend only on state
+-- TODO: Verify state transition logic
+-- TODO: Test output stability
+--
+-- OPTION 3: SINGLE-PROCESS MOORE FSM
+-- ----------------------------------------------------------------------------
+-- Most compact implementation with all logic in one process
+--
+-- Implementation Approach:
+-- - Single clocked process
+-- - State transitions and outputs in same process
+-- - Most compact code structure
+-- - Careful implementation to maintain Moore characteristics
+--
+-- Example Structure:
+-- architecture single_process of fsm_moore is
+--     type state_type is (IDLE, WAIT_STATE, ACTIVE, COMPLETE);
+--     signal current_state : state_type := IDLE;
+-- begin
+--     fsm_process: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--             output_signal <= '0';
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when IDLE =>
+--                     output_signal <= '0';  -- Moore output for IDLE
+--                     if input_signal = '1' then
+--                         current_state <= WAIT_STATE;
+--                     end if;
+--                 
+--                 when WAIT_STATE =>
+--                     output_signal <= '0';  -- Moore output for WAIT_STATE
+--                     if input_signal = '0' then
+--                         current_state <= ACTIVE;
+--                     else
+--                         current_state <= IDLE;
+--                     end if;
+--                 
+--                 when ACTIVE =>
+--                     output_signal <= '1';  -- Moore output for ACTIVE
+--                     current_state <= COMPLETE;
+--                 
+--                 when COMPLETE =>
+--                     output_signal <= '1';  -- Moore output for COMPLETE
+--                     current_state <= IDLE;
+--             end case;
+--         end if;
+--     end process;
+-- end single_process;
+--
+-- Single-Process Advantages:
+-- - Most compact code structure
+-- - Single process to maintain
+-- - No intermediate signals needed
+-- - Good for simple state machines
+--
+-- Single-Process Disadvantages:
+-- - All logic mixed together
+-- - Harder to modify individual aspects
+-- - Less clear structure
+-- - Potential timing complications
+--
+-- TODO: Implement single-process Moore FSM
+-- TODO: Ensure Moore characteristics maintained
+-- TODO: Verify output timing
+-- TODO: Test all state transitions
+--
+-- OPTION 4: PARAMETERIZED MOORE FSM
+-- ----------------------------------------------------------------------------
+-- Configurable FSM with generic parameters
+--
+-- Implementation Approach:
+-- - Generic parameters for configuration
+-- - Scalable state encoding
+-- - Flexible input/output widths
+-- - Reusable component design
+--
+-- Example Structure:
+-- entity fsm_moore_param is
+--     generic (
+--         STATE_BITS : positive := 3;
+--         INPUT_WIDTH : positive := 1;
+--         OUTPUT_WIDTH : positive := 1;
+--         RESET_STATE : natural := 0
+--     );
+--     port (
+--         clk : in std_logic;
+--         rst : in std_logic;
+--         inputs : in std_logic_vector(INPUT_WIDTH-1 downto 0);
+--         outputs : out std_logic_vector(OUTPUT_WIDTH-1 downto 0);
+--         state_out : out std_logic_vector(STATE_BITS-1 downto 0)
+--     );
+-- end fsm_moore_param;
+--
+-- architecture parameterized of fsm_moore_param is
+--     signal current_state : std_logic_vector(STATE_BITS-1 downto 0) := 
+--                           std_logic_vector(to_unsigned(RESET_STATE, STATE_BITS));
+--     signal next_state : std_logic_vector(STATE_BITS-1 downto 0);
+-- begin
+--     -- State register
+--     state_reg: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= std_logic_vector(to_unsigned(RESET_STATE, STATE_BITS));
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Next state logic
+--     transition_logic: process(current_state, inputs)
+--     begin
+--         -- Default assignment
+--         next_state <= current_state;
+--         
+--         -- State-specific logic (customize for your application)
+--         case to_integer(unsigned(current_state)) is
+--             when 0 =>  -- IDLE state
+--                 if inputs(0) = '1' then
+--                     next_state <= std_logic_vector(to_unsigned(1, STATE_BITS));
+--                 end if;
+--             
+--             when 1 =>  -- ACTIVE state
+--                 if inputs(0) = '0' then
+--                     next_state <= std_logic_vector(to_unsigned(2, STATE_BITS));
+--                 end if;
+--             
+--             when 2 =>  -- PROCESSING state
+--                 next_state <= std_logic_vector(to_unsigned(3, STATE_BITS));
+--             
+--             when 3 =>  -- DONE state
+--                 next_state <= std_logic_vector(to_unsigned(0, STATE_BITS));
+--             
+--             when others =>
+--                 next_state <= std_logic_vector(to_unsigned(RESET_STATE, STATE_BITS));
+--         end case;
+--     end process;
+--     
+--     -- Output logic (Moore - depends only on current state)
+--     output_logic: process(current_state)
+--     begin
+--         -- Default assignment
+--         outputs <= (others => '0');
+--         
+--         case to_integer(unsigned(current_state)) is
+--             when 0 =>  -- IDLE state
+--                 outputs(0) <= '0';
+--             
+--             when 1 =>  -- ACTIVE state
+--                 outputs(0) <= '1';
+--             
+--             when 2 =>  -- PROCESSING state
+--                 outputs(0) <= '0';
+--             
+--             when 3 =>  -- DONE state
+--                 outputs(0) <= '1';
+--             
+--             when others =>
+--                 outputs <= (others => '0');
+--         end case;
+--     end process;
+--     
+--     -- State output for debugging
+--     state_out <= current_state;
+-- end parameterized;
+--
+-- Parameterized Advantages:
+-- - Highly configurable and reusable
+-- - Scalable to different applications
+-- - Good for library components
+-- - Flexible state encoding
+--
+-- Parameterized Disadvantages:
+-- - More complex implementation
+-- - Generic validation needed
+-- - Potential synthesis issues
+-- - Debugging complexity
+--
+-- TODO: Implement parameterized Moore FSM
+-- TODO: Add generic parameter validation
+-- TODO: Test with different configurations
+-- TODO: Verify synthesis results
+--
+-- ============================================================================
+-- STEP 5: ADVANCED MOORE FSM FEATURES
+-- ============================================================================
+--
+-- HIERARCHICAL STATE MACHINES:
+-- - Nested state machines
+-- - State machine composition
+-- - Modular design approach
+-- - Complex system modeling
+--
+-- MULTI-OUTPUT MOORE MACHINES:
+-- - Multiple independent outputs
+-- - Output vector management
+-- - State-dependent output patterns
+-- - Complex output encoding
+--
+-- CONDITIONAL STATE MACHINES:
+-- - Mode-dependent operation
+-- - Dynamic state space
+-- - Adaptive behavior
+-- - Context-sensitive transitions
+--
+-- PIPELINED MOORE MACHINES:
+-- - Multi-stage processing
+-- - Throughput optimization
+-- - Latency management
+-- - Performance scaling
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test integration capabilities
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- STATE ENCODING:
+-- - Binary encoding (minimum bits)
+-- - One-hot encoding (fast decoding)
+-- - Gray code encoding (glitch reduction)
+-- - Custom encoding (application-specific)
+--
+-- OUTPUT STABILITY:
+-- - Glitch-free outputs
+-- - Synchronous output changes
+-- - Output hold time
+-- - Timing predictability
+--
+-- SYNTHESIS OPTIMIZATION:
+-- - FSM inference guidelines
+-- - Resource utilization
+-- - Technology mapping
+-- - Performance tuning
+--
+-- VERIFICATION STRATEGY:
+-- - State coverage analysis
+-- - Transition coverage
+-- - Output verification
+-- - Timing verification
+--
+-- RESET STRATEGY:
+-- - Synchronous vs asynchronous reset
+-- - Reset state selection
+-- - Reset recovery behavior
+-- - Power-on initialization
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. CONTROL UNITS:
+--    - Processor control logic
+--    - Memory controllers
+--    - Peripheral interfaces
+--    - System state management
+--
+-- 2. PROTOCOL HANDLERS:
+--    - Communication protocols
+--    - Handshaking sequences
+--    - Data transfer control
+--    - Error handling
+--
+-- 3. SEQUENCE GENERATORS:
+--    - Pattern generation
+--    - Test sequence creation
+--    - Timing control
+--    - Signal orchestration
+--
+-- 4. USER INTERFACES:
+--    - Menu systems
+--    - Display controllers
+--    - Input processing
+--    - Mode management
+--
+-- 5. SAFETY SYSTEMS:
+--    - Fault detection
+--    - Safe state management
+--    - Emergency procedures
+--    - System monitoring
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - State transition verification
+-- - Output correctness for each state
+-- - Reset behavior validation
+-- - Input response testing
+-- - Edge case handling
+--
+-- COVERAGE TESTING:
+-- - State coverage analysis
+-- - Transition coverage
+-- - Input combination testing
+-- - Output pattern verification
+-- - Timing relationship validation
+--
+-- STABILITY TESTING:
+-- - Output glitch detection
+-- - State stability verification
+-- - Timing margin analysis
+-- - Clock domain testing
+-- - Reset recovery testing
+--
+-- TIMING VERIFICATION:
+-- - Setup/hold analysis
+-- - Clock-to-output delays
+-- - State transition timing
+-- - Critical path verification
+-- - Metastability analysis
+--
+-- STRESS TESTING:
+-- - Rapid input changes
+-- - Maximum frequency operation
+-- - Extended operation periods
+-- - Random input sequences
+-- - Boundary condition testing
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with three-process model
+-- 2. Use enumerated types for states
+-- 3. Implement clear output logic
+-- 4. Test fundamental functionality
+-- 5. Verify output stability
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Use two-process model for efficiency
+-- 2. Add comprehensive error handling
+-- 3. Implement state monitoring
+-- 4. Create thorough testbench
+-- 5. Optimize for target technology
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement parameterized design
+-- 2. Add advanced features
+-- 3. Create library-quality component
+-- 4. Develop comprehensive verification
+-- 5. Consider hierarchical design
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. TRAFFIC LIGHT CONTROLLER:
+--    - Implement timing-based states
+--    - Add pedestrian crossing
+--    - Create emergency override
+--    - Add sensor integration
+--
+-- 2. ELEVATOR CONTROLLER:
+--    - Implement floor states
+--    - Add direction control
+--    - Create door management
+--    - Add safety features
+--
+-- 3. WASHING MACHINE CONTROLLER:
+--    - Implement cycle states
+--    - Add timing control
+--    - Create mode selection
+--    - Add error detection
+--
+-- 4. DIGITAL CLOCK:
+--    - Implement time states
+--    - Add display control
+--    - Create alarm functionality
+--    - Add time setting modes
+--
+-- 5. GAME STATE MACHINE:
+--    - Implement game states
+--    - Add score management
+--    - Create level progression
+--    - Add pause/resume functionality
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. OUTPUT DEPENDENCY ON INPUTS:
+--    - Outputs must depend only on state
+--    - No combinational input-to-output paths
+--    - Maintain Moore machine characteristics
+--    - Avoid Mealy-like behavior
+--
+-- 2. INCOMPLETE CASE STATEMENTS:
+--    - Missing state cases
+--    - Incomplete output assignments
+--    - No default assignments
+--    - Unhandled state conditions
+--
+-- 3. TIMING VIOLATIONS:
+--    - Setup/hold violations
+--    - Clock skew issues
+--    - Output glitches
+--    - Race conditions
+--
+-- 4. RESET ISSUES:
+--    - Improper reset handling
+--    - Reset state selection
+--    - Asynchronous reset problems
+--    - Power-on behavior
+--
+-- 5. VERIFICATION GAPS:
+--    - Incomplete test coverage
+--    - Missing edge cases
+--    - Inadequate timing verification
+--    - Insufficient output testing
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper ports
+-- □ State type properly defined
+-- □ All states have complete case coverage
+-- □ Reset behavior correctly implemented
+-- □ State transitions working correctly
+-- □ Outputs depend ONLY on current state
+-- □ No combinational loops present
+-- □ Timing requirements met
+-- □ Synthesis results acceptable
+-- □ All input combinations tested
+-- □ State coverage analysis complete
+-- □ Transition coverage verified
+-- □ Output stability verified
+-- □ Reset recovery tested
+-- □ Error handling functional (if implemented)
+-- □ Performance requirements met
+-- □ Resource utilization acceptable
+-- □ Documentation complete and accurate
+-- □ Testbench covers all scenarios
+-- □ Critical paths identified and optimized
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- MOORE vs MEALY COMPARISON:
+-- - Moore: Outputs depend only on state
+-- - Mealy: Outputs depend on state and inputs
+-- - Moore: More stable outputs
+-- - Mealy: Generally faster response
+-- - Moore: Easier timing analysis
+-- - Mealy: Fewer states typically needed
+--
+-- SYSTEM INTEGRATION:
+-- - Control unit implementation
+-- - Interface protocol handling
+-- - System coordination
+-- - State management
+--
+-- PERFORMANCE CONSIDERATIONS:
+-- - Output stability
+-- - Timing predictability
+-- - Resource efficiency
+-- - Power consumption
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - LUT utilization for state logic
+-- - Register usage for state storage
+-- - Output register optimization
+-- - Clock domain management
+--
+-- ASIC IMPLEMENTATION:
+-- - Standard cell usage
+-- - Custom logic optimization
+-- - Layout considerations
+-- - Power optimization
+--
+-- TIMING CLOSURE:
+-- - Critical path optimization
+-- - Clock skew management
+-- - Setup/hold margin
+-- - Performance scaling
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- FSM OPTIMIZATION:
+-- - State minimization techniques
+-- - Encoding optimization
+-- - Logic optimization
+-- - Performance tuning
+--
+-- FORMAL VERIFICATION:
+-- - Model checking
+-- - Property verification
+-- - Equivalence checking
+-- - Coverage analysis
+--
+-- FAULT TOLERANCE:
+-- - Error detection
+-- - Error correction
+-- - Graceful degradation
+-- - Recovery mechanisms
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Comprehensive test scenarios
+-- - State transition testing
+-- - Output verification
+-- - Timing analysis
+--
+-- VERIFICATION METHODOLOGY:
+-- - Functional verification
+-- - Timing verification
+-- - Coverage analysis
+-- - Formal verification
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis
+-- - State tracking
+-- - Output monitoring
+-- - Performance profiling
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

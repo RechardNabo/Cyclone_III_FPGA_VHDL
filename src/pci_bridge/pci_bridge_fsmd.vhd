@@ -1,0 +1,439 @@
+-- ============================================================================
+-- PROJECT: PCI Bridge FSMD (Finite State Machine with Datapath) Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a comprehensive FSMD (Finite State Machine with
+-- Datapath) for PCI bridge control using VHDL. The FSMD combines control
+-- logic (FSM) with data processing (datapath) in a unified design approach,
+-- providing integrated PCI protocol handling and data management.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand FSMD design methodology and advantages
+-- - Learn integrated control and datapath design techniques
+-- - Practice advanced VHDL architectural patterns
+-- - Implement complex protocol handling with embedded data processing
+-- - Understand trade-offs between FSM+Datapath vs FSMD approaches
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - clk: System clock (PCI clock domain)
+-- - reset_n: Active-low asynchronous reset
+-- - pci_ad: PCI address/data bus (bidirectional)
+-- - pci_cbe_n: PCI command/byte enable signals
+-- - pci_frame_n: PCI transaction frame signal
+-- - pci_irdy_n: PCI initiator ready signal
+-- - pci_trdy_n: PCI target ready signal (input when master)
+-- - pci_devsel_n: PCI device select signal
+-- - pci_stop_n: PCI stop signal
+-- - pci_par: PCI parity signal
+-- - pci_gnt_n: PCI bus grant signal
+-- - local_addr: Local bus address
+-- - local_data_in: Local bus data input
+-- - local_req: Local bus transaction request
+-- - local_wr_en: Local bus write enable
+-- 
+-- OUTPUTS:
+-- - pci_ad_out: PCI address/data output
+-- - pci_ad_oe: PCI address/data output enable
+-- - pci_cbe_n_out: PCI command/byte enable output
+-- - pci_req_n: PCI bus request signal
+-- - pci_trdy_n_out: PCI target ready output
+-- - pci_devsel_n_out: PCI device select output
+-- - pci_stop_n_out: PCI stop output
+-- - pci_par_out: PCI parity output
+-- - local_data_out: Local bus data output
+-- - local_ack: Local bus acknowledge
+-- - transaction_complete: Transaction completion indicator
+-- - error_status: Error condition indicators
+-- - current_state: Current FSMD state (for debugging)
+--
+-- ============================================================================
+-- FSMD ARCHITECTURE OVERVIEW:
+-- ============================================================================
+-- INTEGRATED COMPONENTS:
+-- - State machine for protocol control
+-- - Address/data registers and buffers
+-- - Parity generation and checking logic
+-- - Timeout and retry counters
+-- - Error detection and reporting
+-- - Configuration register interface
+--
+-- FSMD STATES WITH EMBEDDED OPERATIONS:
+-- - IDLE: Monitor bus, prepare registers
+-- - BUS_REQUEST: Request bus, setup address registers
+-- - ADDRESS_PHASE: Drive/capture address, calculate parity
+-- - DATA_PHASE: Transfer data, update counters, check parity
+-- - WAIT_STATE: Hold data, maintain counters
+-- - RETRY: Increment retry counter, implement backoff
+-- - ERROR_RECOVERY: Log errors, reset registers
+-- - CONFIG_ACCESS: Handle configuration registers directly
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. SINGLE-PROCESS FSMD:
+--    - All control and datapath logic in one process
+--    - Simplified design with integrated functionality
+--    - May become complex for large designs
+--
+-- 2. TWO-PROCESS FSMD:
+--    - Separate processes for state register and logic
+--    - Better organization and readability
+--    - Easier to optimize and debug
+--
+-- 3. HIERARCHICAL FSMD:
+--    - Main FSMD with sub-FSMDs for complex operations
+--    - Modular design with clear interfaces
+--    - Scalable for complex protocols
+--
+-- ============================================================================
+-- FSMD vs FSM+DATAPATH COMPARISON:
+-- ============================================================================
+-- FSMD ADVANTAGES:
+-- - Integrated design reduces interface complexity
+-- - Simplified control signal management
+-- - Better optimization opportunities
+-- - Reduced design verification complexity
+--
+-- FSMD DISADVANTAGES:
+-- - Less modular than separate FSM+Datapath
+-- - Harder to reuse components independently
+-- - May be more difficult to understand
+-- - Testing individual components is challenging
+--
+-- WHEN TO USE FSMD:
+-- - Tight coupling between control and data
+-- - Performance-critical applications
+-- - Resource-constrained designs
+-- - Simple to moderate complexity protocols
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- TIMING ANALYSIS:
+-- - Critical path through combined control/data logic
+-- - Register-to-register timing optimization
+-- - Setup/hold requirements for external interfaces
+-- - Clock skew and jitter considerations
+--
+-- RESOURCE UTILIZATION:
+-- - Shared resources between control and data functions
+-- - Register usage optimization
+-- - Combinational logic sharing opportunities
+-- - Memory block utilization for buffers
+--
+-- POWER CONSUMPTION:
+-- - Clock gating for unused functional blocks
+-- - Data path power optimization
+-- - State-dependent power management
+-- - Dynamic frequency scaling support
+--
+-- TESTABILITY AND DEBUG:
+-- - Internal state and data visibility
+-- - Built-in self-test capabilities
+-- - Debug interface for state monitoring
+-- - Error injection for testing
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ARCHITECTURE PLANNING
+-- □ Define integrated state and data operations
+-- □ Identify shared resources and registers
+-- □ Plan control and data signal flow
+-- □ Design interface protocols
+--
+-- STEP 2: STATE AND DATA DEFINITIONS
+-- □ Define state enumeration with data context
+-- □ Declare registers for address, data, and control
+-- □ Create counters and status registers
+-- □ Plan configuration register structure
+--
+-- STEP 3: MAIN FSMD PROCESS
+-- □ Implement state register with data registers
+-- □ Add reset handling for all registers
+-- □ Create state transition with data operations
+-- □ Integrate control and data logic
+--
+-- STEP 4: PCI PROTOCOL INTEGRATION
+-- □ Implement address phase with address capture
+-- □ Add data phase with data transfer logic
+-- □ Integrate parity generation and checking
+-- □ Handle bus arbitration with state management
+--
+-- STEP 5: ERROR HANDLING INTEGRATION
+-- □ Add error detection within state operations
+-- □ Implement error logging and reporting
+-- □ Create recovery mechanisms with data cleanup
+-- □ Add timeout handling with counter management
+--
+-- STEP 6: CONFIGURATION SPACE INTEGRATION
+-- □ Implement configuration register access
+-- □ Add Base Address Register (BAR) handling
+-- □ Integrate interrupt management
+-- □ Handle power management registers
+--
+-- STEP 7: OPTIMIZATION AND VERIFICATION
+-- □ Optimize critical timing paths
+-- □ Verify resource sharing efficiency
+-- □ Test integrated functionality
+-- □ Validate protocol compliance
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Standard logic types for control and data
+-- - Multi-valued logic system
+-- - Essential for FSMD implementation
+--
+-- IEEE.numeric_std.all:
+-- - Arithmetic operations for data processing
+-- - Counter and address calculations
+-- - Data type conversions
+--
+-- IEEE.std_logic_misc.all:
+-- - Additional logic functions
+-- - Parity calculation functions
+-- - Reduction operators for status checking
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- PERFORMANCE ENHANCEMENTS:
+-- - Pipeline integration between states
+-- - Speculative data operations
+-- - Burst optimization with integrated counters
+-- - Prefetch mechanisms with state prediction
+--
+-- CONFIGURABILITY:
+-- - Parameterizable data widths and buffer sizes
+-- - Selectable protocol features
+-- - Runtime configuration capabilities
+-- - Optional feature enable/disable
+--
+-- DEBUG AND MONITORING:
+-- - Integrated performance counters
+-- - Transaction history with state correlation
+-- - Real-time state and data monitoring
+-- - Built-in protocol analyzer functionality
+--
+-- POWER MANAGEMENT:
+-- - State-dependent clock gating
+-- - Data path power optimization
+-- - Idle state power reduction
+-- - Dynamic voltage and frequency scaling
+--
+-- ============================================================================
+-- PCI PROTOCOL INTEGRATION:
+-- ============================================================================
+-- ADDRESS PHASE OPERATIONS:
+-- 1. Capture/drive address on AD bus
+-- 2. Decode command from C/BE# signals
+-- 3. Calculate and check address parity
+-- 4. Update internal address registers
+-- 5. Determine transaction type and length
+--
+-- DATA PHASE OPERATIONS:
+-- 1. Transfer data on AD bus
+-- 2. Handle byte enables from C/BE# signals
+-- 3. Calculate and verify data parity
+-- 4. Update data buffers and counters
+-- 5. Control ready signals based on internal state
+--
+-- BUS ARBITRATION INTEGRATION:
+-- 1. Monitor local bus requests
+-- 2. Assert PCI REQ# when needed
+-- 3. Wait for GNT# and bus availability
+-- 4. Manage bus ownership during transactions
+-- 5. Release bus and return to monitoring
+--
+-- ============================================================================
+-- DATA PATH INTEGRATION:
+-- ============================================================================
+-- REGISTER MANAGEMENT:
+-- - Address registers for current transaction
+-- - Data buffers for read/write operations
+-- - Command registers for transaction control
+-- - Status registers for error and completion
+--
+-- FIFO INTEGRATION:
+-- - Read FIFO for PCI to local transfers
+-- - Write FIFO for local to PCI transfers
+-- - FIFO status monitoring and control
+-- - Flow control based on FIFO levels
+--
+-- PARITY HANDLING:
+-- - Address parity calculation and checking
+-- - Data parity generation and verification
+-- - Parity error detection and reporting
+-- - Error recovery and transaction retry
+--
+-- ============================================================================
+-- CONFIGURATION SPACE INTEGRATION:
+-- ============================================================================
+-- STANDARD CONFIGURATION REGISTERS:
+-- - Device ID and Vendor ID (read-only)
+-- - Command and Status registers
+-- - Revision ID and Class Code
+-- - Cache Line Size and Latency Timer
+--
+-- BASE ADDRESS REGISTERS (BARs):
+-- - Memory space BAR implementation
+-- - I/O space BAR support
+-- - Address decode logic integration
+-- - Size and type determination
+--
+-- INTERRUPT HANDLING:
+-- - Interrupt Line and Pin registers
+-- - Interrupt generation logic
+-- - Interrupt status and control
+-- - Message Signaled Interrupt (MSI) support
+--
+-- ============================================================================
+-- ERROR HANDLING INTEGRATION:
+-- ============================================================================
+-- ERROR DETECTION:
+-- - Parity error detection during data phases
+-- - Protocol violation monitoring
+-- - Timeout detection with integrated counters
+-- - Address decode error handling
+--
+-- ERROR REPORTING:
+-- - Status register updates
+-- - Error logging with state information
+-- - Interrupt generation for critical errors
+-- - System error reporting mechanisms
+--
+-- ERROR RECOVERY:
+-- - Transaction retry with state restoration
+-- - Register cleanup after errors
+-- - Bus release and re-arbitration
+-- - Graceful degradation modes
+--
+-- ============================================================================
+-- VERIFICATION STRATEGY:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test all state transitions with data operations
+-- □ Verify integrated control and data functionality
+-- □ Test PCI protocol compliance with data integrity
+-- □ Validate error handling with data consistency
+-- □ Check configuration space access with state management
+--
+-- TIMING VERIFICATION:
+-- □ Verify setup/hold times for integrated signals
+-- □ Check critical paths through FSMD logic
+-- □ Validate clock-to-output timing
+-- □ Test at various clock frequencies
+--
+-- DATA INTEGRITY VERIFICATION:
+-- □ Test data transfer accuracy
+-- □ Verify parity generation and checking
+-- □ Test FIFO operations under various conditions
+-- □ Validate address decode accuracy
+--
+-- STRESS TESTING:
+-- □ Maximum rate transactions with full data paths
+-- □ Random data patterns and transaction types
+-- □ Error injection with recovery testing
+-- □ Long-duration reliability testing
+--
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION:
+-- ============================================================================
+-- CRITICAL PATH OPTIMIZATION:
+-- - Identify longest combinational paths
+-- - Pipeline critical operations across states
+-- - Use registered outputs for timing closure
+-- - Optimize logic depth in data operations
+--
+-- RESOURCE SHARING:
+-- - Share arithmetic units between operations
+-- - Multiplex data paths efficiently
+-- - Reuse registers for different functions
+-- - Optimize memory usage for buffers
+--
+-- STATE MACHINE OPTIMIZATION:
+-- - Minimize state count while preserving functionality
+-- - Use efficient state encoding
+-- - Optimize state transition logic
+-- - Balance control complexity with performance
+--
+-- ============================================================================
+-- COMMON DESIGN PITFALLS:
+-- ============================================================================
+-- COMPLEXITY MANAGEMENT:
+-- - FSMD becoming too complex to understand
+-- - Insufficient documentation of integrated operations
+-- - Mixing abstraction levels inappropriately
+-- - Poor separation of concerns within FSMD
+--
+-- TIMING ISSUES:
+-- - Critical paths through integrated logic
+-- - Setup/hold violations in complex operations
+-- - Clock domain crossing in data paths
+-- - Insufficient timing margins
+--
+-- FUNCTIONAL ERRORS:
+-- - Data corruption during state transitions
+-- - Incomplete error handling integration
+-- - Race conditions between control and data
+-- - Incorrect resource sharing assumptions
+--
+-- ============================================================================
+-- IMPLEMENTATION CHECKLIST:
+-- ============================================================================
+-- DESIGN PHASE:
+-- □ FSMD architecture defined and documented
+-- □ State and data integration planned
+-- □ Interface protocols specified
+-- □ Resource sharing strategy defined
+--
+-- CODING PHASE:
+-- □ State enumeration with data context defined
+-- □ Main FSMD process implemented
+-- □ Data path operations integrated
+-- □ Error handling embedded in states
+-- □ Configuration space access implemented
+-- □ Debug and monitoring features added
+--
+-- VERIFICATION PHASE:
+-- □ Functional verification completed
+-- □ Timing verification passed
+-- □ Data integrity verified
+-- □ Protocol compliance confirmed
+-- □ Error handling tested
+-- □ Performance requirements met
+--
+-- SYNTHESIS PHASE:
+-- □ Design synthesizes without errors
+-- □ Timing constraints satisfied
+-- □ Resource utilization optimized
+-- □ Power consumption acceptable
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for standard logic types
+-- - IEEE.numeric_std.all for arithmetic operations
+-- - IEEE.std_logic_misc.all for additional functions
+--
+-- [Add your entity declaration here]
+-- - Define all input and output ports
+-- - Add generics for parameterization
+-- - Include comprehensive port descriptions
+--
+-- [Add your architecture implementation here]
+-- - Declare state enumeration and data types
+-- - Define internal registers and signals
+-- - Implement main FSMD process
+-- - Add configuration register handling
+-- - Include error detection and recovery
+-- - Add debug and monitoring features
+--
+-- ============================================================================

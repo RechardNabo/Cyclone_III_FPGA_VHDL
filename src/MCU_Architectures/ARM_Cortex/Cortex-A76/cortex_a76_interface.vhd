@@ -1,14 +1,497 @@
--- Cortex-A76 Interface VHDL File
--- This file contains the interface definition for ARM Cortex-A76 processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-A76 processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-A76 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-A76 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-A76 processors, providing FPGA-based communication, 
+--              control, and acceleration capabilities for next-generation 
+--              high-performance computing with advanced AI/ML acceleration.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-A76 architecture and ARMv8.2-A instruction set
+-- 2. Master AXI4 and ACE-Lite protocols for cache-coherent interfaces
+-- 3. Learn ARM Cortex-A76 DynamIQ cluster technology
+-- 4. Implement advanced interrupt handling and GIC-600 integration
+-- 5. Understand machine learning acceleration and dot product instructions
+-- 6. Master cache coherency and AMBA 5 CHI protocols
+-- 7. Learn advanced power management and heterogeneous computing
+-- 8. Implement high-bandwidth memory and AI acceleration interfaces
+--
+-- ARM Cortex-A76 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv8.2-A (64-bit ARM/AArch64, 32-bit AArch32)     │
+-- │ Pipeline        │ 13-stage out-of-order superscalar                  │
+-- │ Cores           │ 1-8 cores per DynamIQ cluster                      │
+-- │ Cache           │ 64KB I-cache, 64KB D-cache per core               │
+-- │ L2 Cache        │ 256KB-512KB per core (private)                    │
+-- │ L3 Cache        │ Up to 4MB shared DynamIQ Shared Unit (DSU)        │
+-- │ MMU             │ Stage 1 & 2 translation, 52-bit virtual address   │
+-- │ NEON            │ Advanced SIMD with dot product instructions        │
+-- │ SVE             │ Scalable Vector Extension (optional)               │
+-- │ Crypto          │ Hardware cryptographic acceleration               │
+-- │ Debug           │ CoreSight debug and trace v8.4                   │
+-- │ Interrupts      │ GIC-600 Generic Interrupt Controller             │
+-- │ DynamIQ         │ Heterogeneous multi-processing support           │
+-- │ Frequency       │ Up to 3.0 GHz (implementation dependent)         │
+-- │ Process         │ 7nm to 5nm                                       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-A76 DynamIQ System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-A76    │◀──▶│   DynamIQ       │◀──▶│   HBM2/DDR5     │
+-- │   DynamIQ       │    │   Shared Unit   │    │   Memory        │
+-- │   Cluster       │    │   (DSU)         │    │   Controller    │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                       │
+--          ▼                       ▼                       ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   GIC-600       │    │   L3 Cache      │    │   CoreSight     │
+-- │   (Interrupt    │    │   (DSU Cache)   │    │   Debug & Trace │
+-- │   Controller)   │    │   Up to 4MB     │    │   (ETM v4.4)    │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- ACE-Lite/AXI4 Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Channel         │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ Global          │ Input           │ ACLK, ARESETn                   │
+-- │ Write Address   │ Master→Slave    │ AWADDR, AWLEN, AWSIZE, AWBURST  │
+-- │ Write Data      │ Master→Slave    │ WDATA, WSTRB, WLAST, WVALID     │
+-- │ Write Response  │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ Read Address    │ Master→Slave    │ ARADDR, ARLEN, ARSIZE, ARBURST  │
+-- │ Read Data       │ Slave→Master    │ RDATA, RRESP, RLAST, RVALID     │
+-- │ Coherency       │ Bidirectional   │ ACADDR, ACSNOOP, CRRESP, CDDATA │
+-- │ DVM             │ Bidirectional   │ DVMADDR, DVMSNOOP, DVMRESP      │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-A76 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 2GB             │ Secure memory region            │
+-- │ 0x8000_0000     │ 2GB             │ Non-secure memory region        │
+-- │ 0x1_0000_0000   │ Variable        │ Extended memory (>4GB)          │
+-- │ 0x10_0000_0000  │ Variable        │ High memory (>64GB)             │
+-- │ 0xE000_0000     │ 256MB           │ Private peripheral region       │
+-- │ 0xF000_0000     │ 256MB           │ System peripheral region        │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Cache and Memory Hierarchy:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Memory Type     │ Size/Config     │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ L1 I-Cache      │ 64KB            │ Instruction cache with ECC      │
+-- │ L1 D-Cache      │ 64KB            │ Data cache with ECC             │
+-- │ L2 Cache        │ 256KB-512KB     │ Private L2 cache per core       │
+-- │ L3 Cache        │ Up to 4MB       │ DynamIQ Shared Unit (DSU) cache │
+-- │ System Cache    │ Optional        │ External system-level cache     │
+-- │ Main Memory     │ Up to 4TB       │ HBM2/DDR5 via memory controller │
+-- │ TLB             │ 2048 entries    │ Translation lookaside buffer    │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- DynamIQ Shared Unit (DSU):
+-- 1. **DSU Features**:
+--    - Shared L3 cache up to 4MB
+--    - Snoop Control Unit (SCU) for coherency
+--    - Power management for heterogeneous clusters
+--    - Performance monitoring and profiling
+--    - Cross-cluster communication
+--
+-- 2. **DynamIQ Benefits**:
+--    - Heterogeneous processing (big.LITTLE evolution)
+--    - Flexible cluster configurations
+--    - Advanced power management
+--    - Improved cache coherency
+--    - Better performance per watt
+--
+-- GIC-600 Interrupt Controller:
+-- 1. **Interrupt Types**:
+--    - SGI: Software Generated Interrupts (0-15)
+--    - PPI: Private Peripheral Interrupts (16-31)
+--    - SPI: Shared Peripheral Interrupts (32-1019)
+--    - ESPI: Extended SPI (1056-8191)
+--    - LPI: Locality-specific Peripheral Interrupts (8192+)
+--    - Priority levels: 0-255 (0 = highest priority)
+--
+-- 2. **GIC-600 Components**:
+--    - Distributor: Interrupt routing and priority
+--    - Redistributor: Per-core interrupt management
+--    - CPU Interface: System register interface
+--    - ITS: Interrupt Translation Service for MSI
+--    - Power management for interrupt domains
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ ACE-Lite Master │ Cache-coherent memory and peripheral access         │
+-- │ AXI4 Slave      │ FPGA register and accelerator interface             │
+-- │ CHI Interface   │ Coherent Hub Interface for advanced systems         │
+-- │ DSU Interface   │ DynamIQ Shared Unit integration                     │
+-- │ GIC Interface   │ Advanced interrupt controller integration           │
+-- │ Debug Interface │ CoreSight debug, trace, and profiling              │
+-- │ Cache Control   │ Advanced cache coherency and maintenance            │
+-- │ MMU Interface   │ Memory management and address translation           │
+-- │ NEON Interface  │ Advanced SIMD with dot product operations           │
+-- │ SVE Interface   │ Scalable Vector Extension (optional)                │
+-- │ Crypto Engine   │ Hardware cryptographic acceleration                 │
+-- │ Power Mgmt      │ Advanced power management and DVFS                  │
+-- │ AI Acceleration │ Machine learning and AI workload optimization       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - ACE-Lite/AXI4 Data Width: 128/256/512-bit (configurable)
+-- - ACE-Lite/AXI4 Address Width: 44/52-bit
+-- - Maximum Clock Frequency: 3.0 GHz (typical)
+-- - Interrupt Latency: 6-12 cycles (depending on configuration)
+-- - Cache Line Size: 64 bytes (16 words)
+-- - Memory Bandwidth: Up to 102 GB/s (quad 256-bit @ 2.5 GHz)
+-- - Virtual Address Space: 52-bit (4PB)
+-- - Physical Address Space: 52-bit (4PB)
+-- - AI Performance: Up to 4 TOPS (implementation dependent)
+--
+-- Implementation Approaches:
+-- 1. **High-Performance DynamIQ Interface**:
+--    - Full DynamIQ cluster with DSU
+--    - Maximum performance and efficiency
+--    - Complex but highest capability
+--
+-- 2. **AI/ML Optimized Configuration**:
+--    - NEON with dot product instructions
+--    - Optional SVE support
+--    - Optimized for AI workloads
+--
+-- 3. **Heterogeneous Computing**:
+--    - Mixed core types in cluster
+--    - Dynamic task migration
+--    - Power-efficient processing
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define DynamIQ Architecture
+-- - Select Cortex-A76 cluster configuration
+-- - Define DSU and L3 cache requirements
+-- - Specify ACE-Lite/AXI4 interface requirements
+-- - Choose AI/ML acceleration features
+--
+-- Step 2: Implement ACE-Lite Interface Logic
+-- - Create ACE-Lite master interface for CPU access
+-- - Add AXI4 slave interface for FPGA accelerators
+-- - Implement coherency protocol handling
+-- - Add DVM (Distributed Virtual Memory) support
+--
+-- Step 3: Add DynamIQ Shared Unit (DSU)
+-- - Implement DSU interface and control
+-- - Add shared L3 cache management
+-- - Create snoop control unit logic
+-- - Add cross-cluster communication
+--
+-- Step 4: Integrate GIC-600 Controller
+-- - Connect to GIC distributor and redistributor
+-- - Implement CPU interface via system registers
+-- - Add interrupt translation service (ITS)
+-- - Create power-aware interrupt management
+--
+-- Step 5: Add Advanced Memory Management
+-- - Implement stage 1 and stage 2 translation
+-- - Add 52-bit address translation support
+-- - Create memory protection and security
+-- - Add SMMU v3 integration for peripherals
+--
+-- Step 6: Integrate Debug and Trace
+-- - Implement CoreSight debug interface v8.4
+-- - Add ETM (Embedded Trace Macrocell) v4.4
+-- - Create cross-trigger interface (CTI)
+-- - Add performance monitoring unit (PMU) v3
+--
+-- Step 7: Add AI/ML Acceleration Support
+-- - Implement NEON with dot product instructions
+-- - Add optional SVE (Scalable Vector Extension)
+-- - Create AI workload optimization
+-- - Add machine learning acceleration interfaces
+--
+-- Step 8: Create Advanced Power Management
+-- - Add DynamIQ power management
+-- - Implement advanced DVFS and power gating
+-- - Create thermal management interfaces
+-- - Add heterogeneous computing support
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.ace_lite_pkg: ACE-Lite protocol definitions
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.gic600_pkg: GIC-600 interface definitions
+-- - work.cortex_a_pkg: Cortex-A specific constants
+-- - work.dynamiq_pkg: DynamIQ cluster definitions
+-- - work.dsu_pkg: DynamIQ Shared Unit functions
+-- - work.mmu_pkg: Memory management functions
+-- - work.sve_pkg: Scalable Vector Extension (optional)
+--
+-- Advanced Features:
+-- 1. **DynamIQ Technology**: Advanced heterogeneous multi-processing
+-- 2. **AI/ML Acceleration**: NEON dot product and optional SVE
+-- 3. **Cache Coherency**: Advanced MESI/MOESI with DSU
+-- 4. **Virtualization**: Hardware hypervisor and nested virtualization
+-- 5. **Security**: TrustZone and Pointer Authentication
+-- 6. **Power Management**: Advanced DVFS and cluster power gating
+-- 7. **Performance Monitoring**: Comprehensive PMU v3 counters
+-- 8. **Quality of Service**: Advanced cache and memory QoS
+--
+-- Applications:
+-- - High-performance mobile processors
+-- - AI and machine learning acceleration
+-- - Automotive ADAS and autonomous driving
+-- - Server and cloud computing
+-- - Edge computing and IoT gateways
+-- - Augmented and virtual reality
+-- - 5G infrastructure and networking
+-- - High-performance computing clusters
+--
+-- Performance Considerations:
+-- - DynamIQ cluster optimization
+-- - Cache hierarchy tuning for AI workloads
+-- - Memory bandwidth optimization for HBM2/DDR5
+-- - Interrupt latency minimization
+-- - Power consumption and thermal management
+-- - NEON/SVE utilization optimization
+-- - AI/ML workload acceleration
+-- - Heterogeneous computing efficiency
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: ACE-Lite and GIC-600 protocol verification
+-- 2. **DynamIQ Testing**: DSU and cluster coherency verification
+-- 3. **AI/ML Testing**: NEON dot product and SVE validation
+-- 4. **Performance Testing**: Bandwidth and latency measurement
+-- 5. **Power Testing**: Advanced DVFS and power gating validation
+-- 6. **Security Testing**: TrustZone and authentication verification
+-- 7. **Stress Testing**: Long-term reliability and thermal testing
+-- 8. **Compliance Testing**: ARMv8.2-A architecture compliance
+--
+-- Common Design Challenges:
+-- - DynamIQ cluster complexity and timing closure
+-- - Cache coherency with DSU implementation
+-- - AI/ML acceleration integration
+-- - Advanced power management complexity
+-- - Memory management unit complexity
+-- - Interrupt controller integration
+-- - Debug interface bandwidth
+-- - Thermal and power constraints
+--
+-- Verification Checklist:
+-- □ ACE-Lite master interface functional and compliant
+-- □ AXI4 slave interface working correctly
+-- □ DynamIQ Shared Unit (DSU) operational
+-- □ Cache coherency working across all cores
+-- □ GIC-600 interrupt controller functional
+-- □ Memory management unit operational
+-- □ Debug interface (CoreSight v8.4) functional
+-- □ AI/ML acceleration (NEON/SVE) working
+-- □ Power management working correctly
+-- □ Security features validated
+-- □ Performance targets achieved
+-- □ Thermal constraints met
+-- □ Long-term reliability demonstrated
+-- □ AI/ML workload optimization verified
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.ace_lite_pkg.all;
+-- use work.axi4_pkg.all;
+-- use work.gic600_pkg.all;
+-- use work.cortex_a_pkg.all;
+-- use work.dynamiq_pkg.all;
+-- use work.dsu_pkg.all;
+-- use work.mmu_pkg.all;
+-- use work.sve_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_a76_interface is
+--     generic (
+--         NUM_CORES       : integer := 4;        -- 1-8 cores
+--         ENABLE_NEON     : boolean := true;
+--         ENABLE_SVE      : boolean := false;    -- Optional SVE
+--         ENABLE_CRYPTO   : boolean := true;
+--         DSU_L3_SIZE     : integer := 2097152;  -- 2MB DSU cache
+--         ACE_DATA_WIDTH  : integer := 256;      -- 256-bit
+--         ACE_ADDR_WIDTH  : integer := 52;       -- 52-bit
+--         NUM_INTERRUPTS  : integer := 512;
+--         ENABLE_VIRT     : boolean := true;
+--         ENABLE_SECURITY : boolean := true;
+--         ENABLE_AI_ACCEL : boolean := true
+--     );
+--     port (
+--         -- System signals
+--         aclk            : in  std_logic;
+--         aresetn         : in  std_logic;
+--         
+--         -- ACE-Lite Master interface (CPU cluster to system)
+--         -- Write Address Channel
+--         m_ace_awaddr    : out std_logic_vector(ACE_ADDR_WIDTH-1 downto 0);
+--         m_ace_awlen     : out std_logic_vector(7 downto 0);
+--         m_ace_awsize    : out std_logic_vector(2 downto 0);
+--         m_ace_awburst   : out std_logic_vector(1 downto 0);
+--         m_ace_awlock    : out std_logic;
+--         m_ace_awcache   : out std_logic_vector(3 downto 0);
+--         m_ace_awprot    : out std_logic_vector(2 downto 0);
+--         m_ace_awqos     : out std_logic_vector(3 downto 0);
+--         m_ace_awregion  : out std_logic_vector(3 downto 0);
+--         m_ace_awsnoop   : out std_logic_vector(2 downto 0);
+--         m_ace_awdomain  : out std_logic_vector(1 downto 0);
+--         m_ace_awbar     : out std_logic_vector(1 downto 0);
+--         m_ace_awvalid   : out std_logic;
+--         m_ace_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_ace_wdata     : out std_logic_vector(ACE_DATA_WIDTH-1 downto 0);
+--         m_ace_wstrb     : out std_logic_vector(ACE_DATA_WIDTH/8-1 downto 0);
+--         m_ace_wlast     : out std_logic;
+--         m_ace_wvalid    : out std_logic;
+--         m_ace_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_ace_bresp     : in  std_logic_vector(1 downto 0);
+--         m_ace_bvalid    : in  std_logic;
+--         m_ace_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_ace_araddr    : out std_logic_vector(ACE_ADDR_WIDTH-1 downto 0);
+--         m_ace_arlen     : out std_logic_vector(7 downto 0);
+--         m_ace_arsize    : out std_logic_vector(2 downto 0);
+--         m_ace_arburst   : out std_logic_vector(1 downto 0);
+--         m_ace_arlock    : out std_logic;
+--         m_ace_arcache   : out std_logic_vector(3 downto 0);
+--         m_ace_arprot    : out std_logic_vector(2 downto 0);
+--         m_ace_arqos     : out std_logic_vector(3 downto 0);
+--         m_ace_arregion  : out std_logic_vector(3 downto 0);
+--         m_ace_arsnoop   : out std_logic_vector(3 downto 0);
+--         m_ace_ardomain  : out std_logic_vector(1 downto 0);
+--         m_ace_arbar     : out std_logic_vector(1 downto 0);
+--         m_ace_arvalid   : out std_logic;
+--         m_ace_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_ace_rdata     : in  std_logic_vector(ACE_DATA_WIDTH-1 downto 0);
+--         m_ace_rresp     : in  std_logic_vector(3 downto 0);
+--         m_ace_rlast     : in  std_logic;
+--         m_ace_rvalid    : in  std_logic;
+--         m_ace_rready    : out std_logic;
+--         
+--         -- DynamIQ Shared Unit (DSU) interface
+--         dsu_l3_hit      : out std_logic;
+--         dsu_l3_miss     : out std_logic;
+--         dsu_snoop_req   : in  std_logic;
+--         dsu_snoop_ack   : out std_logic;
+--         dsu_power_state : out std_logic_vector(3 downto 0);
+--         
+--         -- GIC-600 Interrupt interface
+--         gic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_fiq         : in  std_logic;
+--         gic_virq        : in  std_logic;
+--         gic_vfiq        : in  std_logic;
+--         gic_lpi         : in  std_logic_vector(31 downto 0);
+--         gic_espi        : in  std_logic_vector(15 downto 0);
+--         
+--         -- Debug interface (CoreSight v8.4)
+--         debug_req       : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         debug_ack       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         etm_trace       : out std_logic_vector(63 downto 0);
+--         etm_traceclk    : out std_logic;
+--         etm_atready     : in  std_logic;
+--         etm_atvalid     : out std_logic;
+--         
+--         -- Performance monitoring (PMU v3)
+--         pmu_events      : out std_logic_vector(63 downto 0);
+--         pmu_overflow    : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pmu_cycle_cnt   : out std_logic_vector(63 downto 0);
+--         pmu_inst_cnt    : out std_logic_vector(63 downto 0);
+--         
+--         -- Advanced power management
+--         cluster_pwrdn   : in  std_logic;
+--         core_pwrdn      : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         dvfs_req        : in  std_logic_vector(15 downto 0);
+--         dvfs_ack        : out std_logic;
+--         thermal_alert   : out std_logic;
+--         
+--         -- Security and virtualization
+--         secure_world    : out std_logic;
+--         hyp_mode        : out std_logic;
+--         virt_timer      : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pointer_auth    : out std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Status and control
+--         cluster_halted  : out std_logic;
+--         core_halted     : out std_logic_vector(NUM_CORES-1 downto 0);
+--         lockup          : out std_logic_vector(NUM_CORES-1 downto 0);
+--         reset_req       : out std_logic;
+--         
+--         -- Cache and memory management
+--         cache_maint     : in  std_logic_vector(15 downto 0);
+--         tlb_inv         : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         dvm_req         : in  std_logic_vector(7 downto 0);
+--         dvm_ack         : out std_logic;
+--         
+--         -- NEON/SIMD interface with dot product
+--         neon_data_in    : in  std_logic_vector(127 downto 0);
+--         neon_data_out   : out std_logic_vector(127 downto 0);
+--         neon_valid      : in  std_logic;
+--         neon_ready      : out std_logic;
+--         neon_dotprod    : in  std_logic;
+--         
+--         -- SVE interface (optional)
+--         sve_data_in     : in  std_logic_vector(511 downto 0);
+--         sve_data_out    : out std_logic_vector(511 downto 0);
+--         sve_valid       : in  std_logic;
+--         sve_ready       : out std_logic;
+--         sve_vl          : out std_logic_vector(7 downto 0);
+--         
+--         -- AI/ML acceleration interface
+--         ai_cmd          : in  std_logic_vector(31 downto 0);
+--         ai_data_in      : in  std_logic_vector(255 downto 0);
+--         ai_data_out     : out std_logic_vector(255 downto 0);
+--         ai_valid        : in  std_logic;
+--         ai_ready        : out std_logic;
+--         ai_inference    : out std_logic;
+--         
+--         -- Cryptographic engine
+--         crypto_cmd      : in  std_logic_vector(31 downto 0);
+--         crypto_data_in  : in  std_logic_vector(127 downto 0);
+--         crypto_data_out : out std_logic_vector(127 downto 0);
+--         crypto_valid    : in  std_logic;
+--         crypto_ready    : out std_logic
+--     );
+-- end entity cortex_a76_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_a76_interface is
+--     -- Component declarations for Cortex-A76 DynamIQ cluster
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-A76 DynamIQ cluster
+--     -- Add ACE-Lite interface logic
+--     -- Connect DynamIQ Shared Unit (DSU)
+--     -- Connect GIC-600 interrupt controller
+--     -- Add cache coherency logic
+--     -- Implement MMU and virtualization
+--     -- Connect debug interface
+--     -- Add AI/ML acceleration
+--     -- Add power management
+--     -- Connect NEON and optional SVE
+--     -- Connect crypto engines
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-A76 interface design focuses on DynamIQ technology, AI/ML
+-- acceleration, and next-generation performance. Always consult the ARM 
+-- Cortex-A76 Technical Reference Manual and ARMv8.2-A Architecture Manual.
+-- ============================================================================

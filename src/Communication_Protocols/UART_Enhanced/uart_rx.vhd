@@ -1,0 +1,663 @@
+-- ============================================================================
+-- UART Receiver Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a UART (Universal Asynchronous Receiver/Transmitter)
+-- receiver module in VHDL. The UART receiver handles asynchronous serial
+-- communication, including start bit detection, data sampling, parity checking,
+-- stop bit validation, and error detection. It supports configurable baud rates,
+-- data widths, parity modes, and stop bit configurations.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand UART protocol and asynchronous communication
+-- 2. Learn serial data sampling and bit timing
+-- 3. Master state machine design for serial protocols
+-- 4. Practice error detection and handling techniques
+-- 5. Understand clock domain considerations
+-- 6. Learn FIFO buffer integration for data flow control
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - std_logic_unsigned for unsigned arithmetic (if needed)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- Define the UART receiver entity with appropriate ports
+--
+-- Input Ports:
+-- - clk: System clock input
+-- - reset: Asynchronous reset (active high/low)
+-- - enable: Module enable signal
+-- - rx_serial: Serial data input line
+-- - baud_tick: Baud rate clock enable signal
+-- - rx_ready: Ready to receive next data signal
+--
+-- Output Ports:
+-- - rx_data: Received parallel data output
+-- - rx_valid: Data valid output signal
+-- - rx_error: Error flag (parity, framing, overrun)
+-- - rx_busy: Receiver busy status
+-- - frame_error: Framing error flag
+-- - parity_error: Parity error flag
+-- - overrun_error: Data overrun error flag
+--
+-- Generic Parameters:
+-- - DATA_WIDTH: Width of data bits (5-9 bits)
+-- - PARITY_MODE: Parity mode (none, even, odd, mark, space)
+-- - STOP_BITS: Number of stop bits (1, 1.5, 2)
+-- - BAUD_RATE: Target baud rate
+-- - CLK_FREQ: System clock frequency
+-- - BUFFER_DEPTH: Internal FIFO buffer depth
+--
+-- ============================================================================
+-- STEP 3: UART RECEIVER PRINCIPLES
+-- ============================================================================
+--
+-- UART Frame Format:
+-- [START][DATA_BITS][PARITY][STOP_BITS]
+-- - Start bit: Always '0', signals beginning of frame
+-- - Data bits: 5-9 bits of actual data (LSB first)
+-- - Parity bit: Optional error detection bit
+-- - Stop bits: 1, 1.5, or 2 bits of '1' to end frame
+--
+-- Sampling Strategy:
+-- - Oversample the serial line (typically 16x baud rate)
+-- - Sample data bits at the center of bit periods
+-- - Use majority voting for noise immunity
+-- - Detect start bit by falling edge
+--
+-- State Machine States:
+-- 1. IDLE: Waiting for start bit
+-- 2. START: Validating start bit
+-- 3. DATA: Receiving data bits
+-- 4. PARITY: Receiving parity bit (if enabled)
+-- 5. STOP: Receiving stop bits
+-- 6. ERROR: Handling error conditions
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Basic UART Receiver (Recommended for beginners)
+-- - Simple state machine with fixed parameters
+-- - 8-bit data, no parity, 1 stop bit
+-- - Basic error detection
+-- - Direct output without buffering
+--
+-- OPTION 2: Configurable UART Receiver (Intermediate)
+-- - Generic parameters for flexibility
+-- - Multiple parity modes
+-- - Configurable data width and stop bits
+-- - Enhanced error detection and reporting
+--
+-- OPTION 3: Advanced UART Receiver (Advanced)
+-- - Automatic baud rate detection
+-- - FIFO buffering with flow control
+-- - Break detection and handling
+-- - Noise filtering and error recovery
+--
+-- OPTION 4: High-Performance UART Receiver (Expert)
+-- - Multi-channel support
+-- - DMA interface integration
+-- - Hardware flow control (RTS/CTS)
+-- - Advanced timing recovery
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Timing and Sampling:
+-- - Generate baud rate clock from system clock
+-- - Use oversampling for accurate bit detection
+-- - Implement proper setup/hold timing
+-- - Handle clock domain crossing if needed
+--
+-- Error Detection:
+-- - Framing errors (invalid stop bits)
+-- - Parity errors (if parity enabled)
+-- - Overrun errors (data not read in time)
+-- - Break condition detection
+--
+-- State Machine Design:
+-- - Clear state transitions
+-- - Proper reset handling
+-- - Timeout mechanisms
+-- - Error recovery procedures
+--
+-- Data Flow Control:
+-- - Handshaking with ready/valid signals
+-- - FIFO buffering for continuous operation
+-- - Backpressure handling
+-- - Overflow prevention
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Noise Filtering:
+-- - Digital filtering of input signal
+-- - Majority voting for bit decisions
+-- - Glitch suppression
+-- - Signal conditioning
+--
+-- Auto-Baud Detection:
+-- - Measure timing of known patterns
+-- - Automatic rate adjustment
+-- - Tolerance handling
+-- - Rate change detection
+--
+-- Break Detection:
+-- - Extended low period detection
+-- - Break interrupt generation
+-- - Recovery after break
+-- - Break vs. framing error distinction
+--
+-- Flow Control:
+-- - Hardware handshaking support
+-- - Software flow control (XON/XOFF)
+-- - Buffer management
+-- - Congestion control
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Serial Communication: RS-232, RS-485 interfaces
+-- 2. Debug Interfaces: Console, logging, debugging
+-- 3. Sensor Interfaces: GPS, accelerometers, temperature sensors
+-- 4. Control Systems: Motor controllers, PLCs
+-- 5. IoT Devices: WiFi modules, Bluetooth interfaces
+-- 6. Embedded Systems: Microcontroller communication
+-- 7. Test Equipment: Automated test systems
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual component validation
+-- 2. Protocol Testing: UART standard compliance
+-- 3. Timing Testing: Baud rate accuracy and tolerance
+-- 4. Error Testing: Error detection and recovery
+-- 5. Stress Testing: High-speed and continuous operation
+-- 6. Integration Testing: System-level validation
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic 8N1 configuration (8 data, no parity, 1 stop)
+-- 2. Implement simple state machine for frame reception
+-- 3. Add baud rate generation and sampling logic
+-- 4. Implement basic error detection
+-- 5. Add configurable parameters through generics
+-- 6. Implement FIFO buffering for data flow
+-- 7. Add advanced features like auto-baud and flow control
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Add support for 9-bit data mode
+-- 2. Implement automatic baud rate detection
+-- 3. Add hardware flow control (RTS/CTS)
+-- 4. Implement break detection and handling
+-- 5. Add multi-drop addressing support
+-- 6. Implement error statistics collection
+-- 7. Add DMA interface for high-speed operation
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incorrect sampling timing
+-- 2. Missing edge cases in state machine
+-- 3. Inadequate error handling
+-- 4. Poor clock domain crossing
+-- 5. Insufficient input filtering
+-- 6. Missing timeout mechanisms
+-- 7. Inadequate testing coverage
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Start bit detection works correctly
+-- □ Data bits are sampled accurately
+-- □ Parity checking functions properly
+-- □ Stop bit validation is correct
+-- □ Error conditions are detected
+-- □ State machine handles all transitions
+-- □ Timing requirements are met
+-- □ Reset behavior is correct
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This UART receiver demonstrates several key concepts:
+-- - Asynchronous serial communication protocols
+-- - State machine design for sequential operations
+-- - Clock domain considerations and timing
+-- - Error detection and handling mechanisms
+-- - Data flow control and buffering strategies
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider signal integrity for high-speed operation
+-- - Implement proper ESD protection on I/O pins
+-- - Use appropriate pull-up resistors on serial lines
+-- - Consider differential signaling for long distances
+-- - Implement proper grounding and power distribution
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Clock and data recovery (CDR) techniques
+-- - Adaptive equalization for channel compensation
+-- - Forward error correction (FEC) integration
+-- - Multi-level signaling schemes
+-- - Power management and low-power modes
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Model realistic timing variations
+-- - Include noise and jitter in simulations
+-- - Test boundary conditions and error cases
+-- - Verify timing margins and setup/hold requirements
+-- - Use assertion-based verification for protocol compliance
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+--
+-- entity uart_rx is
+--     generic (
+--         DATA_WIDTH    : integer := 8;        -- Data bits (5-9)
+--         PARITY_MODE   : string  := "NONE";   -- "NONE", "EVEN", "ODD", "MARK", "SPACE"
+--         STOP_BITS     : integer := 1;        -- Stop bits (1 or 2)
+--         BAUD_RATE     : integer := 115200;   -- Target baud rate
+--         CLK_FREQ      : integer := 50000000; -- System clock frequency
+--         BUFFER_DEPTH  : integer := 16;       -- FIFO buffer depth
+--         OVERSAMPLE    : integer := 16;       -- Oversampling factor
+--         SYNC_STAGES   : integer := 2         -- Input synchronizer stages
+--     );
+--     port (
+--         -- Clock and reset
+--         clk           : in  std_logic;
+--         reset         : in  std_logic;
+--         enable        : in  std_logic;
+--         
+--         -- Serial interface
+--         rx_serial     : in  std_logic;
+--         
+--         -- Parallel data interface
+--         rx_data       : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         rx_valid      : out std_logic;
+--         rx_ready      : in  std_logic;
+--         
+--         -- Status and control
+--         rx_busy       : out std_logic;
+--         rx_error      : out std_logic;
+--         frame_error   : out std_logic;
+--         parity_error  : out std_logic;
+--         overrun_error : out std_logic;
+--         break_detect  : out std_logic;
+--         
+--         -- Configuration (optional)
+--         baud_tick     : in  std_logic := '0';
+--         clear_errors  : in  std_logic := '0'
+--     );
+-- end entity uart_rx;
+--
+-- architecture behavioral of uart_rx is
+--     -- Constants
+--     constant BAUD_DIV     : integer := CLK_FREQ / (BAUD_RATE * OVERSAMPLE);
+--     constant SAMPLE_POINT : integer := OVERSAMPLE / 2;
+--     constant PARITY_EN    : boolean := (PARITY_MODE /= "NONE");
+--     constant TOTAL_BITS   : integer := 1 + DATA_WIDTH + 
+--                                       (if PARITY_EN then 1 else 0) + STOP_BITS;
+--     
+--     -- State machine type
+--     type rx_state_type is (IDLE, START, DATA, PARITY, STOP, ERROR);
+--     signal rx_state       : rx_state_type := IDLE;
+--     signal next_state     : rx_state_type;
+--     
+--     -- Timing and sampling
+--     signal baud_counter   : integer range 0 to BAUD_DIV-1 := 0;
+--     signal sample_counter : integer range 0 to OVERSAMPLE-1 := 0;
+--     signal bit_counter    : integer range 0 to DATA_WIDTH-1 := 0;
+--     signal sample_tick    : std_logic := '0';
+--     signal bit_tick       : std_logic := '0';
+--     
+--     -- Input synchronization and filtering
+--     signal rx_sync        : std_logic_vector(SYNC_STAGES-1 downto 0) := (others => '1');
+--     signal rx_filtered    : std_logic := '1';
+--     signal rx_prev        : std_logic := '1';
+--     signal start_detected : std_logic := '0';
+--     
+--     -- Data reception
+--     signal shift_reg      : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal parity_bit     : std_logic := '0';
+--     signal parity_calc    : std_logic := '0';
+--     signal stop_bits_reg  : std_logic_vector(STOP_BITS-1 downto 0) := (others => '0');
+--     
+--     -- Error detection
+--     signal frame_err      : std_logic := '0';
+--     signal parity_err     : std_logic := '0';
+--     signal overrun_err    : std_logic := '0';
+--     signal break_det      : std_logic := '0';
+--     signal error_flags    : std_logic := '0';
+--     
+--     -- FIFO buffer signals
+--     signal fifo_data_in   : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal fifo_write_en  : std_logic := '0';
+--     signal fifo_data_out  : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal fifo_read_en   : std_logic := '0';
+--     signal fifo_empty     : std_logic := '1';
+--     signal fifo_full      : std_logic := '0';
+--     signal fifo_count     : integer range 0 to BUFFER_DEPTH := 0;
+--     
+--     -- Control signals
+--     signal rx_complete    : std_logic := '0';
+--     signal sampling_en    : std_logic := '0';
+--     signal reset_counters : std_logic := '0';
+--     
+--     -- FIFO buffer component (if using separate component)
+--     component fifo_buffer is
+--         generic (
+--             DATA_WIDTH : integer := 8;
+--             DEPTH      : integer := 16
+--         );
+--         port (
+--             clk        : in  std_logic;
+--             reset      : in  std_logic;
+--             data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             write_en   : in  std_logic;
+--             data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             read_en    : in  std_logic;
+--             empty      : out std_logic;
+--             full       : out std_logic;
+--             count      : out integer range 0 to DEPTH
+--         );
+--     end component;
+--     
+-- begin
+--     -- Input synchronization and filtering
+--     sync_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             rx_sync <= (others => '1');
+--             rx_filtered <= '1';
+--             rx_prev <= '1';
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 -- Synchronizer chain
+--                 rx_sync <= rx_sync(SYNC_STAGES-2 downto 0) & rx_serial;
+--                 
+--                 -- Simple majority filter (can be enhanced)
+--                 rx_filtered <= rx_sync(SYNC_STAGES-1);
+--                 rx_prev <= rx_filtered;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Start bit detection
+--     start_detected <= '1' when (rx_prev = '1' and rx_filtered = '0' and rx_state = IDLE) else '0';
+--     
+--     -- Baud rate generation
+--     baud_gen_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             baud_counter <= 0;
+--             sample_counter <= 0;
+--             sample_tick <= '0';
+--             bit_tick <= '0';
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 sample_tick <= '0';
+--                 bit_tick <= '0';
+--                 
+--                 if reset_counters = '1' then
+--                     baud_counter <= 0;
+--                     sample_counter <= 0;
+--                 elsif sampling_en = '1' then
+--                     if baud_counter = BAUD_DIV-1 then
+--                         baud_counter <= 0;
+--                         sample_tick <= '1';
+--                         
+--                         if sample_counter = OVERSAMPLE-1 then
+--                             sample_counter <= 0;
+--                             bit_tick <= '1';
+--                         else
+--                             sample_counter <= sample_counter + 1;
+--                         end if;
+--                     else
+--                         baud_counter <= baud_counter + 1;
+--                     end if;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Main state machine
+--     state_machine_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             rx_state <= IDLE;
+--             bit_counter <= 0;
+--             shift_reg <= (others => '0');
+--             parity_bit <= '0';
+--             stop_bits_reg <= (others => '0');
+--             rx_complete <= '0';
+--             sampling_en <= '0';
+--             reset_counters <= '1';
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 reset_counters <= '0';
+--                 rx_complete <= '0';
+--                 
+--                 case rx_state is
+--                     when IDLE =>
+--                         sampling_en <= '0';
+--                         bit_counter <= 0;
+--                         
+--                         if start_detected = '1' then
+--                             rx_state <= START;
+--                             sampling_en <= '1';
+--                             reset_counters <= '1';
+--                         end if;
+--                     
+--                     when START =>
+--                         if sample_tick = '1' and sample_counter = SAMPLE_POINT then
+--                             if rx_filtered = '0' then
+--                                 -- Valid start bit
+--                                 if bit_tick = '1' then
+--                                     rx_state <= DATA;
+--                                     bit_counter <= 0;
+--                                 end if;
+--                             else
+--                                 -- False start bit
+--                                 rx_state <= IDLE;
+--                                 sampling_en <= '0';
+--                             end if;
+--                         end if;
+--                     
+--                     when DATA =>
+--                         if sample_tick = '1' and sample_counter = SAMPLE_POINT then
+--                             -- Sample data bit
+--                             shift_reg <= rx_filtered & shift_reg(DATA_WIDTH-1 downto 1);
+--                             
+--                             if bit_tick = '1' then
+--                                 if bit_counter = DATA_WIDTH-1 then
+--                                     -- All data bits received
+--                                     if PARITY_EN then
+--                                         rx_state <= PARITY;
+--                                     else
+--                                         rx_state <= STOP;
+--                                     end if;
+--                                     bit_counter <= 0;
+--                                 else
+--                                     bit_counter <= bit_counter + 1;
+--                                 end if;
+--                             end if;
+--                         end if;
+--                     
+--                     when PARITY =>
+--                         if sample_tick = '1' and sample_counter = SAMPLE_POINT then
+--                             parity_bit <= rx_filtered;
+--                             
+--                             if bit_tick = '1' then
+--                                 rx_state <= STOP;
+--                                 bit_counter <= 0;
+--                             end if;
+--                         end if;
+--                     
+--                     when STOP =>
+--                         if sample_tick = '1' and sample_counter = SAMPLE_POINT then
+--                             stop_bits_reg <= rx_filtered & stop_bits_reg(STOP_BITS-1 downto 1);
+--                             
+--                             if bit_tick = '1' then
+--                                 if bit_counter = STOP_BITS-1 then
+--                                     -- Frame complete
+--                                     rx_complete <= '1';
+--                                     rx_state <= IDLE;
+--                                     sampling_en <= '0';
+--                                 else
+--                                     bit_counter <= bit_counter + 1;
+--                                 end if;
+--                             end if;
+--                         end if;
+--                     
+--                     when ERROR =>
+--                         -- Error recovery
+--                         rx_state <= IDLE;
+--                         sampling_en <= '0';
+--                     
+--                     when others =>
+--                         rx_state <= IDLE;
+--                         sampling_en <= '0';
+--                 end case;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Parity calculation
+--     parity_calc_proc: process(shift_reg)
+--         variable parity_temp : std_logic;
+--     begin
+--         parity_temp := '0';
+--         for i in 0 to DATA_WIDTH-1 loop
+--             parity_temp := parity_temp xor shift_reg(i);
+--         end loop;
+--         
+--         case PARITY_MODE is
+--             when "EVEN" =>
+--                 parity_calc <= parity_temp;
+--             when "ODD" =>
+--                 parity_calc <= not parity_temp;
+--             when "MARK" =>
+--                 parity_calc <= '1';
+--             when "SPACE" =>
+--                 parity_calc <= '0';
+--             when others =>
+--                 parity_calc <= '0';
+--         end case;
+--     end process;
+--     
+--     -- Error detection
+--     error_detect_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             frame_err <= '0';
+--             parity_err <= '0';
+--             overrun_err <= '0';
+--             break_det <= '0';
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 if clear_errors = '1' then
+--                     frame_err <= '0';
+--                     parity_err <= '0';
+--                     overrun_err <= '0';
+--                     break_det <= '0';
+--                 elsif rx_complete = '1' then
+--                     -- Check for framing error
+--                     frame_err <= '0';
+--                     for i in 0 to STOP_BITS-1 loop
+--                         if stop_bits_reg(i) = '0' then
+--                             frame_err <= '1';
+--                         end if;
+--                     end loop;
+--                     
+--                     -- Check for parity error
+--                     if PARITY_EN then
+--                         parity_err <= '1' when (parity_bit /= parity_calc) else '0';
+--                     end if;
+--                     
+--                     -- Check for overrun error
+--                     if fifo_full = '1' then
+--                         overrun_err <= '1';
+--                     end if;
+--                 end if;
+--                 
+--                 -- Break detection (extended low period)
+--                 -- Implementation depends on specific requirements
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- FIFO buffer instantiation
+--     fifo_inst: fifo_buffer
+--         generic map (
+--             DATA_WIDTH => DATA_WIDTH,
+--             DEPTH      => BUFFER_DEPTH
+--         )
+--         port map (
+--             clk        => clk,
+--             reset      => reset,
+--             data_in    => shift_reg,
+--             write_en   => fifo_write_en,
+--             data_out   => fifo_data_out,
+--             read_en    => fifo_read_en,
+--             empty      => fifo_empty,
+--             full       => fifo_full,
+--             count      => fifo_count
+--         );
+--     
+--     -- FIFO control
+--     fifo_write_en <= rx_complete and not fifo_full and not (frame_err or parity_err);
+--     fifo_read_en <= rx_ready and not fifo_empty;
+--     
+--     -- Output assignments
+--     rx_data <= fifo_data_out;
+--     rx_valid <= not fifo_empty;
+--     rx_busy <= '1' when (rx_state /= IDLE) else '0';
+--     
+--     error_flags <= frame_err or parity_err or overrun_err;
+--     rx_error <= error_flags;
+--     frame_error <= frame_err;
+--     parity_error <= parity_err;
+--     overrun_error <= overrun_err;
+--     break_detect <= break_det;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This UART receiver provides a solid foundation for asynchronous
+-- serial communication. Ensure proper timing analysis, thorough testing of
+-- error conditions, and consideration of real-world signal integrity issues.
+-- The design can be extended for specific application requirements.
+-- ============================================================================

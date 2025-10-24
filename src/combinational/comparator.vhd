@@ -1,0 +1,678 @@
+-- ============================================================================
+-- Comparator Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a digital comparator, a fundamental combinational circuit
+-- that compares two binary numbers and generates outputs indicating their
+-- relative magnitudes. Comparators are essential building blocks in processors,
+-- control units, sorting algorithms, and decision-making circuits. They form
+-- the basis for conditional operations and branching logic in digital systems.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand binary number comparison principles
+-- 2. Learn magnitude comparison techniques (equal, greater, less)
+-- 3. Practice multi-bit comparison logic design
+-- 4. Explore cascading and expansion methods
+-- 5. Understand signed vs. unsigned comparison differences
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations (recommended)
+-- - std_logic_arith and std_logic_unsigned (alternative, not recommended)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (recommended approach)
+-- TODO: Consider use IEEE.std_logic_arith.all; (alternative approach)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the comparator
+--
+-- Entity Requirements:
+-- - Name: comparator (maintain current naming convention)
+-- - Inputs: Two data inputs for comparison, mode control
+-- - Outputs: Comparison result flags (equal, greater, less)
+-- - Consider enable and signed/unsigned mode controls
+--
+-- Port Specifications:
+-- - A : in std_logic_vector(7 downto 0) (First input - 8-bit)
+-- - B : in std_logic_vector(7 downto 0) (Second input - 8-bit)
+-- - Equal : out std_logic (A = B flag)
+-- - Greater : out std_logic (A > B flag)
+-- - Less : out std_logic (A < B flag)
+-- - Signed_Mode : in std_logic (Comparison mode: '0'=unsigned, '1'=signed)
+-- - Enable : in std_logic (Comparator enable signal - optional)
+--
+-- TODO: Declare entity with appropriate port names
+-- TODO: Add detailed port comments
+-- TODO: Consider signal naming conventions
+-- TODO: Plan for different bit widths (16-bit, 32-bit versions)
+--
+-- ============================================================================
+-- STEP 3: COMPARISON OPERATION DEFINITIONS
+-- ============================================================================
+--
+-- UNSIGNED COMPARISON:
+-- - Treats inputs as positive binary numbers
+-- - Direct binary magnitude comparison
+-- - Range: 0 to 2^n - 1 for n-bit numbers
+-- - MSB has same weight as other magnitude bits
+--
+-- SIGNED COMPARISON (Two's Complement):
+-- - Treats inputs as signed binary numbers
+-- - MSB represents sign bit (0=positive, 1=negative)
+-- - Range: -2^(n-1) to 2^(n-1) - 1 for n-bit numbers
+-- - Requires special handling of sign bit
+--
+-- COMPARISON OUTPUTS:
+-- Equal (A = B): All bits of A match all bits of B
+-- Greater (A > B): A is numerically larger than B
+-- Less (A < B): A is numerically smaller than B
+--
+-- MUTUAL EXCLUSIVITY:
+-- - Only one output should be active at any time
+-- - Equal = '1' implies Greater = '0' and Less = '0'
+-- - Greater = '1' implies Equal = '0' and Less = '0'
+-- - Less = '1' implies Equal = '0' and Greater = '0'
+--
+-- TODO: Define comparison operation constants
+-- TODO: Document signed vs. unsigned behavior differences
+-- TODO: Plan for comparison result encoding
+-- TODO: Consider three-state output encoding (>, =, <)
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BEHAVIORAL ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use high-level VHDL constructs with conditional statements
+--
+-- Implementation Approach:
+-- - Use process with if-then-else statements
+-- - Implement direct comparison using VHDL operators
+-- - Handle signed and unsigned modes separately
+-- - Simple and readable implementation
+--
+-- Example Structure:
+-- process(A, B, Signed_Mode, Enable)
+-- begin
+--     if Enable = '1' then
+--         if Signed_Mode = '0' then -- Unsigned comparison
+--             if unsigned(A) = unsigned(B) then
+--                 Equal <= '1'; Greater <= '0'; Less <= '0';
+--             elsif unsigned(A) > unsigned(B) then
+--                 Equal <= '0'; Greater <= '1'; Less <= '0';
+--             else
+--                 Equal <= '0'; Greater <= '0'; Less <= '1';
+--             end if;
+--         else -- Signed comparison
+--             if signed(A) = signed(B) then
+--                 Equal <= '1'; Greater <= '0'; Less <= '0';
+--             elsif signed(A) > signed(B) then
+--                 Equal <= '0'; Greater <= '1'; Less <= '0';
+--             else
+--                 Equal <= '0'; Greater <= '0'; Less <= '1';
+--             end if;
+--         end if;
+--     else
+--         Equal <= '0'; Greater <= '0'; Less <= '0';
+--     end if;
+-- end process;
+--
+-- TODO: Implement behavioral architecture with conditional statements
+-- TODO: Handle both signed and unsigned comparisons
+-- TODO: Add enable control logic
+-- TODO: Verify synthesis results
+--
+-- OPTION 2: DATAFLOW ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use concurrent signal assignments with comparison operators
+--
+-- Implementation Approach:
+-- - Use concurrent assignments for each comparison
+-- - Implement mode selection with conditional assignments
+-- - Generate comparison results in parallel
+-- - Explicit logic for each output
+--
+-- Example Structure:
+-- -- Unsigned comparisons
+-- unsigned_equal <= '1' when unsigned(A) = unsigned(B) else '0';
+-- unsigned_greater <= '1' when unsigned(A) > unsigned(B) else '0';
+-- unsigned_less <= '1' when unsigned(A) < unsigned(B) else '0';
+-- 
+-- -- Signed comparisons
+-- signed_equal <= '1' when signed(A) = signed(B) else '0';
+-- signed_greater <= '1' when signed(A) > signed(B) else '0';
+-- signed_less <= '1' when signed(A) < signed(B) else '0';
+-- 
+-- -- Mode selection
+-- Equal <= (unsigned_equal when Signed_Mode = '0' else signed_equal) and Enable;
+-- Greater <= (unsigned_greater when Signed_Mode = '0' else signed_greater) and Enable;
+-- Less <= (unsigned_less when Signed_Mode = '0' else signed_less) and Enable;
+--
+-- TODO: Implement dataflow architecture
+-- TODO: Create intermediate comparison signals
+-- TODO: Implement mode selection multiplexing
+-- TODO: Add enable gating logic
+--
+-- OPTION 3: STRUCTURAL ARCHITECTURE (BIT-BY-BIT COMPARISON)
+-- ----------------------------------------------------------------------------
+-- Use hierarchical bit-level comparison for educational purposes
+--
+-- Implementation Approach:
+-- - Create bit-level comparator components
+-- - Chain comparators from MSB to LSB
+-- - Implement ripple comparison logic
+-- - Educational approach showing internal structure
+--
+-- Component Declarations:
+-- component bit_comparator is
+--     port (
+--         Ai, Bi : in std_logic;
+--         Eq_in, Gt_in, Lt_in : in std_logic;
+--         Eq_out, Gt_out, Lt_out : out std_logic
+--     );
+-- end component;
+--
+-- Signal Declarations:
+-- signal eq_chain, gt_chain, lt_chain : std_logic_vector(8 downto 0);
+--
+-- Bit Comparator Logic:
+-- - If Ai > Bi: Gt_out = '1', others = '0'
+-- - If Ai < Bi: Lt_out = '1', others = '0'
+-- - If Ai = Bi: Pass through input chain values
+--
+-- TODO: Declare bit-level comparator components
+-- TODO: Create comparison chain signals
+-- TODO: Instantiate cascaded bit comparators
+-- TODO: Handle signed comparison in MSB stage
+--
+-- OPTION 4: OPTIMIZED PARALLEL ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use parallel comparison with optimized logic
+--
+-- Implementation Approach:
+-- - Generate all bit equality signals in parallel
+-- - Create magnitude comparison using carry-lookahead style
+-- - Optimize for speed and resource utilization
+-- - Advanced implementation for performance
+--
+-- Parallel Equality:
+-- bit_equal(i) <= '1' when A(i) = B(i) else '0';
+-- all_equal <= bit_equal(7) and bit_equal(6) and ... and bit_equal(0);
+--
+-- Parallel Magnitude (Unsigned):
+-- greater_bits(i) <= '1' when (A(i) = '1' and B(i) = '0') else '0';
+-- equal_higher(i) <= bit_equal(7) and ... and bit_equal(i+1);
+-- A_greater <= greater_bits(7) or (equal_higher(6) and greater_bits(6)) or ...
+--
+-- TODO: Implement parallel comparison architecture
+-- TODO: Create bit-level equality detection
+-- TODO: Implement parallel magnitude comparison
+-- TODO: Optimize for target FPGA architecture
+--
+-- ============================================================================
+-- STEP 5: SIGNED COMPARISON HANDLING
+-- ============================================================================
+--
+-- SIGNED COMPARISON CHALLENGES:
+-- - MSB represents sign, not magnitude
+-- - Negative numbers have different bit patterns
+-- - Two's complement representation considerations
+-- - Sign extension for different bit widths
+--
+-- SIGNED COMPARISON LOGIC:
+-- Case 1: A[MSB] = '0', B[MSB] = '0' (both positive)
+--         Compare as unsigned numbers
+-- Case 2: A[MSB] = '1', B[MSB] = '1' (both negative)
+--         Compare as unsigned numbers (more negative = smaller)
+-- Case 3: A[MSB] = '0', B[MSB] = '1' (A positive, B negative)
+--         A > B always true
+-- Case 4: A[MSB] = '1', B[MSB] = '0' (A negative, B positive)
+--         A < B always true
+--
+-- IMPLEMENTATION APPROACH:
+-- sign_A <= A(A'high);
+-- sign_B <= B(B'high);
+-- 
+-- process(A, B, sign_A, sign_B)
+-- begin
+--     if sign_A = '0' and sign_B = '1' then
+--         -- A positive, B negative: A > B
+--         Equal <= '0'; Greater <= '1'; Less <= '0';
+--     elsif sign_A = '1' and sign_B = '0' then
+--         -- A negative, B positive: A < B
+--         Equal <= '0'; Greater <= '0'; Less <= '1';
+--     else
+--         -- Same sign: compare magnitudes
+--         if A = B then
+--             Equal <= '1'; Greater <= '0'; Less <= '0';
+--         elsif unsigned(A) > unsigned(B) then
+--             Equal <= '0'; Greater <= '1'; Less <= '0';
+--         else
+--             Equal <= '0'; Greater <= '0'; Less <= '1';
+--         end if;
+--     end if;
+-- end process;
+--
+-- TODO: Implement signed comparison logic
+-- TODO: Handle sign bit analysis
+-- TODO: Verify two's complement behavior
+-- TODO: Test with negative number edge cases
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- COMPARISON OPERATIONS:
+-- - Equality detection (all bits match)
+-- - Magnitude comparison (numerical ordering)
+-- - Signed vs. unsigned interpretation
+-- - Multi-bit parallel processing
+-- - Cascading for wider bit widths
+--
+-- LOGIC OPTIMIZATION:
+-- - Minimize gate count for equality detection
+-- - Optimize critical path for magnitude comparison
+-- - Resource sharing between comparison types
+-- - LUT utilization optimization for FPGAs
+-- - Carry chain utilization where applicable
+--
+-- TIMING CONSIDERATIONS:
+-- - Propagation delay through comparison logic
+-- - Critical path from inputs to outputs
+-- - Glitch-free operation during input transitions
+-- - Setup and hold time requirements
+-- - Clock-to-output delays (if registered)
+--
+-- VHDL TECHNIQUES:
+-- - Type conversions (signed/unsigned)
+-- - Comparison operator usage
+-- - Process vs. concurrent statement trade-offs
+-- - Generic parameters for bit width scalability
+-- - Synthesis optimization attributes
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - Comparator inference by synthesis tools
+-- - Resource utilization (LUTs, carry chains)
+-- - Critical path optimization
+-- - Power consumption minimization
+-- - Area vs. speed trade-offs
+--
+-- TESTABILITY FEATURES:
+-- - Comprehensive comparison pattern testing
+-- - Boundary condition verification
+-- - Signed/unsigned mode testing
+-- - Random input pattern testing
+-- - Built-in self-test capabilities
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. PROCESSOR CONTROL UNITS:
+--    - Conditional branch decision logic
+--    - Loop termination conditions
+--    - Instruction execution control
+--    - Address range checking
+--    - Stack pointer management
+--
+-- 2. ARITHMETIC LOGIC UNITS (ALUs):
+--    - Comparison instruction implementation
+--    - Flag generation for conditional operations
+--    - Overflow and underflow detection
+--    - Result validation and checking
+--    - Multi-precision arithmetic support
+--
+-- 3. MEMORY MANAGEMENT UNITS:
+--    - Address range validation
+--    - Memory protection checking
+--    - Cache tag comparison
+--    - Virtual address translation
+--    - Memory access control
+--
+-- 4. SORTING AND SEARCHING ALGORITHMS:
+--    - Bubble sort comparison operations
+--    - Quick sort partitioning
+--    - Binary search implementations
+--    - Priority queue management
+--    - Data structure maintenance
+--
+-- 5. CONTROL AND MONITORING SYSTEMS:
+--    - Threshold detection and alerting
+--    - Limit checking and enforcement
+--    - Process control decision making
+--    - Safety interlock systems
+--    - Performance monitoring
+--
+-- 6. COMMUNICATION PROTOCOLS:
+--    - Packet header validation
+--    - Sequence number checking
+--    - Error detection and correction
+--    - Flow control mechanisms
+--    - Protocol state management
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Test all comparison combinations (=, >, <)
+-- - Verify both signed and unsigned modes
+-- - Test boundary conditions (min/max values)
+-- - Random input pattern testing
+-- - Edge case verification
+--
+-- COMPARISON TYPE TESTING:
+-- - Equality detection accuracy
+-- - Greater-than logic verification
+-- - Less-than logic verification
+-- - Mutual exclusivity of outputs
+-- - Mode switching behavior
+--
+-- SIGNED/UNSIGNED TESTING:
+-- - Positive number comparisons
+-- - Negative number comparisons
+-- - Mixed sign comparisons
+-- - Two's complement edge cases
+-- - Sign bit handling verification
+--
+-- BOUNDARY TESTING:
+-- - Maximum positive values
+-- - Maximum negative values (signed mode)
+-- - Zero comparisons
+-- - Adjacent value comparisons
+-- - Overflow condition testing
+--
+-- PERFORMANCE TESTING:
+-- - Propagation delay measurement
+-- - Critical path identification
+-- - Resource utilization analysis
+-- - Power consumption measurement
+-- - Temperature and voltage testing
+--
+-- INTEGRATION TESTING:
+-- - ALU integration verification
+-- - Processor control unit integration
+-- - Memory controller integration
+-- - System-level functionality testing
+-- - Multi-comparator coordination
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with behavioral architecture using if-then-else
+-- 2. Implement basic unsigned comparison first
+-- 3. Add equality detection logic
+-- 4. Create simple testbench for basic functionality
+-- 5. Verify with known input/output pairs
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement complete signed and unsigned modes
+-- 2. Add enable control and mode selection
+-- 3. Create comprehensive testbench with edge cases
+-- 4. Analyze timing and resource utilization
+-- 5. Compare different architectural approaches
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement optimized parallel comparison architecture
+-- 2. Create parameterized design for different bit widths
+-- 3. Optimize for specific FPGA architectures
+-- 4. Implement cascading for multi-precision comparison
+-- 5. Create reusable comparator library components
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. MULTI-PRECISION COMPARATOR:
+--    - Implement 16-bit, 32-bit, 64-bit versions
+--    - Add cascading capability for arbitrary precision
+--    - Create parameterized generic design
+--    - Implement runtime width configuration
+--
+-- 2. SPECIALIZED COMPARISON MODES:
+--    - Add absolute value comparison mode
+--    - Implement magnitude-only comparison
+--    - Create masked comparison (ignore certain bits)
+--    - Add tolerance-based comparison (within range)
+--
+-- 3. MULTI-INPUT COMPARATOR:
+--    - Compare more than two inputs simultaneously
+--    - Find minimum/maximum among multiple inputs
+--    - Implement sorting network comparator
+--    - Create priority-based comparison
+--
+-- 4. FLOATING-POINT COMPARATOR:
+--    - Implement IEEE 754 floating-point comparison
+--    - Handle special cases (NaN, infinity, zero)
+--    - Add denormalized number support
+--    - Implement rounding mode considerations
+--
+-- 5. PIPELINE COMPARATOR:
+--    - Create multi-stage pipeline for high frequency
+--    - Add pipeline registers and control
+--    - Implement hazard detection and forwarding
+--    - Optimize pipeline for throughput
+--
+-- 6. CONTENT-ADDRESSABLE MEMORY (CAM):
+--    - Implement associative memory comparison
+--    - Add wildcard and mask support
+--    - Create priority encoding for multiple matches
+--    - Implement high-speed search operations
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. SIGNED/UNSIGNED CONFUSION:
+--    - Ensure proper type conversions in VHDL
+--    - Verify signed comparison logic correctness
+--    - Test negative number comparisons thoroughly
+--    - Handle sign extension properly
+--
+-- 2. OUTPUT MUTUAL EXCLUSIVITY ERRORS:
+--    - Ensure only one comparison output is active
+--    - Verify logic prevents multiple active outputs
+--    - Test all input combinations for correctness
+--    - Check for undefined output states
+--
+-- 3. SYNTHESIS OPTIMIZATION PROBLEMS:
+--    - Avoid inference of unwanted latches
+--    - Ensure all outputs are driven in all cases
+--    - Check for combinational loops
+--    - Verify synthesis tool interpretation
+--
+-- 4. TIMING CLOSURE ISSUES:
+--    - Consider input-dependent delay variations
+--    - Account for comparison logic delays
+--    - Implement proper timing constraints
+--    - Verify critical path timing
+--
+-- 5. TESTBENCH INADEQUACY:
+--    - Test both signed and unsigned modes
+--    - Include comprehensive boundary testing
+--    - Verify timing relationships
+--    - Check for glitches during input changes
+--
+-- 6. GENERIC PARAMETER ERRORS:
+--    - Ensure generic parameters are used consistently
+--    - Verify bit width calculations
+--    - Test with different parameter values
+--    - Handle edge cases in parameterized designs
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all required ports
+-- □ Both signed and unsigned comparison modes implemented
+-- □ Equality detection works for all input combinations
+-- □ Greater-than logic is correct for all cases
+-- □ Less-than logic is correct for all cases
+-- □ Output mutual exclusivity is maintained
+-- □ Enable control functions properly
+-- □ Boundary conditions handled correctly
+-- □ Timing requirements satisfied for target frequency
+-- □ Synthesis results meet resource constraints
+-- □ Code follows project VHDL style guidelines
+-- □ Testbench provides comprehensive comparison coverage
+-- □ Documentation clearly explains all operations
+-- □ Signal assignments avoid combinational loops
+-- □ All outputs are properly driven in all conditions
+-- □ Design is portable across different FPGA families
+-- □ Performance meets or exceeds specifications
+-- □ Power consumption is within acceptable limits
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- PROCESSOR ARCHITECTURE INTEGRATION:
+-- - ALU comparison unit component
+-- - Conditional branch logic
+-- - Instruction execution control
+-- - Address validation unit
+-- - Stack management operations
+--
+-- SYSTEM-ON-CHIP APPLICATIONS:
+-- - Memory management units
+-- - Cache controllers
+-- - Interrupt controllers
+-- - DMA controllers
+-- - Bus arbitration units
+--
+-- PERFORMANCE METRICS:
+-- - Comparison operations per second throughput
+-- - Propagation delay (critical path)
+-- - Area utilization (LUTs, logic elements)
+-- - Power consumption (static, dynamic)
+-- - Maximum operating frequency
+--
+-- DESIGN TRADE-OFFS:
+-- - Speed vs. area utilization
+-- - Functionality vs. complexity
+-- - Power consumption vs. performance
+-- - Flexibility vs. optimization
+-- - Parallelism vs. resource usage
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA RESOURCE UTILIZATION:
+-- - Logic Elements: ~10-20 LUTs for 8-bit comparator
+-- - Carry Chains: May be utilized for magnitude comparison
+-- - Routing: Moderate for parallel comparison
+-- - Registers: None required for combinational implementation
+-- - Memory: None required for basic comparator
+--
+-- TIMING CHARACTERISTICS:
+-- - Combinational Delay: ~2-4ns for 8-bit comparison
+-- - Critical Path: Through magnitude comparison logic
+-- - Setup Time: Input signal requirements
+-- - Hold Time: Input signal stability
+-- - Clock-to-Output: For registered implementations
+--
+-- POWER CONSUMPTION:
+-- - Static Power: FPGA leakage current
+-- - Dynamic Power: Input switching activity dependent
+-- - Comparison Power: Moderate for parallel operations
+-- - I/O Power: Interface signal switching
+-- - Total Power: Function of utilization and frequency
+--
+-- DESIGN CONSTRAINTS:
+-- - Timing constraints for critical paths
+-- - Area constraints for resource utilization
+-- - Power constraints for thermal management
+-- - I/O constraints for interface compatibility
+-- - Performance constraints for system requirements
+--
+-- ============================================================================
+-- ADVANCED COMPARATOR CONCEPTS:
+-- ============================================================================
+--
+-- PARALLEL COMPARISON TECHNIQUES:
+-- - Bit-level parallel processing
+-- - Carry-lookahead style magnitude comparison
+-- - Tree-structured comparison networks
+-- - Optimized logic minimization
+-- - Resource sharing strategies
+--
+-- CASCADING AND EXPANSION:
+-- - Multi-stage comparison for wide data
+-- - Hierarchical comparison structures
+-- - Modular design for scalability
+-- - Inter-stage communication protocols
+-- - Performance optimization across stages
+--
+-- SPECIALIZED COMPARISON OPERATIONS:
+-- - Absolute value comparison
+-- - Masked and selective comparison
+-- - Range and threshold checking
+-- - Multi-input tournament comparison
+-- - Content-addressable memory operations
+--
+-- FLOATING-POINT CONSIDERATIONS:
+-- - IEEE 754 standard compliance
+-- - Special value handling (NaN, infinity)
+-- - Denormalized number support
+-- - Rounding and precision considerations
+-- - Exception handling mechanisms
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH ARCHITECTURE:
+-- - Comprehensive input pattern generation
+-- - Expected result calculation and comparison
+-- - Signed/unsigned mode verification
+-- - Boundary condition testing
+-- - Coverage analysis and reporting
+--
+-- VERIFICATION METHODOLOGY:
+-- - Directed testing for specific comparison cases
+-- - Random testing for broad coverage
+-- - Constrained random testing for edge cases
+-- - Formal verification for critical properties
+-- - Assertion-based verification for continuous checking
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis for comparison behavior
+-- - Breakpoint debugging in simulation
+-- - Signal tracing through comparison logic
+-- - Mode switching analysis
+-- - Performance bottleneck identification
+--
+-- PERFORMANCE ANALYSIS:
+-- - Comparison operation timing characterization
+-- - Critical path identification and optimization
+-- - Resource utilization vs. performance trade-offs
+-- - Power analysis for different input patterns
+-- - Scalability analysis for larger bit widths
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

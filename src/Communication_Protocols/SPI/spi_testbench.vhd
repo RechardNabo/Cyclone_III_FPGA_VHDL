@@ -1,0 +1,711 @@
+-- ============================================================================
+-- SPI Master/Slave Testbench Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a comprehensive testbench for SPI (Serial Peripheral
+-- Interface) master and slave controllers in VHDL. The testbench validates
+-- SPI communication protocols, timing requirements, data integrity, error
+-- handling, and various operating modes. It includes stimulus generation,
+-- response checking, and comprehensive coverage analysis.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand SPI protocol testbench design
+-- 2. Learn stimulus generation for serial communication
+-- 3. Master response checking and validation techniques
+-- 4. Practice timing verification and protocol compliance
+-- 5. Understand error injection and fault testing
+-- 6. Learn coverage-driven verification methodologies
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - std_logic_textio for file I/O operations
+-- - textio for text file handling
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Add use IEEE.std_logic_textio.all;
+-- TODO: Add use STD.textio.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- Define the SPI testbench entity (typically no ports for testbench)
+--
+-- Testbench Entity:
+-- - No input/output ports (self-contained)
+-- - All signals generated internally
+-- - Results reported through assertions and file output
+-- - Configurable through constants and generics
+--
+-- ============================================================================
+-- STEP 3: SPI TESTBENCH PRINCIPLES
+-- ============================================================================
+--
+-- Testbench Architecture:
+-- 1. Device Under Test (DUT) Instantiation:
+--    - SPI master controller instance
+--    - SPI slave controller instance
+--    - Interconnection of SPI signals
+--    - Clock and reset generation
+--
+-- 2. Stimulus Generation:
+--    - Clock generation with configurable frequency
+--    - Reset sequence generation
+--    - Test data pattern generation
+--    - Control signal manipulation
+--
+-- 3. Response Monitoring:
+--    - Output signal monitoring
+--    - Data integrity verification
+--    - Timing compliance checking
+--    - Error condition detection
+--
+-- 4. Test Scenarios:
+--    - Basic data transfer tests
+--    - All SPI modes (0-3) validation
+--    - Error condition testing
+--    - Performance and stress testing
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Basic SPI Testbench (Recommended for beginners)
+-- - Simple master-slave communication test
+-- - Fixed data patterns and timing
+-- - Basic pass/fail reporting
+-- - Single SPI mode testing
+--
+-- OPTION 2: Comprehensive SPI Testbench (Intermediate)
+-- - Multiple test scenarios
+-- - All SPI modes testing
+-- - Random data generation
+-- - Detailed error reporting
+--
+-- OPTION 3: Advanced SPI Testbench (Advanced)
+-- - Coverage-driven verification
+-- - Constrained random testing
+-- - Protocol compliance checking
+-- - Performance analysis
+--
+-- OPTION 4: System-Level SPI Testbench (Expert)
+-- - Multi-master/slave scenarios
+-- - Real-world protocol testing
+-- - Hardware-in-the-loop simulation
+-- - Automated regression testing
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Clock Generation:
+-- - System clock for DUTs
+-- - SPI clock generation in master
+-- - Clock domain crossing verification
+-- - Timing relationship validation
+--
+-- Reset Strategy:
+-- - Power-on reset simulation
+-- - Asynchronous reset testing
+-- - Reset recovery verification
+-- - Reset timing compliance
+--
+-- Data Patterns:
+-- - Fixed test patterns
+-- - Random data generation
+-- - Boundary value testing
+-- - Error injection patterns
+--
+-- Timing Verification:
+-- - Setup/hold time checking
+-- - Clock frequency limits
+-- - Propagation delay analysis
+-- - Timing margin validation
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Coverage Analysis:
+-- - Functional coverage metrics
+-- - Code coverage analysis
+-- - Corner case identification
+-- - Regression test tracking
+--
+-- Error Injection:
+-- - Clock glitch injection
+-- - Data corruption simulation
+-- - Timing violation injection
+-- - Protocol error generation
+--
+-- Performance Testing:
+-- - Maximum frequency testing
+-- - Throughput measurement
+-- - Latency analysis
+-- - Resource utilization
+--
+-- Protocol Compliance:
+-- - SPI standard compliance
+-- - Timing specification adherence
+-- - Signal integrity validation
+-- - EMI/EMC considerations
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Design Verification: Functional and timing validation
+-- 2. Protocol Compliance: SPI standard adherence testing
+-- 3. Performance Analysis: Speed and throughput measurement
+-- 4. Regression Testing: Automated test suite execution
+-- 5. Corner Case Testing: Boundary condition validation
+-- 6. Integration Testing: System-level verification
+-- 7. Certification Testing: Standards compliance validation
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual component validation
+-- 2. Integration Testing: Master-slave interaction
+-- 3. Protocol Testing: SPI compliance verification
+-- 4. Stress Testing: High-speed and high-load conditions
+-- 5. Error Testing: Fault injection and recovery
+-- 6. Regression Testing: Automated test execution
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic master-slave communication test
+-- 2. Add clock and reset generation
+-- 3. Implement data pattern generation and checking
+-- 4. Add multiple SPI mode testing
+-- 5. Implement error injection and testing
+-- 6. Add performance and timing analysis
+-- 7. Create comprehensive test suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Add support for multiple slave testing
+-- 2. Implement protocol analyzer functionality
+-- 3. Add real-time performance monitoring
+-- 4. Implement automated test generation
+-- 5. Add hardware-in-the-loop testing
+-- 6. Implement coverage-driven verification
+-- 7. Add power consumption analysis
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Insufficient test coverage
+-- 2. Missing timing verification
+-- 3. Inadequate error testing
+-- 4. Poor test data organization
+-- 5. Missing corner case testing
+-- 6. Inadequate documentation
+-- 7. Poor test result reporting
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All SPI modes are tested
+-- □ Data integrity is verified
+-- □ Timing requirements are validated
+-- □ Error conditions are tested
+-- □ Performance requirements are met
+-- □ Corner cases are covered
+-- □ Test results are documented
+-- □ Regression tests are automated
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This SPI testbench demonstrates several key concepts:
+-- - Verification methodology and best practices
+-- - Stimulus generation and response checking
+-- - Timing analysis and protocol compliance
+-- - Error injection and fault testing
+-- - Coverage analysis and test completeness
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Model realistic signal delays and noise
+-- - Include process, voltage, temperature variations
+-- - Consider signal integrity effects
+-- - Model real-world loading conditions
+-- - Include EMI/EMC considerations
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Universal Verification Methodology (UVM)
+-- - Assertion-based verification (ABV)
+-- - Coverage-driven verification (CDV)
+-- - Constrained random testing
+-- - Hardware-software co-verification
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use appropriate simulation time resolution
+-- - Model realistic timing conditions
+-- - Include comprehensive error checking
+-- - Generate detailed test reports
+-- - Implement automated pass/fail criteria
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use IEEE.std_logic_textio.all;
+-- use STD.textio.all;
+--
+-- entity spi_testbench is
+--     -- Testbench has no ports
+-- end entity spi_testbench;
+--
+-- architecture behavioral of spi_testbench is
+--     -- Constants
+--     constant CLK_PERIOD       : time := 10 ns;      -- System clock period
+--     constant SPI_CLK_PERIOD   : time := 100 ns;     -- SPI clock period
+--     constant DATA_WIDTH       : integer := 8;       -- Data width
+--     constant TEST_DATA_SIZE   : integer := 256;     -- Test data array size
+--     constant BUFFER_DEPTH     : integer := 16;      -- Buffer depth
+--     constant SYNC_STAGES      : integer := 2;       -- Synchronizer stages
+--     
+--     -- Test control signals
+--     signal test_complete      : boolean := false;
+--     signal test_passed        : boolean := true;
+--     signal test_number        : integer := 0;
+--     signal error_count        : integer := 0;
+--     
+--     -- Clock and reset signals
+--     signal clk                : std_logic := '0';
+--     signal reset              : std_logic := '1';
+--     signal enable             : std_logic := '0';
+--     
+--     -- SPI interface signals
+--     signal sclk               : std_logic := '0';
+--     signal mosi               : std_logic := '0';
+--     signal miso               : std_logic := 'Z';
+--     signal cs_n               : std_logic := '1';
+--     
+--     -- Master interface signals
+--     signal master_tx_data     : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal master_tx_valid    : std_logic := '0';
+--     signal master_tx_ready    : std_logic;
+--     signal master_rx_data     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal master_rx_valid    : std_logic;
+--     signal master_rx_ready    : std_logic := '1';
+--     signal master_busy        : std_logic;
+--     signal master_error       : std_logic;
+--     signal master_start       : std_logic := '0';
+--     signal master_mode        : std_logic_vector(1 downto 0) := "00";
+--     
+--     -- Slave interface signals
+--     signal slave_tx_data      : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal slave_tx_valid     : std_logic := '0';
+--     signal slave_tx_ready     : std_logic;
+--     signal slave_rx_data      : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal slave_rx_valid     : std_logic;
+--     signal slave_rx_ready     : std_logic := '1';
+--     signal slave_busy         : std_logic;
+--     signal slave_error        : std_logic;
+--     signal slave_mode         : std_logic_vector(1 downto 0) := "00";
+--     
+--     -- Test data arrays
+--     type test_data_array is array (0 to TEST_DATA_SIZE-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal test_data_tx       : test_data_array;
+--     signal test_data_rx       : test_data_array;
+--     signal expected_data      : test_data_array;
+--     
+--     -- Test control variables
+--     signal data_index         : integer := 0;
+--     signal transfer_count     : integer := 0;
+--     signal current_test_mode  : std_logic_vector(1 downto 0) := "00";
+--     
+--     -- Component declarations
+--     component spi_master is
+--         generic (
+--             DATA_WIDTH    : integer := 8;
+--             CPOL          : integer := 0;
+--             CPHA          : integer := 0;
+--             MSB_FIRST     : boolean := true;
+--             CLK_DIV       : integer := 4;
+--             BUFFER_DEPTH  : integer := 16
+--         );
+--         port (
+--             clk           : in  std_logic;
+--             reset         : in  std_logic;
+--             enable        : in  std_logic;
+--             sclk          : out std_logic;
+--             mosi          : out std_logic;
+--             miso          : in  std_logic;
+--             cs_n          : out std_logic;
+--             tx_data       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             tx_valid      : in  std_logic;
+--             tx_ready      : out std_logic;
+--             rx_data       : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             rx_valid      : out std_logic;
+--             rx_ready      : in  std_logic;
+--             busy          : out std_logic;
+--             error         : out std_logic;
+--             start         : in  std_logic;
+--             mode_select   : in  std_logic_vector(1 downto 0)
+--         );
+--     end component;
+--     
+--     component spi_slave is
+--         generic (
+--             DATA_WIDTH    : integer := 8;
+--             CPOL          : integer := 0;
+--             CPHA          : integer := 0;
+--             MSB_FIRST     : boolean := true;
+--             BUFFER_DEPTH  : integer := 16;
+--             SYNC_STAGES   : integer := 2
+--         );
+--         port (
+--             clk           : in  std_logic;
+--             reset         : in  std_logic;
+--             enable        : in  std_logic;
+--             sclk          : in  std_logic;
+--             mosi          : in  std_logic;
+--             miso          : out std_logic;
+--             cs_n          : in  std_logic;
+--             tx_data       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             tx_valid      : in  std_logic;
+--             tx_ready      : out std_logic;
+--             rx_data       : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             rx_valid      : out std_logic;
+--             rx_ready      : in  std_logic;
+--             busy          : out std_logic;
+--             error         : out std_logic;
+--             mode_select   : in  std_logic_vector(1 downto 0)
+--         );
+--     end component;
+--     
+-- begin
+--     -- Clock generation
+--     clk_gen_proc: process
+--     begin
+--         while not test_complete loop
+--             clk <= '0';
+--             wait for CLK_PERIOD/2;
+--             clk <= '1';
+--             wait for CLK_PERIOD/2;
+--         end loop;
+--         wait;
+--     end process;
+--     
+--     -- Reset generation
+--     reset_gen_proc: process
+--     begin
+--         reset <= '1';
+--         wait for CLK_PERIOD * 10;
+--         reset <= '0';
+--         wait for CLK_PERIOD * 5;
+--         enable <= '1';
+--         wait;
+--     end process;
+--     
+--     -- DUT instantiation - SPI Master
+--     dut_master: spi_master
+--         generic map (
+--             DATA_WIDTH    => DATA_WIDTH,
+--             CPOL          => 0,
+--             CPHA          => 0,
+--             MSB_FIRST     => true,
+--             CLK_DIV       => 4,
+--             BUFFER_DEPTH  => BUFFER_DEPTH
+--         )
+--         port map (
+--             clk           => clk,
+--             reset         => reset,
+--             enable        => enable,
+--             sclk          => sclk,
+--             mosi          => mosi,
+--             miso          => miso,
+--             cs_n          => cs_n,
+--             tx_data       => master_tx_data,
+--             tx_valid      => master_tx_valid,
+--             tx_ready      => master_tx_ready,
+--             rx_data       => master_rx_data,
+--             rx_valid      => master_rx_valid,
+--             rx_ready      => master_rx_ready,
+--             busy          => master_busy,
+--             error         => master_error,
+--             start         => master_start,
+--             mode_select   => master_mode
+--         );
+--     
+--     -- DUT instantiation - SPI Slave
+--     dut_slave: spi_slave
+--         generic map (
+--             DATA_WIDTH    => DATA_WIDTH,
+--             CPOL          => 0,
+--             CPHA          => 0,
+--             MSB_FIRST     => true,
+--             BUFFER_DEPTH  => BUFFER_DEPTH,
+--             SYNC_STAGES   => SYNC_STAGES
+--         )
+--         port map (
+--             clk           => clk,
+--             reset         => reset,
+--             enable        => enable,
+--             sclk          => sclk,
+--             mosi          => mosi,
+--             miso          => miso,
+--             cs_n          => cs_n,
+--             tx_data       => slave_tx_data,
+--             tx_valid      => slave_tx_valid,
+--             tx_ready      => slave_tx_ready,
+--             rx_data       => slave_rx_data,
+--             rx_valid      => slave_rx_valid,
+--             rx_ready      => slave_rx_ready,
+--             busy          => slave_busy,
+--             error         => slave_error,
+--             mode_select   => slave_mode
+--         );
+--     
+--     -- Test data generation
+--     test_data_gen_proc: process
+--         variable seed1, seed2 : positive := 1;
+--         variable rand_val     : real;
+--         variable data_val     : integer;
+--     begin
+--         wait until reset = '0';
+--         wait for CLK_PERIOD * 10;
+--         
+--         -- Generate test data patterns
+--         for i in 0 to TEST_DATA_SIZE-1 loop
+--             -- Generate random test data
+--             uniform(seed1, seed2, rand_val);
+--             data_val := integer(rand_val * real(2**DATA_WIDTH - 1));
+--             test_data_tx(i) <= std_logic_vector(to_unsigned(data_val, DATA_WIDTH));
+--             
+--             -- Generate expected response data (echo + 1 for testing)
+--             expected_data(i) <= std_logic_vector(to_unsigned((data_val + 1) mod (2**DATA_WIDTH), DATA_WIDTH));
+--         end loop;
+--         
+--         wait;
+--     end process;
+--     
+--     -- Main test process
+--     main_test_proc: process
+--         procedure run_spi_test(mode : std_logic_vector(1 downto 0); test_name : string) is
+--             variable transfer_complete : boolean := false;
+--             variable timeout_counter   : integer := 0;
+--         begin
+--             report "Starting test: " & test_name;
+--             test_number <= test_number + 1;
+--             
+--             -- Configure SPI mode
+--             master_mode <= mode;
+--             slave_mode <= mode;
+--             current_test_mode <= mode;
+--             
+--             wait for CLK_PERIOD * 10;
+--             
+--             -- Prepare slave with response data
+--             slave_tx_data <= expected_data(0);
+--             slave_tx_valid <= '1';
+--             wait until slave_tx_ready = '1';
+--             wait for CLK_PERIOD;
+--             slave_tx_valid <= '0';
+--             
+--             -- Send data from master
+--             master_tx_data <= test_data_tx(0);
+--             master_tx_valid <= '1';
+--             wait until master_tx_ready = '1';
+--             wait for CLK_PERIOD;
+--             master_tx_valid <= '0';
+--             
+--             -- Start transfer
+--             master_start <= '1';
+--             wait for CLK_PERIOD;
+--             master_start <= '0';
+--             
+--             -- Wait for transfer completion
+--             transfer_complete := false;
+--             timeout_counter := 0;
+--             
+--             while not transfer_complete and timeout_counter < 1000 loop
+--                 wait for CLK_PERIOD;
+--                 timeout_counter := timeout_counter + 1;
+--                 
+--                 if master_busy = '0' and slave_busy = '0' then
+--                     transfer_complete := true;
+--                 end if;
+--             end loop;
+--             
+--             -- Check for timeout
+--             if timeout_counter >= 1000 then
+--                 report "ERROR: Transfer timeout in test: " & test_name severity error;
+--                 test_passed <= false;
+--                 error_count <= error_count + 1;
+--             end if;
+--             
+--             -- Verify received data
+--             wait for CLK_PERIOD * 5;
+--             
+--             if master_rx_valid = '1' then
+--                 if master_rx_data = expected_data(0) then
+--                     report "PASS: Master received correct data in test: " & test_name;
+--                 else
+--                     report "ERROR: Master received incorrect data in test: " & test_name & 
+--                            " Expected: " & integer'image(to_integer(unsigned(expected_data(0)))) &
+--                            " Received: " & integer'image(to_integer(unsigned(master_rx_data))) severity error;
+--                     test_passed <= false;
+--                     error_count <= error_count + 1;
+--                 end if;
+--             else
+--                 report "ERROR: Master did not receive data in test: " & test_name severity error;
+--                 test_passed <= false;
+--                 error_count <= error_count + 1;
+--             end if;
+--             
+--             if slave_rx_valid = '1' then
+--                 if slave_rx_data = test_data_tx(0) then
+--                     report "PASS: Slave received correct data in test: " & test_name;
+--                 else
+--                     report "ERROR: Slave received incorrect data in test: " & test_name &
+--                            " Expected: " & integer'image(to_integer(unsigned(test_data_tx(0)))) &
+--                            " Received: " & integer'image(to_integer(unsigned(slave_rx_data))) severity error;
+--                     test_passed <= false;
+--                     error_count <= error_count + 1;
+--                 end if;
+--             else
+--                 report "ERROR: Slave did not receive data in test: " & test_name severity error;
+--                 test_passed <= false;
+--                 error_count <= error_count + 1;
+--             end if;
+--             
+--             -- Clear received data
+--             master_rx_ready <= '1';
+--             slave_rx_ready <= '1';
+--             wait for CLK_PERIOD * 2;
+--             master_rx_ready <= '0';
+--             slave_rx_ready <= '0';
+--             
+--             wait for CLK_PERIOD * 10;
+--             report "Completed test: " & test_name;
+--         end procedure;
+--         
+--         procedure run_error_test is
+--         begin
+--             report "Starting error injection test";
+--             test_number <= test_number + 1;
+--             
+--             -- Test with invalid mode
+--             master_mode <= "11";  -- Invalid mode for testing
+--             slave_mode <= "00";   -- Different mode
+--             
+--             wait for CLK_PERIOD * 10;
+--             
+--             -- Send data
+--             master_tx_data <= test_data_tx(0);
+--             master_tx_valid <= '1';
+--             wait until master_tx_ready = '1';
+--             wait for CLK_PERIOD;
+--             master_tx_valid <= '0';
+--             
+--             master_start <= '1';
+--             wait for CLK_PERIOD;
+--             master_start <= '0';
+--             
+--             -- Wait and check for error detection
+--             wait for CLK_PERIOD * 100;
+--             
+--             if master_error = '1' or slave_error = '1' then
+--                 report "PASS: Error correctly detected";
+--             else
+--                 report "WARNING: Error not detected as expected" severity warning;
+--             end if;
+--             
+--             wait for CLK_PERIOD * 10;
+--             report "Completed error injection test";
+--         end procedure;
+--         
+--     begin
+--         wait until reset = '0' and enable = '1';
+--         wait for CLK_PERIOD * 20;
+--         
+--         report "=== Starting SPI Testbench ===";
+--         
+--         -- Test all SPI modes
+--         run_spi_test("00", "SPI Mode 0 (CPOL=0, CPHA=0)");
+--         run_spi_test("01", "SPI Mode 1 (CPOL=0, CPHA=1)");
+--         run_spi_test("10", "SPI Mode 2 (CPOL=1, CPHA=0)");
+--         run_spi_test("11", "SPI Mode 3 (CPOL=1, CPHA=1)");
+--         
+--         -- Run error tests
+--         run_error_test;
+--         
+--         -- Test completion
+--         wait for CLK_PERIOD * 50;
+--         
+--         report "=== SPI Testbench Complete ===";
+--         report "Total tests run: " & integer'image(test_number);
+--         report "Total errors: " & integer'image(error_count);
+--         
+--         if test_passed and error_count = 0 then
+--             report "=== ALL TESTS PASSED ===" severity note;
+--         else
+--             report "=== SOME TESTS FAILED ===" severity error;
+--         end if;
+--         
+--         test_complete <= true;
+--         wait;
+--     end process;
+--     
+--     -- Timeout watchdog
+--     timeout_proc: process
+--     begin
+--         wait for 10 ms;  -- Maximum simulation time
+--         if not test_complete then
+--             report "ERROR: Testbench timeout - simulation too long" severity failure;
+--         end if;
+--         wait;
+--     end process;
+--     
+--     -- Signal monitoring and assertions
+--     monitor_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             -- Monitor for unexpected conditions
+--             if enable = '1' then
+--                 -- Check for bus contention
+--                 if miso /= 'Z' and miso /= '0' and miso /= '1' then
+--                     report "WARNING: MISO bus contention detected" severity warning;
+--                 end if;
+--                 
+--                 -- Check for protocol violations
+--                 if cs_n = '0' and sclk'event then
+--                     -- Add timing checks here
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This SPI testbench provides comprehensive validation of SPI
+-- master and slave controllers. Ensure thorough testing of all modes,
+-- error conditions, and timing requirements. The testbench can be extended
+-- for specific application requirements and additional test scenarios.
+-- ============================================================================

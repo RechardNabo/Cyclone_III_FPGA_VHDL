@@ -1,0 +1,755 @@
+-- ============================================================================
+-- ARM CORTEX-M7 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-M7 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-M7 processors, providing high-performance microcontroller 
+--              communication, control, and peripheral integration for 
+--              demanding embedded systems with DSP and floating-point capabilities.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-M7 architecture and ARMv7E-M instruction set
+-- 2. Master AXI4 and AHB-Lite protocols for high-performance systems
+-- 3. Learn ARM Cortex-M7 6-stage superscalar pipeline design
+-- 4. Implement NVIC (Nested Vectored Interrupt Controller)
+-- 5. Understand high-performance design principles
+-- 6. Master cache systems and memory hierarchy
+-- 7. Learn debug interface (SWD/JTAG) and ETM integration
+-- 8. Implement power management and performance optimization
+-- 9. Understand FPU and DSP acceleration
+-- 10. Master advanced system control and configuration
+--
+-- ARM Cortex-M7 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7E-M (32-bit)                                  │
+-- │ Pipeline        │ 6-stage superscalar (dual-issue)                   │
+-- │ Cores           │ Single core                                        │
+-- │ Performance     │ 5.01 CoreMark/MHz                                  │
+-- │ Instructions    │ Thumb-2 + DSP + FPU                                │
+-- │ Registers       │ 13 general purpose + SP + LR + PC                  │
+-- │ FPU             │ Single/Double precision (VFPv5)                    │
+-- │ Cache           │ I-Cache and D-Cache (up to 64KB each)              │
+-- │ Interrupts      │ NVIC with up to 240 external interrupts            │
+-- │ Debug           │ Serial Wire Debug (SWD) + ETM                      │
+-- │ Memory          │ 4GB linear address space                           │
+-- │ Power           │ Dynamic voltage/frequency scaling                  │
+-- │ Frequency       │ Up to 600 MHz                                      │
+-- │ Process         │ 40nm-7nm                                            │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-M7 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-M7     │    │      NVIC       │    │   Debug Access  │
+-- │   Processor     │◀──▶│   (Nested       │◀──▶│   Port (DAP)    │
+-- │   Core          │    │   Vectored      │    │                 │
+-- └─────────────────┘    │   Interrupt     │    └─────────────────┘
+--          │              │   Controller)   │             │
+--          ▼              └─────────────────┘             ▼
+-- ┌─────────────────┐              │              ┌─────────────────┐
+-- │   AXI4/AHB      │              ▼              │   SWD/JTAG      │
+-- │   Bus Matrix    │    ┌─────────────────┐     │   + ETM         │
+-- │                 │    │   System        │     │   Interface     │
+-- └─────────────────┘    │   Control       │     └─────────────────┘
+--          │              │   Block         │             │
+--          ▼              └─────────────────┘             ▼
+-- ┌─────────────────┐              │              ┌─────────────────┐
+-- │   I-Cache       │              ▼              │   Embedded      │
+-- │   D-Cache       │    ┌─────────────────┐     │   Trace         │
+-- │   ITCM/DTCM     │    │   FPU + DSP     │     │   Macrocell     │
+-- │   (Optional)    │    │   Acceleration  │     │   (ETM)         │
+-- └─────────────────┘    └─────────────────┘     └─────────────────┘
+--
+-- Bus Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Bus Type        │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ AXI4            │ Master→Slave    │ AWADDR, AWVALID, AWREADY        │
+-- │ AXI4            │ Master→Slave    │ WDATA, WVALID, WREADY           │
+-- │ AXI4            │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ AXI4            │ Master→Slave    │ ARADDR, ARVALID, ARREADY        │
+-- │ AXI4            │ Slave→Master    │ RDATA, RRESP, RVALID, RREADY    │
+-- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HSIZE, HBURST    │
+-- │ System          │ Input           │ HCLK, HRESETn                   │
+-- │ Debug           │ Bidirectional   │ SWCLK, SWDIO                    │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-M7 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 512MB           │ Code region (Flash/ROM/ITCM)    │
+-- │ 0x2000_0000     │ 512MB           │ SRAM region (DTCM)              │
+-- │ 0x4000_0000     │ 1GB             │ Peripheral region               │
+-- │ 0x6000_0000     │ 1GB             │ External RAM region             │
+-- │ 0x8000_0000     │ 1GB             │ External device region          │
+-- │ 0xA000_0000     │ 1GB             │ External device region          │
+-- │ 0xC000_0000     │ 512MB           │ External device region          │
+-- │ 0xE000_0000     │ 512MB           │ Private peripheral bus (PPB)    │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv7E-M Instruction Set:
+-- 1. **Thumb-2 Instructions**:
+--    - 16-bit and 32-bit Thumb instructions
+--    - Complete instruction set
+--    - Load/store multiple
+--    - Branch and conditional branch
+--    - Arithmetic and logic operations
+--    - Bit field operations
+--
+-- 2. **DSP Extensions**:
+--    - SIMD arithmetic operations
+--    - Saturating arithmetic
+--    - Multiply-accumulate operations
+--    - Bit manipulation instructions
+--    - Pack/unpack operations
+--
+-- 3. **Floating-Point Unit (FPU)**:
+--    - Single-precision (SP) floating-point
+--    - Double-precision (DP) floating-point (optional)
+--    - VFPv5 architecture
+--    - IEEE 754 compliant
+--    - Hardware square root and divide
+--
+-- 6-Stage Superscalar Pipeline:
+-- 1. **Fetch Stage**:
+--    - Instruction fetch from I-Cache/ITCM
+--    - Branch prediction
+--    - Instruction buffer management
+--
+-- 2. **Decode Stage**:
+--    - Instruction decode (dual-issue)
+--    - Register renaming
+--    - Dependency checking
+--
+-- 3. **Issue Stage**:
+--    - Instruction dispatch
+--    - Resource allocation
+--    - Out-of-order execution setup
+--
+-- 4. **Execute Stage 1**:
+--    - ALU operations
+--    - Address generation
+--    - Branch resolution
+--
+-- 5. **Execute Stage 2**:
+--    - Memory access (D-Cache/DTCM)
+--    - FPU operations
+--    - Load/store execution
+--
+-- 6. **Writeback Stage**:
+--    - Register writeback
+--    - Exception handling
+--    - Retirement logic
+--
+-- Cache System:
+-- 1. **Instruction Cache (I-Cache)**:
+--    - Size: 4KB to 64KB
+--    - Associativity: 2-way or 4-way
+--    - Line size: 32 bytes
+--    - Write-through policy
+--
+-- 2. **Data Cache (D-Cache)**:
+--    - Size: 4KB to 64KB
+--    - Associativity: 4-way
+--    - Line size: 32 bytes
+--    - Write-back or write-through
+--    - Cache coherency support
+--
+-- 3. **Tightly Coupled Memory (TCM)**:
+--    - ITCM: Instruction TCM (up to 16MB)
+--    - DTCM: Data TCM (up to 16MB)
+--    - Zero wait-state access
+--    - Deterministic timing
+--
+-- NVIC (Nested Vectored Interrupt Controller):
+-- 1. **Interrupt Features**:
+--    - Up to 240 external interrupts
+--    - 256 priority levels (8 bits)
+--    - Automatic vectoring
+--    - Nested interrupt support
+--    - Tail-chaining optimization
+--    - Late-arriving interrupt handling
+--
+-- 2. **System Exceptions**:
+--    - Reset, NMI, Hard Fault
+--    - Memory Management Fault
+--    - Bus Fault, Usage Fault
+--    - SVCall (Supervisor Call)
+--    - Debug Monitor, PendSV
+--    - SysTick timer interrupt
+--
+-- Floating-Point Unit (FPU):
+-- 1. **Single-Precision (SP)**:
+--    - 32 single-precision registers
+--    - IEEE 754 compliant
+--    - Hardware divide and square root
+--    - Fused multiply-add (FMA)
+--
+-- 2. **Double-Precision (DP)** (Optional):
+--    - 32 double-precision registers
+--    - Extended precision operations
+--    - High-precision calculations
+--    - Scientific computing support
+--
+-- Power Management:
+-- 1. **Dynamic Scaling**:
+--    - Dynamic voltage scaling (DVS)
+--    - Dynamic frequency scaling (DFS)
+--    - Clock gating
+--    - Power domain control
+--
+-- 2. **Sleep Modes**:
+--    - Sleep mode (CPU clock stopped)
+--    - Deep sleep mode (system clock stopped)
+--    - Standby mode (minimal power)
+--    - Wake-up interrupt support
+--
+-- Debug Interface:
+-- 1. **Serial Wire Debug (SWD)**:
+--    - 2-pin debug interface
+--    - SWCLK and SWDIO signals
+--    - Debug access port (DAP)
+--    - Flash programming support
+--
+-- 2. **JTAG Interface**:
+--    - 5-pin JTAG interface
+--    - IEEE 1149.1 compliant
+--    - Boundary scan support
+--    - Debug and test access
+--
+-- 3. **Embedded Trace Macrocell (ETM)**:
+--    - Real-time instruction trace
+--    - Data trace capability
+--    - Trace port interface
+--    - Statistical profiling
+--
+-- 4. **Debug Features**:
+--    - 8 breakpoints
+--    - 4 watchpoints
+--    - Single-step execution
+--    - Register and memory access
+--    - Performance monitoring
+--
+-- System Control Block:
+-- 1. **Configuration**:
+--    - System control registers
+--    - Clock configuration
+--    - Reset and power management
+--    - Exception configuration
+--    - Cache control
+--
+-- 2. **Status Monitoring**:
+--    - System status registers
+--    - Fault status and address
+--    - Debug status
+--    - Performance counters
+--    - Cache statistics
+--
+-- Memory Protection Unit (MPU):
+-- 1. **Protection Features**:
+--    - Up to 16 memory regions
+--    - Access permission control
+--    - Memory attribute configuration
+--    - Fault detection and reporting
+--    - Cache policy control
+--
+-- 2. **Configuration**:
+--    - Region base address and size
+--    - Access permissions (R/W/X)
+--    - Memory attributes (cacheable, bufferable)
+--    - Enable/disable control
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ High-performance bus interface                      │
+-- │ AHB-Lite Master │ System bus interface for peripherals               │
+-- │ NVIC            │ Nested Vectored Interrupt Controller               │
+-- │ Debug Interface │ SWD/JTAG debug and ETM trace interface             │
+-- │ FPU             │ Single/Double precision floating-point unit        │
+-- │ Cache System    │ I-Cache, D-Cache, and TCM interfaces               │
+-- │ System Control  │ Configuration and status registers                 │
+-- │ Power Management│ Dynamic voltage/frequency scaling                   │
+-- │ MPU             │ Memory Protection Unit                              │
+-- │ Performance Mon │ Hardware performance monitoring                     │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 64-bit (high-performance path)
+-- - AHB-Lite Data Width: 32-bit (peripheral path)
+-- - Address Width: 32-bit (4GB address space)
+-- - Maximum Clock Frequency: 600 MHz
+-- - Interrupt Latency: 12 cycles (with cache hit)
+-- - Memory Access: Single-cycle for cache/TCM hit
+-- - Pipeline Depth: 6 stages (superscalar)
+-- - Cache Size: 4KB-64KB (configurable)
+-- - FPU Performance: Single-cycle for most operations
+-- - Power Consumption: Dynamic scaling support
+--
+-- Implementation Approaches:
+-- 1. **High-Performance Configuration**:
+--    - Maximum cache sizes
+--    - Dual-precision FPU
+--    - ETM trace support
+--    - Advanced power management
+--
+-- 2. **Balanced Configuration**:
+--    - Medium cache sizes
+--    - Single-precision FPU
+--    - Basic debug support
+--    - Standard power management
+--
+-- 3. **Low-Power Configuration**:
+--    - Minimal cache sizes
+--    - Optional FPU
+--    - Power-optimized design
+--    - Enhanced sleep modes
+--
+-- 4. **Real-Time Configuration**:
+--    - TCM memory support
+--    - Deterministic timing
+--    - Real-time trace
+--    - Priority interrupt handling
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select core configuration (performance/balanced/low-power)
+-- - Define memory map and cache sizes
+-- - Specify bus interface requirements (AXI4/AHB-Lite)
+-- - Choose debug interface (SWD/JTAG/ETM)
+-- - Configure FPU and DSP features
+--
+-- Step 2: Implement Bus Interface Logic
+-- - Create AXI4 master interface for high-performance path
+-- - Add AHB-Lite master interface for peripheral access
+-- - Implement bus arbitration and routing
+-- - Add wait state generation and timing control
+-- - Configure memory protection and attributes
+--
+-- Step 3: Add Cache System
+-- - Implement instruction cache (I-Cache)
+-- - Add data cache (D-Cache)
+-- - Create TCM interfaces (ITCM/DTCM)
+-- - Add cache control and maintenance
+-- - Implement cache coherency protocols
+--
+-- Step 4: Add NVIC (Nested Vectored Interrupt Controller)
+-- - Connect external interrupt inputs (up to 240)
+-- - Implement priority handling (256 levels)
+-- - Add interrupt vectoring and nesting logic
+-- - Create system exception handling
+-- - Add interrupt masking and control
+--
+-- Step 5: Integrate Floating-Point Unit (FPU)
+-- - Add single-precision FPU support
+-- - Implement double-precision FPU (optional)
+-- - Connect FPU to pipeline stages
+-- - Add FPU control and status registers
+-- - Implement IEEE 754 compliance
+--
+-- Step 6: Integrate Debug Interface
+-- - Add SWD or JTAG interface
+-- - Implement Debug Access Port (DAP)
+-- - Connect breakpoint and watchpoint logic
+-- - Add Embedded Trace Macrocell (ETM)
+-- - Implement trace port interface
+--
+-- Step 7: Add System Control Block
+-- - Create system control registers
+-- - Add clock configuration logic
+-- - Implement reset management
+-- - Add system status monitoring
+-- - Create exception and fault handling
+--
+-- Step 8: Implement Power Management
+-- - Add dynamic voltage scaling (DVS)
+-- - Implement dynamic frequency scaling (DFS)
+-- - Create sleep mode control
+-- - Add clock gating logic
+-- - Implement power domain control
+--
+-- Step 9: Add Memory Protection Unit (MPU)
+-- - Implement MPU regions (up to 16)
+-- - Add access permission checking
+-- - Create fault detection logic
+-- - Add configuration registers
+-- - Implement cache policy control
+--
+-- Step 10: Add Performance Monitoring
+-- - Implement hardware performance counters
+-- - Add cache performance monitoring
+-- - Create pipeline performance metrics
+-- - Add interrupt latency measurement
+-- - Implement system profiling support
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.nvic_pkg: NVIC interface definitions
+-- - work.cortex_m7_pkg: Cortex-M7 specific constants
+-- - work.debug_pkg: Debug interface functions
+-- - work.fpu_pkg: Floating-point unit functions
+-- - work.cache_pkg: Cache system functions
+-- - work.power_pkg: Power management functions
+-- - work.mpu_pkg: Memory Protection Unit functions
+-- - work.system_pkg: System control functions
+-- - work.armv7em_pkg: ARMv7E-M architecture functions
+-- - work.etm_pkg: Embedded Trace Macrocell functions
+--
+-- Advanced Features:
+-- 1. **Superscalar Pipeline**: Dual-issue execution capability
+-- 2. **Advanced Cache**: Multi-level cache hierarchy
+-- 3. **High-Performance FPU**: Single/double precision support
+-- 4. **ETM Trace**: Real-time instruction and data trace
+-- 5. **Advanced Debug**: Comprehensive debug capabilities
+-- 6. **Power Management**: Dynamic voltage/frequency scaling
+-- 7. **Memory Protection**: Advanced MPU with 16 regions
+-- 8. **Performance Monitoring**: Hardware performance counters
+-- 9. **DSP Acceleration**: SIMD and DSP instruction support
+-- 10. **TCM Support**: Tightly coupled memory interfaces
+--
+-- Applications:
+-- - High-performance embedded systems
+-- - Digital signal processing
+-- - Motor control applications
+-- - Audio/video processing
+-- - Industrial automation
+-- - Automotive systems
+-- - Medical devices
+-- - Aerospace applications
+-- - Real-time control systems
+-- - Scientific computing
+--
+-- Performance Considerations:
+-- - Cache hit rates and memory hierarchy
+-- - Pipeline efficiency and superscalar execution
+-- - FPU utilization and floating-point performance
+-- - Interrupt latency and real-time response
+-- - Power consumption and thermal management
+-- - Memory bandwidth and bus utilization
+-- - Debug and trace overhead
+-- - Cache coherency and memory consistency
+--
+-- Verification Strategy:
+-- 1. **Instruction Testing**: ARMv7E-M instruction set validation
+-- 2. **Bus Protocol Testing**: AXI4 and AHB-Lite compliance
+-- 3. **Cache Testing**: Cache functionality and coherency
+-- 4. **FPU Testing**: Floating-point operations and IEEE 754
+-- 5. **Interrupt Testing**: NVIC functionality and latency
+-- 6. **Debug Testing**: SWD/JTAG and ETM interface validation
+-- 7. **Power Testing**: Dynamic scaling and sleep modes
+-- 8. **Memory Testing**: MPU and memory protection
+-- 9. **Performance Testing**: Benchmark and profiling
+-- 10. **Integration Testing**: System-level validation
+-- 11. **Compliance Testing**: ARM specification compliance
+--
+-- Common Design Challenges:
+-- - High-frequency design and timing closure
+-- - Cache coherency and memory consistency
+-- - Power management complexity
+-- - Debug interface timing at high frequencies
+-- - FPU integration and pipeline coordination
+-- - Interrupt latency optimization
+-- - Memory protection and security
+-- - Trace data bandwidth management
+-- - Thermal management and power density
+-- - Real-time determinism vs. performance
+--
+-- Verification Checklist:
+-- □ AXI4 and AHB-Lite interfaces functional and compliant
+-- □ Cache system operational and coherent
+-- □ NVIC interrupt handling working correctly
+-- □ FPU operations validated and IEEE 754 compliant
+-- □ Debug interface (SWD/JTAG/ETM) operational
+-- □ System control registers accessible
+-- □ Power management and scaling functional
+-- □ Memory protection (MPU) functional
+-- □ Pipeline efficiency validated
+-- □ Performance counters operational
+-- □ Exception handling validated
+-- □ Interrupt latency meets requirements
+-- □ Cache performance optimized
+-- □ Debug and trace functional
+-- □ Power consumption within specifications
+-- □ Thermal characteristics validated
+-- □ System integration validated
+-- □ Performance targets achieved
+-- □ Long-term reliability demonstrated
+-- □ Compliance with ARM specifications verified
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.nvic_pkg.all;
+-- use work.cortex_m7_pkg.all;
+-- use work.debug_pkg.all;
+-- use work.fpu_pkg.all;
+-- use work.cache_pkg.all;
+-- use work.power_pkg.all;
+-- use work.mpu_pkg.all;
+-- use work.system_pkg.all;
+-- use work.armv7em_pkg.all;
+-- use work.etm_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_m7_interface is
+--     generic (
+--         ENABLE_FPU      : boolean := true;        -- Floating-Point Unit
+--         FPU_TYPE        : string  := "SP";        -- "SP" or "DP"
+--         ENABLE_CACHE    : boolean := true;        -- Cache system
+--         ICACHE_SIZE     : integer := 32768;       -- I-Cache size (bytes)
+--         DCACHE_SIZE     : integer := 32768;       -- D-Cache size (bytes)
+--         ENABLE_TCM      : boolean := false;       -- Tightly Coupled Memory
+--         ITCM_SIZE       : integer := 65536;       -- ITCM size (bytes)
+--         DTCM_SIZE       : integer := 65536;       -- DTCM size (bytes)
+--         ENABLE_MPU      : boolean := true;        -- Memory Protection Unit
+--         MPU_REGIONS     : integer := 16;          -- MPU regions
+--         ENABLE_DEBUG    : boolean := true;        -- Debug interface
+--         DEBUG_TYPE      : string  := "SWD";       -- "SWD" or "JTAG"
+--         ENABLE_ETM      : boolean := false;       -- Embedded Trace Macrocell
+--         NUM_INTERRUPTS  : integer := 240;         -- External interrupts
+--         PRIORITY_BITS   : integer := 8;           -- Priority levels (256)
+--         AXI_DATA_WIDTH  : integer := 64;          -- 64-bit AXI4
+--         AXI_ADDR_WIDTH  : integer := 32;          -- 32-bit address
+--         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit AHB-Lite
+--         CLOCK_FREQ      : integer := 600000000;   -- 600 MHz max
+--         ENABLE_PERFMON  : boolean := true;        -- Performance monitoring
+--         NUM_PERF_COUNTERS : integer := 6          -- Performance counters
+--     );
+--     port (
+--         -- System signals
+--         hclk            : in  std_logic;
+--         hresetn         : in  std_logic;
+--         
+--         -- AXI4 Master interface (high-performance)
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AHB-Lite Master interface (peripheral)
+--         haddr           : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         htrans          : out std_logic_vector(1 downto 0);
+--         hwrite          : out std_logic;
+--         hsize           : out std_logic_vector(2 downto 0);
+--         hburst          : out std_logic_vector(2 downto 0);
+--         hprot           : out std_logic_vector(3 downto 0);
+--         hwdata          : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hrdata          : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hready          : in  std_logic;
+--         hresp           : in  std_logic;
+--         
+--         -- NVIC (Nested Vectored Interrupt Controller)
+--         nvic_irq        : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_nmi        : in  std_logic;
+--         nvic_priority   : in  std_logic_vector(PRIORITY_BITS*NUM_INTERRUPTS-1 downto 0);
+--         nvic_enable     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_pending    : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_active     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         
+--         -- System exceptions
+--         sys_reset       : in  std_logic;
+--         sys_nmi         : in  std_logic;
+--         sys_hardfault   : out std_logic;
+--         sys_memfault    : out std_logic;
+--         sys_busfault    : out std_logic;
+--         sys_usagefault  : out std_logic;
+--         sys_svcall      : out std_logic;
+--         sys_debugmon    : out std_logic;
+--         sys_pendsv      : out std_logic;
+--         sys_systick     : out std_logic;
+--         
+--         -- Debug interface (SWD)
+--         swclk           : in  std_logic;
+--         swdio           : inout std_logic;
+--         swo             : out std_logic;
+--         
+--         -- Debug interface (JTAG) - alternative to SWD
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         jtag_trst_n     : in  std_logic;
+--         
+--         -- ETM Trace interface (optional)
+--         etm_traceclk    : in  std_logic;
+--         etm_tracedata   : out std_logic_vector(31 downto 0);
+--         etm_tracectl    : out std_logic_vector(7 downto 0);
+--         etm_trigger     : out std_logic;
+--         
+--         -- Debug control and status
+--         debug_req       : in  std_logic;
+--         debug_ack       : out std_logic;
+--         halt_req        : in  std_logic;
+--         halt_ack        : out std_logic;
+--         step_req        : in  std_logic;
+--         step_ack        : out std_logic;
+--         
+--         -- Breakpoints and watchpoints
+--         bp_addr         : in  std_logic_vector(8*32-1 downto 0);  -- 8 breakpoints
+--         bp_enable       : in  std_logic_vector(7 downto 0);
+--         bp_hit          : out std_logic_vector(7 downto 0);
+--         wp_addr         : in  std_logic_vector(4*32-1 downto 0);  -- 4 watchpoints
+--         wp_enable       : in  std_logic_vector(3 downto 0);
+--         wp_hit          : out std_logic_vector(3 downto 0);
+--         
+--         -- Floating-Point Unit (FPU)
+--         fpu_enable      : in  std_logic;
+--         fpu_exception   : out std_logic;
+--         fpu_status      : out std_logic_vector(31 downto 0);
+--         fpu_control     : in  std_logic_vector(31 downto 0);
+--         
+--         -- Cache control and status
+--         icache_enable   : in  std_logic;
+--         icache_flush    : in  std_logic;
+--         icache_hit_rate : out std_logic_vector(15 downto 0);
+--         dcache_enable   : in  std_logic;
+--         dcache_flush    : in  std_logic;
+--         dcache_clean    : in  std_logic;
+--         dcache_hit_rate : out std_logic_vector(15 downto 0);
+--         
+--         -- TCM interfaces (optional)
+--         itcm_addr       : out std_logic_vector(31 downto 0);
+--         itcm_rdata      : in  std_logic_vector(63 downto 0);
+--         itcm_ren        : out std_logic;
+--         dtcm_addr       : out std_logic_vector(31 downto 0);
+--         dtcm_wdata      : out std_logic_vector(63 downto 0);
+--         dtcm_rdata      : in  std_logic_vector(63 downto 0);
+--         dtcm_wen        : out std_logic_vector(7 downto 0);
+--         dtcm_ren        : out std_logic;
+--         
+--         -- Memory Protection Unit (MPU)
+--         mpu_enable      : in  std_logic;
+--         mpu_region_base : in  std_logic_vector(MPU_REGIONS*32-1 downto 0);
+--         mpu_region_attr : in  std_logic_vector(MPU_REGIONS*16-1 downto 0);
+--         mpu_region_en   : in  std_logic_vector(MPU_REGIONS-1 downto 0);
+--         mpu_fault       : out std_logic;
+--         mpu_fault_addr  : out std_logic_vector(31 downto 0);
+--         mpu_fault_type  : out std_logic_vector(3 downto 0);
+--         
+--         -- Power management
+--         pm_sleep_req    : in  std_logic;
+--         pm_sleep_ack    : out std_logic;
+--         pm_deepsleep_req: in  std_logic;
+--         pm_deepsleep_ack: out std_logic;
+--         pm_voltage_scale: in  std_logic_vector(1 downto 0);
+--         pm_freq_scale   : in  std_logic_vector(2 downto 0);
+--         pm_wakeup       : in  std_logic;
+--         pm_wakeup_ack   : out std_logic;
+--         
+--         -- Clock control
+--         cpu_clk_en      : out std_logic;
+--         fpu_clk_en      : out std_logic;
+--         cache_clk_en    : out std_logic;
+--         debug_clk_en    : out std_logic;
+--         trace_clk_en    : out std_logic;
+--         
+--         -- System control
+--         sys_ctrl_addr   : in  std_logic_vector(15 downto 0);
+--         sys_ctrl_wdata  : in  std_logic_vector(31 downto 0);
+--         sys_ctrl_rdata  : out std_logic_vector(31 downto 0);
+--         sys_ctrl_wen    : in  std_logic;
+--         sys_ctrl_ren    : in  std_logic;
+--         sys_ctrl_ready  : out std_logic;
+--         
+--         -- Status and monitoring
+--         cpu_state       : out std_logic_vector(3 downto 0);
+--         cpu_halted      : out std_logic;
+--         cpu_sleeping    : out std_logic;
+--         cpu_lockup      : out std_logic;
+--         exception_num   : out std_logic_vector(7 downto 0);
+--         exception_active: out std_logic;
+--         pipeline_stall  : out std_logic;
+--         
+--         -- Performance monitoring
+--         perf_enable     : in  std_logic_vector(NUM_PERF_COUNTERS-1 downto 0);
+--         perf_event_sel  : in  std_logic_vector(NUM_PERF_COUNTERS*8-1 downto 0);
+--         perf_counters   : out std_logic_vector(NUM_PERF_COUNTERS*32-1 downto 0);
+--         perf_overflow   : out std_logic_vector(NUM_PERF_COUNTERS-1 downto 0);
+--         
+--         -- Temperature and voltage monitoring
+--         temp_sensor     : in  std_logic_vector(11 downto 0);
+--         volt_sensor     : in  std_logic_vector(11 downto 0);
+--         temp_alarm      : out std_logic;
+--         volt_alarm      : out std_logic;
+--         thermal_throttle: out std_logic
+--     );
+-- end entity cortex_m7_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_m7_interface is
+--     -- Component declarations for Cortex-M7 core
+--     -- Component declarations for NVIC, FPU, cache system
+--     -- Component declarations for debug interface, ETM
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-M7 processor core
+--     -- Instantiate NVIC (Nested Vectored Interrupt Controller)
+--     -- Instantiate Floating-Point Unit (FPU)
+--     -- Add cache system (I-Cache, D-Cache)
+--     -- Add TCM interfaces (ITCM, DTCM)
+--     -- Add debug interface (SWD/JTAG)
+--     -- Implement ETM trace interface (if enabled)
+--     -- Implement system control block
+--     -- Add power management logic
+--     -- Connect memory protection unit (MPU)
+--     -- Add performance monitoring
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-M7 interface design focuses on high-performance applications 
+-- with advanced features like superscalar execution, caches, and FPU. Always 
+-- consult the ARM Cortex-M7 Technical Reference Manual and ARMv7E-M Architecture 
+-- Manual for detailed specifications.
+-- ============================================================================

@@ -1,0 +1,282 @@
+-- ============================================================================
+-- PROJECT: JK Flip-Flop Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a JK flip-flop using VHDL. The JK flip-flop is a
+-- versatile sequential logic circuit that eliminates the forbidden state
+-- problem of the SR flip-flop. It has two inputs (J and K), a clock input,
+-- and provides both normal and complementary outputs. The JK flip-flop can
+-- perform set, reset, hold, and toggle operations based on input combinations.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand advanced sequential logic design
+-- - Learn clock-triggered operation and edge detection
+-- - Master toggle functionality and its applications
+-- - Practice with synchronous sequential circuit design
+-- - Implement master-slave or edge-triggered architectures
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - j: J input signal (set when high with clock edge)
+-- - k: K input signal (reset when high with clock edge)
+-- - clk: Clock input signal (rising or falling edge triggered)
+-- - reset: Asynchronous reset signal (optional, active high/low)
+-- - preset: Asynchronous preset signal (optional, active high/low)
+-- 
+-- OUTPUTS:
+-- - q: Primary output signal
+-- - q_n: Complementary output signal (NOT Q)
+--
+-- FUNCTIONALITY:
+-- - When J = '0', K = '0': Q maintains previous state (Hold)
+-- - When J = '0', K = '1': Q = '0' on clock edge (Reset)
+-- - When J = '1', K = '0': Q = '1' on clock edge (Set)
+-- - When J = '1', K = '1': Q toggles on clock edge (Toggle)
+--
+-- ============================================================================
+-- TRUTH TABLE:
+-- ============================================================================
+-- J | K | CLK | Q(next) | Q_N(next) | Operation
+-- --|---|-----|---------|-----------|----------
+-- 0 | 0 |  ↑  |    Q    |    Q_N    | Hold
+-- 0 | 1 |  ↑  |    0    |     1     | Reset
+-- 1 | 0 |  ↑  |    1    |     0     | Set
+-- 1 | 1 |  ↑  |   NOT Q |   NOT Q_N | Toggle
+-- X | X |  0  |    Q    |    Q_N    | No change
+-- X | X |  1  |    Q    |    Q_N    | No change
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. MASTER-SLAVE CONFIGURATION:
+--    - Two SR latches connected in series
+--    - Master latch enabled on clock high
+--    - Slave latch enabled on clock low
+--    - Eliminates race conditions
+--    - Provides edge-triggered behavior
+--
+-- 2. EDGE-TRIGGERED DESIGN:
+--    - Direct edge detection in behavioral model
+--    - Uses rising_edge() or falling_edge() functions
+--    - Simpler implementation
+--    - More common in modern designs
+--    - Better synthesis results
+--
+-- 3. STRUCTURAL IMPLEMENTATION:
+--    - Built from basic gates and latches
+--    - Clear hardware mapping
+--    - Educational value for understanding internals
+--    - May require more resources
+--    - Explicit timing control
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- CLOCK EDGE SELECTION:
+-- - Choose between rising edge and falling edge triggering
+-- - Consider system-wide clocking strategy
+-- - Plan for clock domain crossing if needed
+-- - Ensure consistent edge detection
+--
+-- ASYNCHRONOUS CONTROLS:
+-- - Implement asynchronous reset and/or preset
+-- - Define priority between async controls
+-- - Consider power-on reset requirements
+-- - Plan for initialization states
+--
+-- TIMING REQUIREMENTS:
+-- - Define setup and hold times for J and K inputs
+-- - Calculate clock-to-output delays
+-- - Consider clock skew effects
+-- - Plan for timing closure
+--
+-- METASTABILITY PREVENTION:
+-- - Ensure proper input synchronization
+-- - Consider input qualification requirements
+-- - Plan for recovery time after async operations
+-- - Implement proper timing constraints
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ENTITY DECLARATION
+-- □ Define J and K input ports
+-- □ Define clock input port
+-- □ Define Q and Q_N output ports
+-- □ Add asynchronous reset/preset if needed
+-- □ Include comprehensive port descriptions
+--
+-- STEP 2: ARCHITECTURE SELECTION
+-- □ Choose between behavioral and structural approaches
+-- □ Select clock edge (rising or falling)
+-- □ Plan for asynchronous control handling
+-- □ Consider synthesis implications
+--
+-- STEP 3: CLOCK PROCESS IMPLEMENTATION
+-- □ Create clocked process with sensitivity list
+-- □ Implement edge detection (rising_edge or falling_edge)
+-- □ Handle asynchronous reset/preset with proper priority
+-- □ Ensure proper signal assignments
+--
+-- STEP 4: JK LOGIC IMPLEMENTATION
+-- □ Implement hold operation (J=0, K=0)
+-- □ Implement reset operation (J=0, K=1)
+-- □ Implement set operation (J=1, K=0)
+-- □ Implement toggle operation (J=1, K=1)
+-- □ Ensure complementary outputs
+--
+-- STEP 5: VERIFICATION PLANNING
+-- □ Create comprehensive test vectors
+-- □ Test all JK input combinations
+-- □ Verify edge-triggered behavior
+-- □ Test asynchronous controls
+-- □ Check timing relationships
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Provides std_logic and std_logic_vector types
+-- - Includes rising_edge() and falling_edge() functions
+-- - Essential for clock edge detection
+-- - Supports tri-state and unknown values
+--
+-- IEEE.numeric_std.all:
+-- - Provides unsigned and signed types (if needed)
+-- - Useful for counter implementations
+-- - Includes arithmetic operations
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- SCAN CHAIN SUPPORT:
+-- - Add scan input and output ports
+-- - Implement scan enable functionality
+-- - Support design-for-test methodologies
+-- - Enable manufacturing test capabilities
+--
+-- MULTIPLE FLIP-FLOPS:
+-- - Create arrays of JK flip-flops
+-- - Implement parallel register functionality
+-- - Support for shift register operations
+-- - Enable efficient resource sharing
+--
+-- CLOCK ENABLE:
+-- - Add clock enable input for power saving
+-- - Implement conditional clocking
+-- - Support for clock gating techniques
+-- - Reduce dynamic power consumption
+--
+-- CONFIGURABLE EDGE:
+-- - Add generic parameter for edge selection
+-- - Support both rising and falling edge
+-- - Enable design reusability
+-- - Simplify timing analysis
+--
+-- ============================================================================
+-- APPLICATIONS AND USE CASES:
+-- ============================================================================
+-- COUNTERS AND DIVIDERS:
+-- - Building block for binary counters
+-- - Frequency division circuits
+-- - Timing generation systems
+-- - Clock domain generation
+--
+-- STATE MACHINES:
+-- - State storage in FSM implementations
+-- - Control signal generation
+-- - Sequence detection circuits
+-- - Protocol controllers
+--
+-- SHIFT REGISTERS:
+-- - Serial-to-parallel conversion
+-- - Data delay lines
+-- - Pattern generation
+-- - Communication interfaces
+--
+-- TOGGLE APPLICATIONS:
+-- - Clock division by 2
+-- - Square wave generation
+-- - Duty cycle modification
+-- - Phase generation
+--
+-- ============================================================================
+-- TIMING SPECIFICATIONS:
+-- ============================================================================
+-- SETUP TIME (tsu):
+-- - Minimum time J and K must be stable before clock edge
+-- - Typically 1-5 ns for modern FPGA implementations
+-- - Critical for proper operation
+-- - Must be met for all input transitions
+--
+-- HOLD TIME (th):
+-- - Minimum time J and K must remain stable after clock edge
+-- - Usually 0-2 ns for modern implementations
+-- - Prevents data corruption
+-- - Important for timing closure
+--
+-- CLOCK-TO-OUTPUT DELAY (tco):
+-- - Time from clock edge to output change
+-- - Typically 2-10 ns depending on implementation
+-- - Affects system timing budget
+-- - Critical for high-speed operation
+--
+-- RECOVERY TIME (trec):
+-- - Time from async control release to clock edge
+-- - Prevents metastability after async operations
+-- - Usually 2-5 ns for proper operation
+-- - Critical for reliable reset/preset operation
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test hold operation (J=0, K=0)
+-- □ Test reset operation (J=0, K=1)
+-- □ Test set operation (J=1, K=0)
+-- □ Test toggle operation (J=1, K=1)
+-- □ Verify edge-triggered behavior
+-- □ Test asynchronous reset/preset
+--
+-- TIMING VERIFICATION:
+-- □ Verify setup and hold time requirements
+-- □ Measure clock-to-output delays
+-- □ Test recovery time after async operations
+-- □ Check for race conditions
+--
+-- EDGE CASE TESTING:
+-- □ Test with minimum clock pulse width
+-- □ Verify behavior with clock glitches
+-- □ Test simultaneous async control assertions
+-- □ Check power-on initialization
+--
+-- SYNTHESIS VERIFICATION:
+-- □ Verify synthesized logic matches specification
+-- □ Check for proper flip-flop inference
+-- □ Analyze resource utilization
+-- □ Validate timing constraints
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for basic logic types and edge functions
+-- - IEEE.numeric_std.all if needed for calculations
+--
+-- [Add your entity declaration here]
+-- - Define input ports: j, k, clk
+-- - Define output ports: q, q_n
+-- - Add asynchronous reset/preset if needed
+--
+-- [Add your architecture implementation here]
+-- - Create clocked process with proper sensitivity list
+-- - Implement edge detection (rising_edge or falling_edge)
+-- - Handle asynchronous controls with proper priority
+-- - Implement JK logic for all input combinations
+-- - Ensure complementary outputs
+-- - Add appropriate comments for clarity
+--
+-- ============================================================================

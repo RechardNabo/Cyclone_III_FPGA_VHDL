@@ -1,0 +1,576 @@
+-- ============================================================================
+-- CAN Controller Testbench Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a comprehensive testbench for the CAN controller in VHDL.
+-- The testbench provides stimulus generation, response monitoring, and verification
+-- capabilities for testing CAN protocol compliance, timing accuracy, and error
+-- handling mechanisms. It includes test scenarios for both normal operation and
+-- fault conditions to ensure robust CAN controller implementation.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand CAN protocol testing methodologies
+-- 2. Learn testbench design patterns for communication protocols
+-- 3. Master stimulus generation for complex protocols
+-- 4. Practice verification techniques for automotive systems
+-- 5. Understand timing verification and protocol compliance testing
+-- 6. Learn error injection and fault tolerance testing
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - std.textio for file I/O operations
+-- - Consider additional packages for advanced verification
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Add library std;
+-- TODO: Add use std.textio.all;
+-- TODO: Consider adding verification packages if available
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The testbench entity is typically empty (no ports)
+--
+-- Entity Requirements:
+-- - Name: can_testbench (maintain current naming convention)
+-- - No ports (testbench is top-level simulation entity)
+-- - All signals are internal to the testbench
+--
+-- ============================================================================
+-- STEP 3: CAN TESTBENCH PRINCIPLES
+-- ============================================================================
+--
+-- Test Categories:
+-- 1. Basic Functionality Tests:
+--    - Frame transmission and reception
+--    - Standard and extended identifier support
+--    - Data length code verification
+--    - Remote frame handling
+--
+-- 2. Protocol Compliance Tests:
+--    - Bit timing verification
+--    - Bit stuffing and destuffing
+--    - CRC calculation and verification
+--    - Acknowledgment handling
+--    - Error frame generation
+--
+-- 3. Error Handling Tests:
+--    - Bit error injection
+--    - Stuff error injection
+--    - CRC error injection
+--    - Form error injection
+--    - ACK error injection
+--    - Error counter verification
+--    - Bus-off state testing
+--
+-- 4. Performance Tests:
+--    - Maximum bus utilization
+--    - Arbitration testing
+--    - Message latency measurement
+--    - Throughput verification
+--
+-- 5. Stress Tests:
+--    - Continuous operation
+--    - High error rate conditions
+--    - Bus recovery testing
+--    - Temperature and voltage variations
+--
+-- ============================================================================
+-- STEP 4: TESTBENCH ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Basic Testbench (Recommended for beginners)
+-- - Simple stimulus generation
+-- - Basic response checking
+-- - Manual test case execution
+-- - Limited error injection
+--
+-- OPTION 2: Structured Testbench (Intermediate)
+-- - Organized test procedures
+-- - Automated test execution
+-- - Comprehensive error injection
+-- - Result logging and reporting
+--
+-- OPTION 3: Advanced Testbench (Advanced)
+-- - Bus functional models
+-- - Protocol monitors
+-- - Coverage collection
+-- - Constrained random testing
+--
+-- OPTION 4: Verification Environment (Expert)
+-- - UVM/OVM methodology
+-- - Scoreboard verification
+-- - Functional coverage
+-- - Assertion-based verification
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Clock Generation:
+-- - System clock for DUT
+-- - Bit timing reference
+-- - Multiple clock domains if needed
+-- - Clock jitter simulation
+--
+-- Reset Strategy:
+-- - Power-on reset simulation
+-- - Controlled reset sequences
+-- - Reset during operation testing
+-- - Recovery verification
+--
+-- Stimulus Generation:
+-- - CAN frame generation
+-- - Identifier patterns
+-- - Data patterns
+-- - Timing variations
+-- - Error injection
+--
+-- Response Monitoring:
+-- - Output signal monitoring
+-- - Timing verification
+-- - Protocol compliance checking
+-- - Error detection verification
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Bus Functional Models:
+-- - CAN bus simulation
+-- - Multiple node simulation
+-- - Bus loading simulation
+-- - Network topology modeling
+--
+-- Protocol Monitors:
+-- - Frame format verification
+-- - Timing compliance checking
+-- - Error detection monitoring
+-- - Statistics collection
+--
+-- Coverage Collection:
+-- - Functional coverage points
+-- - Code coverage analysis
+-- - Protocol state coverage
+-- - Error condition coverage
+--
+-- Assertion-Based Verification:
+-- - Protocol assertions
+-- - Timing assertions
+-- - Interface assertions
+-- - Property checking
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Design Verification: Validate CAN controller implementation
+-- 2. Regression Testing: Automated test suite execution
+-- 3. Compliance Testing: CAN standard verification
+-- 4. Performance Analysis: Timing and throughput measurement
+-- 5. Fault Testing: Error handling verification
+-- 6. Integration Testing: Multi-node system testing
+-- 7. Certification Support: Automotive standard compliance
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual function verification
+-- 2. Integration Testing: System-level verification
+-- 3. Protocol Testing: CAN standard compliance
+-- 4. Performance Testing: Timing and throughput
+-- 5. Stress Testing: Extreme condition handling
+-- 6. Regression Testing: Automated test execution
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic frame transmission/reception tests
+-- 2. Add protocol compliance verification
+-- 3. Implement error injection capabilities
+-- 4. Add performance and stress tests
+-- 5. Create automated test procedures
+-- 6. Add comprehensive logging and reporting
+-- 7. Validate with real CAN devices
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Add CAN-FD testbench support
+-- 2. Implement multi-node network simulation
+-- 3. Add real-time performance analysis
+-- 4. Create automated test generation
+-- 5. Add EMC simulation capabilities
+-- 6. Implement security testing
+-- 7. Add certification test suites
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Insufficient test coverage
+-- 2. Inadequate timing verification
+-- 3. Missing error condition tests
+-- 4. Poor stimulus generation
+-- 5. Inadequate response checking
+-- 6. Missing edge case testing
+-- 7. Insufficient documentation
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All CAN frame formats tested
+-- □ Bit timing compliance verified
+-- □ Error detection mechanisms tested
+-- □ Arbitration process verified
+-- □ Bus-off recovery tested
+-- □ Performance requirements met
+-- □ Protocol compliance confirmed
+-- □ Stress testing completed
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This testbench demonstrates several key concepts:
+-- - Protocol verification methodologies
+-- - Automotive testing standards
+-- - Real-time system verification
+-- - Fault injection techniques
+-- - Performance measurement methods
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Use accurate timing models for simulation
+-- - Include bus loading effects
+-- - Model CAN transceiver characteristics
+-- - Consider temperature and voltage variations
+-- - Include EMI/EMC effects if applicable
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Formal verification techniques
+-- - Model-based testing
+-- - Hardware-in-the-loop testing
+-- - Continuous integration testing
+-- - Automated test generation
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use appropriate simulation time resolution
+-- - Include realistic bus models
+-- - Implement comprehensive checking
+-- - Use assertion-based verification
+-- - Generate detailed test reports
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- library std;
+-- use std.textio.all;
+--
+-- entity can_testbench is
+-- end entity can_testbench;
+--
+-- architecture behavioral of can_testbench is
+--     -- Constants
+--     constant CLK_PERIOD : time := 20 ns;  -- 50 MHz clock
+--     constant CAN_BIT_TIME : time := 2 us; -- 500 kbps
+--     constant SIM_TIME : time := 10 ms;    -- Total simulation time
+--     
+--     -- DUT component declaration
+--     component can_controller is
+--         generic (
+--             CLK_FREQ        : integer := 50_000_000;
+--             CAN_BITRATE     : integer := 500_000;
+--             SYNC_JUMP_WIDTH : integer := 1;
+--             TIME_SEG1       : integer := 13;
+--             TIME_SEG2       : integer := 2
+--         );
+--         port (
+--             clk           : in  std_logic;
+--             reset         : in  std_logic;
+--             enable        : in  std_logic;
+--             tx_request    : in  std_logic;
+--             tx_id         : in  std_logic_vector(28 downto 0);
+--             tx_data       : in  std_logic_vector(63 downto 0);
+--             tx_dlc        : in  std_logic_vector(3 downto 0);
+--             tx_ide        : in  std_logic;
+--             tx_rtr        : in  std_logic;
+--             rx_data       : out std_logic_vector(63 downto 0);
+--             rx_id         : out std_logic_vector(28 downto 0);
+--             rx_dlc        : out std_logic_vector(3 downto 0);
+--             rx_ide        : out std_logic;
+--             rx_rtr        : out std_logic;
+--             rx_valid      : out std_logic;
+--             tx_busy       : out std_logic;
+--             tx_complete   : out std_logic;
+--             tx_error      : out std_logic;
+--             rx_error      : out std_logic;
+--             bus_off       : out std_logic;
+--             error_passive : out std_logic;
+--             can_tx        : out std_logic;
+--             can_rx        : in  std_logic
+--         );
+--     end component;
+--     
+--     -- Test signals
+--     signal clk           : std_logic := '0';
+--     signal reset         : std_logic := '1';
+--     signal enable        : std_logic := '0';
+--     signal tx_request    : std_logic := '0';
+--     signal tx_id         : std_logic_vector(28 downto 0) := (others => '0');
+--     signal tx_data       : std_logic_vector(63 downto 0) := (others => '0');
+--     signal tx_dlc        : std_logic_vector(3 downto 0) := (others => '0');
+--     signal tx_ide        : std_logic := '0';
+--     signal tx_rtr        : std_logic := '0';
+--     signal rx_data       : std_logic_vector(63 downto 0);
+--     signal rx_id         : std_logic_vector(28 downto 0);
+--     signal rx_dlc        : std_logic_vector(3 downto 0);
+--     signal rx_ide        : std_logic;
+--     signal rx_rtr        : std_logic;
+--     signal rx_valid      : std_logic;
+--     signal tx_busy       : std_logic;
+--     signal tx_complete   : std_logic;
+--     signal tx_error      : std_logic;
+--     signal rx_error      : std_logic;
+--     signal bus_off       : std_logic;
+--     signal error_passive : std_logic;
+--     signal can_tx        : std_logic;
+--     signal can_rx        : std_logic := '1';  -- Bus idle (recessive)
+--     
+--     -- Test control signals
+--     signal test_running  : boolean := true;
+--     signal test_passed   : boolean := true;
+--     signal test_count    : integer := 0;
+--     signal error_count   : integer := 0;
+--     
+--     -- CAN bus model
+--     signal can_bus       : std_logic := '1';  -- Wired-AND bus
+--     
+-- begin
+--     -- DUT instantiation
+--     dut: can_controller
+--         generic map (
+--             CLK_FREQ        => 50_000_000,
+--             CAN_BITRATE     => 500_000,
+--             SYNC_JUMP_WIDTH => 1,
+--             TIME_SEG1       => 13,
+--             TIME_SEG2       => 2
+--         )
+--         port map (
+--             clk           => clk,
+--             reset         => reset,
+--             enable        => enable,
+--             tx_request    => tx_request,
+--             tx_id         => tx_id,
+--             tx_data       => tx_data,
+--             tx_dlc        => tx_dlc,
+--             tx_ide        => tx_ide,
+--             tx_rtr        => tx_rtr,
+--             rx_data       => rx_data,
+--             rx_id         => rx_id,
+--             rx_dlc        => rx_dlc,
+--             rx_ide        => rx_ide,
+--             rx_rtr        => rx_rtr,
+--             rx_valid      => rx_valid,
+--             tx_busy       => tx_busy,
+--             tx_complete   => tx_complete,
+--             tx_error      => tx_error,
+--             rx_error      => rx_error,
+--             bus_off       => bus_off,
+--             error_passive => error_passive,
+--             can_tx        => can_tx,
+--             can_rx        => can_rx
+--         );
+--     
+--     -- Clock generation
+--     clk_proc: process
+--     begin
+--         while test_running loop
+--             clk <= '0';
+--             wait for CLK_PERIOD/2;
+--             clk <= '1';
+--             wait for CLK_PERIOD/2;
+--         end loop;
+--         wait;
+--     end process;
+--     
+--     -- CAN bus model (wired-AND)
+--     can_bus <= can_tx;  -- Simplified single-node model
+--     can_rx <= can_bus;
+--     
+--     -- Main test process
+--     test_proc: process
+--         -- Test procedures
+--         procedure reset_dut is
+--         begin
+--             reset <= '1';
+--             wait for 100 ns;
+--             reset <= '0';
+--             enable <= '1';
+--             wait for 100 ns;
+--         end procedure;
+--         
+--         procedure send_frame(
+--             id : std_logic_vector(28 downto 0);
+--             data : std_logic_vector(63 downto 0);
+--             dlc : std_logic_vector(3 downto 0);
+--             ide : std_logic;
+--             rtr : std_logic
+--         ) is
+--         begin
+--             tx_id <= id;
+--             tx_data <= data;
+--             tx_dlc <= dlc;
+--             tx_ide <= ide;
+--             tx_rtr <= rtr;
+--             tx_request <= '1';
+--             wait until rising_edge(clk);
+--             tx_request <= '0';
+--             wait until tx_complete = '1' or tx_error = '1';
+--             wait for 100 ns;
+--         end procedure;
+--         
+--         procedure check_result(
+--             expected : boolean;
+--             message : string
+--         ) is
+--         begin
+--             test_count <= test_count + 1;
+--             if not expected then
+--                 error_count <= error_count + 1;
+--                 test_passed <= false;
+--                 report "TEST FAILED: " & message severity error;
+--             else
+--                 report "TEST PASSED: " & message severity note;
+--             end if;
+--         end procedure;
+--         
+--     begin
+--         -- Test initialization
+--         report "Starting CAN Controller Testbench" severity note;
+--         
+--         -- Test 1: Reset and initialization
+--         report "Test 1: Reset and initialization" severity note;
+--         reset_dut;
+--         check_result(bus_off = '0', "Bus-off should be inactive after reset");
+--         check_result(error_passive = '0', "Error passive should be inactive after reset");
+--         
+--         -- Test 2: Basic frame transmission
+--         report "Test 2: Basic frame transmission" severity note;
+--         send_frame(
+--             id => "00000000000000000" & "01010101010",  -- Standard ID
+--             data => x"0123456789ABCDEF",
+--             dlc => "1000",  -- 8 bytes
+--             ide => '0',     -- Standard frame
+--             rtr => '0'      -- Data frame
+--         );
+--         check_result(tx_error = '0', "Transmission should complete without error");
+--         
+--         -- Test 3: Extended frame transmission
+--         report "Test 3: Extended frame transmission" severity note;
+--         send_frame(
+--             id => "10101010101010101" & "01010101010",  -- Extended ID
+--             data => x"FEDCBA9876543210",
+--             dlc => "0100",  -- 4 bytes
+--             ide => '1',     -- Extended frame
+--             rtr => '0'      -- Data frame
+--         );
+--         check_result(tx_error = '0', "Extended frame transmission should complete without error");
+--         
+--         -- Test 4: Remote frame transmission
+--         report "Test 4: Remote frame transmission" severity note;
+--         send_frame(
+--             id => "00000000000000000" & "11110000111",  -- Standard ID
+--             data => (others => '0'),  -- No data for RTR
+--             dlc => "0110",  -- 6 bytes requested
+--             ide => '0',     -- Standard frame
+--             rtr => '1'      -- Remote frame
+--         );
+--         check_result(tx_error = '0', "Remote frame transmission should complete without error");
+--         
+--         -- Test 5: Zero data length frame
+--         report "Test 5: Zero data length frame" severity note;
+--         send_frame(
+--             id => "00000000000000000" & "00000000001",  -- Standard ID
+--             data => (others => '0'),
+--             dlc => "0000",  -- 0 bytes
+--             ide => '0',     -- Standard frame
+--             rtr => '0'      -- Data frame
+--         );
+--         check_result(tx_error = '0', "Zero data length frame should complete without error");
+--         
+--         -- Test 6: Maximum data length frame
+--         report "Test 6: Maximum data length frame" severity note;
+--         send_frame(
+--             id => "00000000000000000" & "11111111111",  -- Standard ID
+--             data => x"FFFFFFFFFFFFFFFF",
+--             dlc => "1000",  -- 8 bytes
+--             ide => '0',     -- Standard frame
+--             rtr => '0'      -- Data frame
+--         );
+--         check_result(tx_error = '0', "Maximum data length frame should complete without error");
+--         
+--         -- Additional tests can be added here:
+--         -- - Error injection tests
+--         -- - Bus arbitration tests
+--         -- - Performance tests
+--         -- - Stress tests
+--         
+--         -- Test completion
+--         wait for 1 us;
+--         test_running <= false;
+--         
+--         -- Final report
+--         report "========================================" severity note;
+--         report "CAN Controller Testbench Complete" severity note;
+--         report "Total Tests: " & integer'image(test_count) severity note;
+--         report "Failed Tests: " & integer'image(error_count) severity note;
+--         if test_passed then
+--             report "OVERALL RESULT: PASSED" severity note;
+--         else
+--             report "OVERALL RESULT: FAILED" severity error;
+--         end if;
+--         report "========================================" severity note;
+--         
+--         wait;
+--     end process;
+--     
+--     -- Timeout watchdog
+--     timeout_proc: process
+--     begin
+--         wait for SIM_TIME;
+--         if test_running then
+--             report "TIMEOUT: Simulation exceeded maximum time" severity failure;
+--             test_running <= false;
+--         end if;
+--         wait;
+--     end process;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This CAN controller testbench provides comprehensive verification
+-- capabilities for automotive communication systems. Ensure thorough testing
+-- of all protocol features, error conditions, and performance requirements.
+-- The testbench should be continuously updated as the DUT evolves and new
+-- test cases are identified. Consider using industry-standard verification
+-- methodologies for complex automotive applications.
+-- ============================================================================

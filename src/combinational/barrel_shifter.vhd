@@ -1,0 +1,656 @@
+-- ============================================================================
+-- Barrel Shifter Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a barrel shifter, a specialized combinational circuit
+-- that can shift or rotate data by any number of positions in a single clock
+-- cycle. Unlike simple shifters that can only shift by one position at a time,
+-- a barrel shifter provides parallel shifting capability, making it essential
+-- for high-performance processors, DSP applications, and arithmetic operations
+-- that require efficient bit manipulation.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand barrel shifter architecture and operation principles
+-- 2. Learn parallel shifting and rotation techniques
+-- 3. Practice multi-level multiplexer design
+-- 4. Explore logarithmic complexity reduction methods
+-- 5. Understand high-speed digital circuit optimization
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations (recommended)
+-- - std_logic_arith and std_logic_unsigned (alternative, not recommended)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (recommended approach)
+-- TODO: Consider use IEEE.std_logic_arith.all; (alternative approach)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the barrel shifter
+--
+-- Entity Requirements:
+-- - Name: barrel_shifter (maintain current naming convention)
+-- - Inputs: Data input, shift amount, direction control, shift type
+-- - Outputs: Shifted data output, carry/overflow flags
+-- - Consider enable and mode control signals
+--
+-- Port Specifications:
+-- - Data_In : in std_logic_vector(7 downto 0) (Input data - 8-bit)
+-- - Shift_Amount : in std_logic_vector(2 downto 0) (Shift count - 3-bit for 8-bit data)
+-- - Direction : in std_logic (Shift direction: '0'=left, '1'=right)
+-- - Shift_Type : in std_logic_vector(1 downto 0) (Type: logical, arithmetic, rotate)
+-- - Data_Out : out std_logic_vector(7 downto 0) (Shifted output - 8-bit)
+-- - Carry_Out : out std_logic (Carry from shift operation)
+-- - Enable : in std_logic (Shifter enable signal - optional)
+--
+-- TODO: Declare entity with appropriate port names
+-- TODO: Add detailed port comments
+-- TODO: Consider signal naming conventions
+-- TODO: Plan for different bit widths (16-bit, 32-bit versions)
+--
+-- ============================================================================
+-- STEP 3: SHIFT TYPE ENCODING DEFINITION
+-- ============================================================================
+--
+-- SHIFT TYPE ENCODING (2-bit Shift_Type):
+-- 00 - LOGICAL SHIFT:   Fill with zeros
+-- 01 - ARITHMETIC SHIFT: Preserve sign bit (MSB) for right shifts
+-- 10 - ROTATE LEFT:     Circular rotation, no bit loss
+-- 11 - ROTATE RIGHT:    Circular rotation, no bit loss
+--
+-- DIRECTION ENCODING (1-bit Direction):
+-- 0 - LEFT SHIFT/ROTATE:  Shift towards MSB
+-- 1 - RIGHT SHIFT/ROTATE: Shift towards LSB
+--
+-- SHIFT AMOUNT ENCODING (3-bit for 8-bit data):
+-- 000 (0) - No shift (pass through)
+-- 001 (1) - Shift by 1 position
+-- 010 (2) - Shift by 2 positions
+-- 011 (3) - Shift by 3 positions
+-- 100 (4) - Shift by 4 positions
+-- 101 (5) - Shift by 5 positions
+-- 110 (6) - Shift by 6 positions
+-- 111 (7) - Shift by 7 positions
+--
+-- TODO: Define shift type constants for readability
+-- TODO: Consider using enumerated types for shift operations
+-- TODO: Plan for extended shift capabilities
+-- TODO: Document shift behavior for each type
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BEHAVIORAL ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use high-level VHDL constructs with case statements
+--
+-- Implementation Approach:
+-- - Use process with nested case statements
+-- - Implement each shift type and direction combination
+-- - Use VHDL shift operators and functions
+-- - Simple and readable implementation
+--
+-- Example Structure:
+-- process(Data_In, Shift_Amount, Direction, Shift_Type)
+-- begin
+--     case Shift_Type is
+--         when "00" => -- Logical Shift
+--             if Direction = '0' then -- Left
+--                 case Shift_Amount is
+--                     when "000" => Data_Out <= Data_In;
+--                     when "001" => Data_Out <= Data_In(6 downto 0) & '0';
+--                     when "010" => Data_Out <= Data_In(5 downto 0) & "00";
+--                     when others => Data_Out <= (others => '0');
+--                 end case;
+--             else -- Right
+--                 case Shift_Amount is
+--                     when "000" => Data_Out <= Data_In;
+--                     when "001" => Data_Out <= '0' & Data_In(7 downto 1);
+--                     when "010" => Data_Out <= "00" & Data_In(7 downto 2);
+--                     when others => Data_Out <= (others => '0');
+--                 end case;
+--             end if;
+--         when others => Data_Out <= Data_In;
+--     end case;
+-- end process;
+--
+-- TODO: Implement behavioral architecture with case statements
+-- TODO: Handle all shift types and directions
+-- TODO: Generate carry output for each operation
+-- TODO: Verify synthesis results
+--
+-- OPTION 2: STRUCTURAL ARCHITECTURE (LOGARITHMIC BARREL SHIFTER)
+-- ----------------------------------------------------------------------------
+-- Use hierarchical multiplexer structure for optimal performance
+--
+-- Implementation Approach:
+-- - Create logarithmic stages (log2(n) stages for n-bit data)
+-- - Each stage handles one bit of shift amount
+-- - Use 2:1 multiplexers for each bit position
+-- - Parallel processing for minimum delay
+--
+-- Stage Structure for 8-bit data (3 stages):
+-- Stage 0: Shift by 0 or 1 positions (controlled by Shift_Amount(0))
+-- Stage 1: Shift by 0 or 2 positions (controlled by Shift_Amount(1))
+-- Stage 2: Shift by 0 or 4 positions (controlled by Shift_Amount(2))
+--
+-- Component Declarations:
+-- component mux_2to1 is
+--     port (
+--         A, B : in std_logic;
+--         Sel : in std_logic;
+--         Y : out std_logic
+--     );
+-- end component;
+--
+-- Signal Declarations:
+-- signal stage0_out, stage1_out : std_logic_vector(7 downto 0);
+-- signal extended_data : std_logic_vector(15 downto 0);
+--
+-- TODO: Declare multiplexer components
+-- TODO: Create intermediate stage signals
+-- TODO: Instantiate logarithmic multiplexer structure
+-- TODO: Connect stages for complete barrel shifter
+--
+-- OPTION 3: DATAFLOW ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use concurrent signal assignments with conditional expressions
+--
+-- Implementation Approach:
+-- - Use conditional signal assignments for each shift amount
+-- - Implement parallel shift generation
+-- - Use multiplexer-style selection for final result
+-- - Explicit carry generation logic
+--
+-- Example Structure:
+-- shift_0 <= Data_In;
+-- shift_1_left <= Data_In(6 downto 0) & '0';
+-- shift_1_right <= '0' & Data_In(7 downto 1);
+-- shift_2_left <= Data_In(5 downto 0) & "00";
+-- shift_2_right <= "00" & Data_In(7 downto 2);
+-- 
+-- Data_Out <= shift_0 when Shift_Amount = "000" else
+--             shift_1_left when (Shift_Amount = "001" and Direction = '0') else
+--             shift_1_right when (Shift_Amount = "001" and Direction = '1') else
+--             shift_2_left when (Shift_Amount = "010" and Direction = '0') else
+--             shift_2_right when (Shift_Amount = "010" and Direction = '1') else
+--             (others => '0');
+--
+-- TODO: Implement dataflow architecture
+-- TODO: Define all possible shift results
+-- TODO: Implement result multiplexing
+-- TODO: Generate carry outputs concurrently
+--
+-- OPTION 4: OPTIMIZED FUNNEL SHIFTER ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use funnel shifter technique for enhanced flexibility
+--
+-- Implementation Approach:
+-- - Concatenate input data with itself or fill bits
+-- - Use single large multiplexer for bit selection
+-- - Support arbitrary shift amounts efficiently
+-- - Minimize hardware complexity
+--
+-- Funnel Shifter Concept:
+-- For left shifts: [Data_In][Fill_Bits] -> Select appropriate 8 bits
+-- For right shifts: [Fill_Bits][Data_In] -> Select appropriate 8 bits
+-- For rotations: [Data_In][Data_In] -> Select appropriate 8 bits
+--
+-- Extended Data Generation:
+-- extended_left <= Data_In & fill_bits when Direction = '0' else
+--                  fill_bits & Data_In;
+-- extended_rotate <= Data_In & Data_In;
+--
+-- TODO: Implement funnel shifter architecture
+-- TODO: Create extended data concatenation
+-- TODO: Implement bit selection multiplexer
+-- TODO: Optimize for target FPGA architecture
+--
+-- ============================================================================
+-- STEP 5: CARRY GENERATION LOGIC
+-- ============================================================================
+--
+-- CARRY DEFINITIONS:
+-- - Logical Shift: Carry = last bit shifted out
+-- - Arithmetic Shift: Carry = last bit shifted out (right shift only)
+-- - Rotate: No carry (bits are preserved in rotation)
+--
+-- CARRY GENERATION RULES:
+-- Left Shift Carry: Carry_Out = Data_In(8-Shift_Amount) for shift > 0
+-- Right Shift Carry: Carry_Out = Data_In(Shift_Amount-1) for shift > 0
+-- Rotation Carry: Carry_Out = '0' (no bits lost)
+--
+-- SHIFT-SPECIFIC CARRY BEHAVIOR:
+-- - Shift Amount 0: No carry generated
+-- - Shift Amount 1: Carry = bit shifted out
+-- - Shift Amount > data width: Carry depends on shift type
+--
+-- TODO: Implement carry generation for each shift type
+-- TODO: Verify carry behavior matches specifications
+-- TODO: Test carry generation with edge cases
+-- TODO: Consider carry enable/disable controls
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- SHIFT OPERATIONS:
+-- - Logical shifts fill with zeros
+-- - Arithmetic right shifts preserve sign bit
+-- - Rotations preserve all bits in circular fashion
+-- - Multi-bit shifts in single clock cycle
+-- - Bidirectional shift capability
+--
+-- MULTIPLEXER DESIGN:
+-- - Logarithmic structure for optimal delay
+-- - Parallel multiplexer implementation
+-- - Resource sharing between shift types
+-- - Optimization for FPGA LUT structures
+-- - Minimization of routing complexity
+--
+-- TIMING OPTIMIZATION:
+-- - Balanced multiplexer tree structure
+-- - Minimal logic depth for critical paths
+-- - Pipeline considerations for high frequency
+-- - Glitch-free operation during transitions
+-- - Predictable propagation delays
+--
+-- VHDL TECHNIQUES:
+-- - Process vs. concurrent statements
+-- - Variable vs. signal usage for intermediate results
+-- - Type conversions and bit manipulations
+-- - Generic parameters for scalable design
+-- - Synthesis optimization directives
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - LUT utilization vs. multiplexer inference
+-- - Carry chain utilization for arithmetic shifts
+-- - Resource sharing between different shift types
+-- - Critical path optimization techniques
+-- - Power consumption minimization
+--
+-- TIMING ANALYSIS:
+-- - Combinational delay through shifter stages
+-- - Setup and hold time requirements
+-- - Clock-to-output delays (if registered)
+-- - Shift-amount dependent timing variations
+-- - Critical path identification and optimization
+--
+-- TESTABILITY FEATURES:
+-- - Comprehensive shift pattern testing
+-- - Carry generation verification
+-- - Boundary condition testing
+-- - Random shift amount testing
+-- - Built-in self-test capabilities
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. PROCESSOR ARITHMETIC UNITS:
+--    - Multiplication and division algorithms
+--    - Floating-point normalization
+--    - Address calculation and indexing
+--    - Bit field extraction and insertion
+--    - Instruction execution acceleration
+--
+-- 2. DIGITAL SIGNAL PROCESSING:
+--    - Fast Fourier Transform (FFT) implementations
+--    - Digital filter coefficient scaling
+--    - Sample rate conversion
+--    - Bit-reversal operations
+--    - Fixed-point arithmetic scaling
+--
+-- 3. GRAPHICS AND IMAGE PROCESSING:
+--    - Pixel manipulation and scaling
+--    - Image rotation and transformation
+--    - Color depth conversion
+--    - Texture mapping operations
+--    - Video compression algorithms
+--
+-- 4. COMMUNICATION SYSTEMS:
+--    - Serial data alignment and framing
+--    - Protocol header processing
+--    - Error correction code manipulation
+--    - Bit stuffing and unstuffing
+--    - Data scrambling and descrambling
+--
+-- 5. CRYPTOGRAPHIC APPLICATIONS:
+--    - Key scheduling algorithms
+--    - Permutation operations
+--    - Bit manipulation in ciphers
+--    - Hash function implementations
+--    - Random number generation
+--
+-- 6. MEMORY INTERFACE CONTROLLERS:
+--    - Address translation and mapping
+--    - Data width conversion
+--    - Endianness conversion
+--    - Cache line manipulation
+--    - Memory interleaving operations
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Test each shift type individually
+-- - Verify all shift amounts (0 to n-1)
+-- - Test both shift directions
+-- - Boundary condition testing
+-- - Random shift pattern generation
+--
+-- SHIFT TYPE TESTING:
+-- - Logical shift verification (zero fill)
+-- - Arithmetic shift verification (sign extension)
+-- - Rotation verification (bit preservation)
+-- - Direction control verification
+-- - Shift amount boundary testing
+--
+-- CARRY TESTING:
+-- - Carry generation for each shift type
+-- - Carry accuracy for all shift amounts
+-- - Carry behavior during rotations
+-- - Edge case carry testing
+-- - Carry flag timing verification
+--
+-- PERFORMANCE TESTING:
+-- - Propagation delay measurement
+-- - Critical path identification
+-- - Resource utilization analysis
+-- - Power consumption measurement
+-- - Temperature and voltage testing
+--
+-- PATTERN TESTING:
+-- - All zeros input pattern
+-- - All ones input pattern
+-- - Alternating bit patterns
+-- - Walking ones and zeros
+-- - Random data patterns
+--
+-- INTEGRATION TESTING:
+-- - Processor integration verification
+-- - ALU integration testing
+-- - Memory controller integration
+-- - System-level performance testing
+-- - Multi-shifter coordination (if applicable)
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with behavioral architecture using case statements
+-- 2. Implement basic logical shifts (left and right)
+-- 3. Add simple rotation operations
+-- 4. Implement basic carry generation
+-- 5. Create simple testbench for functionality verification
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement complete shift type set with all directions
+-- 2. Add arithmetic shift with sign extension
+-- 3. Create comprehensive testbench with edge cases
+-- 4. Analyze timing and resource utilization
+-- 5. Compare different architectural approaches
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement optimized logarithmic barrel shifter
+-- 2. Create parameterized design for different bit widths
+-- 3. Optimize for specific FPGA architectures
+-- 4. Implement pipeline stages for high frequency
+-- 5. Create reusable shifter library components
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. PARAMETERIZED BARREL SHIFTER:
+--    - Add generic parameter for data width
+--    - Create scalable architecture (16-bit, 32-bit, 64-bit)
+--    - Implement configurable shift capabilities
+--    - Add runtime width configuration
+--
+-- 2. MULTI-BIT SHIFT EXTENSIONS:
+--    - Implement variable shift amounts beyond data width
+--    - Add modular arithmetic for shift amounts
+--    - Create shift amount saturation logic
+--    - Implement shift amount validation
+--
+-- 3. ADVANCED SHIFT OPERATIONS:
+--    - Implement funnel shifter for two-input operations
+--    - Add bit field extraction and insertion
+--    - Create masked shift operations
+--    - Implement conditional shift operations
+--
+-- 4. PIPELINE IMPLEMENTATION:
+--    - Create multi-stage pipeline for high frequency
+--    - Add pipeline registers and control
+--    - Implement hazard detection and forwarding
+--    - Optimize pipeline for throughput
+--
+-- 5. PROCESSOR INTEGRATION:
+--    - Create complete ALU integration
+--    - Add instruction decode interface
+--    - Implement shift instruction support
+--    - Create datapath integration
+--
+-- 6. SPECIALIZED APPLICATIONS:
+--    - Implement FFT bit-reversal shifter
+--    - Add floating-point normalization support
+--    - Create graphics transformation shifter
+--    - Implement cryptographic permutation operations
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. SHIFT AMOUNT HANDLING ERRORS:
+--    - Ensure shift amounts are properly bounded
+--    - Handle shift amounts equal to or greater than data width
+--    - Verify shift amount encoding and decoding
+--    - Test edge cases (shift by 0, maximum shift)
+--
+-- 2. CARRY GENERATION MISTAKES:
+--    - Implement correct carry logic for each shift type
+--    - Ensure carry timing matches data output
+--    - Verify carry behavior for rotations (should be 0)
+--    - Test carry generation with all shift amounts
+--
+-- 3. SHIFT TYPE IMPLEMENTATION ERRORS:
+--    - Distinguish between logical and arithmetic shifts
+--    - Implement correct sign extension for arithmetic right shifts
+--    - Ensure rotations preserve all bits
+--    - Verify direction control for all shift types
+--
+-- 4. SYNTHESIS OPTIMIZATION PROBLEMS:
+--    - Avoid inference of unwanted latches
+--    - Ensure all outputs are driven in all cases
+--    - Check for combinational loops in multiplexer trees
+--    - Verify synthesis tool interpretation of shift operations
+--
+-- 5. TIMING CLOSURE ISSUES:
+--    - Consider shift-amount dependent delays
+--    - Account for multiplexer tree delays
+--    - Implement proper timing constraints
+--    - Verify critical path timing across all operations
+--
+-- 6. TESTBENCH INADEQUACY:
+--    - Test all shift types and directions
+--    - Include comprehensive shift amount testing
+--    - Verify timing relationships
+--    - Check for glitches during shift amount changes
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all required ports
+-- □ All shift types are implemented correctly
+-- □ Shift directions work for all operations
+-- □ Carry generation logic is correct for all shift types
+-- □ Arithmetic shifts preserve sign bit correctly
+-- □ Rotations preserve all bits without loss
+-- □ All shift amounts tested and verified
+-- □ Boundary conditions handled properly
+-- □ Timing requirements satisfied for target frequency
+-- □ Synthesis results meet resource constraints
+-- □ Code follows project VHDL style guidelines
+-- □ Testbench provides comprehensive shift coverage
+-- □ Documentation clearly explains all operations
+-- □ Signal assignments avoid combinational loops
+-- □ All outputs are properly driven in all conditions
+-- □ Design is portable across different FPGA families
+-- □ Performance meets or exceeds specifications
+-- □ Power consumption is within acceptable limits
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- PROCESSOR ARCHITECTURE INTEGRATION:
+-- - ALU shift unit component
+-- - Instruction execution acceleration
+-- - Address calculation unit
+-- - Floating-point unit normalization
+-- - Bit manipulation instruction support
+--
+-- SYSTEM-ON-CHIP APPLICATIONS:
+-- - DSP acceleration units
+-- - Graphics processing units
+-- - Network packet processors
+-- - Memory controllers
+-- - Cryptographic engines
+--
+-- PERFORMANCE METRICS:
+-- - Shift operations per second throughput
+-- - Propagation delay (critical path)
+-- - Area utilization (LUTs, multiplexers)
+-- - Power consumption (static, dynamic)
+-- - Maximum operating frequency
+--
+-- DESIGN TRADE-OFFS:
+-- - Performance vs. area utilization
+-- - Functionality vs. complexity
+-- - Power consumption vs. speed
+-- - Flexibility vs. optimization
+-- - Parallelism vs. resource usage
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA RESOURCE UTILIZATION:
+-- - Logic Elements: ~20-40 LUTs for 8-bit barrel shifter
+-- - Multiplexers: Logarithmic tree structure
+-- - Routing: Significant for wide multiplexers
+-- - Registers: Optional for pipeline implementations
+-- - Memory: None required for basic shifter
+--
+-- TIMING CHARACTERISTICS:
+-- - Combinational Delay: ~3-6ns for 8-bit operations
+-- - Critical Path: Through multiplexer tree
+-- - Setup Time: Input signal requirements
+-- - Hold Time: Input signal stability
+-- - Clock-to-Output: For registered implementations
+--
+-- POWER CONSUMPTION:
+-- - Static Power: FPGA leakage current
+-- - Dynamic Power: Switching activity dependent
+-- - Multiplexer Power: Significant for wide operations
+-- - I/O Power: Interface signal switching
+-- - Total Power: Function of utilization and frequency
+--
+-- DESIGN CONSTRAINTS:
+-- - Timing constraints for critical paths
+-- - Area constraints for resource utilization
+-- - Power constraints for thermal management
+-- - I/O constraints for interface compatibility
+-- - Performance constraints for system requirements
+--
+-- ============================================================================
+-- ADVANCED BARREL SHIFTER CONCEPTS:
+-- ============================================================================
+--
+-- LOGARITHMIC IMPLEMENTATION:
+-- - Minimal logic depth (log2(n) stages)
+-- - Parallel processing capability
+-- - Optimal delay characteristics
+-- - Scalable architecture
+-- - Resource-efficient design
+--
+-- FUNNEL SHIFTER TECHNIQUES:
+-- - Two-input shift operations
+-- - Arbitrary shift amount support
+-- - Reduced hardware complexity
+-- - Enhanced flexibility
+-- - Improved resource utilization
+--
+-- PIPELINE OPTIMIZATION:
+-- - Multi-stage pipeline for high frequency
+-- - Stage balancing for optimal throughput
+-- - Hazard detection and mitigation
+-- - Performance optimization techniques
+-- - Power-efficient pipeline design
+--
+-- SPECIALIZED APPLICATIONS:
+-- - FFT bit-reversal operations
+-- - Floating-point normalization
+-- - Graphics transformation acceleration
+-- - Cryptographic permutations
+-- - Network packet processing
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH ARCHITECTURE:
+-- - Comprehensive shift pattern stimulus generation
+-- - Expected result calculation and comparison
+-- - Carry verification and analysis
+-- - Timing verification and analysis
+-- - Coverage analysis and reporting
+--
+-- VERIFICATION METHODOLOGY:
+-- - Directed testing for specific shift operations
+-- - Random testing for broad coverage
+-- - Constrained random testing for edge cases
+-- - Formal verification for critical properties
+-- - Assertion-based verification for continuous checking
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis for shift behavior
+-- - Breakpoint debugging in simulation
+-- - Signal tracing through shifter stages
+-- - Carry generation analysis
+-- - Performance bottleneck identification
+--
+-- PERFORMANCE ANALYSIS:
+-- - Shift operation timing characterization
+-- - Critical path identification and optimization
+-- - Resource utilization vs. performance trade-offs
+-- - Power analysis for different shift patterns
+-- - Scalability analysis for larger bit widths
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

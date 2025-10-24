@@ -1,0 +1,629 @@
+-- ============================================================================
+-- Microprocessor Datapath Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the datapath for a microprocessor system that handles
+-- data movement, arithmetic operations, and register management. The datapath
+-- includes the register file, ALU, multiplexers, and data routing logic that
+-- work together under control unit supervision to execute instructions. This
+-- implementation focuses on efficient data flow design and integration with
+-- the control unit for complete microprocessor functionality.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand datapath design principles and architecture
+-- 2. Learn register file design and data routing techniques
+-- 3. Practice ALU integration and operand management
+-- 4. Understand data hazard handling and forwarding
+-- 5. Learn memory interface and data alignment
+-- 6. Practice modular datapath design and optimization
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for datapath specific functions
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.microprocessor_pkg.all for custom types
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor datapath
+--
+-- Entity Requirements:
+-- - Name: datapath (maintain current naming convention)
+-- - Control signal inputs from control unit
+-- - Data inputs and outputs for memory interface
+-- - Register file interface and management
+-- - ALU integration and result handling
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset)
+-- - enable : in std_logic (Datapath enable)
+--
+-- Control Interface (from Control Unit):
+-- - alu_op : in std_logic_vector(ALU_OP_WIDTH-1 downto 0) (ALU operation)
+-- - alu_src_a : in std_logic_vector(1 downto 0) (ALU source A selection)
+-- - alu_src_b : in std_logic_vector(1 downto 0) (ALU source B selection)
+-- - reg_write : in std_logic (Register write enable)
+-- - reg_dst : in std_logic_vector(1 downto 0) (Register destination selection)
+-- - mem_to_reg : in std_logic (Memory to register data selection)
+-- - pc_src : in std_logic_vector(1 downto 0) (PC source selection)
+-- - pc_write : in std_logic (PC write enable)
+-- - sign_extend : in std_logic (Sign extension control)
+-- - shift_amount : in std_logic_vector(4 downto 0) (Shift operation amount)
+--
+-- Instruction Interface:
+-- - instruction : in std_logic_vector(INSTRUCTION_WIDTH-1 downto 0) (Current instruction)
+-- - pc_current : in std_logic_vector(PC_WIDTH-1 downto 0) (Current program counter)
+-- - pc_next : out std_logic_vector(PC_WIDTH-1 downto 0) (Next program counter)
+--
+-- Memory Interface:
+-- - mem_data_in : in std_logic_vector(DATA_WIDTH-1 downto 0) (Memory read data)
+-- - mem_data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (Memory write data)
+-- - mem_address : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Memory address)
+--
+-- Register File Interface:
+-- - rs_addr : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Source register 1)
+-- - rt_addr : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Source register 2)
+-- - rd_addr : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Destination register)
+-- - reg_data_1 : out std_logic_vector(DATA_WIDTH-1 downto 0) (Register data 1)
+-- - reg_data_2 : out std_logic_vector(DATA_WIDTH-1 downto 0) (Register data 2)
+-- - write_data : out std_logic_vector(DATA_WIDTH-1 downto 0) (Register write data)
+--
+-- ALU Interface:
+-- - alu_result : out std_logic_vector(DATA_WIDTH-1 downto 0) (ALU computation result)
+-- - alu_zero : out std_logic (ALU zero flag)
+-- - alu_overflow : out std_logic (ALU overflow flag)
+-- - alu_carry : out std_logic (ALU carry flag)
+-- - alu_negative : out std_logic (ALU negative flag)
+--
+-- Immediate and Branch Interface:
+-- - immediate : out std_logic_vector(DATA_WIDTH-1 downto 0) (Sign-extended immediate)
+-- - branch_target : out std_logic_vector(PC_WIDTH-1 downto 0) (Branch target address)
+-- - jump_target : out std_logic_vector(PC_WIDTH-1 downto 0) (Jump target address)
+--
+-- Debug Interface:
+-- - datapath_state : out std_logic_vector(STATE_WIDTH-1 downto 0) (Datapath state)
+-- - register_debug : out std_logic_vector(31 downto 0) (Register debug info)
+--
+-- ============================================================================
+-- STEP 3: DATAPATH PRINCIPLES
+-- ============================================================================
+--
+-- Datapath Fundamentals:
+-- 1. Data Flow Management
+--    - Register file read and write operations
+--    - ALU operand selection and routing
+--    - Memory data alignment and handling
+--    - Immediate value processing and extension
+--
+-- 2. Register File Design
+--    - Multi-port register file implementation
+--    - Register addressing and selection
+--    - Write-back data source multiplexing
+--    - Register zero handling (if applicable)
+--
+-- 3. ALU Integration
+--    - Operand source multiplexing
+--    - Operation result handling
+--    - Flag generation and management
+--    - Overflow and exception detection
+--
+-- 4. Memory Interface
+--    - Address calculation and generation
+--    - Data alignment for different access sizes
+--    - Load/store data path management
+--    - Memory access timing coordination
+--
+-- Data Path Components:
+-- 1. Register File
+--    - Dual-port or multi-port register array
+--    - Address decoding and selection logic
+--    - Write enable and data routing
+--    - Register zero special handling
+--
+-- 2. Arithmetic Logic Unit (ALU)
+--    - Arithmetic operations (add, subtract, etc.)
+--    - Logic operations (and, or, xor, etc.)
+--    - Shift and rotate operations
+--    - Comparison and flag generation
+--
+-- 3. Multiplexers and Data Routing
+--    - ALU operand source selection
+--    - Register write data source selection
+--    - Program counter source selection
+--    - Memory address source selection
+--
+-- 4. Immediate Processing
+--    - Sign extension logic
+--    - Zero extension for unsigned values
+--    - Immediate value shifting and alignment
+--    - Branch offset calculation
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Single-Cycle Datapath (Recommended for beginners)
+-- - All operations complete in one clock cycle
+-- - Direct register file and ALU integration
+-- - Simple control signal interface
+-- - Suitable for basic instruction sets
+--
+-- OPTION 2: Multi-Cycle Datapath (Intermediate)
+-- - Operations span multiple clock cycles
+-- - Intermediate result storage registers
+-- - More complex control state management
+-- - Better resource utilization
+--
+-- OPTION 3: Pipelined Datapath (Advanced)
+-- - Instruction pipeline with multiple stages
+-- - Pipeline register insertion
+-- - Hazard detection and forwarding logic
+-- - High-performance operation
+--
+-- OPTION 4: Superscalar Datapath (Expert)
+-- - Multiple execution units
+-- - Out-of-order execution support
+-- - Complex dependency tracking
+-- - Maximum performance optimization
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Register File Design:
+-- - Number of registers and addressing width
+-- - Read and write port requirements
+-- - Register zero special behavior
+-- - Power optimization for unused registers
+--
+-- ALU Integration:
+-- - Supported operation types and encoding
+-- - Flag generation and timing
+-- - Overflow detection and handling
+-- - Critical path optimization
+--
+-- Memory Interface:
+-- - Address calculation and alignment
+-- - Data width and byte enable handling
+-- - Load/store data path optimization
+-- - Memory access timing coordination
+--
+-- Data Hazard Handling:
+-- - Read-after-write hazard detection
+-- - Forwarding path implementation
+-- - Stall condition management
+-- - Pipeline bubble handling
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Forwarding and Bypassing:
+-- - ALU result forwarding paths
+-- - Memory load result forwarding
+-- - Write-back stage bypassing
+-- - Hazard detection integration
+--
+-- Branch Prediction Support:
+-- - Branch target calculation
+-- - Prediction result integration
+-- - Mispredict recovery support
+-- - Return address stack interface
+--
+-- Cache Interface:
+-- - Cache hit/miss handling
+-- - Data cache interface optimization
+-- - Instruction cache coordination
+-- - Cache coherency support
+--
+-- Debug and Monitoring:
+-- - Register file state monitoring
+-- - Data path trace generation
+-- - Performance counter integration
+-- - Debug register access
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU datapath implementation
+-- 2. Microcontroller Systems: Embedded processor datapath
+-- 3. Digital Signal Processing: DSP datapath design
+-- 4. FPGA Soft Processors: Configurable processor datapath
+-- 5. System-on-Chip: Integrated datapath design
+-- 6. Educational Projects: Computer architecture learning
+-- 7. Custom Processors: Application-specific datapaths
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Functional Testing: All data path operations and combinations
+-- 2. Timing Testing: Setup, hold, and propagation delay verification
+-- 3. Integration Testing: Datapath with control unit validation
+-- 4. Performance Testing: Critical path and frequency analysis
+-- 5. Hazard Testing: Data hazard detection and forwarding
+-- 6. Memory Testing: Load/store operation validation
+-- 7. Regression Testing: Design change impact verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic register file and simple ALU integration
+-- 2. Implement instruction decode and register addressing
+-- 3. Add ALU operand multiplexing and result routing
+-- 4. Implement immediate processing and sign extension
+-- 5. Add memory interface and load/store support
+-- 6. Implement branch and jump target calculation
+-- 7. Add forwarding and hazard detection (if needed)
+-- 8. Optimize critical paths and timing
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement multi-port register file for superscalar execution
+-- 2. Add floating-point datapath and register file
+-- 3. Implement vector processing datapath extensions
+-- 4. Add cache interface and memory hierarchy support
+-- 5. Implement dynamic scheduling and out-of-order execution
+-- 6. Add security features and privilege level support
+-- 7. Implement power management and clock gating
+-- 8. Add performance monitoring and profiling support
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incorrect register file read/write timing
+-- 2. Missing or incorrect data hazard handling
+-- 3. Improper immediate value sign extension
+-- 4. Inadequate ALU flag generation and timing
+-- 5. Poor critical path optimization
+-- 6. Missing memory alignment and byte enable logic
+-- 7. Incorrect branch target address calculation
+-- 8. Insufficient test coverage for all data paths
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Register file operations correctly implemented
+-- □ ALU integration and flag generation verified
+-- □ Data hazard detection and forwarding working
+-- □ Memory interface and alignment correct
+-- □ Immediate processing and sign extension accurate
+-- □ Branch and jump target calculation verified
+-- □ Critical path timing requirements met
+-- □ Integration with control unit validated
+-- □ Test coverage comprehensive for all scenarios
+-- □ Performance requirements satisfied
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This datapath implementation demonstrates several key concepts:
+-- - Complex digital system integration and coordination
+-- - Multi-port memory design and optimization
+-- - Arithmetic and logic unit design principles
+-- - Data flow optimization and critical path analysis
+-- - System-level timing and synchronization
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider register file memory compiler usage
+-- - Plan for signal routing and placement optimization
+-- - Account for power consumption in register file
+-- - Consider testability and scan chain insertion
+-- - Plan for manufacturing test and fault coverage
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Dynamic datapath reconfiguration
+-- - Adaptive register file sizing
+-- - Speculative execution support
+-- - Multi-threaded datapath design
+-- - Reconfigurable ALU architectures
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive instruction test vectors
+-- - Verify data hazard scenarios and forwarding
+-- - Test memory interface timing and alignment
+-- - Validate register file access patterns
+-- - Check performance metrics and optimization
+-- - Verify power consumption characteristics
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity datapath is
+--     generic (
+--         DATA_WIDTH       : integer := 32;                  -- Data bus width
+--         ADDR_WIDTH       : integer := 32;                  -- Address bus width
+--         REG_ADDR_WIDTH   : integer := 5;                   -- Register address width
+--         PC_WIDTH         : integer := 32;                  -- Program counter width
+--         INSTRUCTION_WIDTH : integer := 32;                 -- Instruction width
+--         ALU_OP_WIDTH     : integer := 4;                   -- ALU operation width
+--         NUM_REGISTERS    : integer := 32;                  -- Number of registers
+--         ENABLE_FORWARDING : boolean := true;               -- Enable data forwarding
+--         ENABLE_BRANCH_PRED : boolean := false;             -- Enable branch prediction
+--         ENABLE_DEBUG     : boolean := true                 -- Enable debug features
+--     );
+--     port (
+--         -- System Interface
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         enable          : in  std_logic;
+--         
+--         -- Control Interface (from Control Unit)
+--         alu_op          : in  std_logic_vector(ALU_OP_WIDTH-1 downto 0);
+--         alu_src_a       : in  std_logic_vector(1 downto 0);
+--         alu_src_b       : in  std_logic_vector(1 downto 0);
+--         reg_write       : in  std_logic;
+--         reg_dst         : in  std_logic_vector(1 downto 0);
+--         mem_to_reg      : in  std_logic;
+--         pc_src          : in  std_logic_vector(1 downto 0);
+--         pc_write        : in  std_logic;
+--         sign_extend     : in  std_logic;
+--         shift_amount    : in  std_logic_vector(4 downto 0);
+--         branch          : in  std_logic;
+--         jump            : in  std_logic;
+--         
+--         -- Instruction Interface
+--         instruction     : in  std_logic_vector(INSTRUCTION_WIDTH-1 downto 0);
+--         pc_current      : in  std_logic_vector(PC_WIDTH-1 downto 0);
+--         pc_next         : out std_logic_vector(PC_WIDTH-1 downto 0);
+--         
+--         -- Memory Interface
+--         mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         mem_address     : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         
+--         -- ALU Status Outputs
+--         alu_zero        : out std_logic;
+--         alu_overflow    : out std_logic;
+--         alu_carry       : out std_logic;
+--         alu_negative    : out std_logic;
+--         
+--         -- Branch and Jump Targets
+--         branch_target   : out std_logic_vector(PC_WIDTH-1 downto 0);
+--         jump_target     : out std_logic_vector(PC_WIDTH-1 downto 0);
+--         
+--         -- Debug Interface
+--         reg_debug_addr  : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         reg_debug_data  : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         datapath_state  : out std_logic_vector(7 downto 0)
+--     );
+-- end entity datapath;
+--
+-- architecture behavioral of datapath is
+--     -- Component declarations
+--     component register_file is
+--         generic (
+--             DATA_WIDTH : integer := 32;
+--             ADDR_WIDTH : integer := 5;
+--             NUM_REGS   : integer := 32
+--         );
+--         port (
+--             clk        : in  std_logic;
+--             reset      : in  std_logic;
+--             read_addr1 : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             read_addr2 : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             write_addr : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             write_data : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             write_en   : in  std_logic;
+--             read_data1 : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             read_data2 : out std_logic_vector(DATA_WIDTH-1 downto 0)
+--         );
+--     end component;
+--     
+--     component alu is
+--         generic (
+--             DATA_WIDTH : integer := 32;
+--             OP_WIDTH   : integer := 4
+--         );
+--         port (
+--             operand_a  : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             operand_b  : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             operation  : in  std_logic_vector(OP_WIDTH-1 downto 0);
+--             result     : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             zero       : out std_logic;
+--             overflow   : out std_logic;
+--             carry      : out std_logic;
+--             negative   : out std_logic
+--         );
+--     end component;
+--     
+--     -- Internal signals
+--     signal rs_addr, rt_addr, rd_addr : std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--     signal reg_data_1, reg_data_2 : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal write_reg_addr : std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--     signal write_reg_data : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     signal alu_operand_a, alu_operand_b : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal alu_result_internal : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     signal immediate_extended : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal pc_plus_4 : std_logic_vector(PC_WIDTH-1 downto 0);
+--     signal branch_offset : std_logic_vector(PC_WIDTH-1 downto 0);
+--     
+--     -- Instruction field extraction
+--     signal opcode : std_logic_vector(5 downto 0);
+--     signal rs : std_logic_vector(4 downto 0);
+--     signal rt : std_logic_vector(4 downto 0);
+--     signal rd : std_logic_vector(4 downto 0);
+--     signal shamt : std_logic_vector(4 downto 0);
+--     signal funct : std_logic_vector(5 downto 0);
+--     signal immediate : std_logic_vector(15 downto 0);
+--     signal jump_addr : std_logic_vector(25 downto 0);
+--     
+-- begin
+--     -- Instruction field extraction
+--     opcode <= instruction(31 downto 26);
+--     rs <= instruction(25 downto 21);
+--     rt <= instruction(20 downto 16);
+--     rd <= instruction(15 downto 11);
+--     shamt <= instruction(10 downto 6);
+--     funct <= instruction(5 downto 0);
+--     immediate <= instruction(15 downto 0);
+--     jump_addr <= instruction(25 downto 0);
+--     
+--     -- Register address assignment
+--     rs_addr <= rs;
+--     rt_addr <= rt;
+--     
+--     -- Register destination multiplexer
+--     reg_dst_mux: process(reg_dst, rt, rd)
+--     begin
+--         case reg_dst is
+--             when "00" => write_reg_addr <= rt;  -- I-type instructions
+--             when "01" => write_reg_addr <= rd;  -- R-type instructions
+--             when "10" => write_reg_addr <= "11111";  -- JAL (register 31)
+--             when others => write_reg_addr <= rt;
+--         end case;
+--     end process;
+--     
+--     -- Register file instantiation
+--     reg_file_inst: register_file
+--         generic map (
+--             DATA_WIDTH => DATA_WIDTH,
+--             ADDR_WIDTH => REG_ADDR_WIDTH,
+--             NUM_REGS   => NUM_REGISTERS
+--         )
+--         port map (
+--             clk        => clk,
+--             reset      => reset,
+--             read_addr1 => rs_addr,
+--             read_addr2 => rt_addr,
+--             write_addr => write_reg_addr,
+--             write_data => write_reg_data,
+--             write_en   => reg_write,
+--             read_data1 => reg_data_1,
+--             read_data2 => reg_data_2
+--         );
+--     
+--     -- Immediate sign extension
+--     sign_extend_proc: process(immediate, sign_extend)
+--     begin
+--         if sign_extend = '1' then
+--             -- Sign extend
+--             if immediate(15) = '1' then
+--                 immediate_extended <= x"FFFF" & immediate;
+--             else
+--                 immediate_extended <= x"0000" & immediate;
+--             end if;
+--         else
+--             -- Zero extend
+--             immediate_extended <= x"0000" & immediate;
+--         end if;
+--     end process;
+--     
+--     -- ALU operand A multiplexer
+--     alu_src_a_mux: process(alu_src_a, reg_data_1, pc_current)
+--     begin
+--         case alu_src_a is
+--             when "00" => alu_operand_a <= reg_data_1;
+--             when "01" => alu_operand_a <= pc_current;
+--             when "10" => alu_operand_a <= (others => '0');  -- Zero
+--             when others => alu_operand_a <= reg_data_1;
+--         end case;
+--     end process;
+--     
+--     -- ALU operand B multiplexer
+--     alu_src_b_mux: process(alu_src_b, reg_data_2, immediate_extended, pc_plus_4)
+--     begin
+--         case alu_src_b is
+--             when "00" => alu_operand_b <= reg_data_2;
+--             when "01" => alu_operand_b <= immediate_extended;
+--             when "10" => alu_operand_b <= std_logic_vector(to_unsigned(4, DATA_WIDTH));
+--             when others => alu_operand_b <= reg_data_2;
+--         end case;
+--     end process;
+--     
+--     -- ALU instantiation
+--     alu_inst: alu
+--         generic map (
+--             DATA_WIDTH => DATA_WIDTH,
+--             OP_WIDTH   => ALU_OP_WIDTH
+--         )
+--         port map (
+--             operand_a => alu_operand_a,
+--             operand_b => alu_operand_b,
+--             operation => alu_op,
+--             result    => alu_result_internal,
+--             zero      => alu_zero,
+--             overflow  => alu_overflow,
+--             carry     => alu_carry,
+--             negative  => alu_negative
+--         );
+--     
+--     -- Write-back data multiplexer
+--     mem_to_reg_mux: process(mem_to_reg, alu_result_internal, mem_data_in, pc_plus_4)
+--     begin
+--         case mem_to_reg is
+--             when '0' => write_reg_data <= alu_result_internal;
+--             when '1' => write_reg_data <= mem_data_in;
+--             when others => write_reg_data <= alu_result_internal;
+--         end case;
+--     end process;
+--     
+--     -- PC calculation
+--     pc_plus_4 <= std_logic_vector(unsigned(pc_current) + 4);
+--     branch_offset <= std_logic_vector(shift_left(unsigned(immediate_extended), 2));
+--     branch_target <= std_logic_vector(unsigned(pc_plus_4) + unsigned(branch_offset));
+--     jump_target <= pc_plus_4(31 downto 28) & std_logic_vector(shift_left(unsigned(jump_addr), 2));
+--     
+--     -- PC source multiplexer
+--     pc_src_mux: process(pc_src, pc_plus_4, branch_target, jump_target, alu_result_internal)
+--     begin
+--         case pc_src is
+--             when "00" => pc_next <= pc_plus_4;
+--             when "01" => pc_next <= branch_target;
+--             when "10" => pc_next <= jump_target;
+--             when "11" => pc_next <= alu_result_internal;  -- JR instruction
+--             when others => pc_next <= pc_plus_4;
+--         end case;
+--     end process;
+--     
+--     -- Memory interface
+--     mem_address <= alu_result_internal;
+--     mem_data_out <= reg_data_2;
+--     
+--     -- Debug interface
+--     reg_debug_data <= reg_data_1 when reg_debug_addr = rs_addr else
+--                      reg_data_2 when reg_debug_addr = rt_addr else
+--                      write_reg_data when reg_debug_addr = write_reg_addr else
+--                      (others => '0');
+--     
+--     datapath_state <= reg_write & mem_to_reg & branch & jump & alu_zero & alu_overflow & alu_carry & alu_negative;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This datapath implementation provides comprehensive data flow
+-- management and integration with the control unit. Ensure proper timing
+-- analysis and consider adding forwarding logic for pipelined implementations.
+-- The design can be customized for different instruction sets and performance
+-- requirements.
+-- ============================================================================

@@ -1,0 +1,678 @@
+-- ============================================================================
+-- Microprocessor Top-Level Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the top-level microprocessor module that integrates
+-- all the essential components of a simple CPU including the datapath, control
+-- unit, ALU, register file, program counter, instruction register, and memory
+-- interface. This represents a complete educational microprocessor design
+-- suitable for understanding computer architecture principles and digital
+-- system integration at the processor level.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand microprocessor architecture and component integration
+-- 2. Learn CPU datapath and control unit interaction
+-- 3. Practice complex digital system design and hierarchy
+-- 4. Understand instruction fetch, decode, and execute cycles
+-- 5. Learn memory interface and bus architecture design
+-- 6. Practice system-level VHDL design and verification
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - Consider additional packages for advanced processor features
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work library for component declarations
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the complete microprocessor
+--
+-- Entity Requirements:
+-- - Name: microprocessor (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - Memory interface (address, data, control signals)
+-- - External I/O interface (optional)
+-- - Debug and status outputs (optional)
+-- - Interrupt handling interface (advanced)
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (Processor enable signal)
+--
+-- Memory Interface:
+-- - mem_addr : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Memory address)
+-- - mem_data_in : in std_logic_vector(DATA_WIDTH-1 downto 0) (Memory read data)
+-- - mem_data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (Memory write data)
+-- - mem_read : out std_logic (Memory read enable)
+-- - mem_write : out std_logic (Memory write enable)
+-- - mem_ready : in std_logic (Memory ready signal)
+--
+-- I/O Interface (optional):
+-- - io_addr : out std_logic_vector(IO_ADDR_WIDTH-1 downto 0) (I/O address)
+-- - io_data_in : in std_logic_vector(DATA_WIDTH-1 downto 0) (I/O read data)
+-- - io_data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (I/O write data)
+-- - io_read : out std_logic (I/O read enable)
+-- - io_write : out std_logic (I/O write enable)
+--
+-- Debug Interface (optional):
+-- - debug_pc : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Program counter)
+-- - debug_ir : out std_logic_vector(DATA_WIDTH-1 downto 0) (Instruction register)
+-- - debug_state : out std_logic_vector(3 downto 0) (Processor state)
+-- - debug_flags : out std_logic_vector(7 downto 0) (Status flags)
+--
+-- ============================================================================
+-- STEP 3: MICROPROCESSOR ARCHITECTURE PRINCIPLES
+-- ============================================================================
+--
+-- Microprocessor Components:
+-- 1. Control Unit (ctrl_unit.vhd)
+--    - Instruction decode and control signal generation
+--    - State machine for instruction execution cycles
+--    - Timing and sequencing control
+--    - Exception and interrupt handling
+--
+-- 2. Datapath (datapath.vhd)
+--    - Data routing and processing pathways
+--    - Register file interface
+--    - ALU interface and result routing
+--    - Memory and I/O data paths
+--
+-- 3. Arithmetic Logic Unit (alu.vhd)
+--    - Arithmetic operations (add, subtract, multiply)
+--    - Logic operations (AND, OR, XOR, NOT)
+--    - Shift and rotate operations
+--    - Flag generation (zero, carry, overflow, sign)
+--
+-- 4. Register File (reg_file.vhd)
+--    - General-purpose register storage
+--    - Dual-port read, single-port write
+--    - Register addressing and selection
+--    - Special register handling
+--
+-- 5. Program Counter (pc.vhd)
+--    - Instruction address generation
+--    - Sequential and branch address calculation
+--    - Jump and call address handling
+--    - Reset and interrupt vector support
+--
+-- 6. Instruction Register (ir.vhd)
+--    - Instruction storage and decoding
+--    - Opcode and operand field extraction
+--    - Instruction format support
+--    - Pipeline stage interface
+--
+-- 7. Memory Interface (memory.vhd)
+--    - Memory access control and timing
+--    - Address generation and translation
+--    - Data width conversion and alignment
+--    - Cache interface (advanced)
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Single-Cycle Processor (Recommended for beginners)
+-- - All instructions execute in one clock cycle
+-- - Simple control unit with combinational logic
+-- - Direct component interconnection
+-- - Minimal pipeline complexity
+--
+-- OPTION 2: Multi-Cycle Processor (Intermediate)
+-- - Instructions execute over multiple clock cycles
+-- - State machine-based control unit
+-- - Shared functional units
+-- - Better resource utilization
+--
+-- OPTION 3: Pipelined Processor (Advanced)
+-- - Instruction pipeline with multiple stages
+-- - Hazard detection and resolution
+-- - Pipeline control and forwarding
+-- - Higher throughput design
+--
+-- OPTION 4: Superscalar Processor (Expert)
+-- - Multiple instruction issue per cycle
+-- - Out-of-order execution capability
+-- - Advanced branch prediction
+-- - Complex control and scheduling
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Component Integration:
+-- - Proper signal routing between components
+-- - Clock domain management and synchronization
+-- - Reset distribution and initialization
+-- - Power and timing optimization
+--
+-- Instruction Set Architecture:
+-- - Define supported instruction formats
+-- - Implement instruction decode logic
+-- - Handle addressing modes and operand types
+-- - Support control flow instructions
+--
+-- Memory System:
+-- - Memory hierarchy design (cache, main memory)
+-- - Memory access timing and control
+-- - Data and instruction memory organization
+-- - Memory protection and virtual addressing
+--
+-- Exception Handling:
+-- - Interrupt processing and prioritization
+-- - Exception detection and handling
+-- - Context saving and restoration
+-- - Interrupt vector table management
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Performance Optimization:
+-- - Pipeline design and hazard handling
+-- - Branch prediction and speculation
+-- - Cache design and optimization
+-- - Instruction and data prefetching
+--
+-- Debug and Test Features:
+-- - Hardware debugging support
+-- - Trace buffer implementation
+-- - Performance monitoring counters
+-- - Built-in self-test capabilities
+--
+-- Power Management:
+-- - Clock gating and power islands
+-- - Dynamic voltage and frequency scaling
+-- - Sleep and idle mode support
+-- - Power-aware design techniques
+--
+-- Advanced Instruction Support:
+-- - Floating-point arithmetic unit
+-- - Vector and SIMD instructions
+-- - Cryptographic instruction extensions
+-- - Custom instruction set extensions
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Educational Systems: Computer architecture teaching and learning
+-- 2. Embedded Systems: Microcontroller and SoC implementations
+-- 3. Research Platforms: Computer architecture research and experimentation
+-- 4. Prototyping: Rapid processor design and validation
+-- 5. Custom Computing: Application-specific processor design
+-- 6. System Integration: Multi-processor and heterogeneous systems
+-- 7. FPGA Implementations: Soft-core processor deployment
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual component verification
+-- 2. Integration Testing: Component interface validation
+-- 3. Instruction Testing: Complete instruction set validation
+-- 4. System Testing: Full processor functionality verification
+-- 5. Performance Testing: Timing and throughput analysis
+-- 6. Stress Testing: Corner case and boundary condition testing
+-- 7. Hardware Testing: FPGA implementation and validation
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with simple single-cycle processor design
+-- 2. Implement basic instruction set (load, store, arithmetic, branch)
+-- 3. Add control unit with instruction decode logic
+-- 4. Integrate datapath components (ALU, registers, PC)
+-- 5. Implement memory interface and basic I/O
+-- 6. Add debug and monitoring capabilities
+-- 7. Optimize for performance and resource utilization
+-- 8. Extend with advanced features as needed
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement pipeline stages with hazard detection
+-- 2. Add cache memory hierarchy
+-- 3. Implement interrupt and exception handling
+-- 4. Add floating-point arithmetic support
+-- 5. Implement branch prediction mechanisms
+-- 6. Add multi-threading or multi-core support
+-- 7. Implement custom instruction set extensions
+-- 8. Add hardware debugging and trace capabilities
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Improper clock domain crossing between components
+-- 2. Inadequate reset distribution and initialization
+-- 3. Missing or incorrect component interface signals
+-- 4. Poor timing closure and critical path optimization
+-- 5. Insufficient instruction decode and control logic
+-- 6. Inadequate memory interface timing and control
+-- 7. Missing error detection and exception handling
+-- 8. Poor resource utilization and area optimization
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All components properly instantiated and connected
+-- □ Clock and reset distribution verified
+-- □ Instruction fetch, decode, and execute cycles working
+-- □ Memory interface timing and control validated
+-- □ Register file read/write operations correct
+-- □ ALU operations and flag generation verified
+-- □ Program counter and branch logic functional
+-- □ Debug and monitoring interfaces operational
+-- □ Performance requirements met
+-- □ Resource utilization optimized
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This microprocessor implementation demonstrates several key concepts:
+-- - Computer architecture and organization principles
+-- - Complex digital system design and integration
+-- - Hierarchical design methodology and component reuse
+-- - System-level timing and synchronization
+-- - Hardware-software interface design
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider component placement for optimal routing
+-- - Plan clock distribution network for minimal skew
+-- - Account for power distribution and thermal management
+-- - Consider signal integrity and EMI effects
+-- - Plan for test access and debugging interfaces
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - High-level synthesis for processor design
+-- - Formal verification of processor correctness
+-- - Power analysis and low-power design techniques
+-- - Performance modeling and optimization
+-- - Multi-core and parallel processing architectures
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive instruction test programs
+-- - Verify timing relationships and critical paths
+-- - Test all instruction types and addressing modes
+-- - Validate memory interface and I/O operations
+-- - Check exception and interrupt handling
+-- - Verify debug and monitoring functionality
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.all;  -- For component declarations
+--
+-- entity microprocessor is
+--     generic (
+--         DATA_WIDTH      : integer := 16;        -- Data bus width
+--         ADDR_WIDTH      : integer := 16;        -- Address bus width
+--         REG_ADDR_WIDTH  : integer := 4;         -- Register address width
+--         IO_ADDR_WIDTH   : integer := 8;         -- I/O address width
+--         RESET_VECTOR    : unsigned := x"0000";  -- Reset vector address
+--         ENABLE_DEBUG    : boolean := true;      -- Enable debug features
+--         ENABLE_CACHE    : boolean := false;     -- Enable cache memory
+--         ENABLE_PIPELINE : boolean := false;     -- Enable pipeline stages
+--         ENABLE_FPU      : boolean := false      -- Enable floating-point unit
+--     );
+--     port (
+--         -- System Interface
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         enable          : in  std_logic;
+--         halt            : out std_logic;
+--         
+--         -- Memory Interface
+--         mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         mem_read        : out std_logic;
+--         mem_write       : out std_logic;
+--         mem_ready       : in  std_logic;
+--         mem_byte_enable : out std_logic_vector((DATA_WIDTH/8)-1 downto 0);
+--         
+--         -- I/O Interface
+--         io_addr         : out std_logic_vector(IO_ADDR_WIDTH-1 downto 0);
+--         io_data_in      : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         io_data_out     : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         io_read         : out std_logic;
+--         io_write        : out std_logic;
+--         io_ready        : in  std_logic;
+--         
+--         -- Interrupt Interface
+--         irq             : in  std_logic_vector(7 downto 0);
+--         irq_ack         : out std_logic_vector(7 downto 0);
+--         nmi             : in  std_logic;
+--         
+--         -- Debug Interface
+--         debug_pc        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         debug_ir        : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         debug_state     : out std_logic_vector(3 downto 0);
+--         debug_flags     : out std_logic_vector(7 downto 0);
+--         debug_reg_addr  : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         debug_reg_data  : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         
+--         -- Performance Monitoring
+--         perf_cycles     : out unsigned(31 downto 0);
+--         perf_instructions : out unsigned(31 downto 0);
+--         perf_cache_hits : out unsigned(31 downto 0);
+--         perf_cache_misses : out unsigned(31 downto 0)
+--     );
+-- end entity microprocessor;
+--
+-- architecture structural of microprocessor is
+--     -- Component declarations
+--     component ctrl_unit is
+--         generic (
+--             DATA_WIDTH : integer := DATA_WIDTH;
+--             ADDR_WIDTH : integer := ADDR_WIDTH
+--         );
+--         port (
+--             clk         : in  std_logic;
+--             reset       : in  std_logic;
+--             enable      : in  std_logic;
+--             instruction : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             flags       : in  std_logic_vector(7 downto 0);
+--             -- Control signals to datapath
+--             reg_write   : out std_logic;
+--             reg_dst     : out std_logic_vector(1 downto 0);
+--             alu_src     : out std_logic_vector(1 downto 0);
+--             alu_op      : out std_logic_vector(3 downto 0);
+--             mem_read    : out std_logic;
+--             mem_write   : out std_logic;
+--             mem_to_reg  : out std_logic;
+--             pc_src      : out std_logic_vector(1 downto 0);
+--             branch      : out std_logic;
+--             jump        : out std_logic;
+--             halt        : out std_logic;
+--             -- State and debug
+--             state       : out std_logic_vector(3 downto 0)
+--         );
+--     end component;
+--     
+--     component datapath is
+--         generic (
+--             DATA_WIDTH     : integer := DATA_WIDTH;
+--             ADDR_WIDTH     : integer := ADDR_WIDTH;
+--             REG_ADDR_WIDTH : integer := REG_ADDR_WIDTH
+--         );
+--         port (
+--             clk            : in  std_logic;
+--             reset          : in  std_logic;
+--             enable         : in  std_logic;
+--             -- Control signals from control unit
+--             reg_write      : in  std_logic;
+--             reg_dst        : in  std_logic_vector(1 downto 0);
+--             alu_src        : in  std_logic_vector(1 downto 0);
+--             alu_op         : in  std_logic_vector(3 downto 0);
+--             mem_to_reg     : in  std_logic;
+--             pc_src         : in  std_logic_vector(1 downto 0);
+--             branch         : in  std_logic;
+--             jump           : in  std_logic;
+--             -- Memory interface
+--             mem_addr       : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             mem_data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             mem_data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             -- Instruction and flags to control unit
+--             instruction    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             flags          : out std_logic_vector(7 downto 0);
+--             -- Program counter for debug
+--             pc_out         : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             -- Debug register access
+--             debug_reg_addr : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--             debug_reg_data : out std_logic_vector(DATA_WIDTH-1 downto 0)
+--         );
+--     end component;
+--     
+--     component memory is
+--         generic (
+--             DATA_WIDTH : integer := DATA_WIDTH;
+--             ADDR_WIDTH : integer := ADDR_WIDTH
+--         );
+--         port (
+--             clk         : in  std_logic;
+--             reset       : in  std_logic;
+--             enable      : in  std_logic;
+--             addr        : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             read_en     : in  std_logic;
+--             write_en    : in  std_logic;
+--             byte_enable : in  std_logic_vector((DATA_WIDTH/8)-1 downto 0);
+--             ready       : out std_logic
+--         );
+--     end component;
+--     
+--     -- Internal signals
+--     signal internal_mem_addr     : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal internal_mem_data_in  : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal internal_mem_data_out : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal internal_mem_read     : std_logic;
+--     signal internal_mem_write    : std_logic;
+--     signal internal_mem_ready    : std_logic;
+--     
+--     signal instruction           : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal flags                 : std_logic_vector(7 downto 0);
+--     signal internal_pc           : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal internal_state        : std_logic_vector(3 downto 0);
+--     signal internal_halt         : std_logic;
+--     
+--     -- Control signals
+--     signal reg_write             : std_logic;
+--     signal reg_dst               : std_logic_vector(1 downto 0);
+--     signal alu_src               : std_logic_vector(1 downto 0);
+--     signal alu_op                : std_logic_vector(3 downto 0);
+--     signal mem_to_reg            : std_logic;
+--     signal pc_src                : std_logic_vector(1 downto 0);
+--     signal branch                : std_logic;
+--     signal jump                  : std_logic;
+--     
+--     -- Performance counters
+--     signal cycle_counter         : unsigned(31 downto 0);
+--     signal instruction_counter   : unsigned(31 downto 0);
+--     signal cache_hit_counter     : unsigned(31 downto 0);
+--     signal cache_miss_counter    : unsigned(31 downto 0);
+--     
+--     -- Interrupt handling signals
+--     signal interrupt_pending     : std_logic;
+--     signal interrupt_vector      : std_logic_vector(7 downto 0);
+--     signal interrupt_ack_int     : std_logic_vector(7 downto 0);
+--     
+-- begin
+--     -- Control Unit instantiation
+--     control_unit_inst: ctrl_unit
+--         generic map (
+--             DATA_WIDTH => DATA_WIDTH,
+--             ADDR_WIDTH => ADDR_WIDTH
+--         )
+--         port map (
+--             clk         => clk,
+--             reset       => reset,
+--             enable      => enable,
+--             instruction => instruction,
+--             flags       => flags,
+--             reg_write   => reg_write,
+--             reg_dst     => reg_dst,
+--             alu_src     => alu_src,
+--             alu_op      => alu_op,
+--             mem_read    => internal_mem_read,
+--             mem_write   => internal_mem_write,
+--             mem_to_reg  => mem_to_reg,
+--             pc_src      => pc_src,
+--             branch      => branch,
+--             jump        => jump,
+--             halt        => internal_halt,
+--             state       => internal_state
+--         );
+--     
+--     -- Datapath instantiation
+--     datapath_inst: datapath
+--         generic map (
+--             DATA_WIDTH     => DATA_WIDTH,
+--             ADDR_WIDTH     => ADDR_WIDTH,
+--             REG_ADDR_WIDTH => REG_ADDR_WIDTH
+--         )
+--         port map (
+--             clk            => clk,
+--             reset          => reset,
+--             enable         => enable,
+--             reg_write      => reg_write,
+--             reg_dst        => reg_dst,
+--             alu_src        => alu_src,
+--             alu_op         => alu_op,
+--             mem_to_reg     => mem_to_reg,
+--             pc_src         => pc_src,
+--             branch         => branch,
+--             jump           => jump,
+--             mem_addr       => internal_mem_addr,
+--             mem_data_in    => internal_mem_data_in,
+--             mem_data_out   => internal_mem_data_out,
+--             instruction    => instruction,
+--             flags          => flags,
+--             pc_out         => internal_pc,
+--             debug_reg_addr => debug_reg_addr,
+--             debug_reg_data => debug_reg_data
+--         );
+--     
+--     -- Memory instantiation (optional internal memory)
+--     memory_gen: if not ENABLE_CACHE generate
+--         memory_inst: memory
+--             generic map (
+--                 DATA_WIDTH => DATA_WIDTH,
+--                 ADDR_WIDTH => ADDR_WIDTH
+--             )
+--             port map (
+--                 clk         => clk,
+--                 reset       => reset,
+--                 enable      => enable,
+--                 addr        => internal_mem_addr,
+--                 data_in     => internal_mem_data_out,
+--                 data_out    => internal_mem_data_in,
+--                 read_en     => internal_mem_read,
+--                 write_en    => internal_mem_write,
+--                 byte_enable => (others => '1'),
+--                 ready       => internal_mem_ready
+--             );
+--     end generate;
+--     
+--     -- Performance counters
+--     performance_counters: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             cycle_counter <= (others => '0');
+--             instruction_counter <= (others => '0');
+--             cache_hit_counter <= (others => '0');
+--             cache_miss_counter <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 cycle_counter <= cycle_counter + 1;
+--                 
+--                 -- Count completed instructions
+--                 if internal_state = "0001" then  -- Assuming state 1 is instruction completion
+--                     instruction_counter <= instruction_counter + 1;
+--                 end if;
+--                 
+--                 -- Cache hit/miss counting (if cache enabled)
+--                 if ENABLE_CACHE then
+--                     -- Add cache hit/miss logic here
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Interrupt handling (basic implementation)
+--     interrupt_handler: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             interrupt_pending <= '0';
+--             interrupt_vector <= (others => '0');
+--             interrupt_ack_int <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 -- Priority encoder for interrupt requests
+--                 interrupt_pending <= '0';
+--                 interrupt_ack_int <= (others => '0');
+--                 
+--                 for i in 7 downto 0 loop
+--                     if irq(i) = '1' then
+--                         interrupt_pending <= '1';
+--                         interrupt_vector <= std_logic_vector(to_unsigned(i, 8));
+--                         interrupt_ack_int(i) <= '1';
+--                         exit;
+--                     end if;
+--                 end loop;
+--                 
+--                 -- Handle NMI (Non-Maskable Interrupt)
+--                 if nmi = '1' then
+--                     interrupt_pending <= '1';
+--                     interrupt_vector <= x"FF";  -- NMI vector
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     mem_addr <= internal_mem_addr;
+--     mem_data_out <= internal_mem_data_out;
+--     mem_read <= internal_mem_read;
+--     mem_write <= internal_mem_write;
+--     mem_byte_enable <= (others => '1');  -- Simple byte enable
+--     
+--     -- Connect internal memory or external memory
+--     internal_mem_data_in <= mem_data_in when not ENABLE_CACHE else internal_mem_data_in;
+--     internal_mem_ready <= mem_ready when not ENABLE_CACHE else internal_mem_ready;
+--     
+--     -- I/O interface (simple implementation)
+--     io_addr <= internal_mem_addr(IO_ADDR_WIDTH-1 downto 0);
+--     io_data_out <= internal_mem_data_out;
+--     io_read <= internal_mem_read when internal_mem_addr(ADDR_WIDTH-1) = '1' else '0';
+--     io_write <= internal_mem_write when internal_mem_addr(ADDR_WIDTH-1) = '1' else '0';
+--     
+--     -- Debug outputs
+--     debug_pc <= internal_pc;
+--     debug_ir <= instruction;
+--     debug_state <= internal_state;
+--     debug_flags <= flags;
+--     
+--     -- Performance outputs
+--     perf_cycles <= cycle_counter;
+--     perf_instructions <= instruction_counter;
+--     perf_cache_hits <= cache_hit_counter;
+--     perf_cache_misses <= cache_miss_counter;
+--     
+--     -- System outputs
+--     halt <= internal_halt;
+--     irq_ack <= interrupt_ack_int;
+--     
+-- end architecture structural;
+--
+-- ============================================================================
+-- Remember: This microprocessor implementation provides a comprehensive
+-- foundation for building complete CPU systems. Ensure proper verification
+-- of all components, interfaces, and instruction execution. The design can
+-- be extended with advanced features like caching, pipelining, and
+-- floating-point support based on specific requirements.
+-- ============================================================================

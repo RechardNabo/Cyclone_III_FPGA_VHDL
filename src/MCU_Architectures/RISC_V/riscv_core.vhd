@@ -1,0 +1,331 @@
+-- =====================================================================================
+-- RISC-V PROCESSOR CORE INTERFACE - PROGRAMMING GUIDANCE
+-- =====================================================================================
+-- 
+-- OVERVIEW:
+-- RISC-V is an open-source instruction set architecture (ISA) based on established
+-- reduced instruction set computer (RISC) principles. It provides a clean, modular
+-- design with a small base integer instruction set and optional extensions for
+-- various application domains including embedded systems, high-performance computing,
+-- and specialized accelerators.
+--
+-- KEY FEATURES:
+-- • Open-source ISA with no licensing fees or royalties
+-- • Modular design with base integer ISA and optional extensions
+-- • Support for 32-bit (RV32), 64-bit (RV64), and 128-bit (RV128) architectures
+-- • Scalable from microcontrollers to supercomputers
+-- • Clean separation between user and privileged ISA
+-- • Extensive ecosystem of tools, software, and implementations
+-- • Multiple privilege levels: Machine, Supervisor, User
+-- • Configurable memory management and protection
+-- • Support for atomic operations and memory ordering
+-- • Compressed instruction extension for code density
+-- • Vector and floating-point extensions available
+--
+-- RISC-V ISA EXTENSIONS:
+-- • RV32I/RV64I: Base integer instruction set (mandatory)
+-- • M: Integer multiplication and division
+-- • A: Atomic instructions
+-- • F: Single-precision floating-point
+-- • D: Double-precision floating-point
+-- • C: Compressed instructions (16-bit)
+-- • V: Vector operations
+-- • B: Bit manipulation
+-- • P: Packed SIMD
+-- • J: Just-in-time compilation support
+-- • N: User-level interrupts
+-- • S: Supervisor mode
+-- • U: User mode
+--
+-- PROGRAMMING GUIDANCE FOR FPGA IMPLEMENTATION:
+--
+-- 1. CORE ARCHITECTURE SETUP:
+--    - Choose appropriate RISC-V variant (RV32I, RV64I, RV128I)
+--    - Select required ISA extensions based on application needs
+--    - Configure pipeline depth (3-stage to 8+ stage implementations)
+--    - Set up register file (32 integer registers, optional FP registers)
+--    - Implement control and status registers (CSRs)
+--    - Configure privilege levels (M, S, U modes)
+--    - Set up exception and interrupt handling
+--
+-- 2. INSTRUCTION SET IMPLEMENTATION:
+--    - Base Integer (I): Arithmetic, logical, control flow, load/store
+--    - Multiplication/Division (M): MUL, MULH, DIV, REM instructions
+--    - Atomic (A): Load-reserved/store-conditional, atomic memory operations
+--    - Floating-Point (F/D): IEEE 754 compliant FPU implementation
+--    - Compressed (C): 16-bit instruction encoding for code density
+--    - Vector (V): SIMD operations for data parallel processing
+--    - Custom extensions: Application-specific instruction extensions
+--
+-- 3. MEMORY SYSTEM CONFIGURATION:
+--    - Address space: 32-bit (4GB), 64-bit (16EB), or 128-bit
+--    - Memory management unit (MMU) for virtual memory (Sv32, Sv39, Sv48)
+--    - Physical memory protection (PMP) for embedded systems
+--    - Cache hierarchy: L1 instruction/data caches, optional L2/L3
+--    - Memory ordering and consistency models
+--    - Atomic memory operations support
+--    - Memory-mapped I/O regions
+--
+-- 4. PIPELINE IMPLEMENTATION:
+--    - Fetch: Instruction fetch from memory or cache
+--    - Decode: Instruction decoding and register file access
+--    - Execute: ALU operations, address calculation, branch resolution
+--    - Memory: Load/store operations, cache access
+--    - Writeback: Register file update and exception handling
+--    - Hazard detection and forwarding logic
+--    - Branch prediction for performance optimization
+--
+-- 5. CONTROL AND STATUS REGISTERS (CSRs):
+--    - Machine-level CSRs: mstatus, mie, mip, mepc, mcause, mtval
+--    - Supervisor-level CSRs: sstatus, sie, sip, sepc, scause, stval
+--    - User-level CSRs: cycle, time, instret counters
+--    - Performance monitoring counters
+--    - Custom CSRs for implementation-specific features
+--    - Debug and trace support registers
+--
+-- 6. INTERRUPT AND EXCEPTION HANDLING:
+--    - Machine External Interrupt (MEI)
+--    - Machine Timer Interrupt (MTI)
+--    - Machine Software Interrupt (MSI)
+--    - Supervisor and User level interrupts
+--    - Exception types: instruction misaligned, illegal instruction, breakpoint
+--    - Trap handling and delegation mechanisms
+--    - Interrupt priority and masking
+--
+-- 7. DEBUG AND TRACE SUPPORT:
+--    - RISC-V Debug Specification compliance
+--    - Hardware breakpoints and watchpoints
+--    - Single-step debugging capability
+--    - Program buffer for debug operations
+--    - Abstract commands for register/memory access
+--    - Trace encoder for program flow tracing
+--    - JTAG or other debug transport interfaces
+--
+-- 8. FLOATING-POINT UNIT (FPU):
+--    - IEEE 754-2008 compliant implementation
+--    - Single-precision (F extension) and double-precision (D extension)
+--    - Floating-point control and status register (fcsr)
+--    - Rounding modes and exception flags
+--    - NaN boxing for mixed-precision operations
+--    - Fused multiply-add operations
+--
+-- 9. VECTOR PROCESSING UNIT (VPU):
+--    - Configurable vector length (VLEN)
+--    - Vector register file organization
+--    - Element width agnostic operations
+--    - Predicated execution with vector masks
+--    - Gather/scatter memory operations
+--    - Reduction and permutation operations
+--
+-- 10. CUSTOM EXTENSIONS:
+--     - Application-specific instruction extensions
+--     - Custom function units and accelerators
+--     - Tightly-coupled memory interfaces
+--     - Coprocessor interfaces
+--     - Domain-specific optimizations
+--
+-- IMPLEMENTATION TEMPLATE:
+--
+-- entity riscv_core is
+--     generic (
+--         -- Core Configuration
+--         XLEN                : integer := 32;               -- Architecture width (32/64/128)
+--         IALIGN              : integer := 32;               -- Instruction alignment (16/32)
+--         ILEN                : integer := 32;               -- Instruction length
+--         
+--         -- ISA Extensions
+--         RV32I               : boolean := true;             -- Base integer ISA
+--         RV64I               : boolean := false;            -- 64-bit base ISA
+--         M_EXTENSION         : boolean := true;             -- Multiplication/Division
+--         A_EXTENSION         : boolean := true;             -- Atomic operations
+--         F_EXTENSION         : boolean := false;            -- Single-precision FP
+--         D_EXTENSION         : boolean := false;            -- Double-precision FP
+--         C_EXTENSION         : boolean := true;             -- Compressed instructions
+--         V_EXTENSION         : boolean := false;            -- Vector operations
+--         B_EXTENSION         : boolean := false;            -- Bit manipulation
+--         
+--         -- Privilege Levels
+--         USER_MODE           : boolean := true;             -- User mode support
+--         SUPERVISOR_MODE     : boolean := false;            -- Supervisor mode
+--         MACHINE_MODE        : boolean := true;             -- Machine mode (mandatory)
+--         
+--         -- Memory System
+--         MEMORY_SIZE         : integer := 65536;            -- Memory size in bytes
+--         ICACHE_SIZE         : integer := 4096;             -- I-cache size
+--         DCACHE_SIZE         : integer := 4096;             -- D-cache size
+--         MMU_ENABLE          : boolean := false;            -- Memory management unit
+--         PMP_REGIONS         : integer := 8;                -- PMP regions
+--         
+--         -- Pipeline Configuration
+--         PIPELINE_STAGES     : integer := 5;                -- Pipeline depth
+--         BRANCH_PREDICTOR    : boolean := true;             -- Branch prediction
+--         FORWARDING          : boolean := true;             -- Data forwarding
+--         
+--         -- Performance Features
+--         PERFORMANCE_COUNTERS: integer := 4;                -- Number of perf counters
+--         HART_ID             : integer := 0;                -- Hardware thread ID
+--         
+--         -- Debug Configuration
+--         DEBUG_SUPPORT       : boolean := true;             -- Debug module
+--         BREAKPOINTS         : integer := 4;                -- Hardware breakpoints
+--         WATCHPOINTS         : integer := 2;                -- Hardware watchpoints
+--         
+--         -- Vector Configuration (if V_EXTENSION = true)
+--         VLEN                : integer := 128;              -- Vector register length
+--         ELEN                : integer := 32;               -- Max element width
+--         
+--         -- Custom Extensions
+--         CUSTOM_0            : boolean := false;            -- Custom-0 extension
+--         CUSTOM_1            : boolean := false;            -- Custom-1 extension
+--         CUSTOM_2            : boolean := false;            -- Custom-2 extension
+--         CUSTOM_3            : boolean := false             -- Custom-3 extension
+--     );
+--     port (
+--         -- Clock and Reset
+--         clk                 : in  std_logic;               -- System clock
+--         rst_n               : in  std_logic;               -- Active-low reset
+--         
+--         -- Instruction Memory Interface
+--         imem_addr           : out std_logic_vector(XLEN-1 downto 0);
+--         imem_rdata          : in  std_logic_vector(31 downto 0);
+--         imem_req            : out std_logic;
+--         imem_gnt            : in  std_logic;
+--         imem_rvalid         : in  std_logic;
+--         imem_err            : in  std_logic;
+--         
+--         -- Data Memory Interface
+--         dmem_addr           : out std_logic_vector(XLEN-1 downto 0);
+--         dmem_wdata          : out std_logic_vector(XLEN-1 downto 0);
+--         dmem_rdata          : in  std_logic_vector(XLEN-1 downto 0);
+--         dmem_we             : out std_logic;
+--         dmem_be             : out std_logic_vector((XLEN/8)-1 downto 0);
+--         dmem_req            : out std_logic;
+--         dmem_gnt            : in  std_logic;
+--         dmem_rvalid         : in  std_logic;
+--         dmem_err            : in  std_logic;
+--         
+--         -- Interrupt Interface
+--         irq_external        : in  std_logic;               -- External interrupt
+--         irq_timer           : in  std_logic;               -- Timer interrupt
+--         irq_software        : in  std_logic;               -- Software interrupt
+--         irq_fast            : in  std_logic_vector(15 downto 0);  -- Fast interrupts
+--         
+--         -- Debug Interface
+--         debug_req           : in  std_logic;               -- Debug request
+--         debug_gnt           : out std_logic;               -- Debug grant
+--         debug_rvalid        : out std_logic;               -- Debug response valid
+--         debug_addr          : in  std_logic_vector(14 downto 0);
+--         debug_we            : in  std_logic;
+--         debug_wdata         : in  std_logic_vector(31 downto 0);
+--         debug_rdata         : out std_logic_vector(31 downto 0);
+--         
+--         -- Trace Interface
+--         trace_valid         : out std_logic;               -- Trace data valid
+--         trace_data          : out std_logic_vector(31 downto 0);  -- Trace data
+--         trace_addr          : out std_logic_vector(XLEN-1 downto 0);  -- Trace address
+--         
+--         -- Custom Interface Ports
+--         custom_0_req        : out std_logic;               -- Custom-0 request
+--         custom_0_gnt        : in  std_logic;               -- Custom-0 grant
+--         custom_0_rvalid     : in  std_logic;               -- Custom-0 response
+--         custom_0_addr       : out std_logic_vector(31 downto 0);
+--         custom_0_wdata      : out std_logic_vector(31 downto 0);
+--         custom_0_rdata      : in  std_logic_vector(31 downto 0);
+--         custom_0_we         : out std_logic;
+--         
+--         -- Status and Control
+--         core_id             : out std_logic_vector(3 downto 0);   -- Core identifier
+--         hart_id_o           : out std_logic_vector(31 downto 0);  -- Hardware thread ID
+--         boot_addr           : in  std_logic_vector(XLEN-1 downto 0);  -- Boot address
+--         mtvec_addr          : in  std_logic_vector(XLEN-1 downto 0);  -- Trap vector base
+--         
+--         -- Performance Monitoring
+--         perf_counters       : out std_logic_vector((PERFORMANCE_COUNTERS*64)-1 downto 0);
+--         
+--         -- Power Management
+--         sleep_req           : out std_logic;               -- Sleep request
+--         sleep_ack           : in  std_logic;               -- Sleep acknowledge
+--         wake_up             : in  std_logic;               -- Wake-up signal
+--         
+--         -- Clock Gating
+--         clk_en              : in  std_logic;               -- Clock enable
+--         scan_cg_en          : in  std_logic                -- Scan clock gate enable
+--     );
+-- end riscv_core;
+--
+-- IMPLEMENTATION STRATEGIES:
+--
+-- 1. PIPELINE OPTIMIZATION:
+--    - Implement efficient hazard detection and resolution
+--    - Use data forwarding to minimize pipeline stalls
+--    - Optimize branch prediction for control flow performance
+--    - Consider out-of-order execution for high-performance cores
+--    - Implement efficient cache management and prefetching
+--
+-- 2. MEMORY SYSTEM DESIGN:
+--    - Choose appropriate cache sizes and associativity
+--    - Implement efficient cache coherency protocols for multi-core
+--    - Design memory protection mechanisms (PMP/MMU)
+--    - Optimize memory interface for bandwidth and latency
+--    - Consider NUMA architectures for large systems
+--
+-- 3. FLOATING-POINT OPTIMIZATION:
+--    - Use dedicated FPU for performance-critical applications
+--    - Implement efficient rounding and exception handling
+--    - Consider fused multiply-add for numerical accuracy
+--    - Optimize for specific floating-point workloads
+--
+-- 4. VECTOR PROCESSING:
+--    - Design scalable vector register file
+--    - Implement efficient vector memory operations
+--    - Optimize for specific vector workloads (AI/ML, DSP)
+--    - Consider mixed-precision vector operations
+--
+-- 5. CUSTOM EXTENSIONS:
+--    - Design application-specific accelerators
+--    - Implement efficient coprocessor interfaces
+--    - Consider tightly-coupled memory for accelerators
+--    - Optimize instruction encoding for custom operations
+--
+-- VERIFICATION AND TESTING:
+-- • Use RISC-V compliance test suite for ISA verification
+-- • Implement comprehensive functional verification
+-- • Use formal verification for critical components
+-- • Test with real-world software stacks (Linux, FreeRTOS)
+-- • Verify debug and trace functionality
+-- • Test interrupt and exception handling thoroughly
+-- • Validate memory protection mechanisms
+-- • Performance benchmarking and optimization
+--
+-- DEBUGGING RECOMMENDATIONS:
+-- • Implement comprehensive debug infrastructure
+-- • Use hardware breakpoints and watchpoints effectively
+-- • Enable trace collection for performance analysis
+-- • Implement efficient debug transport (JTAG, USB, Ethernet)
+-- • Support for multi-core debugging scenarios
+-- • Integration with standard debug tools (GDB, OpenOCD)
+-- • Implement debug authentication for secure systems
+--
+-- POWER OPTIMIZATION:
+-- • Implement clock gating for unused functional units
+-- • Use power islands for different core components
+-- • Implement dynamic voltage and frequency scaling
+-- • Optimize for low-power modes (sleep, hibernate)
+-- • Consider sub-threshold operation for ultra-low power
+-- • Implement efficient wake-up mechanisms
+-- • Use retention registers for state preservation
+--
+-- SECURITY CONSIDERATIONS:
+-- • Implement physical memory protection (PMP)
+-- • Use cryptographic extensions for secure operations
+-- • Implement secure boot and attestation
+-- • Consider side-channel attack mitigation
+-- • Implement control flow integrity mechanisms
+-- • Use hardware security modules for key management
+-- • Implement secure debug access control
+--
+-- =====================================================================================
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;

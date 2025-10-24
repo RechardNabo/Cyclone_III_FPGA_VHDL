@@ -1,0 +1,560 @@
+-- ============================================================================
+-- PROJECT: VHDL Signal Examples and Usage Guide
+-- ============================================================================
+-- DESCRIPTION:
+-- This project provides comprehensive examples and educational content for
+-- understanding and implementing VHDL signals. Signals are fundamental
+-- constructs in VHDL that represent wires, buses, and storage elements
+-- in digital hardware designs. This guide covers signal declaration,
+-- assignment, timing behavior, and best practices.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand the concept and behavior of VHDL signals
+-- - Learn proper signal declaration and initialization techniques
+-- - Master signal assignment operators and timing semantics
+-- - Practice concurrent and sequential signal assignments
+-- - Understand signal resolution and multiple drivers
+-- - Learn signal attributes and their applications
+-- - Implement proper signal naming and coding conventions
+--
+-- ============================================================================
+-- SIGNAL FUNDAMENTALS:
+-- ============================================================================
+-- WHAT ARE SIGNALS:
+-- Signals in VHDL represent physical connections in hardware:
+-- - Wires connecting components
+-- - Internal buses within modules
+-- - Register outputs and storage elements
+-- - Clock and reset distribution networks
+-- - Test and debug probe points
+--
+-- SIGNAL CHARACTERISTICS:
+-- - Have current value and projected future values
+-- - Support multiple concurrent assignments (with resolution)
+-- - Updated at specific simulation times (delta cycles)
+-- - Can have multiple drivers (with resolution functions)
+-- - Support various data types and subtypes
+-- - Can be constrained and unconstrained arrays
+--
+-- SIGNAL vs. VARIABLE COMPARISON:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────┐
+-- │ Aspect          │ Signal          │ Variable                    │
+-- ├─────────────────┼─────────────────┼─────────────────────────────┤
+-- │ Assignment      │ <= (after delta)│ := (immediate)              │
+-- │ Scope           │ Architecture    │ Process/Subprogram          │
+-- │ Hardware Model  │ Wires/Storage   │ Local computation           │
+-- │ Multiple Drivers│ Yes (resolved)  │ No                          │
+-- │ Timing          │ Scheduled       │ Immediate                   │
+-- │ Synthesis       │ Hardware        │ Temporary storage/logic     │
+-- └─────────────────┴─────────────────┴─────────────────────────────┘
+--
+-- ============================================================================
+-- SIGNAL DECLARATION SYNTAX:
+-- ============================================================================
+-- BASIC DECLARATION:
+-- signal signal_name : signal_type [signal_kind] [:= initial_value];
+--
+-- EXAMPLES:
+-- signal clk          : std_logic;                    -- Clock signal
+-- signal reset_n      : std_logic := '1';             -- Active-low reset
+-- signal data_bus     : std_logic_vector(7 downto 0); -- 8-bit bus
+-- signal address      : unsigned(15 downto 0);        -- 16-bit address
+-- signal count        : integer range 0 to 255;       -- Constrained integer
+-- signal enable_flags : std_logic_vector(3 downto 0) := "0000"; -- Initialized
+--
+-- SIGNAL KINDS:
+-- - register: Retains value (default for resolved types)
+-- - bus: Requires drivers, default value when no drivers
+--
+-- SIGNAL SUBTYPES:
+-- subtype byte is std_logic_vector(7 downto 0);
+-- signal data_byte : byte;                             -- Using subtype
+--
+-- ============================================================================
+-- SIGNAL ASSIGNMENT OPERATORS:
+-- ============================================================================
+-- CONCURRENT ASSIGNMENT (<=):
+-- - Used outside processes
+-- - Executes when any signal in sensitivity changes
+-- - Creates implicit process with sensitivity list
+-- - Multiple concurrent assignments create multiple drivers
+--
+-- SEQUENTIAL ASSIGNMENT (<=):
+-- - Used inside processes, functions, procedures
+-- - Scheduled for future execution (delta cycle)
+-- - Last assignment in process wins
+-- - Can be conditional or unconditional
+--
+-- EXAMPLES:
+-- -- Concurrent assignments
+-- output <= input1 and input2;                        -- Simple gate
+-- result <= a + b when enable = '1' else (others => '0'); -- Conditional
+-- 
+-- -- Sequential assignments (inside process)
+-- process(clk, reset)
+-- begin
+--     if reset = '1' then
+--         counter <= 0;
+--     elsif rising_edge(clk) then
+--         counter <= counter + 1;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- SIGNAL TIMING AND DELTA CYCLES:
+-- ============================================================================
+-- DELTA CYCLE CONCEPT:
+-- - Infinitesimally small time advancement
+-- - Used for signal scheduling and evaluation
+-- - Ensures proper signal propagation order
+-- - Critical for simulation accuracy
+--
+-- SIGNAL UPDATE PROCESS:
+-- 1. Evaluate all processes sensitive to current events
+-- 2. Schedule signal assignments for future time
+-- 3. Advance to next delta cycle (same simulation time)
+-- 4. Update signals with scheduled values
+-- 5. Repeat until no more events at current time
+-- 6. Advance simulation time to next scheduled event
+--
+-- TIMING EXAMPLE:
+-- process(clk)
+-- begin
+--     if rising_edge(clk) then
+--         a <= input;      -- Scheduled for next delta
+--         b <= a;          -- Uses OLD value of 'a'
+--         c <= b;          -- Uses OLD value of 'b'
+--     end if;
+-- end process;
+-- -- Result: Creates shift register behavior
+--
+-- ============================================================================
+-- SIGNAL RESOLUTION AND MULTIPLE DRIVERS:
+-- ============================================================================
+-- RESOLUTION FUNCTIONS:
+-- - Required when signal has multiple drivers
+-- - Determines final signal value from all drivers
+-- - Built-in for std_logic (IEEE.std_logic_1164)
+-- - Custom resolution functions for user types
+--
+-- STD_LOGIC RESOLUTION TABLE:
+-- ┌───┬─────────────────────────────────┐
+-- │   │ U X 0 1 Z W L H -               │
+-- ├───┼─────────────────────────────────┤
+-- │ U │ U U U U U U U U U               │
+-- │ X │ U X X X X X X X X               │
+-- │ 0 │ U X 0 X 0 0 0 0 X               │
+-- │ 1 │ U X X 1 1 1 1 1 X               │
+-- │ Z │ U X 0 1 Z W L H X               │
+-- │ W │ U X 0 1 W W W W X               │
+-- │ L │ U X 0 1 L W L W X               │
+-- │ H │ U X 0 1 H W W H X               │
+-- │ - │ U X X X X X X X X               │
+-- └───┴─────────────────────────────────┘
+--
+-- MULTIPLE DRIVER EXAMPLE:
+-- signal bus_line : std_logic;
+-- 
+-- -- Driver 1
+-- bus_line <= '1' when enable1 = '1' else 'Z';
+-- 
+-- -- Driver 2  
+-- bus_line <= '0' when enable2 = '1' else 'Z';
+-- 
+-- -- Result: Resolved based on enable states
+--
+-- ============================================================================
+-- SIGNAL ATTRIBUTES:
+-- ============================================================================
+-- COMMONLY USED SIGNAL ATTRIBUTES:
+-- 
+-- VALUE ATTRIBUTES:
+-- - signal'event: True if signal changed in current delta
+-- - signal'active: True if signal assigned in current delta
+-- - signal'last_event: Time since last event
+-- - signal'last_active: Time since last assignment
+-- - signal'last_value: Previous value before last change
+--
+-- TIMING ATTRIBUTES:
+-- - signal'stable(time): True if stable for specified time
+-- - signal'quiet(time): True if no assignments for specified time
+-- - signal'transaction: Toggles on every assignment
+-- - signal'delayed(time): Delayed version of signal
+--
+-- PRACTICAL EXAMPLES:
+-- -- Clock edge detection
+-- if clk'event and clk = '1' then  -- Rising edge (traditional)
+-- if rising_edge(clk) then         -- Rising edge (preferred)
+-- 
+-- -- Reset synchronizer
+-- if reset'event and reset = '0' then  -- Reset release detection
+-- 
+-- -- Pulse detection
+-- if data'event then               -- Any change on data
+-- 
+-- -- Stability check
+-- if address'stable(10 ns) then    -- Address stable for 10ns
+--
+-- ============================================================================
+-- SIGNAL TYPES AND DECLARATIONS:
+-- ============================================================================
+-- STANDARD LOGIC TYPES:
+-- signal single_bit    : std_logic;                   -- Single bit
+-- signal logic_vector  : std_logic_vector(7 downto 0); -- Bit vector
+-- signal unsigned_val  : unsigned(15 downto 0);       -- Unsigned number
+-- signal signed_val    : signed(15 downto 0);         -- Signed number
+--
+-- INTEGER AND ENUMERATED TYPES:
+-- signal counter       : integer range 0 to 1023;     -- Constrained integer
+-- signal state         : state_type;                  -- Enumerated type
+-- signal natural_count : natural;                     -- Natural number
+-- signal positive_val  : positive;                    -- Positive number
+--
+-- ARRAY AND RECORD TYPES:
+-- type memory_array is array(0 to 255) of std_logic_vector(7 downto 0);
+-- signal memory        : memory_array;                -- Memory array
+-- 
+-- type control_record is record
+--     enable : std_logic;
+--     mode   : std_logic_vector(1 downto 0);
+-- end record;
+-- signal control       : control_record;              -- Record signal
+--
+-- PHYSICAL TYPES:
+-- signal delay_time    : time := 10 ns;               -- Time value
+-- signal frequency     : frequency;                   -- Frequency value
+--
+-- ============================================================================
+-- SIGNAL INITIALIZATION:
+-- ============================================================================
+-- DECLARATION WITH INITIALIZATION:
+-- signal reset_n       : std_logic := '1';            -- Initialize to '1'
+-- signal data_reg      : std_logic_vector(7 downto 0) := (others => '0');
+-- signal count         : integer := 0;                -- Initialize to 0
+-- signal state         : state_type := IDLE;          -- Initialize to IDLE
+--
+-- INITIALIZATION METHODS:
+-- -- Aggregate assignment
+-- signal control_word  : std_logic_vector(7 downto 0) := "10101010";
+-- signal control_word2 : std_logic_vector(7 downto 0) := (7 => '1', others => '0');
+--
+-- -- Others clause
+-- signal data_array    : std_logic_vector(15 downto 0) := (others => '0');
+-- signal mixed_init    : std_logic_vector(7 downto 0) := (7 downto 4 => '1', others => '0');
+--
+-- RESET INITIALIZATION:
+-- process(clk, reset)
+-- begin
+--     if reset = '1' then
+--         -- Synchronous reset initialization
+--         counter <= 0;
+--         state <= IDLE;
+--         output_reg <= (others => '0');
+--     elsif rising_edge(clk) then
+--         -- Normal operation
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- CONCURRENT SIGNAL ASSIGNMENTS:
+-- ============================================================================
+-- SIMPLE CONCURRENT ASSIGNMENT:
+-- output <= input;                                    -- Direct connection
+-- result <= a and b;                                  -- Logic gate
+-- sum <= a + b;                                       -- Arithmetic operation
+--
+-- CONDITIONAL SIGNAL ASSIGNMENT:
+-- output <= input1 when select_sig = '1' else input2; -- 2:1 mux
+-- result <= a + b when op = "00" else                 -- Multi-way conditional
+--           a - b when op = "01" else
+--           a and b when op = "10" else
+--           a or b;
+--
+-- SELECTED SIGNAL ASSIGNMENT:
+-- with select_sig select
+--     output <= input1 when "00",                     -- 4:1 mux
+--               input2 when "01",
+--               input3 when "10",
+--               input4 when others;
+--
+-- GUARDED SIGNAL ASSIGNMENT:
+-- bus_line <= guarded data when enable = '1' else 'Z'; -- Tri-state driver
+--
+-- ============================================================================
+-- SEQUENTIAL SIGNAL ASSIGNMENTS:
+-- ============================================================================
+-- CLOCKED PROCESS:
+-- process(clk, reset)
+-- begin
+--     if reset = '1' then
+--         q <= '0';                                   -- Asynchronous reset
+--     elsif rising_edge(clk) then
+--         q <= d;                                     -- D flip-flop
+--     end if;
+-- end process;
+--
+-- COMBINATIONAL PROCESS:
+-- process(a, b, sel)
+-- begin
+--     case sel is
+--         when "00" => output <= a and b;             -- AND gate
+--         when "01" => output <= a or b;              -- OR gate
+--         when "10" => output <= a xor b;             -- XOR gate
+--         when others => output <= not a;             -- NOT gate
+--     end case;
+-- end process;
+--
+-- COUNTER EXAMPLE:
+-- process(clk, reset)
+-- begin
+--     if reset = '1' then
+--         count <= 0;
+--     elsif rising_edge(clk) then
+--         if enable = '1' then
+--             if count = MAX_COUNT then
+--                 count <= 0;                         -- Wrap around
+--             else
+--                 count <= count + 1;                 -- Increment
+--             end if;
+--         end if;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- SIGNAL NAMING CONVENTIONS:
+-- ============================================================================
+-- RECOMMENDED NAMING PATTERNS:
+-- - clk, clock: Clock signals
+-- - reset, rst, reset_n: Reset signals (suffix _n for active-low)
+-- - enable, en: Enable signals
+-- - valid, vld: Data valid signals
+-- - ready, rdy: Ready/acknowledge signals
+-- - data, addr: Data and address buses
+-- - _i, _o, _io: Input, output, bidirectional suffixes
+-- - _reg: Registered versions of signals
+-- - _next: Next state or value signals
+--
+-- EXAMPLES:
+-- signal clk_i         : std_logic;                   -- Input clock
+-- signal reset_n_i     : std_logic;                   -- Input reset (active-low)
+-- signal data_o        : std_logic_vector(7 downto 0); -- Output data
+-- signal addr_reg      : unsigned(15 downto 0);       -- Registered address
+-- signal state_next    : state_type;                  -- Next state
+-- signal enable_sync   : std_logic;                   -- Synchronized enable
+--
+-- ============================================================================
+-- SIGNAL BEST PRACTICES:
+-- ============================================================================
+-- CODING GUIDELINES:
+-- 1. Use meaningful, descriptive names
+-- 2. Follow consistent naming conventions
+-- 3. Initialize signals when appropriate
+-- 4. Use proper signal types for intended purpose
+-- 5. Avoid unnecessary signal declarations
+-- 6. Group related signals logically
+-- 7. Use comments to document complex signals
+-- 8. Consider signal scope and visibility
+--
+-- TIMING CONSIDERATIONS:
+-- 1. Understand delta cycle behavior
+-- 2. Use proper clock edge detection
+-- 3. Avoid combinational loops
+-- 4. Consider setup and hold times
+-- 5. Use synchronous design practices
+-- 6. Minimize clock domain crossings
+-- 7. Use proper reset strategies
+-- 8. Consider metastability issues
+--
+-- SYNTHESIS GUIDELINES:
+-- 1. Use synthesizable signal types
+-- 2. Avoid multiple drivers unless intended
+-- 3. Use proper reset initialization
+-- 4. Consider resource implications
+-- 5. Use appropriate signal widths
+-- 6. Avoid unnecessary signal assignments
+-- 7. Use efficient coding styles
+-- 8. Consider timing closure requirements
+--
+-- ============================================================================
+-- COMMON SIGNAL PATTERNS:
+-- ============================================================================
+-- CLOCK AND RESET HANDLING:
+-- process(clk, reset_n)
+-- begin
+--     if reset_n = '0' then                           -- Asynchronous reset
+--         -- Reset all registers
+--     elsif rising_edge(clk) then
+--         -- Synchronous logic
+--     end if;
+-- end process;
+--
+-- ENABLE AND CLOCK GATING:
+-- process(clk, reset_n)
+-- begin
+--     if reset_n = '0' then
+--         data_reg <= (others => '0');
+--     elsif rising_edge(clk) then
+--         if enable = '1' then                        -- Clock enable
+--             data_reg <= data_in;
+--         end if;
+--     end if;
+-- end process;
+--
+-- PIPELINE REGISTERS:
+-- process(clk, reset_n)
+-- begin
+--     if reset_n = '0' then
+--         stage1_reg <= (others => '0');
+--         stage2_reg <= (others => '0');
+--         stage3_reg <= (others => '0');
+--     elsif rising_edge(clk) then
+--         stage1_reg <= data_in;                      -- Pipeline stage 1
+--         stage2_reg <= stage1_reg;                   -- Pipeline stage 2
+--         stage3_reg <= stage2_reg;                   -- Pipeline stage 3
+--     end if;
+-- end process;
+--
+-- SHIFT REGISTER:
+-- process(clk, reset_n)
+-- begin
+--     if reset_n = '0' then
+--         shift_reg <= (others => '0');
+--     elsif rising_edge(clk) then
+--         shift_reg <= shift_reg(shift_reg'high-1 downto 0) & serial_in;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- SIGNAL DEBUGGING TECHNIQUES:
+-- ============================================================================
+-- SIMULATION DEBUGGING:
+-- 1. Use signal names in waveform viewers
+-- 2. Add intermediate signals for complex expressions
+-- 3. Use assert statements for signal validation
+-- 4. Monitor signal attributes (event, stable, etc.)
+-- 5. Use signal spy techniques in testbenches
+--
+-- SYNTHESIS DEBUGGING:
+-- 1. Check synthesis reports for signal usage
+-- 2. Verify signal mapping in implementation
+-- 3. Use timing analysis tools
+-- 4. Check for unintended latches or registers
+-- 5. Verify signal constraints and timing
+--
+-- HARDWARE DEBUGGING:
+-- 1. Use internal logic analyzer signals
+-- 2. Bring critical signals to test points
+-- 3. Use JTAG boundary scan for signal access
+-- 4. Implement debug registers for signal monitoring
+-- 5. Use LED indicators for critical signal states
+--
+-- ============================================================================
+-- ADVANCED SIGNAL CONCEPTS:
+-- ============================================================================
+-- SIGNAL ALIASING:
+-- alias byte_high : std_logic_vector(7 downto 0) is data_word(15 downto 8);
+-- alias byte_low  : std_logic_vector(7 downto 0) is data_word(7 downto 0);
+--
+-- SIGNAL DISCONNECTION:
+-- disconnect signal_name : signal_type after time_expression;
+--
+-- SIGNAL PARAMETERS:
+-- generic (
+--     SIGNAL_WIDTH : integer := 8;
+--     INIT_VALUE   : std_logic_vector := "00000000"
+-- );
+-- signal parameterized : std_logic_vector(SIGNAL_WIDTH-1 downto 0) := INIT_VALUE;
+--
+-- SIGNAL ARRAYS:
+-- type signal_array is array(natural range <>) of std_logic;
+-- signal control_signals : signal_array(0 to 7);
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ All signal assignments work correctly
+-- □ Signal timing behavior is as expected
+-- □ Multiple drivers resolve properly
+-- □ Signal attributes function correctly
+-- □ Initialization values are correct
+-- □ Reset behavior is proper
+-- □ Clock domain crossings are handled
+-- □ Signal constraints are met
+--
+-- SYNTHESIS VERIFICATION:
+-- □ All signals synthesize correctly
+-- □ No unintended latches or registers
+-- □ Timing constraints are met
+-- □ Resource utilization is acceptable
+-- □ Signal routing is efficient
+-- □ Power consumption is within limits
+-- □ Signal integrity is maintained
+-- □ EMI/EMC requirements are met
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+--
+-- [Add your entity declaration here]
+-- entity signal_example is
+--     generic (
+--         DATA_WIDTH : integer := 8;
+--         ADDR_WIDTH : integer := 16
+--     );
+--     port (
+--         -- Clock and Reset
+--         clk        : in  std_logic;
+--         reset_n    : in  std_logic;
+--         
+--         -- Data Interface
+--         data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         
+--         -- Control Interface
+--         enable     : in  std_logic;
+--         ready      : out std_logic
+--     );
+-- end entity signal_example;
+--
+-- [Add your architecture implementation here]
+-- architecture rtl of signal_example is
+--     -- Internal signals
+--     signal data_reg     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal enable_sync  : std_logic;
+--     signal counter      : unsigned(7 downto 0);
+--     signal state        : state_type;
+--     
+-- begin
+--     -- Concurrent signal assignments
+--     data_out <= data_reg;
+--     ready <= '1' when state = READY_STATE else '0';
+--     
+--     -- Sequential signal assignments
+--     process(clk, reset_n)
+--     begin
+--         if reset_n = '0' then
+--             -- Reset all signals
+--             data_reg <= (others => '0');
+--             enable_sync <= '0';
+--             counter <= (others => '0');
+--             state <= IDLE;
+--         elsif rising_edge(clk) then
+--             -- Synchronous logic
+--             enable_sync <= enable;
+--             
+--             if enable_sync = '1' then
+--                 data_reg <= data_in;
+--                 counter <= counter + 1;
+--             end if;
+--         end if;
+--     end process;
+--     
+-- end architecture rtl;
+--
+-- ============================================================================

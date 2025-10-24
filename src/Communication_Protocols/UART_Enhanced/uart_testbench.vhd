@@ -1,0 +1,824 @@
+-- ============================================================================
+-- UART Enhanced Testbench Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a comprehensive testbench for UART (Universal Asynchronous
+-- Receiver/Transmitter) enhanced system in VHDL. The testbench validates both
+-- transmitter and receiver functionality, including data integrity, timing
+-- accuracy, flow control, error handling, and advanced features like FIFO
+-- buffering, break detection, and various UART configurations.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand comprehensive UART system testing
+-- 2. Learn advanced testbench design patterns
+-- 3. Master protocol compliance verification
+-- 4. Practice timing and data integrity testing
+-- 5. Understand flow control and error condition testing
+-- 6. Learn automated test sequence generation
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - std_logic_textio for file I/O operations
+-- - textio for text file handling
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Add use IEEE.std_logic_textio.all;
+-- TODO: Add use STD.textio.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- Define the UART enhanced testbench entity (typically no ports for testbench)
+--
+-- Testbench Entity:
+-- - No input/output ports (self-contained)
+-- - All signals generated internally
+-- - Test results reported through assertions or file output
+--
+-- Generic Parameters (for testbench configuration):
+-- - CLK_PERIOD: Clock period for simulation
+-- - BAUD_RATE: UART baud rate for testing
+-- - DATA_WIDTH: Width of data bits to test
+-- - TEST_VECTORS: Number of test vectors to generate
+-- - ENABLE_LOGGING: Enable detailed logging to files
+--
+-- ============================================================================
+-- STEP 3: UART ENHANCED TESTBENCH PRINCIPLES
+-- ============================================================================
+--
+-- Comprehensive Testing Strategy:
+-- 1. Basic Functionality Testing
+--    - Single byte transmission/reception
+--    - Data integrity verification
+--    - Start/stop bit validation
+--
+-- 2. Protocol Compliance Testing
+--    - Frame format verification
+--    - Timing accuracy testing
+--    - Baud rate tolerance testing
+--
+-- 3. Advanced Feature Testing
+--    - FIFO buffer operation
+--    - Flow control mechanisms
+--    - Break signal handling
+--    - Error condition testing
+--
+-- 4. Stress Testing
+--    - Continuous data streams
+--    - Back-to-back transmissions
+--    - Buffer overflow/underflow
+--    - Maximum data rate testing
+--
+-- Test Scenarios:
+-- - Normal operation with various data patterns
+-- - Edge cases (all 0s, all 1s, alternating patterns)
+-- - Error injection and recovery
+-- - Timing variations and jitter
+-- - Multiple configuration testing
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Basic UART Testbench (Recommended for beginners)
+-- - Simple transmit/receive testing
+-- - Fixed configuration (8N1)
+-- - Basic data pattern testing
+-- - Manual result verification
+--
+-- OPTION 2: Comprehensive UART Testbench (Intermediate)
+-- - Multiple configuration testing
+-- - Automated test vector generation
+-- - Flow control testing
+-- - Error injection capabilities
+--
+-- OPTION 3: Advanced UART Testbench (Advanced)
+-- - Protocol analyzer functionality
+-- - Timing measurement and analysis
+-- - Statistical performance analysis
+-- - File-based test vector input/output
+--
+-- OPTION 4: System-Level UART Testbench (Expert)
+-- - Multi-channel UART testing
+-- - Real-time performance analysis
+-- - Hardware-in-the-loop simulation
+-- - Compliance testing automation
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Clock and Reset Generation:
+-- - Generate stable system clock
+-- - Implement proper reset sequences
+-- - Handle clock domain crossing
+-- - Provide baud rate clock generation
+--
+-- Test Vector Generation:
+-- - Create comprehensive data patterns
+-- - Generate random test sequences
+-- - Include edge cases and corner cases
+-- - Implement configurable test lengths
+--
+-- Result Verification:
+-- - Compare transmitted vs received data
+-- - Verify timing relationships
+-- - Check protocol compliance
+-- - Generate test reports
+--
+-- Error Injection:
+-- - Simulate transmission errors
+-- - Test error detection mechanisms
+-- - Verify error recovery procedures
+-- - Test timeout conditions
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Protocol Analysis:
+-- - Frame format verification
+-- - Timing measurement
+-- - Jitter analysis
+-- - Eye diagram generation
+--
+-- Performance Testing:
+-- - Throughput measurement
+-- - Latency analysis
+-- - Buffer utilization monitoring
+-- - Flow control efficiency
+--
+-- Automated Testing:
+-- - Self-checking testbenches
+-- - Regression test suites
+-- - Continuous integration support
+-- - Test result reporting
+--
+-- File I/O Operations:
+-- - Test vector file input
+-- - Result logging to files
+-- - Configuration file parsing
+-- - Report generation
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Design Verification: UART IP core validation
+-- 2. Compliance Testing: Standard conformance verification
+-- 3. Performance Analysis: Throughput and latency measurement
+-- 4. Regression Testing: Automated design validation
+-- 5. System Integration: End-to-end communication testing
+-- 6. Debug Support: Protocol analysis and troubleshooting
+-- 7. Quality Assurance: Production test development
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual component validation
+-- 2. Integration Testing: TX/RX system testing
+-- 3. Protocol Testing: UART standard compliance
+-- 4. Performance Testing: Speed and efficiency validation
+-- 5. Stress Testing: Extreme condition validation
+-- 6. Regression Testing: Change impact verification
+-- 7. Acceptance Testing: Final system validation
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic clock and reset generation
+-- 2. Implement simple data transmission test
+-- 3. Add data integrity verification
+-- 4. Implement comprehensive test vector generation
+-- 5. Add timing and protocol verification
+-- 6. Implement advanced features testing
+-- 7. Add automated reporting and logging
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Add support for multiple UART configurations
+-- 2. Implement real-time performance monitoring
+-- 3. Add protocol analyzer functionality
+-- 4. Implement statistical analysis features
+-- 5. Add support for hardware-in-the-loop testing
+-- 6. Implement automated test report generation
+-- 7. Add support for continuous integration
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Insufficient test coverage of edge cases
+-- 2. Inadequate timing verification
+-- 3. Missing error condition testing
+-- 4. Poor test vector generation
+-- 5. Inadequate result verification
+-- 6. Missing protocol compliance checks
+-- 7. Insufficient documentation of test results
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Clock and reset generation works correctly
+-- □ Basic transmission/reception functions
+-- □ Data integrity is maintained
+-- □ Timing relationships are correct
+-- □ Protocol compliance is verified
+-- □ Error conditions are properly tested
+-- □ Advanced features work as expected
+-- □ Test results are properly documented
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This UART enhanced testbench demonstrates several key concepts:
+-- - Comprehensive verification methodology
+-- - Protocol compliance testing techniques
+-- - Advanced testbench design patterns
+-- - Automated testing and result verification
+-- - Performance analysis and measurement
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider real-world loading effects in simulation
+-- - Model transmission line characteristics
+-- - Include noise and interference effects
+-- - Simulate temperature and voltage variations
+-- - Account for component tolerances
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Statistical analysis of communication quality
+-- - Machine learning for test pattern optimization
+-- - Real-time protocol analysis
+-- - Adaptive testing based on results
+-- - Formal verification integration
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use appropriate simulation time resolution
+-- - Include realistic timing models
+-- - Verify setup and hold time requirements
+-- - Test across process, voltage, and temperature corners
+-- - Use coverage analysis to ensure completeness
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use IEEE.std_logic_textio.all;
+-- use STD.textio.all;
+--
+-- entity uart_testbench is
+--     generic (
+--         CLK_PERIOD      : time := 20 ns;        -- 50 MHz clock
+--         BAUD_RATE       : integer := 115200;    -- UART baud rate
+--         DATA_WIDTH      : integer := 8;         -- Data width
+--         TEST_VECTORS    : integer := 1000;      -- Number of test vectors
+--         ENABLE_LOGGING  : boolean := true;      -- Enable file logging
+--         TEST_TIMEOUT    : time := 1 ms;         -- Test timeout
+--         PARITY_MODES    : integer := 5;         -- Number of parity modes to test
+--         STOP_BIT_MODES  : integer := 2;         -- Number of stop bit modes
+--         BAUD_RATES      : integer := 5          -- Number of baud rates to test
+--     );
+-- end entity uart_testbench;
+--
+-- architecture behavioral of uart_testbench is
+--     -- Constants
+--     constant CLK_FREQ       : integer := 1000000000 / (CLK_PERIOD / 1 ns);
+--     constant BIT_PERIOD     : time := 1000000000 ns / BAUD_RATE;
+--     constant FRAME_TIMEOUT  : time := BIT_PERIOD * 20;  -- Max frame time
+--     
+--     -- Clock and reset signals
+--     signal clk              : std_logic := '0';
+--     signal reset            : std_logic := '1';
+--     signal enable           : std_logic := '0';
+--     
+--     -- UART TX signals
+--     signal tx_data          : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal tx_valid         : std_logic := '0';
+--     signal tx_ready         : std_logic;
+--     signal tx_serial        : std_logic;
+--     signal tx_enable        : std_logic := '1';
+--     signal tx_busy          : std_logic;
+--     signal tx_complete      : std_logic;
+--     signal tx_error         : std_logic;
+--     signal tx_buffer_full   : std_logic;
+--     signal tx_buffer_empty  : std_logic;
+--     signal tx_buffer_count  : integer range 0 to 16;
+--     signal send_break       : std_logic := '0';
+--     signal break_complete   : std_logic;
+--     
+--     -- UART RX signals
+--     signal rx_serial        : std_logic := '1';
+--     signal rx_data          : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal rx_valid         : std_logic;
+--     signal rx_ready         : std_logic := '1';
+--     signal rx_enable        : std_logic := '1';
+--     signal rx_busy          : std_logic;
+--     signal rx_error         : std_logic;
+--     signal rx_parity_error  : std_logic;
+--     signal rx_frame_error   : std_logic;
+--     signal rx_overrun_error : std_logic;
+--     signal rx_break_detect  : std_logic;
+--     signal rx_buffer_full   : std_logic;
+--     signal rx_buffer_empty  : std_logic;
+--     signal rx_buffer_count  : integer range 0 to 16;
+--     
+--     -- Test control signals
+--     signal test_active      : std_logic := '0';
+--     signal test_complete    : std_logic := '0';
+--     signal test_pass        : std_logic := '0';
+--     signal test_fail        : std_logic := '0';
+--     signal current_test     : integer := 0;
+--     signal total_tests      : integer := 0;
+--     signal passed_tests     : integer := 0;
+--     signal failed_tests     : integer := 0;
+--     
+--     -- Test data arrays
+--     type test_data_array is array (0 to TEST_VECTORS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal test_tx_data     : test_data_array;
+--     signal test_rx_data     : test_data_array;
+--     signal expected_data    : test_data_array;
+--     
+--     -- Performance monitoring
+--     signal start_time       : time := 0 ns;
+--     signal end_time         : time := 0 ns;
+--     signal total_bits       : integer := 0;
+--     signal error_count      : integer := 0;
+--     signal throughput       : real := 0.0;
+--     
+--     -- Configuration signals
+--     signal current_parity   : string(1 to 5) := "NONE ";
+--     signal current_stop_bits: integer := 1;
+--     signal current_baud     : integer := BAUD_RATE;
+--     
+--     -- File I/O
+--     file test_log_file      : text;
+--     file test_vector_file   : text;
+--     file result_file        : text;
+--     
+--     -- Component declarations
+--     component uart_tx is
+--         generic (
+--             DATA_WIDTH    : integer := 8;
+--             PARITY_MODE   : string  := "NONE";
+--             STOP_BITS     : integer := 1;
+--             BAUD_RATE     : integer := 115200;
+--             CLK_FREQ      : integer := 50000000;
+--             BUFFER_DEPTH  : integer := 16
+--         );
+--         port (
+--             clk           : in  std_logic;
+--             reset         : in  std_logic;
+--             enable        : in  std_logic;
+--             tx_data       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             tx_valid      : in  std_logic;
+--             tx_ready      : out std_logic;
+--             tx_serial     : out std_logic;
+--             tx_enable     : in  std_logic;
+--             tx_busy       : out std_logic;
+--             tx_complete   : out std_logic;
+--             tx_error      : out std_logic;
+--             buffer_full   : out std_logic;
+--             buffer_empty  : out std_logic;
+--             buffer_count  : out integer range 0 to 16;
+--             send_break    : in  std_logic;
+--             break_complete: out std_logic
+--         );
+--     end component;
+--     
+--     component uart_rx is
+--         generic (
+--             DATA_WIDTH    : integer := 8;
+--             PARITY_MODE   : string  := "NONE";
+--             STOP_BITS     : integer := 1;
+--             BAUD_RATE     : integer := 115200;
+--             CLK_FREQ      : integer := 50000000;
+--             BUFFER_DEPTH  : integer := 16
+--         );
+--         port (
+--             clk           : in  std_logic;
+--             reset         : in  std_logic;
+--             enable        : in  std_logic;
+--             rx_serial     : in  std_logic;
+--             rx_data       : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             rx_valid      : out std_logic;
+--             rx_ready      : in  std_logic;
+--             rx_enable     : in  std_logic;
+--             rx_busy       : out std_logic;
+--             rx_error      : out std_logic;
+--             parity_error  : out std_logic;
+--             frame_error   : out std_logic;
+--             overrun_error : out std_logic;
+--             break_detect  : out std_logic;
+--             buffer_full   : out std_logic;
+--             buffer_empty  : out std_logic;
+--             buffer_count  : out integer range 0 to 16
+--         );
+--     end component;
+--     
+-- begin
+--     -- Clock generation
+--     clk_gen_proc: process
+--     begin
+--         while test_complete = '0' loop
+--             clk <= '0';
+--             wait for CLK_PERIOD / 2;
+--             clk <= '1';
+--             wait for CLK_PERIOD / 2;
+--         end loop;
+--         wait;
+--     end process;
+--     
+--     -- Reset generation
+--     reset_gen_proc: process
+--     begin
+--         reset <= '1';
+--         wait for CLK_PERIOD * 10;
+--         reset <= '0';
+--         enable <= '1';
+--         wait;
+--     end process;
+--     
+--     -- UART TX instantiation
+--     uart_tx_inst: uart_tx
+--         generic map (
+--             DATA_WIDTH    => DATA_WIDTH,
+--             PARITY_MODE   => "NONE",
+--             STOP_BITS     => 1,
+--             BAUD_RATE     => BAUD_RATE,
+--             CLK_FREQ      => CLK_FREQ,
+--             BUFFER_DEPTH  => 16
+--         )
+--         port map (
+--             clk           => clk,
+--             reset         => reset,
+--             enable        => enable,
+--             tx_data       => tx_data,
+--             tx_valid      => tx_valid,
+--             tx_ready      => tx_ready,
+--             tx_serial     => tx_serial,
+--             tx_enable     => tx_enable,
+--             tx_busy       => tx_busy,
+--             tx_complete   => tx_complete,
+--             tx_error      => tx_error,
+--             buffer_full   => tx_buffer_full,
+--             buffer_empty  => tx_buffer_empty,
+--             buffer_count  => tx_buffer_count,
+--             send_break    => send_break,
+--             break_complete=> break_complete
+--         );
+--     
+--     -- UART RX instantiation
+--     uart_rx_inst: uart_rx
+--         generic map (
+--             DATA_WIDTH    => DATA_WIDTH,
+--             PARITY_MODE   => "NONE",
+--             STOP_BITS     => 1,
+--             BAUD_RATE     => BAUD_RATE,
+--             CLK_FREQ      => CLK_FREQ,
+--             BUFFER_DEPTH  => 16
+--         )
+--         port map (
+--             clk           => clk,
+--             reset         => reset,
+--             enable        => enable,
+--             rx_serial     => rx_serial,
+--             rx_data       => rx_data,
+--             rx_valid      => rx_valid,
+--             rx_ready      => rx_ready,
+--             rx_enable     => rx_enable,
+--             rx_busy       => rx_busy,
+--             rx_error      => rx_error,
+--             parity_error  => rx_parity_error,
+--             frame_error   => rx_frame_error,
+--             overrun_error => rx_overrun_error,
+--             break_detect  => rx_break_detect,
+--             buffer_full   => rx_buffer_full,
+--             buffer_empty  => rx_buffer_empty,
+--             buffer_count  => rx_buffer_count
+--         );
+--     
+--     -- Connect TX output to RX input for loopback testing
+--     rx_serial <= tx_serial;
+--     
+--     -- Test vector generation
+--     test_vector_gen_proc: process
+--         variable seed1, seed2 : positive := 1;
+--         variable rand_val : real;
+--         variable data_val : integer;
+--     begin
+--         wait until reset = '0';
+--         wait for CLK_PERIOD * 5;
+--         
+--         -- Generate test vectors
+--         for i in 0 to TEST_VECTORS-1 loop
+--             -- Generate random data
+--             uniform(seed1, seed2, rand_val);
+--             data_val := integer(rand_val * real(2**DATA_WIDTH - 1));
+--             test_tx_data(i) <= std_logic_vector(to_unsigned(data_val, DATA_WIDTH));
+--             expected_data(i) <= std_logic_vector(to_unsigned(data_val, DATA_WIDTH));
+--         end loop;
+--         
+--         -- Add specific test patterns
+--         if TEST_VECTORS > 10 then
+--             test_tx_data(0) <= (others => '0');      -- All zeros
+--             test_tx_data(1) <= (others => '1');      -- All ones
+--             test_tx_data(2) <= "10101010";           -- Alternating pattern
+--             test_tx_data(3) <= "01010101";           -- Inverse alternating
+--             test_tx_data(4) <= "11110000";           -- Block pattern
+--             test_tx_data(5) <= "00001111";           -- Inverse block
+--             expected_data(0) <= (others => '0');
+--             expected_data(1) <= (others => '1');
+--             expected_data(2) <= "10101010";
+--             expected_data(3) <= "01010101";
+--             expected_data(4) <= "11110000";
+--             expected_data(5) <= "00001111";
+--         end if;
+--         
+--         wait;
+--     end process;
+--     
+--     -- Main test process
+--     main_test_proc: process
+--         variable test_name : string(1 to 50);
+--         variable line_buf : line;
+--     begin
+--         wait until reset = '0';
+--         wait for CLK_PERIOD * 10;
+--         
+--         -- Open log files if logging is enabled
+--         if ENABLE_LOGGING then
+--             file_open(test_log_file, "uart_test_log.txt", write_mode);
+--             file_open(result_file, "uart_test_results.txt", write_mode);
+--         end if;
+--         
+--         test_active <= '1';
+--         start_time <= now;
+--         
+--         -- Test 1: Basic transmission test
+--         current_test <= 1;
+--         total_tests <= total_tests + 1;
+--         
+--         if ENABLE_LOGGING then
+--             write(line_buf, string'("Starting Test 1: Basic Transmission"));
+--             writeline(test_log_file, line_buf);
+--         end if;
+--         
+--         -- Send test data
+--         for i in 0 to TEST_VECTORS-1 loop
+--             -- Wait for TX ready
+--             wait until tx_ready = '1';
+--             
+--             -- Send data
+--             tx_data <= test_tx_data(i);
+--             tx_valid <= '1';
+--             wait for CLK_PERIOD;
+--             tx_valid <= '0';
+--             
+--             -- Wait for transmission complete
+--             wait until tx_complete = '1';
+--             
+--             -- Wait for reception
+--             wait until rx_valid = '1';
+--             
+--             -- Verify received data
+--             if rx_data = expected_data(i) then
+--                 if ENABLE_LOGGING then
+--                     write(line_buf, string'("PASS: Data ") & integer'image(i) & 
+--                           string'(" TX=") & to_hstring(test_tx_data(i)) &
+--                           string'(" RX=") & to_hstring(rx_data));
+--                     writeline(test_log_file, line_buf);
+--                 end if;
+--             else
+--                 error_count <= error_count + 1;
+--                 if ENABLE_LOGGING then
+--                     write(line_buf, string'("FAIL: Data ") & integer'image(i) & 
+--                           string'(" TX=") & to_hstring(test_tx_data(i)) &
+--                           string'(" RX=") & to_hstring(rx_data) &
+--                           string'(" Expected=") & to_hstring(expected_data(i)));
+--                     writeline(test_log_file, line_buf);
+--                 end if;
+--             end if;
+--             
+--             total_bits <= total_bits + DATA_WIDTH;
+--             wait for CLK_PERIOD * 5;
+--         end loop;
+--         
+--         if error_count = 0 then
+--             passed_tests <= passed_tests + 1;
+--             test_pass <= '1';
+--         else
+--             failed_tests <= failed_tests + 1;
+--             test_fail <= '1';
+--         end if;
+--         
+--         wait for CLK_PERIOD * 10;
+--         test_pass <= '0';
+--         test_fail <= '0';
+--         
+--         -- Test 2: Break signal test
+--         current_test <= 2;
+--         total_tests <= total_tests + 1;
+--         error_count <= 0;
+--         
+--         if ENABLE_LOGGING then
+--             write(line_buf, string'("Starting Test 2: Break Signal"));
+--             writeline(test_log_file, line_buf);
+--         end if;
+--         
+--         -- Send break signal
+--         send_break <= '1';
+--         wait for CLK_PERIOD;
+--         send_break <= '0';
+--         
+--         -- Wait for break complete
+--         wait until break_complete = '1';
+--         
+--         -- Check if RX detected break
+--         if rx_break_detect = '1' then
+--             passed_tests <= passed_tests + 1;
+--             test_pass <= '1';
+--             if ENABLE_LOGGING then
+--                 write(line_buf, string'("PASS: Break signal detected"));
+--                 writeline(test_log_file, line_buf);
+--             end if;
+--         else
+--             failed_tests <= failed_tests + 1;
+--             test_fail <= '1';
+--             if ENABLE_LOGGING then
+--                 write(line_buf, string'("FAIL: Break signal not detected"));
+--                 writeline(test_log_file, line_buf);
+--             end if;
+--         end if;
+--         
+--         wait for CLK_PERIOD * 10;
+--         test_pass <= '0';
+--         test_fail <= '0';
+--         
+--         -- Test 3: Buffer overflow test
+--         current_test <= 3;
+--         total_tests <= total_tests + 1;
+--         
+--         if ENABLE_LOGGING then
+--             write(line_buf, string'("Starting Test 3: Buffer Overflow"));
+--             writeline(test_log_file, line_buf);
+--         end if;
+--         
+--         -- Disable RX to cause buffer overflow
+--         rx_ready <= '0';
+--         
+--         -- Send multiple bytes to fill buffer
+--         for i in 0 to 20 loop
+--             if tx_ready = '1' then
+--                 tx_data <= std_logic_vector(to_unsigned(i mod 256, DATA_WIDTH));
+--                 tx_valid <= '1';
+--                 wait for CLK_PERIOD;
+--                 tx_valid <= '0';
+--                 wait for CLK_PERIOD * 5;
+--             end if;
+--         end loop;
+--         
+--         -- Check for buffer full condition
+--         if rx_buffer_full = '1' then
+--             passed_tests <= passed_tests + 1;
+--             test_pass <= '1';
+--             if ENABLE_LOGGING then
+--                 write(line_buf, string'("PASS: Buffer overflow detected"));
+--                 writeline(test_log_file, line_buf);
+--             end if;
+--         else
+--             failed_tests <= failed_tests + 1;
+--             test_fail <= '1';
+--             if ENABLE_LOGGING then
+--                 write(line_buf, string'("FAIL: Buffer overflow not detected"));
+--                 writeline(test_log_file, line_buf);
+--             end if;
+--         end if;
+--         
+--         -- Re-enable RX
+--         rx_ready <= '1';
+--         
+--         wait for CLK_PERIOD * 10;
+--         test_pass <= '0';
+--         test_fail <= '0';
+--         
+--         -- Calculate performance metrics
+--         end_time <= now;
+--         throughput <= real(total_bits) / real((end_time - start_time) / 1 ns) * 1000000000.0;
+--         
+--         -- Generate final report
+--         if ENABLE_LOGGING then
+--             write(line_buf, string'(""));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("UART Enhanced Testbench Results"));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("================================"));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Total Tests: ") & integer'image(total_tests));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Passed Tests: ") & integer'image(passed_tests));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Failed Tests: ") & integer'image(failed_tests));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Success Rate: ") & 
+--                   integer'image((passed_tests * 100) / total_tests) & string'("%"));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Total Bits Transmitted: ") & integer'image(total_bits));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Test Duration: ") & time'image(end_time - start_time));
+--             writeline(result_file, line_buf);
+--             write(line_buf, string'("Throughput: ") & real'image(throughput) & string'(" bps"));
+--             writeline(result_file, line_buf);
+--             
+--             file_close(test_log_file);
+--             file_close(result_file);
+--         end if;
+--         
+--         test_active <= '0';
+--         test_complete <= '1';
+--         
+--         -- Final assertions
+--         assert failed_tests = 0
+--             report "UART Enhanced Testbench FAILED with " & integer'image(failed_tests) & " failures"
+--             severity failure;
+--         
+--         assert failed_tests = 0
+--             report "UART Enhanced Testbench PASSED all " & integer'image(passed_tests) & " tests"
+--             severity note;
+--         
+--         wait;
+--     end process;
+--     
+--     -- Timeout watchdog
+--     timeout_proc: process
+--     begin
+--         wait for TEST_TIMEOUT;
+--         if test_complete = '0' then
+--             assert false
+--                 report "UART Enhanced Testbench TIMEOUT after " & time'image(TEST_TIMEOUT)
+--                 severity failure;
+--         end if;
+--         wait;
+--     end process;
+--     
+--     -- Performance monitoring
+--     performance_monitor_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             if test_active = '1' then
+--                 -- Monitor buffer utilization
+--                 if tx_buffer_count > 12 then
+--                     assert false
+--                         report "TX buffer utilization high: " & integer'image(tx_buffer_count)
+--                         severity warning;
+--                 end if;
+--                 
+--                 if rx_buffer_count > 12 then
+--                     assert false
+--                         report "RX buffer utilization high: " & integer'image(rx_buffer_count)
+--                         severity warning;
+--                 end if;
+--                 
+--                 -- Monitor error conditions
+--                 if tx_error = '1' then
+--                     assert false
+--                         report "TX error detected during test " & integer'image(current_test)
+--                         severity warning;
+--                 end if;
+--                 
+--                 if rx_error = '1' then
+--                     assert false
+--                         report "RX error detected during test " & integer'image(current_test)
+--                         severity warning;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This UART enhanced testbench provides comprehensive validation
+-- of UART functionality. Ensure proper test coverage, timing verification,
+-- and result documentation. The testbench can be extended for specific
+-- application requirements and additional test scenarios.
+-- ============================================================================

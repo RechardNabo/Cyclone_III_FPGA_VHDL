@@ -1,14 +1,376 @@
--- Cortex-M0+ Interface VHDL File
--- This file contains the interface definition for ARM Cortex-M0+ processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-M0+ processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-M0+ INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-M0+ Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-M0+ processors, providing FPGA-based communication, 
+--              control, and acceleration capabilities for ultra-low-power 
+--              32-bit ARM microcontrollers with minimal area footprint.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-M0+ architecture and ARMv6-M instruction set
+-- 2. Master AHB-Lite and APB bus protocols for microcontroller interfaces
+-- 3. Learn ARM Cortex-M0+ memory map and system control
+-- 4. Implement interrupt handling and NVIC integration
+-- 5. Understand low-power design and sleep mode interfaces
+-- 6. Master debug interface and SWD (Serial Wire Debug) connectivity
+-- 7. Learn system tick timer and watchdog integration
+-- 8. Implement GPIO and peripheral interface controllers
+--
+-- ARM Cortex-M0+ Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv6-M (32-bit Thumb-2 subset)                    │
+-- │ Pipeline        │ 2-stage pipeline                                    │
+-- │ Cores           │ Single core                                         │
+-- │ Cache           │ No cache (optional tightly-coupled memory)          │
+-- │ MPU             │ Optional 8-region Memory Protection Unit            │
+-- │ Debug           │ Serial Wire Debug (SWD) interface                   │
+-- │ Interrupts      │ 1-32 external interrupts + 15 system exceptions    │
+-- │ Power           │ Ultra-low power with sleep modes                    │
+-- │ Area            │ <12,000 gates typical                              │
+-- │ Frequency       │ Up to 50 MHz (implementation dependent)            │
+-- │ Process         │ 180nm to 7nm                                       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-M0+ System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-M0+    │◀──▶│   AHB-Lite      │◀──▶│   Memory        │
+-- │   Core          │    │   Bus Matrix    │    │   System        │
+-- │   (ARMv6-M)     │    │                 │    │   (Flash/SRAM)  │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                       │
+--          ▼                       ▼                       ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   NVIC          │    │   APB Bridge    │    │   Debug         │
+-- │   (Interrupt    │    │   & Peripherals │    │   Interface     │
+-- │   Controller)   │    │   (UART,SPI,etc)│    │   (SWD/JTAG)    │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- AHB-Lite Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Signal Group    │ Direction       │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ Global          │ Input           │ HCLK, HRESETn                   │
+-- │ Address/Control │ Master→Slave    │ HADDR, HTRANS, HSIZE, HBURST    │
+-- │ Data Write      │ Master→Slave    │ HWDATA, HWRITE, HPROT           │
+-- │ Data Read       │ Slave→Master    │ HRDATA, HREADY, HRESP           │
+-- │ Select          │ Master→Slave    │ HSEL (for slaves)               │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-M0+ Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 512MB           │ Code region (Flash memory)      │
+-- │ 0x2000_0000     │ 512MB           │ SRAM region (Data memory)       │
+-- │ 0x4000_0000     │ 1GB             │ Peripheral region (APB/AHB)     │
+-- │ 0x8000_0000     │ 1GB             │ External RAM region             │
+-- │ 0xA000_0000     │ 1GB             │ External device region          │
+-- │ 0xC000_0000     │ 512MB           │ Private peripheral bus (PPB)    │
+-- │ 0xE000_0000     │ 512MB           │ System region (NVIC, SysTick)   │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- System Control Block (SCB) Registers:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Register        │ Address         │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ CPUID           │ 0xE000_ED00     │ CPU ID register                 │
+-- │ ICSR            │ 0xE000_ED04     │ Interrupt control/state         │
+-- │ AIRCR           │ 0xE000_ED0C     │ Application interrupt/reset     │
+-- │ SCR             │ 0xE000_ED10     │ System control register         │
+-- │ CCR             │ 0xE000_ED14     │ Configuration control register  │
+-- │ SHPR2           │ 0xE000_ED1C     │ System handler priority 2       │
+-- │ SHPR3           │ 0xE000_ED20     │ System handler priority 3       │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- NVIC (Nested Vectored Interrupt Controller):
+-- 1. **Interrupt Sources**:
+--    - 15 system exceptions (Reset, NMI, HardFault, etc.)
+--    - 1-32 external interrupts (implementation specific)
+--    - 4 priority levels (2-bit priority field)
+--
+-- 2. **NVIC Registers**:
+--    - ISER: Interrupt Set-Enable Register
+--    - ICER: Interrupt Clear-Enable Register
+--    - ISPR: Interrupt Set-Pending Register
+--    - ICPR: Interrupt Clear-Pending Register
+--    - IPR: Interrupt Priority Registers
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AHB-Lite Master │ CPU instruction and data fetch interface            │
+-- │ AHB-Lite Slave  │ FPGA register and memory interface                  │
+-- │ APB Bridge      │ Peripheral bus interface for low-speed devices     │
+-- │ NVIC Interface  │ Interrupt controller integration                    │
+-- │ Debug Interface │ SWD/JTAG debug and trace connectivity              │
+-- │ Power Mgmt      │ Sleep mode and power domain control                 │
+-- │ Clock Control   │ System and peripheral clock management              │
+-- │ Reset Control   │ System and peripheral reset management              │
+-- │ GPIO Interface  │ General-purpose I/O control                        │
+-- │ Timer Interface │ System tick and watchdog timer integration          │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AHB-Lite Data Width: 32-bit
+-- - AHB-Lite Address Width: 32-bit
+-- - Maximum Clock Frequency: 50 MHz (typical)
+-- - Interrupt Latency: 6 cycles (typical)
+-- - Power Consumption: <10 µA/MHz (active), <1 µA (sleep)
+-- - Gate Count: 8,000-15,000 gates
+-- - Memory Requirements: 4KB Flash, 1KB SRAM (minimum)
+--
+-- Implementation Approaches:
+-- 1. **Direct AHB-Lite Interface**:
+--    - Native AHB-Lite master/slave connections
+--    - Maximum performance and compatibility
+--    - Full protocol compliance required
+--
+-- 2. **Simplified Memory Interface**:
+--    - Basic read/write interface
+--    - Lower performance but easier implementation
+--    - Suitable for simple applications
+--
+-- 3. **Custom Peripheral Interface**:
+--    - Specialized interface for specific functions
+--    - Optimized for particular applications
+--    - May include custom protocols
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select Cortex-M0+ configuration and features
+-- - Define memory map and address decoding
+-- - Specify AHB-Lite interface requirements
+-- - Choose debug and power management features
+--
+-- Step 2: Implement AHB-Lite Interface Logic
+-- - Create AHB-Lite master interface for CPU access
+-- - Add AHB-Lite slave interface for FPGA registers
+-- - Implement address decoding and routing
+-- - Add wait state and error response handling
+--
+-- Step 3: Add Interrupt Controller Support
+-- - Connect to NVIC interrupt inputs
+-- - Implement interrupt priority and masking
+-- - Add interrupt service routine interfaces
+-- - Create interrupt vector table support
+--
+-- Step 4: Integrate Debug Interface
+-- - Implement SWD (Serial Wire Debug) interface
+-- - Add debug access port (DAP) connectivity
+-- - Create breakpoint and watchpoint support
+-- - Add trace and profiling capabilities
+--
+-- Step 5: Add Power Management
+-- - Implement sleep mode control
+-- - Add clock gating and power gating
+-- - Create wake-up event handling
+-- - Add low-power peripheral interfaces
+--
+-- Step 6: Create Peripheral Interfaces
+-- - Add APB bridge for peripheral access
+-- - Implement GPIO controller interface
+-- - Create timer and watchdog interfaces
+-- - Add communication peripheral support
+--
+-- Step 7: Add System Control
+-- - Implement system control block (SCB)
+-- - Add system tick timer (SysTick)
+-- - Create reset and clock control
+-- - Add memory protection unit (MPU) if needed
+--
+-- Step 8: Create System Integration
+-- - Add Flash memory controller interface
+-- - Implement SRAM controller
+-- - Create boot and initialization sequences
+-- - Add system configuration registers
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.ahb_pkg: AHB-Lite protocol definitions
+-- - work.apb_pkg: APB protocol definitions
+-- - work.cortex_m_pkg: Cortex-M specific constants
+--
+-- Advanced Features:
+-- 1. **Memory Protection Unit (MPU)**: 8-region memory protection
+-- 2. **Single Cycle I/O**: Fast GPIO access interface
+-- 3. **Micro Trace Buffer (MTB)**: Instruction trace capability
+-- 4. **Vector Table Relocation**: Flexible interrupt vector placement
+-- 5. **Low Power Extensions**: Advanced sleep and power management
+-- 6. **Debug Extensions**: Enhanced debug and profiling features
+-- 7. **Custom Instructions**: Application-specific instruction extensions
+-- 8. **Tightly Coupled Memory**: Zero wait-state memory interface
+--
+-- Applications:
+-- - IoT sensor nodes and edge devices
+-- - Wearable electronics and fitness trackers
+-- - Smart home automation controllers
+-- - Industrial sensor and actuator interfaces
+-- - Battery-powered measurement devices
+-- - Wireless communication modules
+-- - Motor control and power management
+-- - Audio and voice processing systems
+--
+-- Performance Considerations:
+-- - AHB-Lite burst optimization for memory access
+-- - Interrupt latency minimization
+-- - Power consumption optimization
+-- - Code density and memory efficiency
+-- - Real-time response requirements
+-- - Clock frequency optimization
+-- - Sleep mode transition timing
+-- - Debug interface bandwidth
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: AHB-Lite and APB protocol verification
+-- 2. **Interrupt Testing**: NVIC functionality and timing verification
+-- 3. **Debug Testing**: SWD interface and debug feature validation
+-- 4. **Power Testing**: Sleep mode and power consumption verification
+-- 5. **Performance Testing**: Timing and throughput measurement
+-- 6. **Software Integration**: RTOS and application compatibility
+-- 7. **Stress Testing**: Long-term reliability and stability
+-- 8. **Compliance Testing**: ARM architecture compliance verification
+--
+-- Common Design Challenges:
+-- - AHB-Lite protocol timing at high frequencies
+-- - Interrupt latency optimization
+-- - Power domain crossing and isolation
+-- - Debug interface integration complexity
+-- - Memory interface optimization
+-- - Clock domain crossing management
+-- - Reset sequence and initialization
+-- - Low-power design verification
+--
+-- Verification Checklist:
+-- □ AHB-Lite master interface functional and compliant
+-- □ AHB-Lite slave interface working correctly
+-- □ Address decoding and memory map verified
+-- □ NVIC interrupt controller operational
+-- □ Debug interface (SWD) functional
+-- □ Power management and sleep modes working
+-- □ System control block (SCB) operational
+-- □ SysTick timer functional
+-- □ APB peripheral interfaces working
+-- □ GPIO and I/O interfaces operational
+-- □ Performance targets achieved
+-- □ Power consumption within specifications
+-- □ Software compatibility confirmed
+-- □ Long-term reliability demonstrated
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.ahb_pkg.all;
+-- use work.apb_pkg.all;
+-- use work.cortex_m_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_m0plus_interface is
+--     generic (
+--         NUM_INTERRUPTS  : integer := 32;
+--         ENABLE_MPU      : boolean := false;
+--         ENABLE_MTB      : boolean := false;
+--         FLASH_SIZE      : integer := 65536;   -- 64KB
+--         SRAM_SIZE       : integer := 8192;    -- 8KB
+--         NUM_GPIO        : integer := 32
+--     );
+--     port (
+--         -- System signals
+--         hclk            : in  std_logic;
+--         hresetn         : in  std_logic;
+--         
+--         -- AHB-Lite Master interface (CPU to system)
+--         m_ahb_haddr     : out std_logic_vector(31 downto 0);
+--         m_ahb_htrans    : out std_logic_vector(1 downto 0);
+--         m_ahb_hsize     : out std_logic_vector(2 downto 0);
+--         m_ahb_hburst    : out std_logic_vector(2 downto 0);
+--         m_ahb_hprot     : out std_logic_vector(3 downto 0);
+--         m_ahb_hwrite    : out std_logic;
+--         m_ahb_hwdata    : out std_logic_vector(31 downto 0);
+--         m_ahb_hrdata    : in  std_logic_vector(31 downto 0);
+--         m_ahb_hready    : in  std_logic;
+--         m_ahb_hresp     : in  std_logic;
+--         
+--         -- AHB-Lite Slave interface (system to FPGA)
+--         s_ahb_hsel      : in  std_logic;
+--         s_ahb_haddr     : in  std_logic_vector(31 downto 0);
+--         s_ahb_htrans    : in  std_logic_vector(1 downto 0);
+--         s_ahb_hsize     : in  std_logic_vector(2 downto 0);
+--         s_ahb_hburst    : in  std_logic_vector(2 downto 0);
+--         s_ahb_hprot     : in  std_logic_vector(3 downto 0);
+--         s_ahb_hwrite    : in  std_logic;
+--         s_ahb_hwdata    : in  std_logic_vector(31 downto 0);
+--         s_ahb_hrdata    : out std_logic_vector(31 downto 0);
+--         s_ahb_hready    : out std_logic;
+--         s_ahb_hresp     : out std_logic;
+--         
+--         -- Interrupt interface (NVIC)
+--         irq             : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nmi             : in  std_logic;
+--         
+--         -- Debug interface (SWD)
+--         swclk           : in  std_logic;
+--         swdio           : inout std_logic;
+--         swo             : out std_logic;
+--         
+--         -- Power management
+--         sleeping        : out std_logic;
+--         sleepdeep       : out std_logic;
+--         wakeup          : in  std_logic;
+--         
+--         -- System control
+--         systick_clk     : in  std_logic;
+--         systick_calib   : in  std_logic_vector(23 downto 0);
+--         
+--         -- GPIO interface
+--         gpio_in         : in  std_logic_vector(NUM_GPIO-1 downto 0);
+--         gpio_out        : out std_logic_vector(NUM_GPIO-1 downto 0);
+--         gpio_oe         : out std_logic_vector(NUM_GPIO-1 downto 0);
+--         
+--         -- APB interface for peripherals
+--         apb_paddr       : out std_logic_vector(31 downto 0);
+--         apb_psel        : out std_logic;
+--         apb_penable     : out std_logic;
+--         apb_pwrite      : out std_logic;
+--         apb_pwdata      : out std_logic_vector(31 downto 0);
+--         apb_prdata      : in  std_logic_vector(31 downto 0);
+--         apb_pready      : in  std_logic;
+--         apb_pslverr     : in  std_logic;
+--         
+--         -- Status and control
+--         cpu_halted      : out std_logic;
+--         lockup          : out std_logic;
+--         reset_req       : out std_logic
+--     );
+-- end entity cortex_m0plus_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_m0plus_interface is
+--     -- Component declarations for Cortex-M0+ core
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-M0+ core
+--     -- Add AHB-Lite interface logic
+--     -- Connect NVIC interrupt controller
+--     -- Add debug interface connectivity
+--     -- Implement power management logic
+--     -- Connect APB bridge for peripherals
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-M0+ interface design focuses on ultra-low power consumption,
+-- minimal area, and ease of use. Always consult the ARM Cortex-M0+ Technical
+-- Reference Manual and ARMv6-M Architecture Reference Manual for detailed specs.
+-- ============================================================================

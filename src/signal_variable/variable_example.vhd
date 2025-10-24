@@ -1,0 +1,680 @@
+-- ============================================================================
+-- PROJECT: VHDL Variable Examples and Usage Guide
+-- ============================================================================
+-- DESCRIPTION:
+-- This project provides comprehensive examples and educational content for
+-- understanding and implementing VHDL variables. Variables are local storage
+-- elements used within processes, functions, and procedures for intermediate
+-- calculations and temporary data storage. This guide covers variable
+-- declaration, assignment, scope, and best practices.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand the concept and behavior of VHDL variables
+-- - Learn proper variable declaration and initialization techniques
+-- - Master variable assignment operators and immediate semantics
+-- - Practice variable usage in processes and subprograms
+-- - Understand variable scope and lifetime
+-- - Learn variable types and their applications
+-- - Implement proper variable naming and coding conventions
+--
+-- ============================================================================
+-- VARIABLE FUNDAMENTALS:
+-- ============================================================================
+-- WHAT ARE VARIABLES:
+-- Variables in VHDL represent local storage for computation:
+-- - Temporary storage within processes
+-- - Loop counters and indices
+-- - Intermediate calculation results
+-- - Local state information
+-- - Algorithm implementation storage
+--
+-- VARIABLE CHARACTERISTICS:
+-- - Immediate assignment (no delta delay)
+-- - Local scope (process/subprogram only)
+-- - No multiple drivers allowed
+-- - Updated instantly when assigned
+-- - Can be used for complex algorithms
+-- - Support all VHDL data types
+--
+-- VARIABLE vs. SIGNAL COMPARISON:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────┐
+-- │ Aspect          │ Variable        │ Signal                      │
+-- ├─────────────────┼─────────────────┼─────────────────────────────┤
+-- │ Assignment      │ := (immediate)  │ <= (after delta)            │
+-- │ Scope           │ Process/Subprog │ Architecture                │
+-- │ Hardware Model  │ Local storage   │ Wires/Storage               │
+-- │ Multiple Drivers│ No              │ Yes (resolved)              │
+-- │ Timing          │ Immediate       │ Scheduled                   │
+-- │ Synthesis       │ Temp/registers  │ Hardware                    │
+-- └─────────────────┴─────────────────┴─────────────────────────────┘
+--
+-- ============================================================================
+-- VARIABLE DECLARATION SYNTAX:
+-- ============================================================================
+-- BASIC DECLARATION:
+-- variable variable_name : variable_type [:= initial_value];
+--
+-- EXAMPLES:
+-- variable temp_data      : std_logic_vector(7 downto 0);     -- Temporary data
+-- variable loop_counter   : integer := 0;                     -- Loop counter
+-- variable sum_result     : unsigned(15 downto 0);            -- Sum accumulator
+-- variable state_var      : state_type := IDLE;               -- State variable
+-- variable enable_flag    : boolean := false;                 -- Boolean flag
+-- variable char_buffer    : string(1 to 80);                  -- String buffer
+--
+-- VARIABLE SCOPE:
+-- Variables can only be declared in:
+-- - Process statements
+-- - Function bodies
+-- - Procedure bodies
+-- - Generate statements (VHDL-2008)
+--
+-- VARIABLE LIFETIME:
+-- - Created when process/subprogram starts
+-- - Destroyed when process/subprogram ends
+-- - Retain values between process activations
+-- - Reset only by explicit assignment or process reset
+--
+-- ============================================================================
+-- VARIABLE ASSIGNMENT OPERATORS:
+-- ============================================================================
+-- IMMEDIATE ASSIGNMENT (:=):
+-- - Used for variable assignments
+-- - Takes effect immediately (no delay)
+-- - Can be used in sequential statements only
+-- - Multiple assignments allowed (last one wins)
+--
+-- EXAMPLES:
+-- process(clk, reset)
+--     variable counter : integer := 0;
+--     variable temp    : std_logic_vector(7 downto 0);
+-- begin
+--     if reset = '1' then
+--         counter := 0;                               -- Immediate assignment
+--         temp := (others => '0');                    -- Immediate assignment
+--     elsif rising_edge(clk) then
+--         counter := counter + 1;                     -- Increment immediately
+--         temp := data_in;                            -- Store input data
+--         
+--         -- Multiple assignments (last wins)
+--         temp := "00000000";                         -- First assignment
+--         temp := "11111111";                         -- This value is used
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- VARIABLE TYPES AND DECLARATIONS:
+-- ============================================================================
+-- STANDARD LOGIC TYPES:
+-- variable single_bit     : std_logic;                       -- Single bit
+-- variable logic_vector   : std_logic_vector(7 downto 0);    -- Bit vector
+-- variable unsigned_val   : unsigned(15 downto 0);           -- Unsigned number
+-- variable signed_val     : signed(15 downto 0);             -- Signed number
+--
+-- INTEGER AND ENUMERATED TYPES:
+-- variable counter        : integer range 0 to 1023;         -- Constrained integer
+-- variable state_var      : state_type;                      -- Enumerated type
+-- variable natural_count  : natural;                         -- Natural number
+-- variable positive_val   : positive;                        -- Positive number
+--
+-- BOOLEAN AND CHARACTER TYPES:
+-- variable flag           : boolean := false;                -- Boolean flag
+-- variable char_data      : character;                       -- Character data
+-- variable string_buffer  : string(1 to 256);                -- String buffer
+--
+-- ARRAY AND RECORD TYPES:
+-- type int_array is array(0 to 15) of integer;
+-- variable data_array     : int_array;                       -- Integer array
+-- 
+-- type control_record is record
+--     enable : boolean;
+--     count  : integer;
+-- end record;
+-- variable control_var    : control_record;                  -- Record variable
+--
+-- PHYSICAL TYPES:
+-- variable delay_var      : time := 10 ns;                   -- Time variable
+-- variable freq_var       : frequency;                       -- Frequency variable
+--
+-- ============================================================================
+-- VARIABLE INITIALIZATION:
+-- ============================================================================
+-- DECLARATION WITH INITIALIZATION:
+-- variable reset_flag     : boolean := true;                 -- Initialize to true
+-- variable data_buffer    : std_logic_vector(7 downto 0) := (others => '0');
+-- variable count_val      : integer := 0;                    -- Initialize to 0
+-- variable state_current  : state_type := IDLE;              -- Initialize to IDLE
+--
+-- INITIALIZATION METHODS:
+-- -- Aggregate assignment
+-- variable control_word   : std_logic_vector(7 downto 0) := "10101010";
+-- variable control_word2  : std_logic_vector(7 downto 0) := (7 => '1', others => '0');
+--
+-- -- Others clause
+-- variable data_array     : std_logic_vector(15 downto 0) := (others => '0');
+-- variable mixed_init     : std_logic_vector(7 downto 0) := (7 downto 4 => '1', others => '0');
+--
+-- RUNTIME INITIALIZATION:
+-- process(clk, reset)
+--     variable temp_var : integer;
+-- begin
+--     if reset = '1' then
+--         temp_var := 0;                              -- Runtime initialization
+--     elsif rising_edge(clk) then
+--         -- Use temp_var for calculations
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- VARIABLE USAGE PATTERNS:
+-- ============================================================================
+-- LOOP COUNTERS:
+-- process(clk, reset)
+--     variable i : integer;
+-- begin
+--     if reset = '1' then
+--         output_array <= (others => (others => '0'));
+--     elsif rising_edge(clk) then
+--         for i in 0 to 7 loop                       -- Loop counter variable
+--             output_array(i) <= input_data(i) xor key(i);
+--         end loop;
+--     end if;
+-- end process;
+--
+-- INTERMEDIATE CALCULATIONS:
+-- process(clk, reset)
+--     variable temp_sum   : unsigned(15 downto 0);
+--     variable carry      : std_logic;
+-- begin
+--     if reset = '1' then
+--         result <= (others => '0');
+--     elsif rising_edge(clk) then
+--         temp_sum := unsigned(a) + unsigned(b);      -- Intermediate calculation
+--         carry := temp_sum(temp_sum'high);           -- Extract carry
+--         result <= std_logic_vector(temp_sum(7 downto 0)); -- Final result
+--     end if;
+-- end process;
+--
+-- STATE MACHINE IMPLEMENTATION:
+-- process(clk, reset)
+--     variable next_state : state_type;
+-- begin
+--     if reset = '1' then
+--         current_state <= IDLE;
+--     elsif rising_edge(clk) then
+--         -- Calculate next state using variable
+--         case current_state is
+--             when IDLE =>
+--                 if start = '1' then
+--                     next_state := ACTIVE;
+--                 else
+--                     next_state := IDLE;
+--                 end if;
+--             when ACTIVE =>
+--                 if done = '1' then
+--                     next_state := IDLE;
+--                 else
+--                     next_state := ACTIVE;
+--                 end if;
+--         end case;
+--         
+--         current_state <= next_state;               -- Assign to signal
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- VARIABLE SCOPE AND VISIBILITY:
+-- ============================================================================
+-- PROCESS SCOPE:
+-- process(clk, reset)
+--     -- Variables declared here are local to this process
+--     variable local_counter : integer := 0;
+--     variable temp_data     : std_logic_vector(7 downto 0);
+-- begin
+--     -- Variables can be used anywhere in this process
+--     if reset = '1' then
+--         local_counter := 0;
+--         temp_data := (others => '0');
+--     elsif rising_edge(clk) then
+--         local_counter := local_counter + 1;
+--         temp_data := input_data;
+--     end if;
+-- end process;
+--
+-- FUNCTION SCOPE:
+-- function calculate_parity(data : std_logic_vector) return std_logic is
+--     variable parity_bit : std_logic := '0';         -- Local to function
+--     variable i          : integer;                  -- Local to function
+-- begin
+--     for i in data'range loop
+--         parity_bit := parity_bit xor data(i);
+--     end loop;
+--     return parity_bit;
+-- end function;
+--
+-- PROCEDURE SCOPE:
+-- procedure shift_register(
+--     signal clk    : in std_logic;
+--     signal data   : inout std_logic_vector
+-- ) is
+--     variable temp : std_logic;                      -- Local to procedure
+-- begin
+--     temp := data(data'high);                        -- Store MSB
+--     data <= data(data'high-1 downto 0) & temp;     -- Shift and wrap
+-- end procedure;
+--
+-- ============================================================================
+-- VARIABLE ALGORITHMS AND PATTERNS:
+-- ============================================================================
+-- SORTING ALGORITHM:
+-- process(clk, reset)
+--     type int_array is array(0 to 7) of integer;
+--     variable data_array : int_array;
+--     variable temp       : integer;
+--     variable i, j       : integer;
+-- begin
+--     if reset = '1' then
+--         -- Initialize array
+--         for i in 0 to 7 loop
+--             data_array(i) := input_array(i);
+--         end loop;
+--     elsif rising_edge(clk) then
+--         -- Bubble sort algorithm
+--         for i in 0 to 6 loop
+--             for j in 0 to 6-i loop
+--                 if data_array(j) > data_array(j+1) then
+--                     temp := data_array(j);
+--                     data_array(j) := data_array(j+1);
+--                     data_array(j+1) := temp;
+--                 end if;
+--             end loop;
+--         end loop;
+--         
+--         -- Output sorted array
+--         for i in 0 to 7 loop
+--             output_array(i) <= data_array(i);
+--         end loop;
+--     end if;
+-- end process;
+--
+-- SEARCH ALGORITHM:
+-- process(clk, reset)
+--     variable found_index : integer := -1;
+--     variable i           : integer;
+-- begin
+--     if reset = '1' then
+--         found <= '0';
+--         index <= 0;
+--     elsif rising_edge(clk) then
+--         found_index := -1;                          -- Initialize search
+--         
+--         -- Linear search
+--         for i in 0 to ARRAY_SIZE-1 loop
+--             if search_array(i) = target_value then
+--                 found_index := i;
+--                 exit;                               -- Exit loop when found
+--             end if;
+--         end loop;
+--         
+--         if found_index >= 0 then
+--             found <= '1';
+--             index <= found_index;
+--         else
+--             found <= '0';
+--             index <= 0;
+--         end if;
+--     end if;
+-- end process;
+--
+-- MATHEMATICAL CALCULATIONS:
+-- process(clk, reset)
+--     variable sum        : unsigned(31 downto 0);
+--     variable product    : unsigned(31 downto 0);
+--     variable quotient   : unsigned(15 downto 0);
+--     variable remainder  : unsigned(15 downto 0);
+-- begin
+--     if reset = '1' then
+--         result <= (others => '0');
+--     elsif rising_edge(clk) then
+--         -- Complex mathematical operations
+--         sum := unsigned(operand_a) + unsigned(operand_b);
+--         product := unsigned(operand_a) * unsigned(operand_b);
+--         
+--         -- Division (if supported by synthesis tool)
+--         quotient := unsigned(operand_a) / unsigned(operand_b);
+--         remainder := unsigned(operand_a) mod unsigned(operand_b);
+--         
+--         -- Select result based on operation
+--         case operation is
+--             when "00" => result <= std_logic_vector(sum(15 downto 0));
+--             when "01" => result <= std_logic_vector(product(15 downto 0));
+--             when "10" => result <= std_logic_vector(quotient);
+--             when others => result <= std_logic_vector(remainder);
+--         end case;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- VARIABLE NAMING CONVENTIONS:
+-- ============================================================================
+-- RECOMMENDED NAMING PATTERNS:
+-- - temp_*, tmp_*: Temporary variables
+-- - i, j, k: Loop counters
+-- - *_var: General variable suffix
+-- - *_count, *_counter: Counter variables
+-- - *_flag: Boolean flags
+-- - *_buffer: Buffer variables
+-- - *_index: Index variables
+-- - next_*: Next state/value variables
+--
+-- EXAMPLES:
+-- variable temp_data      : std_logic_vector(7 downto 0);     -- Temporary data
+-- variable loop_counter   : integer;                          -- Loop counter
+-- variable enable_flag    : boolean;                          -- Enable flag
+-- variable data_buffer    : string(1 to 256);                 -- Data buffer
+-- variable array_index    : integer;                          -- Array index
+-- variable next_state     : state_type;                       -- Next state
+-- variable sum_var        : unsigned(15 downto 0);            -- Sum variable
+-- variable temp_result    : integer;                          -- Temporary result
+--
+-- ============================================================================
+-- VARIABLE BEST PRACTICES:
+-- ============================================================================
+-- CODING GUIDELINES:
+-- 1. Use meaningful, descriptive names
+-- 2. Initialize variables when declared or in reset
+-- 3. Use appropriate variable types for intended purpose
+-- 4. Minimize variable scope and lifetime
+-- 5. Avoid unnecessary variable declarations
+-- 6. Use variables for intermediate calculations
+-- 7. Document complex variable usage
+-- 8. Consider synthesis implications
+--
+-- PERFORMANCE CONSIDERATIONS:
+-- 1. Variables have no timing overhead
+-- 2. Use for complex algorithms and loops
+-- 3. Minimize variable bit widths
+-- 4. Avoid large arrays if not needed
+-- 5. Use local variables for temporary storage
+-- 6. Consider memory implications in synthesis
+-- 7. Use variables for optimization
+-- 8. Avoid unnecessary variable assignments
+--
+-- SYNTHESIS GUIDELINES:
+-- 1. Variables may synthesize to registers or combinational logic
+-- 2. Loop variables typically don't synthesize to hardware
+-- 3. Persistent variables may become registers
+-- 4. Use variables for algorithm implementation
+-- 5. Consider resource implications
+-- 6. Avoid very large variable arrays
+-- 7. Use appropriate variable types
+-- 8. Test synthesis results
+--
+-- ============================================================================
+-- COMMON VARIABLE PITFALLS:
+-- ============================================================================
+-- PITFALL 1: UNINITIALIZED VARIABLES
+-- -- BAD: Variable not initialized
+-- process(clk, reset)
+--     variable counter : integer;                     -- Uninitialized
+-- begin
+--     if rising_edge(clk) then
+--         counter := counter + 1;                     -- Undefined behavior
+--     end if;
+-- end process;
+--
+-- -- GOOD: Variable properly initialized
+-- process(clk, reset)
+--     variable counter : integer := 0;                -- Initialized
+-- begin
+--     if reset = '1' then
+--         counter := 0;                               -- Reset initialization
+--     elsif rising_edge(clk) then
+--         counter := counter + 1;                     -- Safe operation
+--     end if;
+-- end process;
+--
+-- PITFALL 2: VARIABLE SCOPE CONFUSION
+-- -- BAD: Trying to access variable outside scope
+-- process(clk, reset)
+--     variable local_var : integer := 0;
+-- begin
+--     -- Process implementation
+-- end process;
+--
+-- process(other_clk)
+-- begin
+--     local_var := 5;                                 -- ERROR: Out of scope
+-- end process;
+--
+-- PITFALL 3: MIXING VARIABLES AND SIGNALS INCORRECTLY
+-- -- BAD: Using signal assignment for variable
+-- process(clk, reset)
+--     variable temp : std_logic_vector(7 downto 0);
+-- begin
+--     temp <= input_data;                             -- ERROR: Wrong operator
+-- end process;
+--
+-- -- GOOD: Using correct assignment operator
+-- process(clk, reset)
+--     variable temp : std_logic_vector(7 downto 0);
+-- begin
+--     temp := input_data;                             -- CORRECT: Variable assignment
+-- end process;
+--
+-- ============================================================================
+-- VARIABLE DEBUGGING TECHNIQUES:
+-- ============================================================================
+-- SIMULATION DEBUGGING:
+-- 1. Use assert statements to check variable values
+-- 2. Add temporary signal assignments for visibility
+-- 3. Use report statements to display variable values
+-- 4. Monitor variable changes in simulation
+-- 5. Use breakpoints in variable assignments
+--
+-- DEBUG EXAMPLE:
+-- process(clk, reset)
+--     variable debug_counter : integer := 0;
+-- begin
+--     if reset = '1' then
+--         debug_counter := 0;
+--     elsif rising_edge(clk) then
+--         debug_counter := debug_counter + 1;
+--         
+--         -- Debug output
+--         report "Counter value: " & integer'image(debug_counter);
+--         
+--         -- Assert for validation
+--         assert debug_counter <= MAX_COUNT
+--             report "Counter overflow detected!"
+--             severity error;
+--     end if;
+-- end process;
+--
+-- SYNTHESIS DEBUGGING:
+-- 1. Check synthesis reports for variable usage
+-- 2. Verify variable mapping to hardware
+-- 3. Check for unintended register inference
+-- 4. Verify timing analysis includes variable paths
+-- 5. Test synthesized design functionality
+--
+-- ============================================================================
+-- ADVANCED VARIABLE CONCEPTS:
+-- ============================================================================
+-- VARIABLE ALIASING:
+-- process(clk, reset)
+--     variable data_word : std_logic_vector(15 downto 0);
+--     alias byte_high : std_logic_vector(7 downto 0) is data_word(15 downto 8);
+--     alias byte_low  : std_logic_vector(7 downto 0) is data_word(7 downto 0);
+-- begin
+--     if reset = '1' then
+--         data_word := (others => '0');
+--     elsif rising_edge(clk) then
+--         byte_high := input_high;                    -- Modify upper byte
+--         byte_low := input_low;                      -- Modify lower byte
+--     end if;
+-- end process;
+--
+-- VARIABLE PARAMETERS:
+-- function generic_function(
+--     data : std_logic_vector;
+--     width : integer
+-- ) return std_logic_vector is
+--     variable result : std_logic_vector(width-1 downto 0);
+--     variable i      : integer;
+-- begin
+--     for i in 0 to width-1 loop
+--         result(i) := data(i mod data'length);
+--     end loop;
+--     return result;
+-- end function;
+--
+-- SHARED VARIABLES (VHDL-93 and later):
+-- shared variable global_counter : integer := 0;     -- Shared between processes
+--
+-- process(clk_a)
+-- begin
+--     if rising_edge(clk_a) then
+--         global_counter := global_counter + 1;       -- Increment shared variable
+--     end if;
+-- end process;
+--
+-- process(clk_b)
+-- begin
+--     if rising_edge(clk_b) then
+--         output_value <= global_counter;             -- Read shared variable
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ All variables are properly initialized
+-- □ Variable assignments work correctly
+-- □ Variable scope is appropriate
+-- □ No uninitialized variable usage
+-- □ Correct assignment operators used
+-- □ Variable types are appropriate
+-- □ Algorithm implementation is correct
+-- □ Variable lifetime is managed properly
+--
+-- SYNTHESIS VERIFICATION:
+-- □ Variables synthesize as expected
+-- □ No unintended register inference
+-- □ Resource utilization is acceptable
+-- □ Timing constraints are met
+-- □ Variable bit widths are appropriate
+-- □ Memory usage is within limits
+-- □ Algorithm maps to hardware correctly
+-- □ Performance requirements are met
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+--
+-- [Add your entity declaration here]
+-- entity variable_example is
+--     generic (
+--         DATA_WIDTH : integer := 8;
+--         ARRAY_SIZE : integer := 16
+--     );
+--     port (
+--         -- Clock and Reset
+--         clk        : in  std_logic;
+--         reset_n    : in  std_logic;
+--         
+--         -- Data Interface
+--         data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         
+--         -- Control Interface
+--         enable     : in  std_logic;
+--         operation  : in  std_logic_vector(1 downto 0);
+--         ready      : out std_logic
+--     );
+-- end entity variable_example;
+--
+-- [Add your architecture implementation here]
+-- architecture rtl of variable_example is
+--     
+-- begin
+--     
+--     -- Main processing with variables
+--     process(clk, reset_n)
+--         -- Variable declarations
+--         variable temp_data    : std_logic_vector(DATA_WIDTH-1 downto 0);
+--         variable counter      : integer range 0 to ARRAY_SIZE-1;
+--         variable sum_result   : unsigned(DATA_WIDTH downto 0);
+--         variable i            : integer;
+--         variable ready_flag   : boolean;
+--         
+--     begin
+--         if reset_n = '0' then
+--             -- Initialize all variables
+--             temp_data := (others => '0');
+--             counter := 0;
+--             sum_result := (others => '0');
+--             ready_flag := false;
+--             
+--             -- Reset outputs
+--             data_out <= (others => '0');
+--             ready <= '0';
+--             
+--         elsif rising_edge(clk) then
+--             -- Default assignments
+--             ready_flag := false;
+--             
+--             if enable = '1' then
+--                 -- Store input data
+--                 temp_data := data_in;
+--                 
+--                 -- Perform operation based on control
+--                 case operation is
+--                     when "00" =>
+--                         -- Pass through operation
+--                         data_out <= temp_data;
+--                         ready_flag := true;
+--                         
+--                     when "01" =>
+--                         -- Invert operation
+--                         for i in 0 to DATA_WIDTH-1 loop
+--                             temp_data(i) := not temp_data(i);
+--                         end loop;
+--                         data_out <= temp_data;
+--                         ready_flag := true;
+--                         
+--                     when "10" =>
+--                         -- Sum with counter
+--                         sum_result := unsigned('0' & temp_data) + to_unsigned(counter, DATA_WIDTH+1);
+--                         data_out <= std_logic_vector(sum_result(DATA_WIDTH-1 downto 0));
+--                         counter := counter + 1;
+--                         if counter = ARRAY_SIZE-1 then
+--                             counter := 0;
+--                         end if;
+--                         ready_flag := true;
+--                         
+--                     when others =>
+--                         -- Default case
+--                         data_out <= (others => '0');
+--                         ready_flag := true;
+--                 end case;
+--             end if;
+--             
+--             -- Update ready output
+--             if ready_flag then
+--                 ready <= '1';
+--             else
+--                 ready <= '0';
+--             end if;
+--         end if;
+--     end process;
+--     
+-- end architecture rtl;
+--
+-- ============================================================================

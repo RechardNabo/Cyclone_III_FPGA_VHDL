@@ -1,0 +1,587 @@
+-- ============================================================================
+-- Microprocessor Output Buffer Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the Output Buffer (OBUF) for a microprocessor that provides
+-- buffered output capabilities for data, addresses, and control signals. The output
+-- buffer manages signal drive strength, timing, tri-state control, and electrical
+-- isolation between the processor core and external interfaces. This implementation
+-- focuses on signal integrity, timing control, and flexible output management.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand output buffer design and signal drive requirements
+-- 2. Learn tri-state buffer control and bus management
+-- 3. Practice signal timing and synchronization techniques
+-- 4. Understand electrical interface design principles
+-- 5. Learn output enable and disable control mechanisms
+-- 6. Practice high-speed digital signal buffering
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for buffer utilities and timing
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.buffer_pkg.all for buffer utilities
+-- TODO: Consider adding work.microprocessor_pkg.all for system definitions
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor output buffer
+--
+-- Entity Requirements:
+-- - Name: obuf (maintain current naming convention)
+-- - System control inputs (clock, reset, enable)
+-- - Data input and output interfaces
+-- - Buffer control and status signals
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (Buffer enable)
+-- - buf_clk : in std_logic (Buffer clock, may be different from system clock)
+--
+-- Data Interface:
+-- - data_in : in std_logic_vector(DATA_WIDTH-1 downto 0) (Input data)
+-- - data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (Buffered output data)
+-- - addr_in : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Input address)
+-- - addr_out : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Buffered output address)
+-- - ctrl_in : in std_logic_vector(CTRL_WIDTH-1 downto 0) (Input control signals)
+-- - ctrl_out : out std_logic_vector(CTRL_WIDTH-1 downto 0) (Buffered output control)
+--
+-- Buffer Control Interface:
+-- - output_enable : in std_logic (Global output enable)
+-- - data_oe : in std_logic (Data output enable)
+-- - addr_oe : in std_logic (Address output enable)
+-- - ctrl_oe : in std_logic (Control output enable)
+-- - tri_state : in std_logic (Tri-state control)
+-- - drive_strength : in std_logic_vector(1 downto 0) (Drive strength control)
+--
+-- Timing Control Interface:
+-- - sync_mode : in std_logic (Synchronous mode enable)
+-- - delay_ctrl : in std_logic_vector(3 downto 0) (Output delay control)
+-- - setup_time : in std_logic_vector(3 downto 0) (Setup time adjustment)
+-- - hold_time : in std_logic_vector(3 downto 0) (Hold time adjustment)
+--
+-- Status Interface:
+-- - buffer_ready : out std_logic (Buffer ready indicator)
+-- - output_valid : out std_logic (Output valid indicator)
+-- - drive_fault : out std_logic (Drive fault indicator)
+-- - timing_error : out std_logic (Timing error indicator)
+--
+-- Test and Debug Interface:
+-- - test_mode : in std_logic (Test mode enable)
+-- - scan_enable : in std_logic (Scan test enable)
+-- - scan_in : in std_logic (Scan chain input)
+-- - scan_out : out std_logic (Scan chain output)
+-- - debug_select : in std_logic_vector(3 downto 0) (Debug signal selection)
+-- - debug_out : out std_logic_vector(7 downto 0) (Debug output)
+--
+-- Power Management Interface:
+-- - power_down : in std_logic (Power down control)
+-- - low_power : in std_logic (Low power mode)
+-- - retention : in std_logic (Data retention mode)
+-- - power_good : in std_logic (Power supply good)
+--
+-- ============================================================================
+-- STEP 3: OUTPUT BUFFER PRINCIPLES
+-- ============================================================================
+--
+-- Output Buffer Fundamentals:
+-- 1. Signal Buffering
+--    - Drive strength amplification
+--    - Signal isolation and protection
+--    - Load driving capability
+--    - Noise immunity improvement
+--
+-- 2. Tri-State Control
+--    - High-impedance state management
+--    - Bus sharing and arbitration
+--    - Output enable/disable control
+--    - Conflict prevention
+--
+-- 3. Timing Management
+--    - Setup and hold time control
+--    - Propagation delay management
+--    - Clock domain synchronization
+--    - Skew compensation
+--
+-- 4. Electrical Interface
+--    - Voltage level translation
+--    - Current drive capability
+--    - Impedance matching
+--    - Signal integrity preservation
+--
+-- Buffer Types and Characteristics:
+-- 1. Data Buffers
+--    - High-speed data transmission
+--    - Bidirectional capability
+--    - Byte-enable support
+--    - Error detection integration
+--
+-- 2. Address Buffers
+--    - Unidirectional output
+--    - High fan-out capability
+--    - Address decode support
+--    - Memory interface optimization
+--
+-- 3. Control Buffers
+--    - Mixed signal types
+--    - Critical timing requirements
+--    - Protocol-specific features
+--    - Status and handshake signals
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Buffer (Recommended for beginners)
+-- - Basic signal buffering with enable control
+-- - Fixed drive strength and timing
+-- - Simple tri-state management
+-- - Suitable for low-speed applications
+--
+-- OPTION 2: Configurable Buffer (Intermediate)
+-- - Programmable drive strength and timing
+-- - Advanced tri-state control
+-- - Multiple output enable signals
+-- - Standard microprocessor interface
+--
+-- OPTION 3: High-Performance Buffer (Advanced)
+-- - Dynamic timing adjustment
+-- - Advanced signal integrity features
+-- - Power management integration
+-- - High-speed processor support
+--
+-- OPTION 4: Adaptive Buffer System (Expert)
+-- - Automatic impedance matching
+-- - Dynamic power optimization
+-- - Advanced test and debug features
+-- - Enterprise processor capabilities
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Signal Integrity Design:
+-- - Proper termination and impedance control
+-- - Crosstalk and noise reduction
+-- - Signal slew rate optimization
+-- - Ground bounce minimization
+--
+-- Timing Optimization:
+-- - Setup and hold time margins
+-- - Clock-to-output delay minimization
+-- - Skew compensation techniques
+-- - Jitter and phase noise control
+--
+-- Power Management:
+-- - Dynamic power scaling
+-- - Leakage current reduction
+-- - Thermal management
+-- - Supply noise filtering
+--
+-- Reliability Features:
+-- - ESD protection integration
+-- - Over-current detection
+-- - Temperature monitoring
+-- - Fault tolerance mechanisms
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Adaptive Drive Control:
+-- - Load-dependent drive strength
+-- - Process, voltage, temperature (PVT) compensation
+-- - Automatic impedance calibration
+-- - Dynamic slew rate adjustment
+--
+-- Advanced Timing Control:
+-- - Programmable delay elements
+-- - Duty cycle correction
+-- - Clock deskewing circuits
+-- - Spread spectrum support
+--
+-- Test and Debug Features:
+-- - Built-in self-test (BIST)
+-- - Boundary scan support
+-- - Signal integrity monitoring
+-- - Performance characterization
+--
+-- Power Optimization:
+-- - Clock gating integration
+-- - Voltage island support
+-- - Dynamic voltage scaling
+-- - Power state management
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU output interface implementation
+-- 2. Memory Controllers: High-speed memory interface buffering
+-- 3. System-on-Chip: Inter-block communication buffering
+-- 4. FPGA Interfaces: External signal buffering and conditioning
+-- 5. High-Speed Digital: Signal integrity and timing control
+-- 6. Communication Systems: Protocol-specific buffering
+-- 7. Test Equipment: Precision timing and drive control
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Functional Testing: All buffer modes and control functions
+-- 2. Timing Testing: Setup, hold, and propagation delay verification
+-- 3. Drive Testing: Load driving capability and signal integrity
+-- 4. Power Testing: Current consumption and thermal behavior
+-- 5. Stress Testing: High-frequency and extreme condition operation
+-- 6. Reliability Testing: Long-term operation and fault tolerance
+-- 7. Integration Testing: Buffer with processor and system components
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with simple buffering and tri-state control
+-- 2. Implement basic timing and synchronization
+-- 3. Add configurable drive strength and delays
+-- 4. Implement power management features
+-- 5. Add advanced timing control and calibration
+-- 6. Implement test and debug capabilities
+-- 7. Add adaptive and optimization features
+-- 8. Optimize for target technology and performance
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement automatic impedance matching and calibration
+-- 2. Add advanced signal integrity monitoring
+-- 3. Implement dynamic power optimization algorithms
+-- 4. Add support for multiple voltage domains
+-- 5. Implement advanced test and characterization features
+-- 6. Add machine learning-based optimization
+-- 7. Implement fault prediction and prevention
+-- 8. Add support for emerging interface standards
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Inadequate drive strength for target loads
+-- 2. Poor timing margin and setup/hold violations
+-- 3. Missing tri-state control and bus conflicts
+-- 4. Insufficient power supply decoupling
+-- 5. Poor signal integrity and crosstalk issues
+-- 6. Missing ESD protection and reliability features
+-- 7. Inadequate test coverage and debug capabilities
+-- 8. Poor thermal management and power optimization
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Buffer drive strength adequate for all loads
+-- □ Timing requirements met with sufficient margin
+-- □ Tri-state control working correctly
+-- □ Signal integrity maintained across all conditions
+-- □ Power consumption within specifications
+-- □ ESD protection and reliability features active
+-- □ Test and debug capabilities functional
+-- □ Integration with processor components verified
+-- □ Temperature and process variation handled
+-- □ Manufacturing test coverage complete
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This output buffer implementation demonstrates several key concepts:
+-- - Signal buffering and drive strength management
+-- - Tri-state control and bus interface design
+-- - Timing control and synchronization
+-- - Signal integrity and electrical interface design
+-- - Power management and optimization
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider buffer placement near output pins
+-- - Plan for proper power distribution and decoupling
+-- - Account for package and board-level parasitics
+-- - Consider thermal effects on buffer performance
+-- - Plan for manufacturing test and characterization
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Adaptive buffer control and optimization
+-- - Machine learning-based signal integrity
+-- - Quantum effects in advanced process nodes
+-- - 3D integration and through-silicon vias
+-- - Photonic and optical interface integration
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use SPICE-level simulation for critical paths
+-- - Verify signal integrity with realistic models
+-- - Test across process, voltage, and temperature
+-- - Validate power consumption and thermal behavior
+-- - Check electromagnetic compatibility (EMC)
+-- - Verify manufacturing test coverage
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.buffer_pkg.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity obuf is
+--     generic (
+--         DATA_WIDTH       : integer := 32;                  -- Data bus width
+--         ADDR_WIDTH       : integer := 32;                  -- Address bus width
+--         CTRL_WIDTH       : integer := 16;                  -- Control signal width
+--         DRIVE_LEVELS     : integer := 4;                   -- Number of drive strength levels
+--         DELAY_STAGES     : integer := 16;                  -- Number of delay stages
+--         ENABLE_SYNC      : boolean := true;                -- Enable synchronous mode
+--         ENABLE_TEST      : boolean := true;                -- Enable test features
+--         ENABLE_DEBUG     : boolean := true;                -- Enable debug features
+--         ENABLE_POWER_MGT : boolean := true;                -- Enable power management
+--         DEFAULT_DRIVE    : integer := 2;                   -- Default drive strength
+--         DEFAULT_DELAY    : integer := 0                    -- Default delay setting
+--     );
+--     port (
+--         -- System Interface
+--         clk              : in  std_logic;
+--         reset            : in  std_logic;
+--         enable           : in  std_logic;
+--         buf_clk          : in  std_logic;
+--         
+--         -- Data Interface
+--         data_in          : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_out         : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         addr_in          : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         addr_out         : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         ctrl_in          : in  std_logic_vector(CTRL_WIDTH-1 downto 0);
+--         ctrl_out         : out std_logic_vector(CTRL_WIDTH-1 downto 0);
+--         
+--         -- Buffer Control Interface
+--         output_enable    : in  std_logic;
+--         data_oe          : in  std_logic;
+--         addr_oe          : in  std_logic;
+--         ctrl_oe          : in  std_logic;
+--         tri_state        : in  std_logic;
+--         drive_strength   : in  std_logic_vector(1 downto 0);
+--         
+--         -- Timing Control Interface
+--         sync_mode        : in  std_logic;
+--         delay_ctrl       : in  std_logic_vector(3 downto 0);
+--         setup_time       : in  std_logic_vector(3 downto 0);
+--         hold_time        : in  std_logic_vector(3 downto 0);
+--         
+--         -- Status Interface
+--         buffer_ready     : out std_logic;
+--         output_valid     : out std_logic;
+--         drive_fault      : out std_logic;
+--         timing_error     : out std_logic;
+--         
+--         -- Test and Debug Interface
+--         test_mode        : in  std_logic;
+--         scan_enable      : in  std_logic;
+--         scan_in          : in  std_logic;
+--         scan_out         : out std_logic;
+--         debug_select     : in  std_logic_vector(3 downto 0);
+--         debug_out        : out std_logic_vector(7 downto 0);
+--         
+--         -- Power Management Interface
+--         power_down       : in  std_logic;
+--         low_power        : in  std_logic;
+--         retention        : in  std_logic;
+--         power_good       : in  std_logic
+--     );
+-- end entity obuf;
+--
+-- architecture behavioral of obuf is
+--     -- Internal signal declarations
+--     signal data_reg : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal addr_reg : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal ctrl_reg : std_logic_vector(CTRL_WIDTH-1 downto 0);
+--     
+--     -- Buffer control signals
+--     signal internal_enable : std_logic;
+--     signal data_enable : std_logic;
+--     signal addr_enable : std_logic;
+--     signal ctrl_enable : std_logic;
+--     
+--     -- Timing control signals
+--     signal delayed_clk : std_logic;
+--     signal sync_data : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal sync_addr : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal sync_ctrl : std_logic_vector(CTRL_WIDTH-1 downto 0);
+--     
+--     -- Status and control signals
+--     signal buffer_state : std_logic_vector(3 downto 0);
+--     signal error_flags : std_logic_vector(7 downto 0);
+--     signal power_state : std_logic_vector(1 downto 0);
+--     
+--     -- Drive strength control
+--     type drive_array_t is array (0 to 3) of std_logic_vector(3 downto 0);
+--     constant DRIVE_CONFIG : drive_array_t := (
+--         "0001",  -- Low drive
+--         "0010",  -- Medium-low drive
+--         "0100",  -- Medium-high drive
+--         "1000"   -- High drive
+--     );
+--     
+--     -- Delay line signals
+--     signal delay_chain : std_logic_vector(DELAY_STAGES-1 downto 0);
+--     signal selected_delay : std_logic;
+--     
+-- begin
+--     -- Main buffer control process
+--     buffer_control_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             data_reg <= (others => '0');
+--             addr_reg <= (others => '0');
+--             ctrl_reg <= (others => '0');
+--             buffer_state <= (others => '0');
+--             error_flags <= (others => '0');
+--             power_state <= "00";
+--         elsif rising_edge(clk) then
+--             if power_good = '1' and power_down = '0' then
+--                 -- Update power state
+--                 if low_power = '1' then
+--                     power_state <= "01";
+--                 elsif retention = '1' then
+--                     power_state <= "10";
+--                 else
+--                     power_state <= "11";
+--                 end if;
+--                 
+--                 -- Buffer data when enabled
+--                 if enable = '1' and internal_enable = '1' then
+--                     if sync_mode = '1' then
+--                         data_reg <= sync_data;
+--                         addr_reg <= sync_addr;
+--                         ctrl_reg <= sync_ctrl;
+--                     else
+--                         data_reg <= data_in;
+--                         addr_reg <= addr_in;
+--                         ctrl_reg <= ctrl_in;
+--                     end if;
+--                     buffer_state <= "0001";  -- Active state
+--                 else
+--                     buffer_state <= "0000";  -- Idle state
+--                 end if;
+--             else
+--                 power_state <= "00";  -- Power down state
+--                 buffer_state <= "1111";  -- Power down state
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Synchronization process
+--     sync_proc: process(buf_clk, reset)
+--     begin
+--         if reset = '1' then
+--             sync_data <= (others => '0');
+--             sync_addr <= (others => '0');
+--             sync_ctrl <= (others => '0');
+--         elsif rising_edge(buf_clk) then
+--             if sync_mode = '1' then
+--                 sync_data <= data_in;
+--                 sync_addr <= addr_in;
+--                 sync_ctrl <= ctrl_in;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output enable control
+--     internal_enable <= enable and output_enable and power_good and not power_down;
+--     data_enable <= internal_enable and data_oe and not tri_state;
+--     addr_enable <= internal_enable and addr_oe and not tri_state;
+--     ctrl_enable <= internal_enable and ctrl_oe and not tri_state;
+--     
+--     -- Output assignments with tri-state control
+--     data_out <= data_reg when data_enable = '1' else (others => 'Z');
+--     addr_out <= addr_reg when addr_enable = '1' else (others => 'Z');
+--     ctrl_out <= ctrl_reg when ctrl_enable = '1' else (others => 'Z');
+--     
+--     -- Delay line implementation (simplified)
+--     delay_line_gen: for i in 0 to DELAY_STAGES-1 generate
+--         delay_stage: if i = 0 generate
+--             delay_chain(0) <= clk;
+--         else generate
+--             delay_chain(i) <= delay_chain(i-1) after 100 ps;  -- Simplified delay
+--         end generate;
+--     end generate;
+--     
+--     -- Delay selection
+--     with delay_ctrl select
+--         selected_delay <= delay_chain(0) when "0000",
+--                          delay_chain(1) when "0001",
+--                          delay_chain(2) when "0010",
+--                          delay_chain(3) when "0011",
+--                          delay_chain(4) when "0100",
+--                          delay_chain(5) when "0101",
+--                          delay_chain(6) when "0110",
+--                          delay_chain(7) when "0111",
+--                          delay_chain(8) when "1000",
+--                          delay_chain(9) when "1001",
+--                          delay_chain(10) when "1010",
+--                          delay_chain(11) when "1011",
+--                          delay_chain(12) when "1100",
+--                          delay_chain(13) when "1101",
+--                          delay_chain(14) when "1110",
+--                          delay_chain(15) when "1111",
+--                          clk when others;
+--     
+--     delayed_clk <= selected_delay;
+--     
+--     -- Status outputs
+--     buffer_ready <= '1' when power_state = "11" and buffer_state /= "1111" else '0';
+--     output_valid <= '1' when buffer_state = "0001" and internal_enable = '1' else '0';
+--     drive_fault <= '0';  -- Can be extended for drive fault detection
+--     timing_error <= '0';  -- Can be extended for timing error detection
+--     
+--     -- Test and debug features
+--     test_debug_proc: process(test_mode, debug_select, buffer_state, error_flags, power_state)
+--     begin
+--         if test_mode = '1' then
+--             case debug_select is
+--                 when "0000" => debug_out <= buffer_state & power_state & "00";
+--                 when "0001" => debug_out <= error_flags;
+--                 when "0010" => debug_out <= data_reg(7 downto 0);
+--                 when "0011" => debug_out <= addr_reg(7 downto 0);
+--                 when "0100" => debug_out <= ctrl_reg(7 downto 0);
+--                 when others => debug_out <= (others => '0');
+--             end case;
+--         else
+--             debug_out <= (others => '0');
+--         end if;
+--     end process;
+--     
+--     -- Scan chain (simplified)
+--     scan_out <= scan_in when scan_enable = '1' else '0';
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This output buffer implementation provides comprehensive signal
+-- buffering with timing control, power management, and debug features. Ensure
+-- proper signal integrity analysis and consider the specific electrical
+-- requirements for your target application and technology.
+-- ============================================================================

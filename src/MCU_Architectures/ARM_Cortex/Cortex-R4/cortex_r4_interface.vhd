@@ -1,14 +1,570 @@
--- Cortex-R4 Interface VHDL File
--- This file contains the interface definition for ARM Cortex-R4 processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-R4 processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-R4 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-R4 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-R4 processors, providing FPGA-based communication, 
+--              control, and peripheral integration for real-time and 
+--              safety-critical embedded systems.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-R4 architecture and ARMv7-R instruction set
+-- 2. Master AXI3 and AHB-Lite protocols for real-time systems
+-- 3. Learn ARM Cortex-R4 dual-issue superscalar pipeline
+-- 4. Implement interrupt handling and VIC integration
+-- 5. Understand TCM (Tightly Coupled Memory) integration
+-- 6. Master MPU (Memory Protection Unit) configuration
+-- 7. Learn real-time deterministic execution
+-- 8. Implement debug interface and CoreSight integration
+--
+-- ARM Cortex-R4 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7-R (32-bit ARM and Thumb-2)                   │
+-- │ Pipeline        │ 8-stage dual-issue superscalar                     │
+-- │ Cores           │ Single core (dual-issue)                           │
+-- │ Issue Width     │ Dual-issue superscalar                             │
+-- │ Cache           │ 0-64KB I-cache, 0-64KB D-cache                     │
+-- │ TCM             │ 0-8MB ITCM, 0-8MB DTCM                             │
+-- │ MPU             │ ARMv7 PMSA with 8/12/16 regions                    │
+-- │ VFP             │ Optional VFPv3-D16 floating-point unit             │
+-- │ Debug           │ CoreSight debug and trace                          │
+-- │ Interrupts      │ VIC (Vectored Interrupt Controller)                │
+-- │ ECC/Parity      │ Error correction and detection                      │
+-- │ Frequency       │ Up to 600 MHz (implementation dependent)           │
+-- │ Process         │ 65nm to 28nm                                       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-R4 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-R4     │◀──▶│   TCM           │◀──▶│   External      │
+-- │   Processor     │    │   (Instruction  │    │   Memory        │
+-- │   (Dual-Issue)  │    │   & Data)       │    │   Interface     │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                      │
+--          ▼                       ▼                      ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   VIC           │    │   Cache         │    │   CoreSight     │
+-- │   (Vectored     │    │   Controller    │    │   Debug & Trace │
+-- │   Interrupt     │    │   (Optional)    │    │   (ETM v3.5)    │
+-- │   Controller)   │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- AXI3/AHB-Lite Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Channel         │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ Global          │ Input           │ ACLK, ARESETn                   │
+-- │ Write Address   │ Master→Slave    │ AWADDR, AWLEN, AWSIZE, AWBURST  │
+-- │ Write Data      │ Master→Slave    │ WDATA, WSTRB, WLAST, WVALID     │
+-- │ Write Response  │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ Read Address    │ Master→Slave    │ ARADDR, ARLEN, ARSIZE, ARBURST  │
+-- │ Read Data       │ Slave→Master    │ RDATA, RRESP, RLAST, RVALID     │
+-- │ AHB-Lite        │ Bidirectional   │ HADDR, HWRITE, HRDATA, HWDATA   │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-R4 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ Variable        │ ITCM (Instruction TCM)          │
+-- │ 0x0800_0000     │ Variable        │ DTCM (Data TCM)                 │
+-- │ 0x2000_0000     │ 512MB           │ External memory region          │
+-- │ 0x4000_0000     │ 1GB             │ Peripheral region               │
+-- │ 0x8000_0000     │ 1GB             │ External device region          │
+-- │ 0xE000_0000     │ 512MB           │ Private peripheral region       │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Cache and Memory Hierarchy:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Memory Type     │ Size/Config     │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ L1 I-Cache      │ 0-64KB          │ Instruction cache with parity   │
+-- │ L1 D-Cache      │ 0-64KB          │ Data cache with ECC             │
+-- │ ITCM            │ 0-8MB           │ Instruction Tightly Coupled Mem │
+-- │ DTCM            │ 0-8MB           │ Data Tightly Coupled Memory     │
+-- │ Main Memory     │ Up to 4GB       │ External memory via AXI/AHB     │
+-- │ TLB             │ N/A             │ No TLB (MPU-based)              │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv7-R Instruction Set:
+-- 1. **ARM Instructions**:
+--    - 32-bit fixed-width instructions
+--    - Conditional execution on most instructions
+--    - Load/store architecture
+--    - 16 general-purpose registers (R0-R15)
+--    - Program Status Register (CPSR)
+--
+-- 2. **Thumb-2 Instructions**:
+--    - 16-bit and 32-bit variable-width instructions
+--    - Improved code density
+--    - Full 32-bit addressing capability
+--    - Compatible with ARM instruction set
+--
+-- Dual-Issue Superscalar Pipeline:
+-- 1. **Pipeline Stages**:
+--    - Fetch: 2 stages (F1-F2)
+--    - Decode: 2 stages (D1-D2)
+--    - Execute: 2 stages (E1-E2)
+--    - Memory: 1 stage (M)
+--    - Writeback: 1 stage (W)
+--
+-- 2. **Execution Units**:
+--    - 2x Integer ALU pipelines
+--    - 1x Integer multiply pipeline
+--    - 1x Load/Store pipeline
+--    - 1x Branch pipeline
+--    - Optional VFP pipeline
+--
+-- VIC (Vectored Interrupt Controller):
+-- 1. **Interrupt Types**:
+--    - IRQ: Interrupt Request
+--    - FIQ: Fast Interrupt Request
+--    - Priority levels: 0-15 (0 = highest priority)
+--    - Up to 32 vectored interrupts
+--
+-- 2. **VIC Features**:
+--    - Hardware priority resolution
+--    - Automatic vector address generation
+--    - Interrupt masking and nesting
+--    - Software interrupt generation
+--    - Real-time interrupt handling
+--
+-- TCM (Tightly Coupled Memory):
+-- 1. **ITCM (Instruction TCM)**:
+--    - Single-cycle access
+--    - 0-8MB configurable size
+--    - ECC protection available
+--    - Deterministic access time
+--
+-- 2. **DTCM (Data TCM)**:
+--    - Single-cycle access
+--    - 0-8MB configurable size
+--    - ECC protection available
+--    - Real-time data storage
+--
+-- MPU (Memory Protection Unit):
+-- 1. **Protection Regions**:
+--    - 8, 12, or 16 regions (implementation dependent)
+--    - Minimum region size: 32 bytes
+--    - Maximum region size: 4GB
+--    - Overlapping regions supported
+--
+-- 2. **Access Permissions**:
+--    - No access, read-only, read-write
+--    - Privileged and unprivileged access
+--    - Execute never (XN) attribute
+--    - Memory type attributes
+--
+-- VFPv3-D16 Floating-Point:
+-- 1. **Register File**:
+--    - 16x64-bit D registers (D0-D15)
+--    - 32x32-bit S registers (S0-S31)
+--    - FPSCR status and control register
+--
+-- 2. **Features**:
+--    - IEEE 754 compliant
+--    - Single and double precision
+--    - Hardware square root and divide
+--    - Deterministic execution time
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI3 Master     │ 32/64-bit memory and peripheral access interface    │
+-- │ AHB-Lite        │ High-performance system bus interface              │
+-- │ TCM Interface   │ Tightly coupled memory for deterministic access    │
+-- │ VIC Interface   │ Vectored interrupt controller integration          │
+-- │ Debug Interface │ CoreSight debug and trace interface                │
+-- │ Cache Control   │ L1 cache maintenance and control                   │
+-- │ MPU Interface   │ Memory protection unit configuration                │
+-- │ VFP Interface   │ Vector floating-point coprocessor                  │
+-- │ ECC Interface   │ Error correction and detection                      │
+-- │ Real-time Ctrl  │ Deterministic execution control                     │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI3 Data Width: 32/64-bit (configurable)
+-- - AXI3 Address Width: 32-bit (4GB address space)
+-- - Maximum Clock Frequency: 600 MHz (typical)
+-- - Interrupt Latency: 12 cycles (deterministic)
+-- - Cache Line Size: 32 bytes (8 words)
+-- - Memory Bandwidth: Up to 4.8 GB/s (64-bit @ 600 MHz)
+-- - TCM Access Time: 1 cycle (deterministic)
+-- - MPU Regions: 8/12/16 (implementation dependent)
+-- - VFP Performance: Single/double precision operations
+--
+-- Implementation Approaches:
+-- 1. **Real-Time Configuration**:
+--    - Maximum TCM size (8MB each)
+--    - Cache disabled or minimal
+--    - MPU with deterministic regions
+--    - VIC with fast interrupt handling
+--    - ECC enabled for safety
+--
+-- 2. **Performance Configuration**:
+--    - Maximum cache size (64KB each)
+--    - AXI3 64-bit interface
+--    - VFP enabled
+--    - Dual-issue pipeline optimization
+--    - Branch prediction enabled
+--
+-- 3. **Safety-Critical Configuration**:
+--    - ECC on all memories
+--    - MPU with strict protection
+--    - Deterministic execution modes
+--    - Fault detection and handling
+--    - Redundant error checking
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select Cortex-R4 core configuration
+-- - Define TCM sizes and requirements
+-- - Specify AXI3/AHB-Lite interface requirements
+-- - Choose cache configuration
+--
+-- Step 2: Implement AXI3/AHB-Lite Interface Logic
+-- - Create AXI3 master interface for CPU access
+-- - Add AHB-Lite peripheral interface
+-- - Implement address decoding and routing
+-- - Add bus arbitration logic
+--
+-- Step 3: Add TCM Support
+-- - Integrate ITCM (Instruction TCM)
+-- - Integrate DTCM (Data TCM)
+-- - Configure TCM sizes and base addresses
+-- - Add ECC protection if required
+--
+-- Step 4: Integrate VIC Controller
+-- - Connect to VIC (Vectored Interrupt Controller)
+-- - Implement interrupt prioritization
+-- - Add vector address generation
+-- - Create interrupt masking logic
+-- - Add software interrupt support
+--
+-- Step 5: Add Memory Protection
+-- - Implement ARMv7 PMSA MPU
+-- - Configure protection regions
+-- - Add access permission checking
+-- - Create memory type attributes
+-- - Implement fault handling
+--
+-- Step 6: Integrate Debug Interface
+-- - Implement CoreSight debug interface
+-- - Add ETM v3.5 (Embedded Trace Macrocell)
+-- - Create JTAG support
+-- - Add performance monitoring
+-- - Implement debug authentication
+--
+-- Step 7: Add VFP Support (Optional)
+-- - Implement VFPv3-D16 floating-point unit
+-- - Create coprocessor interface
+-- - Add register file management
+-- - Implement exception handling
+-- - Add deterministic timing
+--
+-- Step 8: Create Real-Time Features
+-- - Add deterministic execution modes
+-- - Implement cache locking
+-- - Create interrupt latency optimization
+-- - Add ECC and error handling
+-- - Implement safety mechanisms
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi3_pkg: AXI3 protocol definitions
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.tcm_pkg: TCM interface definitions
+-- - work.vic_pkg: VIC interface definitions
+-- - work.cortex_r_pkg: Cortex-R specific constants
+-- - work.cache_pkg: Cache controller functions
+-- - work.mpu_pkg: Memory protection functions
+-- - work.vfp_pkg: VFP floating-point functions
+-- - work.ecc_pkg: Error correction functions
+-- - work.armv7r_pkg: ARMv7-R architecture functions
+--
+-- Advanced Features:
+-- 1. **Dual-Issue Pipeline**: Superscalar execution
+-- 2. **ARMv7-R Architecture**: Real-time ARM instruction set
+-- 3. **TCM Integration**: Deterministic memory access
+-- 4. **VIC Controller**: Vectored interrupt handling
+-- 5. **MPU Protection**: Memory protection without MMU
+-- 6. **ECC Support**: Error correction and detection
+-- 7. **Real-Time Features**: Deterministic execution
+-- 8. **Debug Support**: CoreSight integration
+--
+-- Applications:
+-- - Automotive control systems
+-- - Industrial automation
+-- - Medical devices
+-- - Aerospace systems
+-- - Real-time control systems
+-- - Safety-critical applications
+-- - Motor control systems
+-- - Communication infrastructure
+--
+-- Performance Considerations:
+-- - Dual-issue pipeline optimization
+-- - TCM utilization for critical code/data
+-- - Cache configuration for predictability
+-- - Interrupt latency minimization
+-- - Memory bandwidth utilization
+-- - Real-time constraint satisfaction
+-- - ECC overhead management
+-- - Power consumption optimization
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: AXI3 and AHB-Lite protocol verification
+-- 2. **Real-Time Testing**: Deterministic timing verification
+-- 3. **Pipeline Testing**: Dual-issue instruction flow
+-- 4. **ARMv7-R Compliance**: Architecture compliance testing
+-- 5. **Performance Testing**: Bandwidth and latency measurement
+-- 6. **Safety Testing**: ECC and fault injection
+-- 7. **MPU Testing**: Memory protection verification
+-- 8. **VFP Testing**: Floating-point validation
+--
+-- Common Design Challenges:
+-- - Dual-issue pipeline hazard management
+-- - Real-time deterministic execution
+-- - ARMv7-R architecture compliance
+-- - TCM integration and sizing
+-- - MPU region configuration
+-- - VIC interrupt handling optimization
+-- - ECC implementation and overhead
+-- - Safety-critical system requirements
+--
+-- Verification Checklist:
+-- □ AXI3 master interface functional and compliant
+-- □ AHB-Lite peripheral interface working correctly
+-- □ TCM (ITCM/DTCM) operational and deterministic
+-- □ VIC interrupt controller functional
+-- □ MPU memory protection operational
+-- □ ARMv7 PMSA working correctly
+-- □ Debug interface (CoreSight) functional
+-- □ VFP coprocessor working (if enabled)
+-- □ Dual-issue pipeline operational
+-- □ ECC protection working correctly
+-- □ Real-time constraints satisfied
+-- □ ARMv7-R architecture compliance verified
+-- □ Performance targets achieved
+-- □ Safety requirements met
+-- □ Long-term reliability demonstrated
+-- □ Fault detection and handling validated
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi3_pkg.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.tcm_pkg.all;
+-- use work.vic_pkg.all;
+-- use work.cortex_r_pkg.all;
+-- use work.cache_pkg.all;
+-- use work.mpu_pkg.all;
+-- use work.vfp_pkg.all;
+-- use work.ecc_pkg.all;
+-- use work.armv7r_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_r4_interface is
+--     generic (
+--         ENABLE_VFP      : boolean := true;
+--         ENABLE_CACHE    : boolean := false;      -- Often disabled for RT
+--         ENABLE_ECC      : boolean := true;       -- For safety-critical
+--         ITCM_SIZE       : integer := 8388608;    -- 8MB
+--         DTCM_SIZE       : integer := 8388608;    -- 8MB
+--         L1_CACHE_SIZE   : integer := 32768;      -- 32KB
+--         AXI_DATA_WIDTH  : integer := 64;         -- 64-bit
+--         AXI_ADDR_WIDTH  : integer := 32;         -- 32-bit
+--         NUM_INTERRUPTS  : integer := 32;         -- VIC interrupts
+--         MPU_REGIONS     : integer := 16;         -- MPU regions
+--         ENABLE_DEBUG    : boolean := true;
+--         ENABLE_PMU      : boolean := true        -- Performance Monitor
+--     );
+--     port (
+--         -- System signals
+--         aclk            : in  std_logic;
+--         aresetn         : in  std_logic;
+--         
+--         -- AXI3 Master interface (CPU to system)
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(3 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic_vector(1 downto 0);
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(3 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic_vector(1 downto 0);
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AHB-Lite Peripheral interface
+--         ahb_haddr       : out std_logic_vector(31 downto 0);
+--         ahb_hwrite      : out std_logic;
+--         ahb_hsize       : out std_logic_vector(2 downto 0);
+--         ahb_hburst      : out std_logic_vector(2 downto 0);
+--         ahb_hprot       : out std_logic_vector(3 downto 0);
+--         ahb_htrans      : out std_logic_vector(1 downto 0);
+--         ahb_hmastlock   : out std_logic;
+--         ahb_hwdata      : out std_logic_vector(31 downto 0);
+--         ahb_hrdata      : in  std_logic_vector(31 downto 0);
+--         ahb_hready      : in  std_logic;
+--         ahb_hresp       : in  std_logic;
+--         
+--         -- TCM (Tightly Coupled Memory) interfaces
+--         -- ITCM interface
+--         itcm_addr       : out std_logic_vector(22 downto 0);  -- 8MB
+--         itcm_rdata      : in  std_logic_vector(31 downto 0);
+--         itcm_req        : out std_logic;
+--         itcm_ready      : in  std_logic;
+--         itcm_ecc_err    : in  std_logic;
+--         
+--         -- DTCM interface
+--         dtcm_addr       : out std_logic_vector(22 downto 0);  -- 8MB
+--         dtcm_wdata      : out std_logic_vector(31 downto 0);
+--         dtcm_rdata      : in  std_logic_vector(31 downto 0);
+--         dtcm_we         : out std_logic_vector(3 downto 0);
+--         dtcm_req        : out std_logic;
+--         dtcm_ready      : in  std_logic;
+--         dtcm_ecc_err    : in  std_logic;
+--         
+--         -- VIC (Vectored Interrupt Controller) interface
+--         vic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         vic_fiq         : in  std_logic;
+--         vic_priority    : out std_logic_vector(4 downto 0);   -- 0-31
+--         vic_vector      : out std_logic_vector(31 downto 0);  -- Vector addr
+--         vic_ack         : out std_logic;
+--         vic_mask        : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         vic_soft_int    : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         
+--         -- MPU (Memory Protection Unit) interface
+--         mpu_region_en   : in  std_logic_vector(MPU_REGIONS-1 downto 0);
+--         mpu_region_base : in  std_logic_vector(32*MPU_REGIONS-1 downto 0);
+--         mpu_region_size : in  std_logic_vector(6*MPU_REGIONS-1 downto 0);
+--         mpu_region_attr : in  std_logic_vector(16*MPU_REGIONS-1 downto 0);
+--         mpu_fault       : out std_logic;
+--         mpu_fault_addr  : out std_logic_vector(31 downto 0);
+--         mpu_fault_type  : out std_logic_vector(3 downto 0);
+--         
+--         -- Debug interface (CoreSight)
+--         debug_req       : in  std_logic;
+--         debug_ack       : out std_logic;
+--         etm_trace       : out std_logic_vector(31 downto 0);
+--         etm_traceclk    : out std_logic;
+--         etm_atready     : in  std_logic;
+--         etm_atvalid     : out std_logic;
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         
+--         -- Performance monitoring
+--         pmu_events      : out std_logic_vector(31 downto 0);
+--         pmu_overflow    : out std_logic;
+--         pmu_cycle_cnt   : out std_logic_vector(31 downto 0);
+--         pmu_inst_cnt    : out std_logic_vector(31 downto 0);
+--         pmu_cache_miss  : out std_logic_vector(15 downto 0);
+--         pmu_branch_miss : out std_logic_vector(15 downto 0);
+--         pmu_dual_issue  : out std_logic_vector(15 downto 0);
+--         
+--         -- Real-time and deterministic control
+--         rt_mode         : in  std_logic;          -- Real-time mode
+--         cache_lock      : in  std_logic;          -- Lock cache contents
+--         prefetch_dis    : in  std_logic;          -- Disable prefetch
+--         branch_pred_dis : in  std_logic;          -- Disable branch pred
+--         deterministic   : in  std_logic;          -- Deterministic mode
+--         
+--         -- Status and control
+--         core_halted     : out std_logic;
+--         lockup          : out std_logic;
+--         reset_req       : out std_logic;
+--         
+--         -- Cache and memory management (if enabled)
+--         cache_maint     : in  std_logic_vector(7 downto 0);
+--         l1_cache_hit    : out std_logic;
+--         l1_cache_miss   : out std_logic;
+--         
+--         -- VFP floating-point interface (if enabled)
+--         vfp_data_in     : in  std_logic_vector(63 downto 0);
+--         vfp_data_out    : out std_logic_vector(63 downto 0);
+--         vfp_valid       : in  std_logic;
+--         vfp_ready       : out std_logic;
+--         vfp_op          : in  std_logic_vector(7 downto 0);
+--         vfp_exception   : out std_logic;
+--         
+--         -- ECC and error handling
+--         ecc_single_err  : out std_logic;
+--         ecc_double_err  : out std_logic;
+--         ecc_err_addr    : out std_logic_vector(31 downto 0);
+--         ecc_correction  : out std_logic_vector(31 downto 0);
+--         
+--         -- Safety and fault detection
+--         safety_fault    : out std_logic;
+--         watchdog_reset  : in  std_logic;
+--         fault_inject    : in  std_logic_vector(7 downto 0)
+--     );
+-- end entity cortex_r4_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_r4_interface is
+--     -- Component declarations for Cortex-R4 processor
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-R4 processor
+--     -- Add AXI3/AHB-Lite interface logic
+--     -- Connect TCM interfaces
+--     -- Connect VIC interrupt controller
+--     -- Add MPU memory protection
+--     -- Connect debug interface
+--     -- Add real-time control features
+--     -- Connect VFP coprocessor (if enabled)
+--     -- Add ECC and safety features
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-R4 interface design focuses on real-time performance, 
+-- deterministic execution, safety-critical features, and ARMv7-R architecture. 
+-- Always consult the ARM Cortex-R4 Technical Reference Manual and ARMv7-R 
+-- Architecture Manual.
+-- ============================================================================

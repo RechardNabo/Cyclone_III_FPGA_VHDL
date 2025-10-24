@@ -1,0 +1,680 @@
+-- ============================================================================
+-- Arithmetic Logic Unit (ALU) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements an Arithmetic Logic Unit (ALU) that performs various
+-- arithmetic and logical operations essential for microprocessor functionality.
+-- The ALU is a fundamental component that executes mathematical calculations,
+-- logical operations, and comparison functions, generating status flags to
+-- indicate the results of operations. This implementation serves as the
+-- computational core of the microprocessor datapath.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand ALU architecture and operation principles
+-- 2. Learn arithmetic and logical operation implementation
+-- 3. Practice flag generation and status indication
+-- 4. Understand multi-function unit design in VHDL
+-- 5. Learn optimization techniques for computational units
+-- 6. Practice combinational and sequential logic design
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for advanced mathematical operations
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding IEEE.std_logic_arith for extended arithmetic
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the ALU
+--
+-- Entity Requirements:
+-- - Name: alu (maintain current naming convention)
+-- - Two data inputs for operands
+-- - Operation control input to select function
+-- - Result output for computed value
+-- - Flag outputs for status indication
+-- - Optional carry input for extended operations
+--
+-- Port Specifications:
+-- Data Interface:
+-- - a : in std_logic_vector(DATA_WIDTH-1 downto 0) (First operand)
+-- - b : in std_logic_vector(DATA_WIDTH-1 downto 0) (Second operand)
+-- - result : out std_logic_vector(DATA_WIDTH-1 downto 0) (Operation result)
+-- - carry_in : in std_logic (Carry input for extended arithmetic)
+--
+-- Control Interface:
+-- - alu_op : in std_logic_vector(ALU_OP_WIDTH-1 downto 0) (Operation select)
+-- - enable : in std_logic (ALU enable signal)
+--
+-- Status Interface:
+-- - zero : out std_logic (Zero flag - result is zero)
+-- - carry : out std_logic (Carry flag - arithmetic overflow)
+-- - overflow : out std_logic (Overflow flag - signed arithmetic overflow)
+-- - negative : out std_logic (Negative flag - result is negative)
+-- - parity : out std_logic (Parity flag - even/odd parity)
+-- - flags : out std_logic_vector(7 downto 0) (Combined flag output)
+--
+-- ============================================================================
+-- STEP 3: ALU OPERATION PRINCIPLES
+-- ============================================================================
+--
+-- Arithmetic Operations:
+-- 1. Addition (ADD)
+--    - Unsigned and signed addition
+--    - Carry propagation and detection
+--    - Overflow detection for signed operations
+--    - Multi-precision arithmetic support
+--
+-- 2. Subtraction (SUB)
+--    - Two's complement subtraction
+--    - Borrow detection and handling
+--    - Comparison operation implementation
+--    - Absolute difference calculation
+--
+-- 3. Multiplication (MUL) - Optional
+--    - Binary multiplication algorithms
+--    - Partial product generation
+--    - Result width considerations
+--    - Signed vs unsigned multiplication
+--
+-- 4. Division (DIV) - Advanced
+--    - Binary division algorithms
+--    - Quotient and remainder generation
+--    - Division by zero handling
+--    - Signed division considerations
+--
+-- Logical Operations:
+-- 1. Bitwise AND
+--    - Bit-by-bit logical AND operation
+--    - Masking and filtering applications
+--    - Flag generation for logical operations
+--
+-- 2. Bitwise OR
+--    - Bit-by-bit logical OR operation
+--    - Bit setting and combination
+--    - Status flag updates
+--
+-- 3. Bitwise XOR
+--    - Bit-by-bit exclusive OR operation
+--    - Toggle and comparison operations
+--    - Parity calculation applications
+--
+-- 4. Bitwise NOT
+--    - Bit inversion operation
+--    - One's complement generation
+--    - Logical negation implementation
+--
+-- Shift and Rotate Operations:
+-- 1. Logical Shift Left (SLL)
+--    - Zero-fill left shift
+--    - Multiplication by powers of 2
+--    - Carry flag from shifted-out bit
+--
+-- 2. Logical Shift Right (SRL)
+--    - Zero-fill right shift
+--    - Division by powers of 2
+--    - Carry flag handling
+--
+-- 3. Arithmetic Shift Right (SRA)
+--    - Sign-extended right shift
+--    - Signed division by powers of 2
+--    - Sign bit preservation
+--
+-- 4. Rotate Operations (ROL/ROR)
+--    - Circular bit rotation
+--    - Carry flag integration
+--    - Bit pattern manipulation
+--
+-- Comparison Operations:
+-- 1. Equality (EQ)
+--    - Bit-by-bit comparison
+--    - Zero flag generation
+--    - Conditional branch support
+--
+-- 2. Less Than (LT)
+--    - Signed and unsigned comparison
+--    - Magnitude comparison
+--    - Conditional operation support
+--
+-- 3. Greater Than (GT)
+--    - Comparison result generation
+--    - Flag-based result indication
+--    - Branch condition support
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Combinational ALU (Recommended for beginners)
+-- - Pure combinational logic implementation
+-- - Direct operation selection with case statement
+-- - Immediate result generation
+-- - Simple flag calculation
+--
+-- OPTION 2: Pipelined ALU (Intermediate)
+-- - Multi-stage pipeline for complex operations
+-- - Registered intermediate results
+-- - Higher throughput for sequential operations
+-- - Pipeline hazard considerations
+--
+-- OPTION 3: Multi-Cycle ALU (Advanced)
+-- - State machine for complex operations
+-- - Shared resources for area optimization
+-- - Variable execution time per operation
+-- - Control unit integration
+--
+-- OPTION 4: Parallel ALU (Expert)
+-- - Multiple execution units
+-- - Simultaneous operation capability
+-- - Resource sharing and arbitration
+-- - Advanced scheduling and control
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Operation Encoding:
+-- - Define operation codes for each function
+-- - Implement operation decoder logic
+-- - Handle invalid operation codes
+-- - Provide default operation behavior
+--
+-- Flag Generation:
+-- - Calculate flags based on operation results
+-- - Handle flag dependencies between operations
+-- - Implement flag masking and selective updates
+-- - Provide combined flag output
+--
+-- Timing Optimization:
+-- - Minimize critical path delays
+-- - Balance logic depth across operations
+-- - Consider pipeline insertion points
+-- - Optimize for target frequency
+--
+-- Resource Utilization:
+-- - Share common logic between operations
+-- - Optimize for FPGA resource usage
+-- - Consider DSP block utilization
+-- - Balance area vs performance trade-offs
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Extended Arithmetic:
+-- - Multi-precision arithmetic support
+-- - Floating-point operation integration
+-- - Saturating arithmetic modes
+-- - Modular arithmetic operations
+--
+-- Conditional Operations:
+-- - Predicated execution support
+-- - Conditional flag updates
+-- - Branch-free operation selection
+-- - Performance optimization techniques
+--
+-- Debug and Test Features:
+-- - Operation trace and logging
+-- - Built-in self-test patterns
+-- - Error detection and correction
+-- - Performance monitoring counters
+--
+-- Power Optimization:
+-- - Clock gating for unused operations
+-- - Operand isolation techniques
+-- - Dynamic voltage scaling support
+-- - Low-power operation modes
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: Central processing unit arithmetic core
+-- 2. Digital Signal Processing: Mathematical operation acceleration
+-- 3. Graphics Processing: Vector and matrix operations
+-- 4. Cryptographic Systems: Modular arithmetic and bit manipulation
+-- 5. Control Systems: Real-time calculation and comparison
+-- 6. Scientific Computing: High-precision arithmetic operations
+-- 7. Embedded Systems: Resource-optimized computational units
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual operation verification
+-- 2. Boundary Testing: Edge case and overflow conditions
+-- 3. Flag Testing: Status flag generation validation
+-- 4. Performance Testing: Timing and throughput analysis
+-- 5. Random Testing: Comprehensive operation coverage
+-- 6. Comparison Testing: Reference model validation
+-- 7. Hardware Testing: FPGA implementation verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic arithmetic operations (ADD, SUB)
+-- 2. Implement logical operations (AND, OR, XOR, NOT)
+-- 3. Add comparison operations and flag generation
+-- 4. Implement shift and rotate operations
+-- 5. Add advanced arithmetic (MUL, DIV) if needed
+-- 6. Optimize for timing and resource utilization
+-- 7. Add debug and monitoring features
+-- 8. Validate with comprehensive test suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement floating-point arithmetic operations
+-- 2. Add vector and SIMD operation support
+-- 3. Implement cryptographic operation primitives
+-- 4. Add saturating and modular arithmetic modes
+-- 5. Implement branch-free conditional operations
+-- 6. Add multi-precision arithmetic support
+-- 7. Implement custom application-specific operations
+-- 8. Add hardware debugging and trace capabilities
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incorrect flag generation for edge cases
+-- 2. Improper handling of signed vs unsigned operations
+-- 3. Missing overflow and underflow detection
+-- 4. Inadequate timing optimization for critical paths
+-- 5. Incorrect operation encoding and decoding
+-- 6. Poor resource utilization and area optimization
+-- 7. Missing or incorrect carry propagation
+-- 8. Inadequate test coverage for all operations
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All arithmetic operations produce correct results
+-- □ Logical operations function properly
+-- □ Shift and rotate operations work correctly
+-- □ Flag generation is accurate for all operations
+-- □ Overflow and underflow conditions handled
+-- □ Carry propagation works correctly
+-- □ Operation encoding/decoding is correct
+-- □ Timing requirements are met
+-- □ Resource utilization is optimized
+-- □ Test coverage is comprehensive
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This ALU implementation demonstrates several key concepts:
+-- - Combinational logic design and optimization
+-- - Multi-function unit architecture
+-- - Flag generation and status indication
+-- - Arithmetic and logical operation implementation
+-- - Critical path analysis and timing optimization
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider adder architecture (ripple-carry vs carry-lookahead)
+-- - Plan for DSP block utilization in FPGA implementations
+-- - Account for routing congestion in complex operations
+-- - Consider power distribution for high-activity units
+-- - Plan for thermal management in high-performance designs
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Booth multiplication algorithm implementation
+-- - Wallace tree multiplier architecture
+-- - Carry-save arithmetic techniques
+-- - Redundant number representation
+-- - Approximate computing for power efficiency
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive test vectors for all operations
+-- - Verify flag generation for boundary conditions
+-- - Test carry propagation and overflow detection
+-- - Validate timing relationships and critical paths
+-- - Check resource utilization and optimization
+-- - Verify power consumption and thermal characteristics
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+--
+-- entity alu is
+--     generic (
+--         DATA_WIDTH    : integer := 16;        -- Data bus width
+--         ALU_OP_WIDTH  : integer := 4;         -- Operation select width
+--         ENABLE_MUL    : boolean := false;     -- Enable multiplication
+--         ENABLE_DIV    : boolean := false;     -- Enable division
+--         ENABLE_SHIFT  : boolean := true;      -- Enable shift operations
+--         ENABLE_ROTATE : boolean := false;     -- Enable rotate operations
+--         PIPELINE_STAGES : integer := 0        -- Pipeline depth (0 = combinational)
+--     );
+--     port (
+--         -- System Interface
+--         clk         : in  std_logic;
+--         reset       : in  std_logic;
+--         enable      : in  std_logic;
+--         
+--         -- Data Interface
+--         a           : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         b           : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         result      : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         
+--         -- Control Interface
+--         alu_op      : in  std_logic_vector(ALU_OP_WIDTH-1 downto 0);
+--         carry_in    : in  std_logic;
+--         
+--         -- Status Interface
+--         zero        : out std_logic;
+--         carry       : out std_logic;
+--         overflow    : out std_logic;
+--         negative    : out std_logic;
+--         parity      : out std_logic;
+--         flags       : out std_logic_vector(7 downto 0);
+--         
+--         -- Extended Interface (optional)
+--         result_hi   : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- High result for MUL/DIV
+--         valid       : out std_logic;                                -- Result valid
+--         ready       : out std_logic                                 -- Ready for new operation
+--     );
+-- end entity alu;
+--
+-- architecture behavioral of alu is
+--     -- Operation codes
+--     constant ALU_ADD    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0000";
+--     constant ALU_SUB    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0001";
+--     constant ALU_AND    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0010";
+--     constant ALU_OR     : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0011";
+--     constant ALU_XOR    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0100";
+--     constant ALU_NOT    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0101";
+--     constant ALU_SLL    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0110";
+--     constant ALU_SRL    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0111";
+--     constant ALU_SRA    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1000";
+--     constant ALU_MUL    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1001";
+--     constant ALU_DIV    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1010";
+--     constant ALU_CMP    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1011";
+--     constant ALU_ROL    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1100";
+--     constant ALU_ROR    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1101";
+--     constant ALU_PASS_A : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1110";
+--     constant ALU_PASS_B : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "1111";
+--     
+--     -- Internal signals
+--     signal result_int     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal result_ext     : std_logic_vector(DATA_WIDTH downto 0);  -- Extended for carry
+--     signal result_hi_int  : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal zero_int       : std_logic;
+--     signal carry_int      : std_logic;
+--     signal overflow_int   : std_logic;
+--     signal negative_int   : std_logic;
+--     signal parity_int     : std_logic;
+--     
+--     -- Arithmetic operation signals
+--     signal add_result     : std_logic_vector(DATA_WIDTH downto 0);
+--     signal sub_result     : std_logic_vector(DATA_WIDTH downto 0);
+--     signal mul_result     : std_logic_vector(2*DATA_WIDTH-1 downto 0);
+--     signal div_quotient   : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal div_remainder  : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Shift operation signals
+--     signal shift_amount   : integer range 0 to DATA_WIDTH-1;
+--     signal sll_result     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal srl_result     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal sra_result     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal rol_result     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal ror_result     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Pipeline registers (if enabled)
+--     type pipeline_array is array (0 to PIPELINE_STAGES) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal pipeline_data  : pipeline_array;
+--     signal pipeline_valid : std_logic_vector(PIPELINE_STAGES downto 0);
+--     
+-- begin
+--     -- Arithmetic operations
+--     add_result <= std_logic_vector(unsigned('0' & a) + unsigned('0' & b) + unsigned'("" & carry_in));
+--     sub_result <= std_logic_vector(unsigned('0' & a) - unsigned('0' & b) - unsigned'("" & (not carry_in)));
+--     
+--     -- Multiplication (if enabled)
+--     mul_gen: if ENABLE_MUL generate
+--         mul_result <= std_logic_vector(unsigned(a) * unsigned(b));
+--     end generate;
+--     
+--     -- Division (if enabled)
+--     div_gen: if ENABLE_DIV generate
+--         division_process: process(a, b)
+--         begin
+--             if unsigned(b) /= 0 then
+--                 div_quotient <= std_logic_vector(unsigned(a) / unsigned(b));
+--                 div_remainder <= std_logic_vector(unsigned(a) mod unsigned(b));
+--             else
+--                 div_quotient <= (others => '1');  -- Error condition
+--                 div_remainder <= (others => '0');
+--             end if;
+--         end process;
+--     end generate;
+--     
+--     -- Shift amount extraction (from lower bits of operand b)
+--     shift_amount <= to_integer(unsigned(b(4 downto 0))) when DATA_WIDTH >= 32 else
+--                     to_integer(unsigned(b(3 downto 0))) when DATA_WIDTH >= 16 else
+--                     to_integer(unsigned(b(2 downto 0)));
+--     
+--     -- Shift operations
+--     shift_gen: if ENABLE_SHIFT generate
+--         sll_result <= std_logic_vector(shift_left(unsigned(a), shift_amount));
+--         srl_result <= std_logic_vector(shift_right(unsigned(a), shift_amount));
+--         sra_result <= std_logic_vector(shift_right(signed(a), shift_amount));
+--     end generate;
+--     
+--     -- Rotate operations (if enabled)
+--     rotate_gen: if ENABLE_ROTATE generate
+--         rol_result <= std_logic_vector(rotate_left(unsigned(a), shift_amount));
+--         ror_result <= std_logic_vector(rotate_right(unsigned(a), shift_amount));
+--     end generate;
+--     
+--     -- Main ALU operation selection
+--     alu_operation: process(alu_op, a, b, carry_in, add_result, sub_result, mul_result, 
+--                           div_quotient, sll_result, srl_result, sra_result, 
+--                           rol_result, ror_result)
+--     begin
+--         result_int <= (others => '0');
+--         result_hi_int <= (others => '0');
+--         result_ext <= (others => '0');
+--         
+--         case alu_op is
+--             when ALU_ADD =>
+--                 result_int <= add_result(DATA_WIDTH-1 downto 0);
+--                 result_ext <= add_result;
+--                 
+--             when ALU_SUB =>
+--                 result_int <= sub_result(DATA_WIDTH-1 downto 0);
+--                 result_ext <= sub_result;
+--                 
+--             when ALU_AND =>
+--                 result_int <= a and b;
+--                 result_ext <= '0' & (a and b);
+--                 
+--             when ALU_OR =>
+--                 result_int <= a or b;
+--                 result_ext <= '0' & (a or b);
+--                 
+--             when ALU_XOR =>
+--                 result_int <= a xor b;
+--                 result_ext <= '0' & (a xor b);
+--                 
+--             when ALU_NOT =>
+--                 result_int <= not a;
+--                 result_ext <= '0' & (not a);
+--                 
+--             when ALU_SLL =>
+--                 if ENABLE_SHIFT then
+--                     result_int <= sll_result;
+--                     result_ext <= '0' & sll_result;
+--                 end if;
+--                 
+--             when ALU_SRL =>
+--                 if ENABLE_SHIFT then
+--                     result_int <= srl_result;
+--                     result_ext <= '0' & srl_result;
+--                 end if;
+--                 
+--             when ALU_SRA =>
+--                 if ENABLE_SHIFT then
+--                     result_int <= sra_result;
+--                     result_ext <= '0' & sra_result;
+--                 end if;
+--                 
+--             when ALU_MUL =>
+--                 if ENABLE_MUL then
+--                     result_int <= mul_result(DATA_WIDTH-1 downto 0);
+--                     result_hi_int <= mul_result(2*DATA_WIDTH-1 downto DATA_WIDTH);
+--                     result_ext <= '0' & mul_result(DATA_WIDTH-1 downto 0);
+--                 end if;
+--                 
+--             when ALU_DIV =>
+--                 if ENABLE_DIV then
+--                     result_int <= div_quotient;
+--                     result_hi_int <= div_remainder;
+--                     result_ext <= '0' & div_quotient;
+--                 end if;
+--                 
+--             when ALU_CMP =>
+--                 -- Comparison: result is 1 if a < b, 0 otherwise
+--                 if unsigned(a) < unsigned(b) then
+--                     result_int <= std_logic_vector(to_unsigned(1, DATA_WIDTH));
+--                 else
+--                     result_int <= (others => '0');
+--                 end if;
+--                 result_ext <= '0' & result_int;
+--                 
+--             when ALU_ROL =>
+--                 if ENABLE_ROTATE then
+--                     result_int <= rol_result;
+--                     result_ext <= '0' & rol_result;
+--                 end if;
+--                 
+--             when ALU_ROR =>
+--                 if ENABLE_ROTATE then
+--                     result_int <= ror_result;
+--                     result_ext <= '0' & ror_result;
+--                 end if;
+--                 
+--             when ALU_PASS_A =>
+--                 result_int <= a;
+--                 result_ext <= '0' & a;
+--                 
+--             when ALU_PASS_B =>
+--                 result_int <= b;
+--                 result_ext <= '0' & b;
+--                 
+--             when others =>
+--                 result_int <= (others => '0');
+--                 result_ext <= (others => '0');
+--         end case;
+--     end process;
+--     
+--     -- Flag generation
+--     flag_generation: process(result_int, result_ext, a, b, alu_op)
+--         variable parity_calc : std_logic;
+--     begin
+--         -- Zero flag
+--         zero_int <= '1' when unsigned(result_int) = 0 else '0';
+--         
+--         -- Carry flag
+--         carry_int <= result_ext(DATA_WIDTH);
+--         
+--         -- Overflow flag (for signed arithmetic)
+--         overflow_int <= '0';
+--         if alu_op = ALU_ADD then
+--             overflow_int <= (a(DATA_WIDTH-1) and b(DATA_WIDTH-1) and not result_int(DATA_WIDTH-1)) or
+--                            (not a(DATA_WIDTH-1) and not b(DATA_WIDTH-1) and result_int(DATA_WIDTH-1));
+--         elsif alu_op = ALU_SUB then
+--             overflow_int <= (a(DATA_WIDTH-1) and not b(DATA_WIDTH-1) and not result_int(DATA_WIDTH-1)) or
+--                            (not a(DATA_WIDTH-1) and b(DATA_WIDTH-1) and result_int(DATA_WIDTH-1));
+--         end if;
+--         
+--         -- Negative flag
+--         negative_int <= result_int(DATA_WIDTH-1);
+--         
+--         -- Parity flag (even parity)
+--         parity_calc := '0';
+--         for i in 0 to DATA_WIDTH-1 loop
+--             parity_calc := parity_calc xor result_int(i);
+--         end loop;
+--         parity_int <= not parity_calc;  -- Even parity
+--     end process;
+--     
+--     -- Pipeline implementation (if enabled)
+--     pipeline_gen: if PIPELINE_STAGES > 0 generate
+--         pipeline_process: process(clk, reset)
+--         begin
+--             if reset = '1' then
+--                 for i in 0 to PIPELINE_STAGES loop
+--                     pipeline_data(i) <= (others => '0');
+--                     pipeline_valid(i) <= '0';
+--                 end loop;
+--             elsif rising_edge(clk) then
+--                 if enable = '1' then
+--                     -- Shift pipeline data
+--                     for i in PIPELINE_STAGES downto 1 loop
+--                         pipeline_data(i) <= pipeline_data(i-1);
+--                         pipeline_valid(i) <= pipeline_valid(i-1);
+--                     end loop;
+--                     
+--                     -- Insert new data
+--                     pipeline_data(0) <= result_int;
+--                     pipeline_valid(0) <= '1';
+--                 end if;
+--             end if;
+--         end process;
+--         
+--         -- Output from pipeline
+--         result <= pipeline_data(PIPELINE_STAGES);
+--         valid <= pipeline_valid(PIPELINE_STAGES);
+--         ready <= '1';  -- Always ready for new operations
+--     end generate;
+--     
+--     -- Combinational output (if no pipeline)
+--     no_pipeline_gen: if PIPELINE_STAGES = 0 generate
+--         result <= result_int when enable = '1' else (others => '0');
+--         valid <= enable;
+--         ready <= '1';
+--     end generate;
+--     
+--     -- Output assignments
+--     result_hi <= result_hi_int;
+--     zero <= zero_int when enable = '1' else '0';
+--     carry <= carry_int when enable = '1' else '0';
+--     overflow <= overflow_int when enable = '1' else '0';
+--     negative <= negative_int when enable = '1' else '0';
+--     parity <= parity_int when enable = '1' else '0';
+--     
+--     -- Combined flags output
+--     flags <= overflow_int & negative_int & zero_int & carry_int & 
+--              parity_int & "000" when enable = '1' else (others => '0');
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This ALU implementation provides a comprehensive foundation for
+-- arithmetic and logical operations in microprocessor systems. Ensure proper
+-- verification of all operations, flag generation, and timing requirements.
+-- The design can be extended with additional operations and optimizations
+-- based on specific application requirements.
+-- ============================================================================

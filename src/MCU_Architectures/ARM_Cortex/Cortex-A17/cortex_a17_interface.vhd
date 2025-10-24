@@ -1,0 +1,755 @@
+-- ============================================================================
+-- ARM CORTEX-A17 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-A17 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-A17 processors, providing high-performance mobile 
+--              processor communication, control, and peripheral integration 
+--              for advanced smartphone, tablet, and embedded computing systems.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-A17 architecture and ARMv7-A instruction set
+-- 2. Master AXI4 and AHB-Lite protocols for high-performance systems
+-- 3. Learn ARM Cortex-A17 out-of-order superscalar pipeline design
+-- 4. Implement GIC-400 (Generic Interrupt Controller)
+-- 5. Understand multicore and big.LITTLE architecture
+-- 6. Master cache coherency with CCI-400 (Cache Coherent Interconnect)
+-- 7. Learn NEON and VFPv4 coprocessor integration
+-- 8. Implement CoreSight debug and ETM trace interface
+-- 9. Understand TrustZone security technology
+-- 10. Master advanced power management and thermal control
+--
+-- ARM Cortex-A17 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7-A (32-bit)                                   │
+-- │ Pipeline        │ Out-of-order superscalar (3-way decode)            │
+-- │ Cores           │ 1-4 cores (big.LITTLE compatible)                  │
+-- │ Performance     │ 4.0 DMIPS/MHz                                      │
+-- │ Instructions    │ ARM + Thumb-2 + NEON + VFPv4                       │
+-- │ Registers       │ 15 general purpose + PC                            │
+-- │ NEON            │ Advanced SIMD (128-bit vectors)                     │
+-- │ Cache           │ L1: 32KB I + 32KB D, L2: 256KB-8MB                 │
+-- │ Interrupts      │ GIC-400 (Generic Interrupt Controller)             │
+-- │ Debug           │ CoreSight + ETM + Cross Trigger Interface           │
+-- │ Memory          │ LPAE (Large Physical Address Extension)            │
+-- │ Security        │ TrustZone technology                                │
+-- │ Frequency       │ Up to 2.8 GHz                                      │
+-- │ Process         │ 28nm-14nm                                           │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-A17 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-A17    │    │     GIC-400     │    │   CoreSight     │
+-- │   Processor     │◀──▶│   (Generic      │◀──▶│   Debug         │
+-- │   Core(s)       │    │   Interrupt     │    │   Infrastructure│
+-- └─────────────────┘    │   Controller)   │    └─────────────────┘
+--          │              └─────────────────┘             │
+--          ▼                       │                      ▼
+-- ┌─────────────────┐              ▼              ┌─────────────────┐
+-- │   CCI-400       │    ┌─────────────────┐     │   ETM + CTI     │
+-- │   Cache         │    │   TrustZone     │     │   Trace         │
+-- │   Coherent      │    │   Security      │     │   Interface     │
+-- │   Interconnect  │    └─────────────────┘     └─────────────────┘
+-- └─────────────────┘              │                      │
+--          │                       ▼                      ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   AXI4 Bus      │    │   NEON + VFPv4  │    │   JTAG + SWD    │
+-- │   Interface     │    │   Coprocessor   │    │   Interface     │
+-- │   + AMBA        │    │   Unit          │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- Bus Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Bus Type        │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ AXI4            │ Master→Slave    │ AWADDR, AWVALID, AWREADY        │
+-- │ AXI4            │ Master→Slave    │ WDATA, WVALID, WREADY           │
+-- │ AXI4            │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ AXI4            │ Master→Slave    │ ARADDR, ARVALID, ARREADY        │
+-- │ AXI4            │ Slave→Master    │ RDATA, RRESP, RVALID, RREADY    │
+-- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HSIZE, HBURST    │
+-- │ System          │ Input           │ CLK, nRESET                     │
+-- │ Debug           │ Bidirectional   │ SWCLK, SWDIO, JTAG signals      │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-A17 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 2GB             │ Normal memory region            │
+-- │ 0x8000_0000     │ 1GB             │ Normal memory region            │
+-- │ 0xC000_0000     │ 512MB           │ Device memory region            │
+-- │ 0xE000_0000     │ 256MB           │ Device memory region            │
+-- │ 0xF000_0000     │ 128MB           │ Strongly-ordered memory         │
+-- │ 0xF800_0000     │ 64MB            │ Private memory region           │
+-- │ 0xFC00_0000     │ 32MB            │ Implementation defined          │
+-- │ 0xFE00_0000     │ 32MB            │ Implementation defined          │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv7-A Instruction Set:
+-- 1. **ARM Instructions**:
+--    - 32-bit ARM instruction set
+--    - Conditional execution
+--    - Load/store multiple
+--    - Branch and branch with link
+--    - Arithmetic and logic operations
+--    - Multiply and multiply-accumulate
+--
+-- 2. **Thumb-2 Instructions**:
+--    - 16-bit and 32-bit Thumb instructions
+--    - Improved code density
+--    - Complete instruction set
+--    - IT (If-Then) conditional blocks
+--    - Wide immediate constants
+--
+-- 3. **NEON Instructions**:
+--    - Advanced SIMD operations
+--    - 128-bit vector operations
+--    - Integer and floating-point SIMD
+--    - Load/store multiple vectors
+--    - Vector arithmetic and logic
+--
+-- Out-of-Order Superscalar Pipeline:
+-- 1. **Fetch Stage**:
+--    - Instruction fetch (up to 4 instructions)
+--    - Branch prediction (3-level adaptive)
+--    - Return address stack (8 entries)
+--    - Instruction cache access
+--
+-- 2. **Decode Stage**:
+--    - Instruction decode (3-way)
+--    - Register renaming (72 physical registers)
+--    - Dependency analysis
+--    - Micro-operation generation
+--
+-- 3. **Issue Stage**:
+--    - Out-of-order issue (up to 8 instructions)
+--    - Resource allocation
+--    - Scoreboard management
+--    - Load/store queue management (16 entries)
+--
+-- 4. **Execute Stages**:
+--    - Multiple execution units
+--    - ALU operations (2 units)
+--    - Load/store unit (2 units)
+--    - Branch unit
+--    - NEON/VFP unit
+--
+-- 5. **Writeback Stage**:
+--    - Register writeback
+--    - Exception handling
+--    - Retirement (in-order, up to 3 instructions)
+--
+-- Cache System:
+-- 1. **L1 Instruction Cache**:
+--    - Size: 32KB
+--    - Associativity: 2-way
+--    - Line size: 64 bytes
+--    - Virtual index, physical tag
+--    - Parity protection
+--
+-- 2. **L1 Data Cache**:
+--    - Size: 32KB
+--    - Associativity: 2-way
+--    - Line size: 64 bytes
+--    - Write-back policy
+--    - PIPT (Physically Indexed, Physically Tagged)
+--    - Parity protection
+--
+-- 3. **L2 Unified Cache**:
+--    - Size: 256KB to 8MB
+--    - Associativity: 16-way
+--    - Line size: 64 bytes
+--    - Inclusive of L1 caches
+--    - ECC protection
+--    - Configurable replacement policy
+--
+-- GIC-400 (Generic Interrupt Controller):
+-- 1. **Interrupt Types**:
+--    - SGI (Software Generated Interrupts): 0-15
+--    - PPI (Private Peripheral Interrupts): 16-31
+--    - SPI (Shared Peripheral Interrupts): 32-1019
+--    - Special interrupts: 1020-1023
+--
+-- 2. **Features**:
+--    - Up to 480 interrupt sources
+--    - 256 priority levels
+--    - CPU interface for each core
+--    - Distributor for interrupt routing
+--    - Virtual interrupt support
+--    - Power management support
+--
+-- CCI-400 (Cache Coherent Interconnect):
+-- 1. **Coherency Features**:
+--    - Hardware cache coherency
+--    - MESI protocol implementation
+--    - Automatic cache maintenance
+--    - Coherent memory access
+--    - Snoop filtering
+--
+-- 2. **Performance Features**:
+--    - High-bandwidth interconnect
+--    - Quality of Service (QoS)
+--    - Traffic regulation
+--    - Performance monitoring
+--
+-- big.LITTLE Architecture Support:
+-- 1. **Heterogeneous Processing**:
+--    - Compatible with Cortex-A7 (LITTLE)
+--    - Task migration capability
+--    - Global Task Scheduling (GTS)
+--    - In-Kernel Switcher (IKS)
+--
+-- 2. **Power Efficiency**:
+--    - Dynamic task allocation
+--    - Performance scaling
+--    - Power-aware scheduling
+--    - Thermal management
+--
+-- NEON Advanced SIMD:
+-- 1. **Register File**:
+--    - 32 x 64-bit D registers
+--    - 16 x 128-bit Q registers
+--    - Shared with VFP registers
+--
+-- 2. **Data Types**:
+--    - 8, 16, 32, 64-bit integers
+--    - 32-bit single-precision float
+--    - Polynomial arithmetic
+--
+-- 3. **Operations**:
+--    - Arithmetic (add, subtract, multiply)
+--    - Logic (AND, OR, XOR)
+--    - Shift and rotate
+--    - Load/store multiple
+--    - Vector table lookup
+--    - Cryptographic operations
+--
+-- VFPv4 Floating-Point:
+-- 1. **Features**:
+--    - Single and double precision
+--    - 32 single or 16 double registers
+--    - IEEE 754 compliant
+--    - Fused multiply-add (FMA)
+--    - Hardware divide and square root
+--
+-- 2. **Performance**:
+--    - Single-cycle throughput
+--    - Pipelined operations
+--    - Denormal number support
+--    - Exception handling
+--    - Half-precision support
+--
+-- TrustZone Security:
+-- 1. **Secure and Non-Secure Worlds**:
+--    - Hardware-enforced separation
+--    - Secure monitor mode
+--    - World switching
+--    - Secure interrupts
+--
+-- 2. **Memory Protection**:
+--    - Secure and non-secure memory
+--    - TrustZone Address Space Controller
+--    - Secure peripheral access
+--    - Cryptographic acceleration
+--
+-- Debug and Trace:
+-- 1. **CoreSight Debug**:
+--    - Debug Access Port (DAP)
+--    - Cross Trigger Interface (CTI)
+--    - Debug and trace components
+--    - Real-time debug capability
+--
+-- 2. **Embedded Trace Macrocell (ETM)**:
+--    - Instruction trace
+--    - Data trace
+--    - Trace filtering
+--    - Trace compression
+--    - Statistical profiling
+--
+-- 3. **Debug Features**:
+--    - Hardware breakpoints (6)
+--    - Watchpoints (4)
+--    - Single-step execution
+--    - Performance monitoring
+--    - Cross-trigger support
+--
+-- Power Management:
+-- 1. **Dynamic Scaling**:
+--    - Dynamic Voltage and Frequency Scaling (DVFS)
+--    - Per-core power control
+--    - Clock gating
+--    - Power gating
+--    - Retention modes
+--
+-- 2. **Sleep States**:
+--    - WFI (Wait For Interrupt)
+--    - WFE (Wait For Event)
+--    - Dormant mode
+--    - Shutdown mode
+--    - Fast wake-up
+--
+-- 3. **Thermal Management**:
+--    - Temperature monitoring
+--    - Thermal throttling
+--    - Dynamic thermal management
+--    - Thermal zones
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ High-performance bus interface                      │
+-- │ AHB-Lite Master │ System bus interface                                │
+-- │ GIC-400         │ Generic Interrupt Controller                        │
+-- │ CCI-400         │ Cache Coherent Interconnect                         │
+-- │ L2 Cache Ctrl   │ L2 cache controller                                 │
+-- │ NEON Unit       │ Advanced SIMD coprocessor                           │
+-- │ VFPv4 Unit      │ Floating-point coprocessor                          │
+-- │ Debug Interface │ CoreSight debug and ETM trace                       │
+-- │ TrustZone       │ Security technology implementation                  │
+-- │ Power Mgmt      │ Advanced power and thermal management               │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 64-bit or 128-bit
+-- - AHB-Lite Data Width: 32-bit
+-- - Address Width: 32-bit (with LPAE extension to 40-bit)
+-- - Maximum Clock Frequency: 2.8 GHz
+-- - Interrupt Latency: 8-10 cycles
+-- - Memory Access: Single-cycle for L1 hit
+-- - Pipeline Depth: 15+ stages (out-of-order)
+-- - Cache Sizes: L1 32KB, L2 256KB-8MB
+-- - NEON Performance: 128-bit SIMD operations
+-- - Power Consumption: Advanced DVFS and thermal management
+--
+-- Implementation Approaches:
+-- 1. **High-Performance Configuration**:
+--    - Maximum cache sizes (8MB L2)
+--    - Full NEON and VFPv4 support
+--    - Advanced debug and trace
+--    - TrustZone security
+--    - CCI-400 interconnect
+--
+-- 2. **Balanced Configuration**:
+--    - Medium cache sizes (2MB L2)
+--    - Standard NEON support
+--    - Basic debug interface
+--    - Optional TrustZone
+--    - Simplified interconnect
+--
+-- 3. **Power-Optimized Configuration**:
+--    - Smaller cache sizes (512KB L2)
+--    - Power-gated units
+--    - Enhanced DVFS
+--    - Aggressive clock gating
+--    - Thermal management
+--
+-- 4. **big.LITTLE Configuration**:
+--    - Cortex-A17 + Cortex-A7 cluster
+--    - Cache coherency (CCI-400)
+--    - Task migration support
+--    - Global task scheduling
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select core configuration (single/multicore/big.LITTLE)
+-- - Define memory map and cache hierarchy
+-- - Specify bus interface requirements
+-- - Choose debug and trace features
+-- - Configure security features (TrustZone)
+--
+-- Step 2: Implement Bus Interface Logic
+-- - Create AXI4 master interface
+-- - Add AHB-Lite master interface
+-- - Implement bus arbitration
+-- - Add wait state generation
+-- - Configure memory attributes
+--
+-- Step 3: Add Cache System and CCI-400
+-- - Implement L1 instruction cache
+-- - Add L1 data cache
+-- - Create L2 unified cache controller
+-- - Add CCI-400 cache coherent interconnect
+-- - Implement cache maintenance operations
+--
+-- Step 4: Add GIC-400 (Generic Interrupt Controller)
+-- - Connect interrupt inputs (up to 480)
+-- - Implement CPU interfaces
+-- - Add distributor logic
+-- - Create priority handling
+-- - Add interrupt routing and virtualization
+--
+-- Step 5: Integrate NEON Advanced SIMD
+-- - Add NEON register file
+-- - Implement SIMD execution units
+-- - Connect to main pipeline
+-- - Add NEON instruction decode
+-- - Implement vector operations and crypto
+--
+-- Step 6: Integrate VFPv4 Floating-Point Unit
+-- - Add VFP register file
+-- - Implement floating-point units
+-- - Add IEEE 754 compliance
+-- - Connect exception handling
+-- - Implement FMA and half-precision
+--
+-- Step 7: Add Debug and Trace Interface
+-- - Implement CoreSight infrastructure
+-- - Add Debug Access Port (DAP)
+-- - Connect ETM trace interface
+-- - Add Cross Trigger Interface (CTI)
+-- - Implement breakpoints and watchpoints
+--
+-- Step 8: Implement TrustZone Security
+-- - Add secure/non-secure world support
+-- - Implement secure monitor
+-- - Add memory protection
+-- - Connect secure interrupts
+-- - Implement world switching
+--
+-- Step 9: Add Power and Thermal Management
+-- - Implement DVFS control
+-- - Add clock gating logic
+-- - Create power domains
+-- - Add thermal monitoring
+-- - Implement dynamic thermal management
+--
+-- Step 10: Add big.LITTLE Support (if applicable)
+-- - Implement cluster switching
+-- - Add task migration support
+-- - Connect inter-cluster communication
+-- - Add global task scheduling
+-- - Implement cache coherency
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.gic400_pkg: GIC-400 interface definitions
+-- - work.cci400_pkg: CCI-400 interface definitions
+-- - work.cortex_a17_pkg: Cortex-A17 specific constants
+-- - work.neon_pkg: NEON SIMD functions
+-- - work.vfpv4_pkg: VFPv4 floating-point functions
+-- - work.coresight_pkg: CoreSight debug functions
+-- - work.trustzone_pkg: TrustZone security functions
+-- - work.cache_pkg: Cache system functions
+-- - work.power_pkg: Power management functions
+-- - work.thermal_pkg: Thermal management functions
+-- - work.biglittle_pkg: big.LITTLE functions
+-- - work.armv7a_pkg: ARMv7-A architecture functions
+--
+-- Advanced Features:
+-- 1. **Out-of-Order Execution**: Advanced superscalar pipeline
+-- 2. **Cache Coherency**: Hardware-managed coherency with CCI-400
+-- 3. **Advanced SIMD**: NEON with crypto extensions
+-- 4. **Security**: TrustZone technology integration
+-- 5. **Debug and Trace**: Comprehensive CoreSight infrastructure
+-- 6. **Power Management**: Advanced DVFS and thermal control
+-- 7. **big.LITTLE**: Heterogeneous processing support
+-- 8. **Virtualization**: Hardware virtualization support
+-- 9. **Memory Management**: LPAE for large address spaces
+-- 10. **Performance Monitoring**: Advanced PMU capabilities
+--
+-- Applications:
+-- - High-end smartphone processors
+-- - Tablet and mobile computing devices
+-- - Automotive infotainment systems
+-- - Digital TV and media processors
+-- - Network infrastructure equipment
+-- - Industrial automation controllers
+-- - Medical imaging and diagnostics
+-- - Aerospace and defense systems
+-- - High-performance embedded computing
+-- - IoT gateway and edge computing
+--
+-- Performance Considerations:
+-- - Out-of-order execution efficiency
+-- - Cache hit rates and memory hierarchy
+-- - Branch prediction accuracy (>95%)
+-- - NEON utilization for SIMD workloads
+-- - Power consumption and thermal management
+-- - big.LITTLE task migration overhead
+-- - Memory bandwidth and latency
+-- - Interrupt latency and real-time response
+--
+-- Verification Strategy:
+-- 1. **Instruction Testing**: ARMv7-A instruction set validation
+-- 2. **Bus Protocol Testing**: AXI4 and AHB-Lite compliance
+-- 3. **Cache Testing**: Cache functionality and coherency
+-- 4. **NEON Testing**: SIMD operations and crypto extensions
+-- 5. **VFP Testing**: Floating-point operations and IEEE 754
+-- 6. **Interrupt Testing**: GIC-400 functionality
+-- 7. **Debug Testing**: CoreSight and ETM validation
+-- 8. **Security Testing**: TrustZone functionality
+-- 9. **Power Testing**: DVFS and thermal management
+-- 10. **big.LITTLE Testing**: Task migration and scheduling
+-- 11. **Performance Testing**: Benchmark validation
+--
+-- Common Design Challenges:
+-- - Out-of-order pipeline complexity
+-- - CCI-400 cache coherency implementation
+-- - Power and thermal management complexity
+-- - Debug interface timing at high frequencies
+-- - NEON and VFP integration
+-- - TrustZone security implementation
+-- - big.LITTLE task migration
+-- - Memory consistency models
+-- - Thermal throttling algorithms
+-- - Real-time determinism vs. performance
+--
+-- Verification Checklist:
+-- □ AXI4 and AHB-Lite interfaces functional
+-- □ Cache system operational and coherent
+-- □ CCI-400 interconnect working
+-- □ GIC-400 interrupt handling working
+-- □ NEON SIMD operations validated
+-- □ VFPv4 floating-point operations working
+-- □ Debug interface (CoreSight/ETM) operational
+-- □ TrustZone security functional
+-- □ Power and thermal management working
+-- □ big.LITTLE support validated (if applicable)
+-- □ Performance targets achieved
+-- □ Exception handling validated
+-- □ Memory management working
+-- □ Branch prediction optimized
+-- □ Pipeline efficiency validated
+-- □ Thermal characteristics acceptable
+-- □ System integration validated
+-- □ Long-term reliability demonstrated
+-- □ Compliance with ARM specifications
+-- □ Security vulnerabilities assessed
+-- □ Power consumption within limits
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.gic400_pkg.all;
+-- use work.cci400_pkg.all;
+-- use work.cortex_a17_pkg.all;
+-- use work.neon_pkg.all;
+-- use work.vfpv4_pkg.all;
+-- use work.coresight_pkg.all;
+-- use work.trustzone_pkg.all;
+-- use work.cache_pkg.all;
+-- use work.power_pkg.all;
+-- use work.thermal_pkg.all;
+-- use work.biglittle_pkg.all;
+-- use work.armv7a_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_a17_interface is
+--     generic (
+--         NUM_CORES       : integer := 1;           -- 1-4 cores
+--         ENABLE_NEON     : boolean := true;        -- NEON Advanced SIMD
+--         ENABLE_CRYPTO   : boolean := true;        -- Crypto extensions
+--         ENABLE_VFP      : boolean := true;        -- VFPv4 floating-point
+--         ENABLE_TRUSTZONE: boolean := true;        -- TrustZone security
+--         L1_ICACHE_SIZE  : integer := 32768;       -- L1 I-Cache size (32KB)
+--         L1_DCACHE_SIZE  : integer := 32768;       -- L1 D-Cache size (32KB)
+--         L2_CACHE_SIZE   : integer := 2097152;     -- L2 Cache size (2MB)
+--         ENABLE_L2_ECC   : boolean := true;        -- L2 ECC protection
+--         ENABLE_CCI400   : boolean := true;        -- CCI-400 interconnect
+--         NUM_INTERRUPTS  : integer := 480;         -- GIC-400 interrupts
+--         ENABLE_DEBUG    : boolean := true;        -- Debug interface
+--         ENABLE_ETM      : boolean := true;        -- ETM trace
+--         AXI_DATA_WIDTH  : integer := 64;          -- 64-bit AXI4
+--         AXI_ADDR_WIDTH  : integer := 32;          -- 32-bit address
+--         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit AHB-Lite
+--         CLOCK_FREQ      : integer := 2400000000;  -- 2.4 GHz
+--         ENABLE_LPAE     : boolean := true;        -- Large Physical Address
+--         ENABLE_BIGLIT   : boolean := false;       -- big.LITTLE support
+--         ENABLE_THERMAL  : boolean := true         -- Thermal management
+--     );
+--     port (
+--         -- System signals
+--         clk             : in  std_logic;
+--         nreset          : in  std_logic;
+--         
+--         -- AXI4 Master interface
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awqos     : out std_logic_vector(3 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arqos     : out std_logic_vector(3 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AHB-Lite Master interface
+--         haddr           : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         htrans          : out std_logic_vector(1 downto 0);
+--         hwrite          : out std_logic;
+--         hsize           : out std_logic_vector(2 downto 0);
+--         hburst          : out std_logic_vector(2 downto 0);
+--         hprot           : out std_logic_vector(3 downto 0);
+--         hwdata          : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hrdata          : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hready          : in  std_logic;
+--         hresp           : in  std_logic;
+--         
+--         -- GIC-400 (Generic Interrupt Controller)
+--         gic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_fiq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_cpu_if      : out std_logic_vector(NUM_CORES*32-1 downto 0);
+--         gic_dist_if     : out std_logic_vector(31 downto 0);
+--         gic_virt_if     : out std_logic_vector(NUM_CORES*32-1 downto 0);
+--         
+--         -- CCI-400 Cache Coherent Interconnect (if enabled)
+--         cci_enable      : in  std_logic;
+--         cci_coherent    : out std_logic_vector(NUM_CORES-1 downto 0);
+--         cci_snoop       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         cci_qos         : in  std_logic_vector(NUM_CORES*4-1 downto 0);
+--         
+--         -- NEON Advanced SIMD (if enabled)
+--         neon_enable     : in  std_logic;
+--         neon_exception  : out std_logic;
+--         neon_status     : out std_logic_vector(31 downto 0);
+--         neon_crypto_en  : in  std_logic;
+--         
+--         -- VFPv4 Floating-Point (if enabled)
+--         vfp_enable      : in  std_logic;
+--         vfp_exception   : out std_logic;
+--         vfp_status      : out std_logic_vector(31 downto 0);
+--         vfp_half_prec   : in  std_logic;
+--         
+--         -- Debug interface
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         jtag_trst_n     : in  std_logic;
+--         
+--         -- ETM Trace interface (if enabled)
+--         etm_traceclk    : in  std_logic;
+--         etm_tracedata   : out std_logic_vector(31 downto 0);
+--         etm_tracectl    : out std_logic_vector(7 downto 0);
+--         etm_trigger     : out std_logic;
+--         
+--         -- Cross Trigger Interface (CTI)
+--         cti_trigin      : in  std_logic_vector(7 downto 0);
+--         cti_trigout     : out std_logic_vector(7 downto 0);
+--         
+--         -- TrustZone interface (if enabled)
+--         tz_secure       : in  std_logic;
+--         tz_nonsecure    : in  std_logic;
+--         tz_monitor      : out std_logic;
+--         tz_world        : out std_logic;
+--         tz_secure_irq   : in  std_logic;
+--         
+--         -- Power management
+--         pm_standbywfi   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_standbywfe   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_pmuirq       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_commirq      : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_eventi       : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_evento       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_dvfs_req     : out std_logic_vector(NUM_CORES*8-1 downto 0);
+--         pm_dvfs_ack     : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Thermal management (if enabled)
+--         thermal_sensor  : in  std_logic_vector(11 downto 0);
+--         thermal_alarm   : out std_logic;
+--         thermal_throttle: out std_logic_vector(NUM_CORES-1 downto 0);
+--         thermal_shutdown: out std_logic;
+--         
+--         -- Cache control
+--         cache_l1_enable : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         cache_l2_enable : in  std_logic;
+--         cache_invalidate: in  std_logic;
+--         cache_clean     : in  std_logic;
+--         cache_l2_ecc_err: out std_logic;
+--         
+--         -- big.LITTLE interface (if enabled)
+--         bl_cluster_id   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         bl_cpu_id       : out std_logic_vector(NUM_CORES*2-1 downto 0);
+--         bl_migration_req: in  std_logic_vector(NUM_CORES-1 downto 0);
+--         bl_migration_ack: out std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Status and control
+--         cpu_state       : out std_logic_vector(NUM_CORES*4-1 downto 0);
+--         exception_entry : out std_logic_vector(NUM_CORES-1 downto 0);
+--         exception_return: out std_logic_vector(NUM_CORES-1 downto 0);
+--         cpu_frequency   : out std_logic_vector(NUM_CORES*32-1 downto 0);
+--         
+--         -- Performance monitoring
+--         pmu_enable      : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         pmu_counters    : out std_logic_vector(NUM_CORES*32*6-1 downto 0);
+--         pmu_overflow    : out std_logic_vector(NUM_CORES*6-1 downto 0);
+--         pmu_cycle_count : out std_logic_vector(NUM_CORES*64-1 downto 0)
+--     );
+-- end entity cortex_a17_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_a17_interface is
+--     -- Component declarations for Cortex-A17 cores
+--     -- Component declarations for GIC-400, CCI-400, L2 cache
+--     -- Component declarations for NEON, VFPv4, debug interface
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Generate multiple cores if NUM_CORES > 1
+--     -- Instantiate GIC-400 (Generic Interrupt Controller)
+--     -- Instantiate CCI-400 (Cache Coherent Interconnect) if enabled
+--     -- Instantiate L2 cache controller with ECC
+--     -- Add NEON Advanced SIMD with crypto extensions (if enabled)
+--     -- Add VFPv4 floating-point unit with half-precision (if enabled)
+--     -- Add debug interface and ETM trace (if enabled)
+--     -- Implement TrustZone security (if enabled)
+--     -- Add power and thermal management logic
+--     -- Connect big.LITTLE support (if enabled)
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-A17 interface design focuses on high-performance mobile 
+-- applications with advanced features like out-of-order execution, CCI-400 
+-- cache coherency, NEON crypto extensions, and big.LITTLE support. Always 
+-- consult the ARM Cortex-A17 Technical Reference Manual and ARMv7-A 
+-- Architecture Manual for detailed specifications.
+-- ============================================================================

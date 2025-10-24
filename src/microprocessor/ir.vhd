@@ -1,0 +1,557 @@
+-- ============================================================================
+-- Microprocessor Instruction Register (IR) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the Instruction Register (IR) for a microprocessor system
+-- that stores the current instruction being executed. The IR is a critical
+-- component that holds the instruction fetched from memory and provides the
+-- instruction fields to the control unit and datapath for decoding and execution.
+-- This implementation focuses on efficient instruction storage, field extraction,
+-- and integration with the fetch-decode-execute cycle.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand instruction register design and functionality
+-- 2. Learn instruction format and field extraction techniques
+-- 3. Practice synchronous register design with enable control
+-- 4. Understand instruction pipeline integration
+-- 5. Learn instruction decoding support and optimization
+-- 6. Practice modular processor component design
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for instruction format definitions
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.microprocessor_pkg.all for instruction formats
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor instruction register
+--
+-- Entity Requirements:
+-- - Name: ir (maintain current naming convention)
+-- - System control inputs (clock, reset, enable)
+-- - Instruction input from memory/cache
+-- - Instruction field outputs for decoding
+-- - Pipeline control and status signals
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (IR load enable)
+-- - stall : in std_logic (Pipeline stall control)
+-- - flush : in std_logic (Pipeline flush control)
+--
+-- Instruction Interface:
+-- - instruction_in : in std_logic_vector(INSTRUCTION_WIDTH-1 downto 0) (Instruction from memory)
+-- - instruction_out : out std_logic_vector(INSTRUCTION_WIDTH-1 downto 0) (Current instruction)
+-- - instruction_valid : out std_logic (Instruction validity flag)
+--
+-- Instruction Field Outputs (for common RISC architectures):
+-- - opcode : out std_logic_vector(OPCODE_WIDTH-1 downto 0) (Operation code)
+-- - rs : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Source register 1)
+-- - rt : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Source register 2)
+-- - rd : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Destination register)
+-- - shamt : out std_logic_vector(SHAMT_WIDTH-1 downto 0) (Shift amount)
+-- - funct : out std_logic_vector(FUNCT_WIDTH-1 downto 0) (Function code)
+-- - immediate : out std_logic_vector(IMMEDIATE_WIDTH-1 downto 0) (Immediate value)
+-- - jump_addr : out std_logic_vector(JUMP_ADDR_WIDTH-1 downto 0) (Jump address)
+--
+-- Instruction Type Identification:
+-- - is_r_type : out std_logic (R-type instruction flag)
+-- - is_i_type : out std_logic (I-type instruction flag)
+-- - is_j_type : out std_logic (J-type instruction flag)
+-- - is_branch : out std_logic (Branch instruction flag)
+-- - is_jump : out std_logic (Jump instruction flag)
+-- - is_load : out std_logic (Load instruction flag)
+-- - is_store : out std_logic (Store instruction flag)
+--
+-- Pipeline Interface:
+-- - pc_current : in std_logic_vector(PC_WIDTH-1 downto 0) (Current PC value)
+-- - pc_out : out std_logic_vector(PC_WIDTH-1 downto 0) (PC associated with instruction)
+-- - exception : out std_logic (Instruction exception flag)
+-- - illegal_instruction : out std_logic (Illegal instruction flag)
+--
+-- Debug Interface:
+-- - ir_state : out std_logic_vector(STATE_WIDTH-1 downto 0) (IR state information)
+-- - instruction_count : out std_logic_vector(31 downto 0) (Instruction counter)
+--
+-- ============================================================================
+-- STEP 3: INSTRUCTION REGISTER PRINCIPLES
+-- ============================================================================
+--
+-- Instruction Register Fundamentals:
+-- 1. Instruction Storage
+--    - Synchronous instruction loading from memory
+--    - Instruction holding during execution
+--    - Pipeline stage coordination
+--    - Instruction validity tracking
+--
+-- 2. Instruction Field Extraction
+--    - Opcode field identification and routing
+--    - Register address field extraction
+--    - Immediate value field processing
+--    - Function code and modifier extraction
+--
+-- 3. Instruction Type Detection
+--    - R-type instruction identification
+--    - I-type instruction recognition
+--    - J-type instruction detection
+--    - Special instruction type handling
+--
+-- 4. Pipeline Integration
+--    - Pipeline stall and flush handling
+--    - Instruction validity propagation
+--    - Exception and error detection
+--    - Performance counter integration
+--
+-- Instruction Format Support:
+-- 1. R-Type Instructions (Register-Register)
+--    - Format: [opcode][rs][rt][rd][shamt][funct]
+--    - Arithmetic and logic operations
+--    - Register-to-register data movement
+--    - Shift and rotate operations
+--
+-- 2. I-Type Instructions (Immediate)
+--    - Format: [opcode][rs][rt][immediate]
+--    - Arithmetic with immediate values
+--    - Load and store operations
+--    - Branch instructions
+--
+-- 3. J-Type Instructions (Jump)
+--    - Format: [opcode][jump_address]
+--    - Unconditional jump operations
+--    - Jump and link operations
+--    - Long-distance control transfer
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Instruction Register (Recommended for beginners)
+-- - Basic instruction storage and field extraction
+-- - Simple enable and reset control
+-- - Direct field output assignment
+-- - Suitable for single-cycle processors
+--
+-- OPTION 2: Pipeline-Aware Instruction Register (Intermediate)
+-- - Pipeline stall and flush support
+-- - Instruction validity tracking
+-- - Exception detection and handling
+-- - Multi-cycle processor integration
+--
+-- OPTION 3: Advanced Instruction Register (Advanced)
+-- - Instruction type pre-decoding
+-- - Performance counter integration
+-- - Branch prediction support
+-- - Superscalar processor compatibility
+--
+-- OPTION 4: Configurable Instruction Register (Expert)
+-- - Multiple instruction format support
+-- - Dynamic instruction width handling
+-- - Compressed instruction expansion
+-- - Custom instruction set extensions
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Instruction Storage Design:
+-- - Register width and instruction format support
+-- - Clock enable and power optimization
+-- - Reset behavior and initialization
+-- - Pipeline timing and setup/hold requirements
+--
+-- Field Extraction Optimization:
+-- - Combinational logic for field assignment
+-- - Critical path minimization
+-- - Fan-out optimization for multiple consumers
+-- - Instruction decode acceleration
+--
+-- Pipeline Integration:
+-- - Stall and flush signal handling
+-- - Instruction validity propagation
+-- - Exception detection and reporting
+-- - Performance monitoring integration
+--
+-- Error Detection and Handling:
+-- - Illegal instruction detection
+-- - Instruction format validation
+-- - Exception generation and reporting
+-- - Debug and trace support
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Instruction Pre-Decoding:
+-- - Instruction type identification
+-- - Branch target pre-calculation
+-- - Register dependency detection
+-- - Hazard prediction support
+--
+-- Performance Monitoring:
+-- - Instruction execution counting
+-- - Instruction type statistics
+-- - Pipeline efficiency metrics
+-- - Branch prediction accuracy
+--
+-- Debug and Trace Support:
+-- - Instruction trace generation
+-- - Breakpoint support integration
+-- - Single-step execution control
+-- - Register state monitoring
+--
+-- Power Optimization:
+-- - Clock gating for unused fields
+-- - Dynamic power management
+-- - Instruction cache coordination
+-- - Low-power mode support
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU instruction register implementation
+-- 2. Microcontroller Systems: Embedded processor instruction storage
+-- 3. Digital Signal Processing: DSP instruction register design
+-- 4. FPGA Soft Processors: Configurable instruction register
+-- 5. System-on-Chip: Integrated processor instruction handling
+-- 6. Educational Projects: Computer architecture learning
+-- 7. Custom Processors: Application-specific instruction formats
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Functional Testing: All instruction formats and field extraction
+-- 2. Timing Testing: Setup, hold, and propagation delay verification
+-- 3. Pipeline Testing: Stall, flush, and validity signal validation
+-- 4. Exception Testing: Illegal instruction and error detection
+-- 5. Performance Testing: Critical path and frequency analysis
+-- 6. Integration Testing: IR with fetch unit and control unit
+-- 7. Regression Testing: Design change impact verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic instruction storage register
+-- 2. Implement instruction field extraction logic
+-- 3. Add instruction type detection and classification
+-- 4. Implement pipeline control (stall, flush, enable)
+-- 5. Add instruction validity and exception detection
+-- 6. Implement performance counters and debug features
+-- 7. Optimize critical paths and timing
+-- 8. Add advanced features as needed
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement compressed instruction format support
+-- 2. Add instruction cache interface and prefetch
+-- 3. Implement branch prediction integration
+-- 4. Add instruction trace and debug capabilities
+-- 5. Implement multi-threading instruction context
+-- 6. Add custom instruction set extensions
+-- 7. Implement instruction fusion and macro-op support
+-- 8. Add security features and privilege checking
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incorrect instruction field bit assignments
+-- 2. Missing pipeline control signal handling
+-- 3. Improper reset and initialization behavior
+-- 4. Inadequate instruction validity tracking
+-- 5. Poor critical path optimization
+-- 6. Missing illegal instruction detection
+-- 7. Incorrect instruction type classification
+-- 8. Insufficient test coverage for all instruction formats
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Instruction storage and loading correctly implemented
+-- □ All instruction fields properly extracted
+-- □ Instruction type detection working accurately
+-- □ Pipeline control signals handled correctly
+-- □ Instruction validity tracking functional
+-- □ Exception detection and reporting working
+-- □ Critical path timing requirements met
+-- □ Integration with other processor components verified
+-- □ Test coverage comprehensive for all scenarios
+-- □ Performance requirements satisfied
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This instruction register implementation demonstrates several key concepts:
+-- - Synchronous register design with control signals
+-- - Combinational logic for field extraction
+-- - Pipeline integration and control
+-- - Error detection and exception handling
+-- - System-level timing and coordination
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider register placement for optimal routing
+-- - Plan for signal fan-out and buffering
+-- - Account for power consumption optimization
+-- - Consider testability and scan chain insertion
+-- - Plan for manufacturing test coverage
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Dynamic instruction format adaptation
+-- - Instruction compression and decompression
+-- - Multi-issue instruction handling
+-- - Speculative instruction processing
+-- - Instruction-level parallelism support
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive instruction test vectors
+-- - Verify pipeline control scenarios
+-- - Test exception detection and handling
+-- - Validate instruction field extraction
+-- - Check performance metrics and timing
+-- - Verify power consumption characteristics
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity ir is
+--     generic (
+--         INSTRUCTION_WIDTH : integer := 32;                  -- Instruction width
+--         PC_WIDTH         : integer := 32;                  -- Program counter width
+--         OPCODE_WIDTH     : integer := 6;                   -- Opcode field width
+--         REG_ADDR_WIDTH   : integer := 5;                   -- Register address width
+--         SHAMT_WIDTH      : integer := 5;                   -- Shift amount width
+--         FUNCT_WIDTH      : integer := 6;                   -- Function code width
+--         IMMEDIATE_WIDTH  : integer := 16;                  -- Immediate field width
+--         JUMP_ADDR_WIDTH  : integer := 26;                  -- Jump address width
+--         ENABLE_PREDECODE : boolean := true;                -- Enable instruction pre-decode
+--         ENABLE_COUNTERS  : boolean := true;                -- Enable performance counters
+--         ENABLE_DEBUG     : boolean := true                 -- Enable debug features
+--     );
+--     port (
+--         -- System Interface
+--         clk                : in  std_logic;
+--         reset              : in  std_logic;
+--         enable             : in  std_logic;
+--         stall              : in  std_logic;
+--         flush              : in  std_logic;
+--         
+--         -- Instruction Interface
+--         instruction_in     : in  std_logic_vector(INSTRUCTION_WIDTH-1 downto 0);
+--         instruction_out    : out std_logic_vector(INSTRUCTION_WIDTH-1 downto 0);
+--         instruction_valid  : out std_logic;
+--         
+--         -- Instruction Field Outputs
+--         opcode             : out std_logic_vector(OPCODE_WIDTH-1 downto 0);
+--         rs                 : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         rt                 : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         rd                 : out std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         shamt              : out std_logic_vector(SHAMT_WIDTH-1 downto 0);
+--         funct              : out std_logic_vector(FUNCT_WIDTH-1 downto 0);
+--         immediate          : out std_logic_vector(IMMEDIATE_WIDTH-1 downto 0);
+--         jump_addr          : out std_logic_vector(JUMP_ADDR_WIDTH-1 downto 0);
+--         
+--         -- Instruction Type Outputs
+--         is_r_type          : out std_logic;
+--         is_i_type          : out std_logic;
+--         is_j_type          : out std_logic;
+--         is_branch          : out std_logic;
+--         is_jump            : out std_logic;
+--         is_load            : out std_logic;
+--         is_store           : out std_logic;
+--         
+--         -- Pipeline Interface
+--         pc_current         : in  std_logic_vector(PC_WIDTH-1 downto 0);
+--         pc_out             : out std_logic_vector(PC_WIDTH-1 downto 0);
+--         exception          : out std_logic;
+--         illegal_instruction : out std_logic;
+--         
+--         -- Debug Interface
+--         ir_state           : out std_logic_vector(7 downto 0);
+--         instruction_count  : out std_logic_vector(31 downto 0)
+--     );
+-- end entity ir;
+--
+-- architecture behavioral of ir is
+--     -- Internal signals
+--     signal instruction_reg : std_logic_vector(INSTRUCTION_WIDTH-1 downto 0);
+--     signal pc_reg : std_logic_vector(PC_WIDTH-1 downto 0);
+--     signal valid_reg : std_logic;
+--     signal instr_count_reg : unsigned(31 downto 0);
+--     
+--     -- Instruction field signals
+--     signal opcode_internal : std_logic_vector(OPCODE_WIDTH-1 downto 0);
+--     signal rs_internal : std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--     signal rt_internal : std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--     signal rd_internal : std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--     signal shamt_internal : std_logic_vector(SHAMT_WIDTH-1 downto 0);
+--     signal funct_internal : std_logic_vector(FUNCT_WIDTH-1 downto 0);
+--     signal immediate_internal : std_logic_vector(IMMEDIATE_WIDTH-1 downto 0);
+--     signal jump_addr_internal : std_logic_vector(JUMP_ADDR_WIDTH-1 downto 0);
+--     
+--     -- Instruction type detection signals
+--     signal r_type_detected : std_logic;
+--     signal i_type_detected : std_logic;
+--     signal j_type_detected : std_logic;
+--     signal branch_detected : std_logic;
+--     signal jump_detected : std_logic;
+--     signal load_detected : std_logic;
+--     signal store_detected : std_logic;
+--     signal illegal_detected : std_logic;
+--     
+-- begin
+--     -- Main instruction register process
+--     ir_register_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             instruction_reg <= (others => '0');
+--             pc_reg <= (others => '0');
+--             valid_reg <= '0';
+--             instr_count_reg <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if flush = '1' then
+--                 -- Pipeline flush - invalidate current instruction
+--                 valid_reg <= '0';
+--                 instruction_reg <= (others => '0');
+--             elsif stall = '0' and enable = '1' then
+--                 -- Normal operation - load new instruction
+--                 instruction_reg <= instruction_in;
+--                 pc_reg <= pc_current;
+--                 valid_reg <= '1';
+--                 
+--                 -- Increment instruction counter
+--                 if ENABLE_COUNTERS then
+--                     instr_count_reg <= instr_count_reg + 1;
+--                 end if;
+--             end if;
+--             -- If stall = '1', maintain current values
+--         end if;
+--     end process;
+--     
+--     -- Instruction field extraction
+--     opcode_internal <= instruction_reg(INSTRUCTION_WIDTH-1 downto INSTRUCTION_WIDTH-OPCODE_WIDTH);
+--     rs_internal <= instruction_reg(25 downto 21);  -- Standard MIPS format
+--     rt_internal <= instruction_reg(20 downto 16);
+--     rd_internal <= instruction_reg(15 downto 11);
+--     shamt_internal <= instruction_reg(10 downto 6);
+--     funct_internal <= instruction_reg(FUNCT_WIDTH-1 downto 0);
+--     immediate_internal <= instruction_reg(IMMEDIATE_WIDTH-1 downto 0);
+--     jump_addr_internal <= instruction_reg(JUMP_ADDR_WIDTH-1 downto 0);
+--     
+--     -- Instruction type detection (if enabled)
+--     instruction_decode_gen: if ENABLE_PREDECODE generate
+--         instruction_type_proc: process(opcode_internal, funct_internal)
+--         begin
+--             -- Default values
+--             r_type_detected <= '0';
+--             i_type_detected <= '0';
+--             j_type_detected <= '0';
+--             branch_detected <= '0';
+--             jump_detected <= '0';
+--             load_detected <= '0';
+--             store_detected <= '0';
+--             illegal_detected <= '0';
+--             
+--             case opcode_internal is
+--                 when "000000" =>  -- R-type instructions
+--                     r_type_detected <= '1';
+--                     case funct_internal is
+--                         when "001000" =>  -- JR
+--                             jump_detected <= '1';
+--                         when "100000" | "100001" | "100010" | "100011" |  -- ADD, ADDU, SUB, SUBU
+--                              "100100" | "100101" | "100110" | "100111" |  -- AND, OR, XOR, NOR
+--                              "000000" | "000010" | "000011" =>            -- SLL, SRL, SRA
+--                             -- Normal R-type arithmetic/logic
+--                         when others =>
+--                             illegal_detected <= '1';
+--                     end case;
+--                     
+--                 when "000010" | "000011" =>  -- J, JAL
+--                     j_type_detected <= '1';
+--                     jump_detected <= '1';
+--                     
+--                 when "000100" | "000101" | "000110" | "000111" =>  -- BEQ, BNE, BLEZ, BGTZ
+--                     i_type_detected <= '1';
+--                     branch_detected <= '1';
+--                     
+--                 when "100000" | "100001" | "100011" | "100100" | "100101" =>  -- LB, LH, LW, LBU, LHU
+--                     i_type_detected <= '1';
+--                     load_detected <= '1';
+--                     
+--                 when "101000" | "101001" | "101011" =>  -- SB, SH, SW
+--                     i_type_detected <= '1';
+--                     store_detected <= '1';
+--                     
+--                 when "001000" | "001001" | "001100" | "001101" | "001110" =>  -- ADDI, ADDIU, ANDI, ORI, XORI
+--                     i_type_detected <= '1';
+--                     
+--                 when others =>
+--                     illegal_detected <= '1';
+--             end case;
+--         end process;
+--     end generate;
+--     
+--     -- Output assignments
+--     instruction_out <= instruction_reg;
+--     instruction_valid <= valid_reg;
+--     
+--     opcode <= opcode_internal;
+--     rs <= rs_internal;
+--     rt <= rt_internal;
+--     rd <= rd_internal;
+--     shamt <= shamt_internal;
+--     funct <= funct_internal;
+--     immediate <= immediate_internal;
+--     jump_addr <= jump_addr_internal;
+--     
+--     is_r_type <= r_type_detected when ENABLE_PREDECODE else '0';
+--     is_i_type <= i_type_detected when ENABLE_PREDECODE else '0';
+--     is_j_type <= j_type_detected when ENABLE_PREDECODE else '0';
+--     is_branch <= branch_detected when ENABLE_PREDECODE else '0';
+--     is_jump <= jump_detected when ENABLE_PREDECODE else '0';
+--     is_load <= load_detected when ENABLE_PREDECODE else '0';
+--     is_store <= store_detected when ENABLE_PREDECODE else '0';
+--     
+--     pc_out <= pc_reg;
+--     exception <= '0';  -- Can be extended for exception detection
+--     illegal_instruction <= illegal_detected when ENABLE_PREDECODE else '0';
+--     
+--     -- Debug outputs
+--     ir_state <= valid_reg & flush & stall & enable & r_type_detected & i_type_detected & j_type_detected & illegal_detected;
+--     instruction_count <= std_logic_vector(instr_count_reg) when ENABLE_COUNTERS else (others => '0');
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This instruction register implementation provides comprehensive
+-- instruction storage and field extraction with pipeline support. Ensure
+-- proper timing analysis and consider the specific instruction set architecture
+-- requirements for your processor design.
+-- ============================================================================

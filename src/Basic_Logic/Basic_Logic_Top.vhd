@@ -1,139 +1,544 @@
-library ieee;
-use ieee.std_logic_1164.all;
-
-entity Basic_Logic_Top is
-    port (
-        -- Inputs
-        A, B : in  std_logic;
-        
-        -- Basic Logic Gate Outputs
-        and_out    : out std_logic;
-        or_out     : out std_logic;
-        nand_out   : out std_logic;
-        nor_out    : out std_logic;
-        xor_out    : out std_logic;
-        xnor_out   : out std_logic;
-        inv_out    : out std_logic;
-        
-        -- Additional control signals if needed
-        driver_in  : in  std_logic;
-        driver_out : out std_logic
-    );
-end entity Basic_Logic_Top;
-
-architecture Structural of Basic_Logic_Top is
-    -- Component declarations
-    component AND_gate is
-        port (
-            x, y : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component OR_gate is
-        port (
-            x, y : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component NAND_gate is
-        port (
-            x, y : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component NOR_gate is
-        port (
-            x, y : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component XOR_gate is
-        port (
-            x, y : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component XNOR_L is  -- Note: Using actual entity name from file
-        port (
-            x, y : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component Inverter is
-        port (
-            x    : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-    
-    component Driver is
-        port (
-            x    : in  std_logic;
-            f    : out std_logic
-        );
-    end component;
-
-
-begin
-    -- Component instantiations
-    AND_inst: AND_gate
-        port map (
-            x => A,
-            y => B,
-            f => and_out
-        );
-        
-    OR_inst: OR_gate
-        port map (
-            x => A,
-            y => B,
-            f => or_out
-        );
-        
-    NAND_inst: NAND_gate
-        port map (
-            x => A,
-            y => B,
-            f => nand_out
-        );
-        
-    NOR_inst: NOR_gate
-        port map (
-            x => A,
-            y => B,
-            f => nor_out
-        );
-        
-    XOR_inst: XOR_gate
-        port map (
-            x => A,
-            y => B,
-            f => xor_out
-        );
-        
-    XNOR_inst: XNOR_L
-        port map (
-            x => A,
-            y => B,
-            f => xnor_out
-        );
-        
-    INV_inst: Inverter
-        port map (
-            x => A,
-            f => inv_out
-        );
-        
-    DRV_inst: Driver
-        port map (
-            x => driver_in,
-            f => driver_out
-        );
-
-end architecture Structural;
+-- ============================================================================
+-- Basic Logic Top-Level Module Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a top-level module that integrates and demonstrates
+-- all basic logic gates and circuits in a single design. It serves as a
+-- comprehensive example of structural VHDL design, component instantiation,
+-- and hierarchical design methodology. This module connects multiple basic
+-- logic components to create a complete digital logic demonstration system.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand structural VHDL design methodology
+-- 2. Learn component instantiation and port mapping
+-- 3. Practice hierarchical design principles
+-- 4. Explore system-level integration techniques
+-- 5. Understand top-level module design patterns
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - Additional packages for advanced functionality (optional)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (for advanced implementations)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ----------------------------------------------------------------------------
+-- The entity defines the top-level interface for basic logic demonstration
+--
+-- Entity Requirements:
+-- - Name: Basic_Logic_Top (maintain current naming convention)
+-- - Inputs: Common input signals for all logic gates
+-- - Outputs: Individual outputs for each logic gate type
+-- - Additional control signals for advanced functionality
+-- - Consider expansion for multiplexers and decoders
+--
+-- Port Specifications:
+-- Basic Inputs:
+-- - A, B : in std_logic (Primary input signals for 2-input gates)
+-- - C, D : in std_logic (Additional inputs for 4-input demonstrations)
+-- - Enable : in std_logic (Global enable signal)
+-- - Reset : in std_logic (System reset signal)
+--
+-- Basic Logic Gate Outputs:
+-- - and_out : out std_logic (AND gate output)
+-- - or_out : out std_logic (OR gate output)
+-- - nand_out : out std_logic (NAND gate output)
+-- - nor_out : out std_logic (NOR gate output)
+-- - xor_out : out std_logic (XOR gate output)
+-- - xnor_out : out std_logic (XNOR gate output)
+-- - not_out : out std_logic (NOT gate output)
+-- - inv_out : out std_logic (Inverter output)
+-- - driver_out : out std_logic (Driver/Buffer output)
+--
+-- Multiplexer and Decoder Signals:
+-- - mux_sel : in std_logic_vector(1 downto 0) (Multiplexer select)
+-- - mux_2to1_out : out std_logic (2-to-1 MUX output)
+-- - mux_4to1_out : out std_logic (4-to-1 MUX output)
+-- - decoder_in : in std_logic_vector(1 downto 0) (Decoder input)
+-- - decoder_out : out std_logic_vector(3 downto 0) (2-to-4 decoder output)
+--
+-- Adder Signals:
+-- - carry_in : in std_logic (Carry input for adders)
+-- - half_sum : out std_logic (Half adder sum output)
+-- - half_carry : out std_logic (Half adder carry output)
+-- - full_sum : out std_logic (Full adder sum output)
+-- - full_carry : out std_logic (Full adder carry output)
+--
+-- TODO: Declare entity with comprehensive port map
+-- TODO: Add detailed port comments for clarity
+-- TODO: Consider signal naming conventions
+-- TODO: Plan for future expansion and modularity
+--
+-- ============================================================================
+-- STEP 3: COMPONENT DECLARATIONS
+-- ============================================================================
+-- Declare all components that will be instantiated in this top-level module
+--
+-- Required Component Declarations:
+-- 1. Basic Logic Gates (AND, OR, NAND, NOR, XOR, XNOR)
+-- 2. Inverter and Driver circuits
+-- 3. Multiplexer circuits (2-to-1, 4-to-1)
+-- 4. Decoder circuits (2-to-4)
+-- 5. Adder circuits (Half Adder, Full Adder)
+--
+-- Component Declaration Guidelines:
+-- - Match exact entity names from individual files
+-- - Use consistent port naming conventions
+-- - Include all required ports for each component
+-- - Consider generic parameters for parameterized components
+-- - Add comments explaining each component's purpose
+--
+-- Example Component Declaration Structure:
+-- component [ComponentName] is
+--     port (
+--         [input_ports] : in [signal_type];
+--         [output_ports] : out [signal_type]
+--     );
+-- end component;
+--
+-- TODO: Declare all basic logic gate components
+-- TODO: Declare multiplexer and decoder components
+-- TODO: Declare adder components
+-- TODO: Add component documentation comments
+-- TODO: Verify component names match entity names
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION
+-- ============================================================================
+-- Implement structural architecture using component instantiation
+--
+-- ARCHITECTURE STRUCTURE:
+-- - Architecture name: Structural (recommended for top-level modules)
+-- - Use component instantiation for all logic elements
+-- - Create clear signal routing and connections
+-- - Implement systematic naming conventions
+-- - Add comprehensive comments for each instantiation
+--
+-- INSTANTIATION GUIDELINES:
+-- - Use descriptive instance names (e.g., AND_inst, OR_inst)
+-- - Use explicit port mapping for clarity
+-- - Group related instantiations together
+-- - Add comments explaining signal routing
+-- - Consider signal buffering for fan-out
+--
+-- SIGNAL ROUTING STRATEGIES:
+-- - Direct connections for simple cases
+-- - Intermediate signals for complex routing
+-- - Bus connections for multi-bit signals
+-- - Consistent naming for related signals
+-- - Clear documentation of signal flow
+--
+-- TODO: Implement structural architecture
+-- TODO: Instantiate all basic logic components
+-- TODO: Create proper signal routing
+-- TODO: Add comprehensive comments
+-- TODO: Verify all port connections
+--
+-- ============================================================================
+-- SYSTEM INTEGRATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- HIERARCHICAL DESIGN PRINCIPLES:
+-- - Top-level module integrates all basic components
+-- - Each component maintains its own functionality
+-- - Clear interface definitions between levels
+-- - Modular design for easy maintenance and testing
+-- - Scalable architecture for future expansion
+--
+-- SIGNAL MANAGEMENT:
+-- - Common input signals shared across components
+-- - Individual output signals for each function
+-- - Proper signal buffering for multiple loads
+-- - Consider signal integrity and timing
+-- - Plan for test and debug access
+--
+-- RESOURCE UTILIZATION:
+-- - Efficient use of FPGA resources
+-- - Consider LUT utilization for each component
+-- - Plan for routing congestion in complex designs
+-- - Optimize for target FPGA architecture
+-- - Balance between resources and performance
+--
+-- TIMING CONSIDERATIONS:
+-- - Understand propagation delays through hierarchy
+-- - Consider critical path timing
+-- - Plan for setup and hold time requirements
+-- - Account for routing delays in large designs
+-- - Implement proper timing constraints
+--
+-- TESTABILITY FEATURES:
+-- - Provide access to all intermediate signals
+-- - Include test points for debugging
+-- - Consider scan chain integration
+-- - Plan for boundary scan testing
+-- - Implement built-in self-test features
+--
+-- ============================================================================
+-- TOP-LEVEL MODULE APPLICATIONS:
+-- ============================================================================
+--
+-- 1. EDUCATIONAL DEMONSTRATIONS:
+--    - Complete basic logic gate functionality showcase
+--    - Interactive learning platform for digital logic
+--    - Comprehensive testing environment
+--    - Visual demonstration of logic operations
+--    - Hands-on experimentation platform
+--
+-- 2. FPGA DEVELOPMENT BOARDS:
+--    - Basic logic demonstration on development boards
+--    - LED and switch interface implementations
+--    - Seven-segment display drivers
+--    - Push-button and switch input processing
+--    - Real-time logic gate visualization
+--
+-- 3. SYSTEM INTEGRATION TESTING:
+--    - Component integration verification
+--    - Interface compatibility testing
+--    - System-level functionality validation
+--    - Performance benchmarking platform
+--    - Regression testing framework
+--
+-- 4. DESIGN VERIFICATION:
+--    - Comprehensive logic gate testing
+--    - Truth table verification system
+--    - Timing analysis platform
+--    - Resource utilization analysis
+--    - Power consumption measurement
+--
+-- 5. PROTOTYPING PLATFORM:
+--    - Rapid prototyping of logic circuits
+--    - Algorithm implementation testing
+--    - Custom logic function development
+--    - Interface protocol testing
+--    - System architecture exploration
+--
+-- 6. BUILDING LARGER SYSTEMS:
+--    - Foundation for processor design
+--    - Building block for control units
+--    - Component library for larger projects
+--    - Reference design for custom circuits
+--    - Template for hierarchical design
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- COMPONENT-LEVEL TESTING:
+-- - Individual component functionality verification
+-- - Truth table compliance for each gate
+-- - Timing characteristic validation
+-- - Resource utilization analysis
+-- - Power consumption measurement
+--
+-- INTEGRATION TESTING:
+-- - Component interaction verification
+-- - Signal routing validation
+-- - Interface compatibility testing
+-- - System-level functionality check
+-- - Performance benchmarking
+--
+-- SYSTEM-LEVEL TESTING:
+-- - Complete system functionality verification
+-- - End-to-end signal path testing
+-- - Comprehensive input/output validation
+-- - Stress testing under various conditions
+-- - Long-term reliability testing
+--
+-- AUTOMATED TESTING:
+-- - Comprehensive testbench development
+-- - Automated test vector generation
+-- - Regression testing framework
+-- - Continuous integration testing
+-- - Performance monitoring system
+--
+-- HARDWARE TESTING:
+-- - FPGA implementation verification
+-- - Real-world signal integrity testing
+-- - Timing closure validation
+-- - Power consumption analysis
+-- - Temperature and voltage variation testing
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with basic 2-input gate integration
+-- 2. Implement simple structural architecture
+-- 3. Create basic testbench for functionality verification
+-- 4. Understand component instantiation principles
+-- 5. Learn hierarchical design methodology
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement complete basic logic integration
+-- 2. Add multiplexer and decoder components
+-- 3. Create comprehensive testing framework
+-- 4. Analyze timing and resource utilization
+-- 5. Implement advanced signal routing
+--
+-- FOR ADVANCED USERS:
+-- 1. Create parameterized and scalable architecture
+-- 2. Implement advanced testing and debug features
+-- 3. Optimize for specific FPGA architectures
+-- 4. Add performance monitoring capabilities
+-- 5. Create reusable design templates
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. PARAMETERIZED TOP-LEVEL MODULE:
+--    - Add generic parameters for bus widths
+--    - Create scalable component instantiation
+--    - Implement configurable functionality
+--    - Add runtime configuration capabilities
+--
+-- 2. ADVANCED SIGNAL ROUTING:
+--    - Implement crossbar switch functionality
+--    - Add programmable interconnect matrix
+--    - Create dynamic signal routing
+--    - Implement bus arbitration logic
+--
+-- 3. PERFORMANCE MONITORING:
+--    - Add timing measurement capabilities
+--    - Implement power consumption monitoring
+--    - Create resource utilization tracking
+--    - Add performance counters and statistics
+--
+-- 4. DEBUG AND TEST FEATURES:
+--    - Implement scan chain integration
+--    - Add built-in self-test capabilities
+--    - Create comprehensive debug interface
+--    - Implement boundary scan testing
+--
+-- 5. PROCESSOR INTEGRATION:
+--    - Create ALU using basic logic components
+--    - Implement simple control unit
+--    - Add register file functionality
+--    - Create basic processor architecture
+--
+-- 6. COMMUNICATION INTERFACES:
+--    - Add UART communication interface
+--    - Implement SPI and I2C protocols
+--    - Create custom communication protocols
+--    - Add network interface capabilities
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. COMPONENT DECLARATION ERRORS:
+--    - Ensure component names match entity names exactly
+--    - Verify port names and types match component definitions
+--    - Include all required ports in component declarations
+--    - Avoid typos in component and port names
+--
+-- 2. PORT MAPPING ISSUES:
+--    - Use explicit port mapping for clarity
+--    - Ensure signal types match between connections
+--    - Verify all ports are properly connected
+--    - Avoid leaving ports unconnected without intention
+--
+-- 3. SIGNAL ROUTING PROBLEMS:
+--    - Plan signal routing before implementation
+--    - Avoid signal name conflicts and ambiguity
+--    - Consider signal loading and fan-out limitations
+--    - Implement proper signal buffering when needed
+--
+-- 4. HIERARCHY MANAGEMENT:
+--    - Maintain clear hierarchical structure
+--    - Avoid circular dependencies between components
+--    - Keep interface definitions consistent
+--    - Document component relationships clearly
+--
+-- 5. TIMING AND SYNCHRONIZATION:
+--    - Consider propagation delays through hierarchy
+--    - Avoid mixing synchronous and asynchronous logic
+--    - Implement proper clock domain crossing
+--    - Plan for timing closure in complex designs
+--
+-- 6. RESOURCE MANAGEMENT:
+--    - Monitor FPGA resource utilization
+--    - Avoid resource conflicts and over-utilization
+--    - Plan for routing congestion in large designs
+--    - Optimize component placement and routing
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ All required components properly declared
+-- □ Component names match entity names exactly
+-- □ All ports correctly mapped in instantiations
+-- □ Signal types consistent throughout hierarchy
+-- □ No unconnected ports (unless intentional)
+-- □ All input and output signals properly routed
+-- □ Component instantiation names are descriptive
+-- □ Comprehensive comments explain system functionality
+-- □ All basic logic gates properly integrated
+-- □ Multiplexer and decoder components included
+-- □ Adder components properly instantiated
+-- □ System-level functionality verified through testing
+-- □ Timing requirements satisfied
+-- □ Resource utilization within acceptable limits
+-- □ Code follows project VHDL style guidelines
+-- □ Testbench provides complete system coverage
+-- □ Documentation clearly explains system architecture
+--
+-- ============================================================================
+-- SYSTEM ARCHITECTURE DOCUMENTATION:
+-- ============================================================================
+--
+-- COMPONENT HIERARCHY:
+-- Basic_Logic_Top (Top Level)
+-- ├── AND_gate (2-input AND gate)
+-- ├── OR_gate (2-input OR gate)
+-- ├── NAND_gate (2-input NAND gate)
+-- ├── NOR_gate (2-input NOR gate)
+-- ├── XOR_gate (2-input XOR gate)
+-- ├── XNOR_gate (2-input XNOR gate)
+-- ├── not_gate (NOT gate/Inverter)
+-- ├── Inverter (Signal inverter)
+-- ├── Driver (Buffer/Driver)
+-- ├── mux_2to1 (2-to-1 Multiplexer)
+-- ├── mux_4to1 (4-to-1 Multiplexer)
+-- ├── decoder_2to4 (2-to-4 Decoder)
+-- ├── half_adder (Half Adder)
+-- └── full_adder (Full Adder)
+--
+-- SIGNAL FLOW DIAGRAM:
+-- [Input Signals] → [Logic Gates] → [Output Signals]
+--                ↓
+-- [Control Signals] → [Multiplexers/Decoders] → [Selected Outputs]
+--                ↓
+-- [Arithmetic Inputs] → [Adders] → [Sum/Carry Outputs]
+--
+-- INTERFACE SPECIFICATIONS:
+-- - Primary inputs: A, B (main data inputs)
+-- - Secondary inputs: C, D (additional data inputs)
+-- - Control inputs: Enable, Reset, Select signals
+-- - Logic outputs: Individual gate outputs
+-- - Arithmetic outputs: Sum and carry signals
+-- - Status outputs: System status and debug signals
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA RESOURCE UTILIZATION:
+-- - Logic Elements: Varies based on target FPGA
+-- - LUTs: Approximately 1 LUT per basic gate
+-- - Registers: Minimal for combinational logic
+-- - Memory: None for basic logic implementation
+-- - DSP Blocks: None for basic logic gates
+-- - I/O Pins: Based on interface requirements
+--
+-- TIMING CHARACTERISTICS:
+-- - System Clock: Not required for combinational logic
+-- - Propagation Delay: Sum of component delays
+-- - Setup Time: Input signal requirements
+-- - Hold Time: Input signal stability requirements
+-- - Critical Path: Longest delay through system
+--
+-- POWER CONSUMPTION:
+-- - Static Power: FPGA leakage current
+-- - Dynamic Power: Switching activity dependent
+-- - I/O Power: Interface signal switching
+-- - Clock Power: Minimal for combinational design
+-- - Total Power: Sum of all power components
+--
+-- DESIGN CONSTRAINTS:
+-- - Timing constraints for critical paths
+-- - I/O constraints for pin assignments
+-- - Power constraints for thermal management
+-- - Area constraints for resource utilization
+-- - Performance constraints for speed requirements
+--
+-- ============================================================================
+-- ADVANCED INTEGRATION CONCEPTS:
+-- ============================================================================
+--
+-- MODULAR DESIGN PRINCIPLES:
+-- - Component-based architecture
+-- - Standardized interface definitions
+-- - Reusable component library
+-- - Hierarchical design methodology
+-- - Scalable system architecture
+--
+-- SYSTEM-ON-CHIP INTEGRATION:
+-- - Processor core integration
+-- - Memory controller interfaces
+-- - Peripheral component integration
+-- - Bus architecture implementation
+-- - System interconnect design
+--
+-- VERIFICATION METHODOLOGY:
+-- - Unit testing for individual components
+-- - Integration testing for component interactions
+-- - System testing for complete functionality
+-- - Regression testing for design changes
+-- - Formal verification for critical properties
+--
+-- DESIGN FOR TESTABILITY:
+-- - Built-in self-test capabilities
+-- - Scan chain integration
+-- - Boundary scan testing
+-- - Debug interface implementation
+-- - Test point accessibility
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH ARCHITECTURE:
+-- - Comprehensive input stimulus generation
+-- - Expected output verification
+-- - Timing analysis and validation
+-- - Coverage analysis and reporting
+-- - Automated test execution
+--
+-- VERIFICATION STRATEGY:
+-- - Functional verification of all components
+-- - Integration verification of component interactions
+-- - System-level verification of complete functionality
+-- - Performance verification of timing requirements
+-- - Stress testing under extreme conditions
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis for signal behavior
+-- - Assertion-based verification
+-- - Code coverage analysis
+-- - Formal property checking
+-- - Hardware-in-the-loop testing
+--
+-- PERFORMANCE ANALYSIS:
+-- - Timing analysis for critical paths
+-- - Resource utilization optimization
+-- - Power consumption analysis
+-- - Thermal analysis for high-performance designs
+-- - Reliability analysis for long-term operation
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your component declarations here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

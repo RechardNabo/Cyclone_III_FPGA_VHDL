@@ -1,0 +1,1273 @@
+-- ============================================================================
+-- Vending Machine FSM Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a vending machine controller using finite state machine
+-- principles. Vending machines are excellent examples of commercial FSM
+-- applications, demonstrating coin handling, product selection, change
+-- calculation, and user interaction in embedded systems.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand commercial FSM applications and transaction processing
+-- 2. Learn monetary calculation and change-making algorithms
+-- 3. Practice multi-input state machines with complex logic
+-- 4. Explore user interface design and error handling
+-- 5. Understand inventory management and security features
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations and money calculations
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the vending machine controller
+--
+-- Entity Requirements:
+-- - Name: vending_machine (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - Coin input interfaces for different denominations
+-- - Product selection inputs
+-- - Dispensing and change return outputs
+-- - Display and status outputs
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input - system clock)
+-- - rst : in std_logic (Reset input - active high or low)
+-- - coin_5 : in std_logic (5 cent coin inserted)
+-- - coin_10 : in std_logic (10 cent coin inserted)
+-- - coin_25 : in std_logic (25 cent coin inserted)
+-- - coin_100 : in std_logic (100 cent coin inserted)
+-- - product_select : in std_logic_vector(3 downto 0) (Product selection 0-15)
+-- - cancel : in std_logic (Cancel transaction button)
+-- - exact_change : in std_logic (Exact change only mode)
+--
+-- Output Specifications:
+-- - product_dispense : out std_logic_vector(3 downto 0) (Dispense product)
+-- - change_5 : out std_logic_vector(3 downto 0) (Return 5 cent coins)
+-- - change_10 : out std_logic_vector(3 downto 0) (Return 10 cent coins)
+-- - change_25 : out std_logic_vector(3 downto 0) (Return 25 cent coins)
+-- - change_100 : out std_logic_vector(3 downto 0) (Return 100 cent coins)
+-- - display_amount : out std_logic_vector(7 downto 0) (Current amount display)
+-- - display_price : out std_logic_vector(7 downto 0) (Selected product price)
+-- - transaction_complete : out std_logic (Transaction completed signal)
+-- - insufficient_funds : out std_logic (Not enough money inserted)
+-- - exact_change_only : out std_logic (Exact change mode indicator)
+-- - out_of_stock : out std_logic (Selected product unavailable)
+--
+-- Optional Ports:
+-- - inventory_count : out std_logic_vector(31 downto 0) (Product inventory)
+-- - total_sales : out std_logic_vector(15 downto 0) (Sales counter)
+-- - coin_count_5 : out std_logic_vector(7 downto 0) (5 cent coin inventory)
+-- - coin_count_10 : out std_logic_vector(7 downto 0) (10 cent coin inventory)
+-- - coin_count_25 : out std_logic_vector(7 downto 0) (25 cent coin inventory)
+-- - coin_count_100 : out std_logic_vector(7 downto 0) (100 cent coin inventory)
+-- - maintenance_mode : in std_logic (Maintenance access)
+-- - door_open : in std_logic (Service door status)
+--
+-- Design Considerations:
+-- - Monetary arithmetic precision
+-- - Change-making algorithm efficiency
+-- - Inventory tracking and management
+-- - Security and anti-fraud measures
+-- - User experience and interface design
+-- - Power failure and recovery behavior
+--
+-- TODO: Declare entity with appropriate ports
+-- TODO: Add comprehensive port comments
+-- TODO: Define product prices and inventory
+-- TODO: Consider security requirements
+--
+-- ============================================================================
+-- STEP 3: VENDING MACHINE OPERATION PRINCIPLES
+-- ============================================================================
+--
+-- VENDING MACHINE FUNDAMENTALS:
+-- - Sequential transaction processing
+-- - Monetary calculation and validation
+-- - Product selection and inventory management
+-- - Change calculation and dispensing
+-- - Error handling and recovery
+--
+-- BASIC VENDING MACHINE SEQUENCE:
+-- 1. IDLE - Wait for coin insertion or product selection
+-- 2. COIN_INSERTED - Process coin, update total
+-- 3. PRODUCT_SELECTED - Validate selection and funds
+-- 4. CALCULATE_CHANGE - Determine change to return
+-- 5. DISPENSE_PRODUCT - Release selected product
+-- 6. RETURN_CHANGE - Dispense change coins
+-- 7. TRANSACTION_COMPLETE - Reset for next customer
+--
+-- MONETARY CONSIDERATIONS:
+-- - Coin validation and acceptance
+-- - Running total calculation
+-- - Change calculation algorithms
+-- - Coin inventory management
+-- - Exact change requirements
+--
+-- PRODUCT MANAGEMENT:
+-- - Product pricing structure
+-- - Inventory tracking per product
+-- - Out-of-stock handling
+-- - Product selection validation
+-- - Dispensing mechanism control
+--
+-- ERROR HANDLING:
+-- - Insufficient funds scenarios
+-- - Out-of-stock conditions
+-- - Coin jam or mechanism failure
+-- - Power failure recovery
+-- - Transaction cancellation
+--
+-- TODO: Define product prices
+-- TODO: Specify coin denominations
+-- TODO: Choose change algorithms
+-- TODO: Plan error handling
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC SINGLE-PRODUCT VENDING MACHINE
+-- ----------------------------------------------------------------------------
+-- Simple vending machine with one product type and basic coin handling
+--
+-- Implementation Approach:
+-- - Enumerated type for vending machine states
+-- - Integer counter for accumulated coins
+-- - Simple comparison for purchase decision
+-- - Basic change calculation
+-- - Single product dispensing
+--
+-- Example Structure:
+-- architecture basic_vending of vending_machine is
+--     type state_type is (IDLE, COIN_PROCESSING, CHECK_FUNDS, 
+--                        DISPENSE, RETURN_CHANGE, COMPLETE);
+--     signal current_state : state_type := IDLE;
+--     signal total_inserted : integer range 0 to 255 := 0;
+--     signal change_due : integer range 0 to 255 := 0;
+--     
+--     -- Product pricing (in cents)
+--     constant PRODUCT_PRICE : integer := 75;  -- 75 cents
+--     
+--     -- Coin values (in cents)
+--     constant COIN_5_VALUE : integer := 5;
+--     constant COIN_10_VALUE : integer := 10;
+--     constant COIN_25_VALUE : integer := 25;
+--     constant COIN_100_VALUE : integer := 100;
+-- begin
+--     -- Main state machine process
+--     vending_fsm: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--             total_inserted <= 0;
+--             change_due <= 0;
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when IDLE =>
+--                     total_inserted <= 0;
+--                     change_due <= 0;
+--                     
+--                     -- Check for coin insertion
+--                     if coin_5 = '1' then
+--                         total_inserted <= COIN_5_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_10 = '1' then
+--                         total_inserted <= COIN_10_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_25 = '1' then
+--                         total_inserted <= COIN_25_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_100 = '1' then
+--                         total_inserted <= COIN_100_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when COIN_PROCESSING =>
+--                     -- Check for additional coins
+--                     if coin_5 = '1' then
+--                         total_inserted <= total_inserted + COIN_5_VALUE;
+--                     elsif coin_10 = '1' then
+--                         total_inserted <= total_inserted + COIN_10_VALUE;
+--                     elsif coin_25 = '1' then
+--                         total_inserted <= total_inserted + COIN_25_VALUE;
+--                     elsif coin_100 = '1' then
+--                         total_inserted <= total_inserted + COIN_100_VALUE;
+--                     elsif product_select(0) = '1' then
+--                         -- Product selected, check funds
+--                         current_state <= CHECK_FUNDS;
+--                     elsif cancel = '1' then
+--                         -- Cancel transaction
+--                         change_due <= total_inserted;
+--                         current_state <= RETURN_CHANGE;
+--                     end if;
+--                 
+--                 when CHECK_FUNDS =>
+--                     if total_inserted >= PRODUCT_PRICE then
+--                         -- Sufficient funds
+--                         change_due <= total_inserted - PRODUCT_PRICE;
+--                         current_state <= DISPENSE;
+--                     else
+--                         -- Insufficient funds
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when DISPENSE =>
+--                     -- Dispense product (pulse output)
+--                     current_state <= RETURN_CHANGE;
+--                 
+--                 when RETURN_CHANGE =>
+--                     if change_due = 0 then
+--                         current_state <= COMPLETE;
+--                     else
+--                         -- Implement change dispensing logic
+--                         current_state <= COMPLETE;
+--                     end if;
+--                 
+--                 when COMPLETE =>
+--                     -- Transaction complete, return to idle
+--                     current_state <= IDLE;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output logic
+--     output_logic: process(current_state, total_inserted, change_due)
+--     begin
+--         -- Default outputs
+--         product_dispense <= (others => '0');
+--         change_5 <= (others => '0');
+--         change_10 <= (others => '0');
+--         change_25 <= (others => '0');
+--         change_100 <= (others => '0');
+--         display_amount <= std_logic_vector(to_unsigned(total_inserted, 8));
+--         display_price <= std_logic_vector(to_unsigned(PRODUCT_PRICE, 8));
+--         transaction_complete <= '0';
+--         insufficient_funds <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 display_amount <= (others => '0');
+--             
+--             when COIN_PROCESSING =>
+--                 if total_inserted < PRODUCT_PRICE then
+--                     insufficient_funds <= '1';
+--                 end if;
+--             
+--             when CHECK_FUNDS =>
+--                 if total_inserted < PRODUCT_PRICE then
+--                     insufficient_funds <= '1';
+--                 end if;
+--             
+--             when DISPENSE =>
+--                 product_dispense(0) <= '1';  -- Dispense product 0
+--             
+--             when RETURN_CHANGE =>
+--                 -- Implement change return logic
+--                 -- (simplified for basic version)
+--                 
+--             when COMPLETE =>
+--                 transaction_complete <= '1';
+--         end case;
+--     end process;
+-- end basic_vending;
+--
+-- Basic Vending Advantages:
+-- - Simple and easy to understand
+-- - Low resource requirements
+-- - Predictable behavior
+-- - Easy to test and verify
+--
+-- Basic Vending Disadvantages:
+-- - Limited to single product
+-- - No inventory management
+-- - Simple change algorithm
+-- - No advanced features
+--
+-- TODO: Implement basic vending machine
+-- TODO: Define product pricing
+-- TODO: Test coin insertion scenarios
+-- TODO: Verify change calculation
+--
+-- OPTION 2: MULTI-PRODUCT VENDING MACHINE
+-- ----------------------------------------------------------------------------
+-- Vending machine with multiple products and inventory management
+--
+-- Implementation Approach:
+-- - Product array with prices and inventory
+-- - Product selection decoding
+-- - Inventory tracking per product
+-- - Out-of-stock detection
+-- - Multi-product dispensing logic
+--
+-- Example Structure:
+-- architecture multi_product_vending of vending_machine is
+--     type state_type is (IDLE, COIN_PROCESSING, PRODUCT_SELECTION,
+--                        CHECK_INVENTORY, CHECK_FUNDS, DISPENSE,
+--                        CALCULATE_CHANGE, RETURN_CHANGE, COMPLETE);
+--     signal current_state : state_type := IDLE;
+--     signal total_inserted : integer range 0 to 255 := 0;
+--     signal selected_product : integer range 0 to 15 := 0;
+--     signal product_price : integer range 0 to 255 := 0;
+--     signal change_due : integer range 0 to 255 := 0;
+--     
+--     -- Product pricing array (in cents)
+--     type price_array is array (0 to 15) of integer range 0 to 255;
+--     constant PRODUCT_PRICES : price_array := (
+--         0 => 50,   -- Product 0: 50 cents
+--         1 => 75,   -- Product 1: 75 cents
+--         2 => 100,  -- Product 2: 100 cents
+--         3 => 125,  -- Product 3: 125 cents
+--         4 => 150,  -- Product 4: 150 cents
+--         others => 0  -- Unused products
+--     );
+--     
+--     -- Inventory tracking
+--     type inventory_array is array (0 to 15) of integer range 0 to 255;
+--     signal product_inventory : inventory_array := (
+--         0 => 10,   -- Product 0: 10 items
+--         1 => 8,    -- Product 1: 8 items
+--         2 => 12,   -- Product 2: 12 items
+--         3 => 6,    -- Product 3: 6 items
+--         4 => 15,   -- Product 4: 15 items
+--         others => 0  -- Unused products
+--     );
+-- begin
+--     -- Main state machine process
+--     multi_product_fsm: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--             total_inserted <= 0;
+--             selected_product <= 0;
+--             product_price <= 0;
+--             change_due <= 0;
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when IDLE =>
+--                     total_inserted <= 0;
+--                     selected_product <= 0;
+--                     product_price <= 0;
+--                     change_due <= 0;
+--                     
+--                     -- Check for coin insertion
+--                     if coin_5 = '1' then
+--                         total_inserted <= COIN_5_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_10 = '1' then
+--                         total_inserted <= COIN_10_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_25 = '1' then
+--                         total_inserted <= COIN_25_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_100 = '1' then
+--                         total_inserted <= COIN_100_VALUE;
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when COIN_PROCESSING =>
+--                     -- Check for additional coins
+--                     if coin_5 = '1' then
+--                         total_inserted <= total_inserted + COIN_5_VALUE;
+--                     elsif coin_10 = '1' then
+--                         total_inserted <= total_inserted + COIN_10_VALUE;
+--                     elsif coin_25 = '1' then
+--                         total_inserted <= total_inserted + COIN_25_VALUE;
+--                     elsif coin_100 = '1' then
+--                         total_inserted <= total_inserted + COIN_100_VALUE;
+--                     elsif product_select /= "0000" then
+--                         -- Product selected
+--                         selected_product <= to_integer(unsigned(product_select));
+--                         current_state <= PRODUCT_SELECTION;
+--                     elsif cancel = '1' then
+--                         -- Cancel transaction
+--                         change_due <= total_inserted;
+--                         current_state <= RETURN_CHANGE;
+--                     end if;
+--                 
+--                 when PRODUCT_SELECTION =>
+--                     -- Get product price
+--                     product_price <= PRODUCT_PRICES(selected_product);
+--                     current_state <= CHECK_INVENTORY;
+--                 
+--                 when CHECK_INVENTORY =>
+--                     if product_inventory(selected_product) > 0 then
+--                         -- Product available
+--                         current_state <= CHECK_FUNDS;
+--                     else
+--                         -- Out of stock
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when CHECK_FUNDS =>
+--                     if total_inserted >= product_price then
+--                         -- Sufficient funds
+--                         current_state <= DISPENSE;
+--                     else
+--                         -- Insufficient funds
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when DISPENSE =>
+--                     -- Dispense product and update inventory
+--                     product_inventory(selected_product) <= 
+--                         product_inventory(selected_product) - 1;
+--                     current_state <= CALCULATE_CHANGE;
+--                 
+--                 when CALCULATE_CHANGE =>
+--                     change_due <= total_inserted - product_price;
+--                     current_state <= RETURN_CHANGE;
+--                 
+--                 when RETURN_CHANGE =>
+--                     if change_due = 0 then
+--                         current_state <= COMPLETE;
+--                     else
+--                         -- Implement change dispensing logic
+--                         current_state <= COMPLETE;
+--                     end if;
+--                 
+--                 when COMPLETE =>
+--                     -- Transaction complete
+--                     current_state <= IDLE;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output logic with multi-product support
+--     multi_output_logic: process(current_state, total_inserted, 
+--                                selected_product, product_price, 
+--                                product_inventory)
+--     begin
+--         -- Default outputs
+--         product_dispense <= (others => '0');
+--         change_5 <= (others => '0');
+--         change_10 <= (others => '0');
+--         change_25 <= (others => '0');
+--         change_100 <= (others => '0');
+--         display_amount <= std_logic_vector(to_unsigned(total_inserted, 8));
+--         display_price <= std_logic_vector(to_unsigned(product_price, 8));
+--         transaction_complete <= '0';
+--         insufficient_funds <= '0';
+--         out_of_stock <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 display_amount <= (others => '0');
+--                 display_price <= (others => '0');
+--             
+--             when COIN_PROCESSING =>
+--                 if total_inserted < product_price and product_price > 0 then
+--                     insufficient_funds <= '1';
+--                 end if;
+--             
+--             when CHECK_INVENTORY =>
+--                 if product_inventory(selected_product) = 0 then
+--                     out_of_stock <= '1';
+--                 end if;
+--             
+--             when CHECK_FUNDS =>
+--                 if total_inserted < product_price then
+--                     insufficient_funds <= '1';
+--                 end if;
+--             
+--             when DISPENSE =>
+--                 product_dispense <= std_logic_vector(to_unsigned(selected_product, 4));
+--             
+--             when RETURN_CHANGE =>
+--                 -- Implement change return logic
+--                 
+--             when COMPLETE =>
+--                 transaction_complete <= '1';
+--         end case;
+--     end process;
+-- end multi_product_vending;
+--
+-- Multi-Product Advantages:
+-- - Supports multiple products
+-- - Inventory management
+-- - Flexible pricing structure
+-- - Real-world applicability
+--
+-- Multi-Product Disadvantages:
+-- - Increased complexity
+-- - More memory requirements
+-- - Complex state management
+-- - Extensive testing needed
+--
+-- TODO: Implement multi-product vending
+-- TODO: Define product array structure
+-- TODO: Test inventory management
+-- TODO: Verify product selection logic
+--
+-- OPTION 3: ADVANCED CHANGE-MAKING ALGORITHM
+-- ----------------------------------------------------------------------------
+-- Vending machine with sophisticated change calculation and dispensing
+--
+-- Implementation Approach:
+-- - Coin inventory tracking
+-- - Greedy change-making algorithm
+-- - Exact change detection
+-- - Change optimization
+-- - Coin shortage handling
+--
+-- Example Structure:
+-- architecture advanced_change_vending of vending_machine is
+--     type state_type is (IDLE, COIN_PROCESSING, PRODUCT_SELECTION,
+--                        CHECK_INVENTORY, CHECK_FUNDS, DISPENSE,
+--                        CALCULATE_CHANGE, DISPENSE_CHANGE, COMPLETE);
+--     signal current_state : state_type := IDLE;
+--     signal total_inserted : integer range 0 to 2550 := 0;
+--     signal selected_product : integer range 0 to 15 := 0;
+--     signal product_price : integer range 0 to 255 := 0;
+--     signal change_due : integer range 0 to 2550 := 0;
+--     signal change_possible : std_logic := '1';
+--     
+--     -- Coin inventory tracking
+--     signal coin_inventory_5 : integer range 0 to 255 := 50;
+--     signal coin_inventory_10 : integer range 0 to 255 := 30;
+--     signal coin_inventory_25 : integer range 0 to 255 := 20;
+--     signal coin_inventory_100 : integer range 0 to 255 := 10;
+--     
+--     -- Change calculation signals
+--     signal change_coins_100 : integer range 0 to 15 := 0;
+--     signal change_coins_25 : integer range 0 to 15 := 0;
+--     signal change_coins_10 : integer range 0 to 15 := 0;
+--     signal change_coins_5 : integer range 0 to 15 := 0;
+-- begin
+--     -- Change calculation process
+--     change_calculator: process(change_due, coin_inventory_100, 
+--                              coin_inventory_25, coin_inventory_10, 
+--                              coin_inventory_5)
+--         variable remaining_change : integer range 0 to 2550;
+--         variable coins_100 : integer range 0 to 15;
+--         variable coins_25 : integer range 0 to 15;
+--         variable coins_10 : integer range 0 to 15;
+--         variable coins_5 : integer range 0 to 15;
+--     begin
+--         remaining_change := change_due;
+--         coins_100 := 0;
+--         coins_25 := 0;
+--         coins_10 := 0;
+--         coins_5 := 0;
+--         change_possible <= '1';
+--         
+--         -- Greedy algorithm for change calculation
+--         -- 100 cent coins
+--         while remaining_change >= 100 and coins_100 < coin_inventory_100 
+--               and coins_100 < 15 loop
+--             remaining_change := remaining_change - 100;
+--             coins_100 := coins_100 + 1;
+--         end loop;
+--         
+--         -- 25 cent coins
+--         while remaining_change >= 25 and coins_25 < coin_inventory_25 
+--               and coins_25 < 15 loop
+--             remaining_change := remaining_change - 25;
+--             coins_25 := coins_25 + 1;
+--         end loop;
+--         
+--         -- 10 cent coins
+--         while remaining_change >= 10 and coins_10 < coin_inventory_10 
+--               and coins_10 < 15 loop
+--             remaining_change := remaining_change - 10;
+--             coins_10 := coins_10 + 1;
+--         end loop;
+--         
+--         -- 5 cent coins
+--         while remaining_change >= 5 and coins_5 < coin_inventory_5 
+--               and coins_5 < 15 loop
+--             remaining_change := remaining_change - 5;
+--             coins_5 := coins_5 + 1;
+--         end loop;
+--         
+--         -- Check if exact change is possible
+--         if remaining_change > 0 then
+--             change_possible <= '0';
+--         end if;
+--         
+--         change_coins_100 <= coins_100;
+--         change_coins_25 <= coins_25;
+--         change_coins_10 <= coins_10;
+--         change_coins_5 <= coins_5;
+--     end process;
+--     
+--     -- Main state machine with advanced change handling
+--     advanced_fsm: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--             total_inserted <= 0;
+--             selected_product <= 0;
+--             product_price <= 0;
+--             change_due <= 0;
+--             -- Initialize coin inventory
+--             coin_inventory_5 <= 50;
+--             coin_inventory_10 <= 30;
+--             coin_inventory_25 <= 20;
+--             coin_inventory_100 <= 10;
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when IDLE =>
+--                     total_inserted <= 0;
+--                     selected_product <= 0;
+--                     product_price <= 0;
+--                     change_due <= 0;
+--                     
+--                     -- Check for coin insertion
+--                     if coin_5 = '1' then
+--                         total_inserted <= COIN_5_VALUE;
+--                         coin_inventory_5 <= coin_inventory_5 + 1;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_10 = '1' then
+--                         total_inserted <= COIN_10_VALUE;
+--                         coin_inventory_10 <= coin_inventory_10 + 1;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_25 = '1' then
+--                         total_inserted <= COIN_25_VALUE;
+--                         coin_inventory_25 <= coin_inventory_25 + 1;
+--                         current_state <= COIN_PROCESSING;
+--                     elsif coin_100 = '1' then
+--                         total_inserted <= COIN_100_VALUE;
+--                         coin_inventory_100 <= coin_inventory_100 + 1;
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when COIN_PROCESSING =>
+--                     -- Check for additional coins
+--                     if coin_5 = '1' then
+--                         total_inserted <= total_inserted + COIN_5_VALUE;
+--                         coin_inventory_5 <= coin_inventory_5 + 1;
+--                     elsif coin_10 = '1' then
+--                         total_inserted <= total_inserted + COIN_10_VALUE;
+--                         coin_inventory_10 <= coin_inventory_10 + 1;
+--                     elsif coin_25 = '1' then
+--                         total_inserted <= total_inserted + COIN_25_VALUE;
+--                         coin_inventory_25 <= coin_inventory_25 + 1;
+--                     elsif coin_100 = '1' then
+--                         total_inserted <= total_inserted + COIN_100_VALUE;
+--                         coin_inventory_100 <= coin_inventory_100 + 1;
+--                     elsif product_select /= "0000" then
+--                         selected_product <= to_integer(unsigned(product_select));
+--                         current_state <= PRODUCT_SELECTION;
+--                     elsif cancel = '1' then
+--                         change_due <= total_inserted;
+--                         current_state <= CALCULATE_CHANGE;
+--                     end if;
+--                 
+--                 when PRODUCT_SELECTION =>
+--                     product_price <= PRODUCT_PRICES(selected_product);
+--                     current_state <= CHECK_INVENTORY;
+--                 
+--                 when CHECK_INVENTORY =>
+--                     if product_inventory(selected_product) > 0 then
+--                         current_state <= CHECK_FUNDS;
+--                     else
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when CHECK_FUNDS =>
+--                     if total_inserted >= product_price then
+--                         change_due <= total_inserted - product_price;
+--                         if change_due = 0 or change_possible = '1' then
+--                             current_state <= DISPENSE;
+--                         elsif exact_change = '1' then
+--                             -- Exact change only mode
+--                             current_state <= COIN_PROCESSING;
+--                         else
+--                             current_state <= COIN_PROCESSING;
+--                         end if;
+--                     else
+--                         current_state <= COIN_PROCESSING;
+--                     end if;
+--                 
+--                 when DISPENSE =>
+--                     product_inventory(selected_product) <= 
+--                         product_inventory(selected_product) - 1;
+--                     current_state <= CALCULATE_CHANGE;
+--                 
+--                 when CALCULATE_CHANGE =>
+--                     if change_due = 0 then
+--                         current_state <= COMPLETE;
+--                     else
+--                         current_state <= DISPENSE_CHANGE;
+--                     end if;
+--                 
+--                 when DISPENSE_CHANGE =>
+--                     -- Update coin inventory after dispensing change
+--                     coin_inventory_100 <= coin_inventory_100 - change_coins_100;
+--                     coin_inventory_25 <= coin_inventory_25 - change_coins_25;
+--                     coin_inventory_10 <= coin_inventory_10 - change_coins_10;
+--                     coin_inventory_5 <= coin_inventory_5 - change_coins_5;
+--                     current_state <= COMPLETE;
+--                 
+--                 when COMPLETE =>
+--                     current_state <= IDLE;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output logic with advanced change dispensing
+--     advanced_output: process(current_state, total_inserted, 
+--                             selected_product, product_price,
+--                             change_coins_100, change_coins_25,
+--                             change_coins_10, change_coins_5,
+--                             change_possible)
+--     begin
+--         -- Default outputs
+--         product_dispense <= (others => '0');
+--         change_5 <= (others => '0');
+--         change_10 <= (others => '0');
+--         change_25 <= (others => '0');
+--         change_100 <= (others => '0');
+--         display_amount <= std_logic_vector(to_unsigned(total_inserted, 8));
+--         display_price <= std_logic_vector(to_unsigned(product_price, 8));
+--         transaction_complete <= '0';
+--         insufficient_funds <= '0';
+--         exact_change_only <= '0';
+--         out_of_stock <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 display_amount <= (others => '0');
+--                 display_price <= (others => '0');
+--             
+--             when COIN_PROCESSING =>
+--                 if total_inserted < product_price and product_price > 0 then
+--                     insufficient_funds <= '1';
+--                 end if;
+--             
+--             when CHECK_INVENTORY =>
+--                 if product_inventory(selected_product) = 0 then
+--                     out_of_stock <= '1';
+--                 end if;
+--             
+--             when CHECK_FUNDS =>
+--                 if total_inserted < product_price then
+--                     insufficient_funds <= '1';
+--                 elsif change_possible = '0' and change_due > 0 then
+--                     exact_change_only <= '1';
+--                 end if;
+--             
+--             when DISPENSE =>
+--                 product_dispense <= std_logic_vector(to_unsigned(selected_product, 4));
+--             
+--             when DISPENSE_CHANGE =>
+--                 change_100 <= std_logic_vector(to_unsigned(change_coins_100, 4));
+--                 change_25 <= std_logic_vector(to_unsigned(change_coins_25, 4));
+--                 change_10 <= std_logic_vector(to_unsigned(change_coins_10, 4));
+--                 change_5 <= std_logic_vector(to_unsigned(change_coins_5, 4));
+--             
+--             when COMPLETE =>
+--                 transaction_complete <= '1';
+--         end case;
+--     end process;
+-- end advanced_change_vending;
+--
+-- Advanced Change Advantages:
+-- - Sophisticated change calculation
+-- - Coin inventory management
+-- - Exact change detection
+-- - Optimized change dispensing
+--
+-- Advanced Change Disadvantages:
+-- - Complex implementation
+-- - Higher resource usage
+-- - Extensive testing required
+-- - More failure modes
+--
+-- TODO: Implement advanced change algorithm
+-- TODO: Test coin inventory management
+-- TODO: Verify change calculation accuracy
+-- TODO: Handle edge cases and errors
+--
+-- OPTION 4: SECURITY AND MAINTENANCE FEATURES
+-- ----------------------------------------------------------------------------
+-- Vending machine with security, maintenance, and administrative features
+--
+-- Implementation Approach:
+-- - Maintenance mode access
+-- - Sales tracking and reporting
+-- - Security monitoring
+-- - Administrative functions
+-- - Audit trail logging
+--
+-- Example Structure:
+-- architecture secure_vending of vending_machine is
+--     -- ... (previous state and signal declarations)
+--     
+--     -- Security and maintenance signals
+--     signal maintenance_active : std_logic := '0';
+--     signal sales_total : integer range 0 to 65535 := 0;
+--     signal transaction_count : integer range 0 to 65535 := 0;
+--     signal security_violation : std_logic := '0';
+--     signal door_open_count : integer range 0 to 255 := 0;
+--     
+--     -- Administrative mode states
+--     type admin_state_type is (NORMAL_OPERATION, MAINTENANCE_MODE,
+--                              INVENTORY_UPDATE, PRICE_UPDATE,
+--                              SALES_REPORT, SECURITY_CHECK);
+--     signal admin_state : admin_state_type := NORMAL_OPERATION;
+-- begin
+--     -- Security monitoring process
+--     security_monitor: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             security_violation <= '0';
+--             door_open_count <= 0;
+--         elsif rising_edge(clk) then
+--             -- Monitor door openings
+--             if door_open = '1' and maintenance_mode = '0' then
+--                 security_violation <= '1';
+--                 door_open_count <= door_open_count + 1;
+--             end if;
+--             
+--             -- Clear security violation in maintenance mode
+--             if maintenance_mode = '1' then
+--                 security_violation <= '0';
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Sales tracking process
+--     sales_tracker: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             sales_total <= 0;
+--             transaction_count <= 0;
+--         elsif rising_edge(clk) then
+--             if current_state = COMPLETE and admin_state = NORMAL_OPERATION then
+--                 sales_total <= sales_total + product_price;
+--                 transaction_count <= transaction_count + 1;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Administrative mode controller
+--     admin_controller: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             admin_state <= NORMAL_OPERATION;
+--             maintenance_active <= '0';
+--         elsif rising_edge(clk) then
+--             case admin_state is
+--                 when NORMAL_OPERATION =>
+--                     if maintenance_mode = '1' and door_open = '1' then
+--                         admin_state <= MAINTENANCE_MODE;
+--                         maintenance_active <= '1';
+--                     end if;
+--                 
+--                 when MAINTENANCE_MODE =>
+--                     if maintenance_mode = '0' then
+--                         admin_state <= NORMAL_OPERATION;
+--                         maintenance_active <= '0';
+--                     end if;
+--                     -- Handle maintenance operations
+--                 
+--                 when others =>
+--                     admin_state <= NORMAL_OPERATION;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Enhanced output logic with security features
+--     secure_output: process(current_state, admin_state, security_violation,
+--                           sales_total, transaction_count)
+--     begin
+--         -- ... (previous output logic)
+--         
+--         -- Additional security and maintenance outputs
+--         total_sales <= std_logic_vector(to_unsigned(sales_total, 16));
+--         
+--         -- Security indicators
+--         if security_violation = '1' then
+--             -- Activate security alarm or notification
+--         end if;
+--         
+--         -- Maintenance mode indicators
+--         if maintenance_active = '1' then
+--             -- Display maintenance mode status
+--         end if;
+--     end process;
+-- end secure_vending;
+--
+-- Security Features Advantages:
+-- - Enhanced security monitoring
+-- - Administrative capabilities
+-- - Sales tracking and reporting
+-- - Maintenance mode support
+--
+-- Security Features Disadvantages:
+-- - Significantly increased complexity
+-- - Higher resource requirements
+-- - More potential failure points
+-- - Extensive security testing needed
+--
+-- TODO: Implement security features
+-- TODO: Define maintenance procedures
+-- TODO: Test administrative functions
+-- TODO: Verify security monitoring
+--
+-- ============================================================================
+-- STEP 5: ADVANCED FEATURES
+-- ============================================================================
+--
+-- PAYMENT SYSTEM INTEGRATION:
+-- - Credit/debit card readers
+-- - Mobile payment support (NFC, QR codes)
+-- - Digital wallet integration
+-- - Contactless payment methods
+--
+-- INVENTORY MANAGEMENT:
+-- - Real-time inventory tracking
+-- - Automatic reorder notifications
+-- - Expiration date monitoring
+-- - Product rotation management
+--
+-- USER INTERFACE ENHANCEMENTS:
+-- - LCD/LED display integration
+-- - Touch screen interface
+-- - Voice prompts and feedback
+-- - Multi-language support
+--
+-- CONNECTIVITY FEATURES:
+-- - Wi-Fi/cellular connectivity
+-- - Remote monitoring and control
+-- - Cloud-based inventory management
+-- - Real-time sales reporting
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test integration scenarios
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- MONETARY PRECISION:
+-- - Fixed-point arithmetic for money
+-- - Rounding error prevention
+-- - Currency conversion support
+-- - Tax calculation integration
+--
+-- SECURITY CONSIDERATIONS:
+-- - Anti-fraud mechanisms
+-- - Coin validation algorithms
+-- - Tamper detection systems
+-- - Secure communication protocols
+--
+-- RELIABILITY REQUIREMENTS:
+-- - Power failure recovery
+-- - Transaction integrity
+-- - Mechanical failure handling
+-- - Environmental protection
+--
+-- REGULATORY COMPLIANCE:
+-- - Accessibility requirements
+-- - Safety standards compliance
+-- - Financial regulations
+-- - Consumer protection laws
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. BEVERAGE VENDING:
+--    - Cold drink dispensing
+--    - Temperature monitoring
+--    - Refrigeration control
+--    - Bottle/can detection
+--
+-- 2. SNACK VENDING:
+--    - Multiple product slots
+--    - Spiral dispensing mechanisms
+--    - Package size detection
+--    - Freshness monitoring
+--
+-- 3. TICKET VENDING:
+--    - Transportation tickets
+--    - Event tickets
+--    - Parking permits
+--    - Printing integration
+--
+-- 4. PHARMACY VENDING:
+--    - Prescription dispensing
+--    - Age verification
+--    - Controlled substance handling
+--    - Medical device dispensing
+--
+-- 5. INDUSTRIAL VENDING:
+--    - Tool and supply dispensing
+--    - Employee authentication
+--    - Usage tracking
+--    - Inventory management
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Coin insertion and validation
+-- - Product selection and dispensing
+-- - Change calculation accuracy
+-- - Inventory management verification
+-- - Error handling scenarios
+--
+-- MONETARY TESTING:
+-- - Various coin combinations
+-- - Change-making accuracy
+-- - Exact change scenarios
+-- - Overpayment handling
+-- - Insufficient funds testing
+--
+-- SECURITY TESTING:
+-- - Fraud attempt simulation
+-- - Tamper detection testing
+-- - Unauthorized access prevention
+-- - Data integrity verification
+-- - Communication security testing
+--
+-- RELIABILITY TESTING:
+-- - Power failure scenarios
+-- - Mechanical failure simulation
+-- - Environmental stress testing
+-- - Long-term operation testing
+-- - Component failure testing
+--
+-- INTEGRATION TESTING:
+-- - Payment system integration
+-- - Inventory system integration
+-- - Remote monitoring testing
+-- - User interface testing
+-- - Maintenance system testing
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with basic single-product vending
+-- 2. Implement simple coin handling
+-- 3. Add basic change calculation
+-- 4. Create comprehensive testbench
+-- 5. Verify monetary calculations
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Add multi-product support
+-- 2. Implement inventory management
+-- 3. Add advanced change algorithms
+-- 4. Optimize user interface
+-- 5. Create realistic test scenarios
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement full-featured vending machine
+-- 2. Add security and maintenance features
+-- 3. Implement payment system integration
+-- 4. Create system-level integration
+-- 5. Develop commercial-grade solution
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. SMART VENDING MACHINE:
+--    - IoT connectivity
+--    - Machine learning for demand prediction
+--    - Dynamic pricing algorithms
+--    - Customer behavior analytics
+--
+-- 2. MULTI-CURRENCY SUPPORT:
+--    - International coin recognition
+--    - Currency conversion
+--    - Exchange rate updates
+--    - Multi-region deployment
+--
+-- 3. SUBSCRIPTION SERVICE:
+--    - User account management
+--    - Subscription billing
+--    - Loyalty programs
+--    - Personalized recommendations
+--
+-- 4. ENVIRONMENTAL MONITORING:
+--    - Temperature and humidity sensing
+--    - Energy consumption tracking
+--    - Carbon footprint calculation
+--    - Sustainability reporting
+--
+-- 5. ACCESSIBILITY FEATURES:
+--    - Voice guidance system
+--    - Braille interface support
+--    - Height-adjustable interface
+--    - Visual impairment assistance
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. MONETARY ERRORS:
+--    - Floating-point arithmetic for money
+--    - Rounding errors in calculations
+--    - Overflow in monetary values
+--    - Incorrect change algorithms
+--
+-- 2. STATE MACHINE ERRORS:
+--    - Incomplete state coverage
+--    - Race conditions in coin handling
+--    - Missing timeout handling
+--    - Incorrect state transitions
+--
+-- 3. INVENTORY ERRORS:
+--    - Negative inventory values
+--    - Inventory synchronization issues
+--    - Missing out-of-stock handling
+--    - Incorrect product dispensing
+--
+-- 4. SECURITY VULNERABILITIES:
+--    - Inadequate coin validation
+--    - Missing tamper detection
+--    - Insecure communication
+--    - Insufficient access control
+--
+-- 5. USER EXPERIENCE ISSUES:
+--    - Confusing interface design
+--    - Inadequate error messages
+--    - Poor transaction feedback
+--    - Accessibility barriers
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper ports
+-- □ All required states defined
+-- □ Complete state transition coverage
+-- □ Monetary calculations verified
+-- □ Change algorithm implemented
+-- □ Inventory management working
+-- □ Product selection logic correct
+-- □ Error handling comprehensive
+-- □ Security features implemented
+-- □ User interface functional
+-- □ Reset behavior correct
+-- □ Timing requirements met
+-- □ Resource utilization optimized
+-- □ Test coverage adequate
+-- □ Documentation complete
+-- □ Standards compliance verified
+-- □ Integration testing passed
+-- □ Performance requirements met
+-- □ Security testing complete
+-- □ Regulatory approval obtained
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- EMBEDDED SYSTEMS:
+-- - Real-time transaction processing
+-- - Resource-constrained operation
+-- - Power management considerations
+-- - Environmental robustness
+--
+-- COMMERCIAL SYSTEMS:
+-- - Reliability and availability
+-- - Maintenance and serviceability
+-- - Cost optimization
+-- - Regulatory compliance
+--
+-- FINANCIAL SYSTEMS:
+-- - Transaction integrity
+-- - Audit trail requirements
+-- - Security and fraud prevention
+-- - Monetary precision
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - Coin sensor interface design
+-- - Motor control for dispensing
+-- - Display driver integration
+-- - Communication interface support
+--
+-- MICROCONTROLLER INTEGRATION:
+-- - Real-time operating system
+-- - Interrupt-driven coin handling
+-- - Non-volatile memory for inventory
+-- - Communication protocol implementation
+--
+-- SYSTEM INTEGRATION:
+-- - Mechanical interface design
+-- - Power supply and backup
+-- - Environmental protection
+-- - Maintenance access design
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- FINANCIAL ALGORITHMS:
+-- - Change-making optimization
+-- - Dynamic pricing strategies
+-- - Revenue optimization
+-- - Cost analysis algorithms
+--
+-- MACHINE LEARNING:
+-- - Demand prediction models
+-- - Customer behavior analysis
+-- - Inventory optimization
+-- - Predictive maintenance
+--
+-- BLOCKCHAIN INTEGRATION:
+-- - Cryptocurrency payments
+-- - Transaction verification
+-- - Supply chain tracking
+-- - Smart contracts
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Transaction scenario modeling
+-- - Monetary calculation verification
+-- - Error condition testing
+-- - Performance analysis
+--
+-- VERIFICATION METHODOLOGY:
+-- - Formal verification of monetary logic
+-- - Model checking for state machines
+-- - Security analysis
+-- - Compliance testing
+--
+-- DEBUGGING TECHNIQUES:
+-- - Transaction trace analysis
+-- - State machine visualization
+-- - Monetary calculation debugging
+-- - Performance monitoring
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

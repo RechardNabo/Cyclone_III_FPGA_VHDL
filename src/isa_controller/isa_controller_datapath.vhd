@@ -1,0 +1,516 @@
+-- ============================================================================
+-- PROJECT: ISA Controller Datapath Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a comprehensive datapath for an ISA (Industry
+-- Standard Architecture) bus controller using VHDL. The datapath handles
+-- data movement, address generation, and signal conditioning for ISA bus
+-- transactions, providing the computational and storage elements needed
+-- for ISA protocol implementation.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand ISA bus architecture and timing requirements
+-- - Learn datapath design principles for bus controllers
+-- - Practice advanced VHDL register and multiplexer design
+-- - Implement address decoding and data buffering techniques
+-- - Understand legacy bus protocol data handling
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - clk: System clock (ISA bus clock domain)
+-- - reset_n: Active-low asynchronous reset
+-- - isa_data_in: ISA bus data input (8/16-bit)
+-- - isa_addr_in: ISA bus address input (20-bit)
+-- - cpu_data_in: CPU/local bus data input
+-- - cpu_addr_in: CPU/local bus address input
+-- - control_signals: Control signals from FSM
+--   - addr_latch_en: Address latch enable
+--   - data_latch_en: Data latch enable
+--   - addr_mux_sel: Address multiplexer select
+--   - data_mux_sel: Data multiplexer select
+--   - buffer_oe: Buffer output enable
+--   - direction_ctrl: Data direction control
+-- - transaction_type: Type of ISA transaction
+-- - byte_enable: Byte enable signals for 16-bit operations
+--
+-- OUTPUTS:
+-- - isa_data_out: ISA bus data output
+-- - isa_addr_out: ISA bus address output
+-- - cpu_data_out: CPU/local bus data output
+-- - latched_addr: Latched address for transaction
+-- - latched_data: Latched data for transaction
+-- - addr_decode: Address decode outputs
+-- - status_flags: Datapath status indicators
+--   - addr_valid: Address is valid and stable
+--   - data_valid: Data is valid and stable
+--   - parity_error: Data parity error detected
+--   - buffer_full: Internal buffer is full
+--
+-- ============================================================================
+-- ISA BUS OVERVIEW:
+-- ============================================================================
+-- ISA BUS CHARACTERISTICS:
+-- - 8-bit or 16-bit data bus
+-- - 20-bit address bus (1MB address space)
+-- - Asynchronous operation with wait states
+-- - Support for I/O and memory cycles
+-- - DMA (Direct Memory Access) support
+-- - Interrupt handling capabilities
+--
+-- TIMING REQUIREMENTS:
+-- - Address setup time: minimum 50ns
+-- - Data setup time: minimum 30ns
+-- - Address hold time: minimum 10ns
+-- - Data hold time: minimum 10ns
+-- - Cycle time: minimum 200ns for I/O, 125ns for memory
+--
+-- SIGNAL CHARACTERISTICS:
+-- - TTL-compatible voltage levels
+-- - Open-collector outputs for some signals
+-- - Tri-state capability for bidirectional signals
+-- - Pull-up resistors required for some signals
+--
+-- ============================================================================
+-- DATAPATH ARCHITECTURE:
+-- ============================================================================
+-- MAJOR COMPONENTS:
+-- - Address registers and latches
+-- - Data registers and buffers
+-- - Address and data multiplexers
+-- - Bidirectional transceivers
+-- - Address decode logic
+-- - Parity generation and checking
+-- - Status flag generation
+--
+-- DATA FLOW:
+-- 1. Address/data capture from ISA or CPU bus
+-- 2. Internal buffering and latching
+-- 3. Address decoding and validation
+-- 4. Data routing through multiplexers
+-- 5. Output driving to destination bus
+-- 6. Status and error flag generation
+--
+-- REGISTER STRUCTURE:
+-- - Address holding registers (20-bit)
+-- - Data holding registers (8/16-bit)
+-- - Control and status registers
+-- - Configuration registers for timing
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. REGISTER-BASED DATAPATH:
+--    - Explicit registers for all data storage
+--    - Clear data flow and timing control
+--    - Easy to verify and debug
+--    - Higher resource usage
+--
+-- 2. MULTIPLEXER-HEAVY DATAPATH:
+--    - Extensive use of multiplexers for routing
+--    - Reduced register count
+--    - More complex control logic
+--    - Potential timing challenges
+--
+-- 3. PIPELINE DATAPATH:
+--    - Multi-stage pipeline for high throughput
+--    - Complex control and hazard handling
+--    - Higher performance potential
+--    - Increased design complexity
+--
+-- 4. FIFO-BASED DATAPATH:
+--    - FIFO buffers for data storage
+--    - Good for burst transactions
+--    - Flow control capabilities
+--    - Additional complexity for FIFO management
+--
+-- ============================================================================
+-- ADDRESS HANDLING:
+-- ============================================================================
+-- ADDRESS CAPTURE:
+-- - Latch ISA address during address phase
+-- - Validate address range and alignment
+-- - Generate address decode signals
+-- - Support for both I/O and memory addresses
+--
+-- ADDRESS GENERATION:
+-- - Generate addresses for CPU-initiated transactions
+-- - Support address incrementing for burst operations
+-- - Handle address wrapping at boundaries
+-- - Provide address translation if needed
+--
+-- ADDRESS DECODE:
+-- - Decode address ranges for different devices
+-- - Generate chip select signals
+-- - Support configurable address mapping
+-- - Handle address conflicts and overlaps
+--
+-- ADDRESS MULTIPLEXING:
+-- - Select between ISA and CPU addresses
+-- - Support time-multiplexed address/data buses
+-- - Handle address/data bus sharing
+-- - Provide address isolation during conflicts
+--
+-- ============================================================================
+-- DATA HANDLING:
+-- ============================================================================
+-- DATA CAPTURE:
+-- - Latch data during appropriate bus phases
+-- - Support both 8-bit and 16-bit operations
+-- - Handle byte lane selection and alignment
+-- - Validate data integrity with parity checking
+--
+-- DATA BUFFERING:
+-- - Provide temporary storage for data
+-- - Support read-modify-write operations
+-- - Handle data width conversions (8↔16 bit)
+-- - Implement data holding during wait states
+--
+-- DATA ROUTING:
+-- - Route data between ISA and CPU buses
+-- - Support bidirectional data flow
+-- - Handle data bus conflicts and arbitration
+-- - Provide data isolation and tri-state control
+--
+-- BYTE ENABLE HANDLING:
+-- - Support byte-level data operations
+-- - Handle unaligned data transfers
+-- - Provide byte lane masking
+-- - Support partial word operations
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- TIMING ANALYSIS:
+-- - Meet ISA bus timing requirements
+-- - Minimize propagation delays through datapath
+-- - Consider setup/hold times for registers
+-- - Account for multiplexer and buffer delays
+--
+-- SIGNAL INTEGRITY:
+-- - Ensure proper drive strength for ISA signals
+-- - Handle signal reflections and crosstalk
+-- - Provide proper termination for high-speed signals
+-- - Consider EMI/EMC requirements
+--
+-- POWER CONSUMPTION:
+-- - Minimize switching activity in unused paths
+-- - Use clock gating for inactive sections
+-- - Consider low-power modes during idle
+-- - Optimize for battery-powered applications
+--
+-- TESTABILITY:
+-- - Provide observability for internal signals
+-- - Support boundary scan testing
+-- - Include built-in self-test capabilities
+-- - Design for automated test equipment
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ARCHITECTURE PLANNING
+-- □ Define datapath block diagram
+-- □ Identify all registers and their sizes
+-- □ Plan multiplexer and buffer placement
+-- □ Design control signal interfaces
+--
+-- STEP 2: ADDRESS PATH IMPLEMENTATION
+-- □ Create address registers and latches
+-- □ Implement address multiplexers
+-- □ Add address decode logic
+-- □ Include address validation checks
+--
+-- STEP 3: DATA PATH IMPLEMENTATION
+-- □ Create data registers and buffers
+-- □ Implement data multiplexers and routing
+-- □ Add bidirectional transceivers
+-- □ Include byte enable handling
+--
+-- STEP 4: CONTROL INTERFACE
+-- □ Define control signal inputs from FSM
+-- □ Implement control signal decoding
+-- □ Add status flag generation
+-- □ Include error detection logic
+--
+-- STEP 5: TIMING AND SYNCHRONIZATION
+-- □ Add proper clock domain handling
+-- □ Implement reset and initialization
+-- □ Add timing constraint definitions
+-- □ Include metastability protection
+--
+-- STEP 6: VERIFICATION AND TESTING
+-- □ Create comprehensive test vectors
+-- □ Verify timing requirements
+-- □ Test all data path combinations
+-- □ Validate ISA bus compliance
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Standard logic types for bus signals
+-- - Multi-valued logic for tri-state handling
+-- - Essential for ISA bus implementation
+--
+-- IEEE.numeric_std.all:
+-- - Arithmetic operations for address calculations
+-- - Data type conversions and sizing
+-- - Counter implementations for addresses
+--
+-- IEEE.std_logic_misc.all:
+-- - Additional logic functions
+-- - Parity calculation and checking
+-- - Reduction operators for status generation
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- PERFORMANCE ENHANCEMENTS:
+-- - Address and data prefetching
+-- - Speculative data loading
+-- - Burst transaction optimization
+-- - Pipeline stages for high-frequency operation
+--
+-- ERROR DETECTION AND CORRECTION:
+-- - Parity generation and checking
+-- - CRC calculation for data integrity
+-- - Error logging and reporting
+-- - Automatic error recovery mechanisms
+--
+-- CONFIGURABILITY:
+-- - Parameterizable data and address widths
+-- - Configurable timing parameters
+-- - Optional feature enables/disables
+-- - Runtime configuration registers
+--
+-- DEBUG AND MONITORING:
+-- - Internal signal visibility
+-- - Transaction history logging
+-- - Performance monitoring counters
+-- - Real-time status reporting
+--
+-- ============================================================================
+-- ISA BUS PROTOCOL DETAILS:
+-- ============================================================================
+-- I/O CYCLE TIMING:
+-- 1. Address setup phase (T1)
+-- 2. Command assertion (T2)
+-- 3. Data transfer phase (T3)
+-- 4. Recovery phase (T4)
+-- 5. Optional wait states (Tw)
+--
+-- MEMORY CYCLE TIMING:
+-- 1. Address setup phase (T1)
+-- 2. Memory command assertion (T2)
+-- 3. Data transfer phase (T3)
+-- 4. Recovery phase (T4)
+--
+-- DMA CYCLE SUPPORT:
+-- - DMA acknowledge generation
+-- - Address and data bus arbitration
+-- - Transfer count management
+-- - End-of-process handling
+--
+-- INTERRUPT HANDLING:
+-- - Interrupt request capture
+-- - Priority encoding and arbitration
+-- - Interrupt vector generation
+-- - Interrupt acknowledge cycles
+--
+-- ============================================================================
+-- REGISTER SPECIFICATIONS:
+-- ============================================================================
+-- ADDRESS REGISTERS:
+-- - ISA_ADDR_REG: 20-bit address holding register
+-- - CPU_ADDR_REG: Local address holding register
+-- - DECODE_ADDR_REG: Address decode result register
+-- - BASE_ADDR_REG: Base address configuration register
+--
+-- DATA REGISTERS:
+-- - ISA_DATA_REG: ISA bus data holding register
+-- - CPU_DATA_REG: CPU bus data holding register
+-- - BUFFER_DATA_REG: Internal data buffer register
+-- - PARITY_REG: Parity calculation result register
+--
+-- CONTROL REGISTERS:
+-- - CTRL_REG: Control signal interface register
+-- - STATUS_REG: Status flag collection register
+-- - CONFIG_REG: Configuration and timing register
+-- - ERROR_REG: Error status and logging register
+--
+-- ============================================================================
+-- MULTIPLEXER SPECIFICATIONS:
+-- ============================================================================
+-- ADDRESS MULTIPLEXERS:
+-- - ADDR_MUX: Select between ISA and CPU addresses
+-- - DECODE_MUX: Route decoded addresses to outputs
+-- - BASE_MUX: Select base address for calculations
+--
+-- DATA MULTIPLEXERS:
+-- - DATA_IN_MUX: Select input data source
+-- - DATA_OUT_MUX: Route data to appropriate output
+-- - BYTE_MUX: Handle byte lane selection
+-- - WIDTH_MUX: Convert between 8-bit and 16-bit data
+--
+-- CONTROL MULTIPLEXERS:
+-- - CTRL_MUX: Route control signals to functions
+-- - STATUS_MUX: Collect status from various sources
+-- - ERROR_MUX: Route error signals to status register
+--
+-- ============================================================================
+-- BUFFER AND TRANSCEIVER SPECIFICATIONS:
+-- ============================================================================
+-- BIDIRECTIONAL BUFFERS:
+-- - ISA_DATA_BUF: ISA bus data transceiver
+-- - CPU_DATA_BUF: CPU bus data transceiver
+-- - ADDR_BUF: Address bus buffer (if needed)
+--
+-- BUFFER CONTROL:
+-- - Output enable control for tri-state operation
+-- - Direction control for bidirectional operation
+-- - Drive strength control for signal integrity
+-- - Isolation control for bus conflicts
+--
+-- BUFFER TIMING:
+-- - Propagation delay specifications
+-- - Setup and hold time requirements
+-- - Enable/disable timing constraints
+-- - Slew rate control for EMI reduction
+--
+-- ============================================================================
+-- VERIFICATION STRATEGY:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test all register operations (read/write/latch)
+-- □ Verify multiplexer selection and routing
+-- □ Test address decode functionality
+-- □ Validate data width conversion operations
+-- □ Check byte enable and alignment handling
+-- □ Verify parity generation and checking
+-- □ Test error detection and reporting
+--
+-- TIMING VERIFICATION:
+-- □ Verify setup/hold times for all registers
+-- □ Check propagation delays through datapath
+-- □ Validate ISA bus timing compliance
+-- □ Test at various clock frequencies
+-- □ Verify metastability protection
+--
+-- INTERFACE VERIFICATION:
+-- □ Test ISA bus interface compliance
+-- □ Verify CPU bus interface operation
+-- □ Check control signal interface
+-- □ Validate status flag generation
+-- □ Test tri-state and bidirectional operation
+--
+-- STRESS TESTING:
+-- □ Maximum frequency operation
+-- □ Continuous data transfer patterns
+-- □ Random data and address patterns
+-- □ Error injection and recovery testing
+-- □ Temperature and voltage variation testing
+--
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION:
+-- ============================================================================
+-- CRITICAL PATH OPTIMIZATION:
+-- - Identify longest combinational paths
+-- - Add pipeline registers where appropriate
+-- - Optimize multiplexer tree structures
+-- - Use fast carry chains for address arithmetic
+--
+-- RESOURCE OPTIMIZATION:
+-- - Share registers between similar functions
+-- - Use block RAM for large data buffers
+-- - Optimize logic utilization in FPGAs
+-- - Minimize routing congestion
+--
+-- POWER OPTIMIZATION:
+-- - Clock gating for unused sections
+-- - Data path power gating
+-- - Low-power modes during idle periods
+-- - Voltage scaling for non-critical paths
+--
+-- ============================================================================
+-- COMMON DESIGN PITFALLS:
+-- ============================================================================
+-- TIMING ISSUES:
+-- - Insufficient setup/hold margins
+-- - Clock skew and jitter problems
+-- - Metastability in asynchronous interfaces
+-- - Race conditions in control logic
+--
+-- FUNCTIONAL ERRORS:
+-- - Incorrect multiplexer selection logic
+-- - Address decode conflicts or gaps
+-- - Data corruption during transfers
+-- - Improper tri-state control
+--
+-- INTERFACE PROBLEMS:
+-- - ISA bus timing violations
+-- - Signal integrity issues
+-- - Improper termination or drive strength
+-- - EMI/EMC compliance failures
+--
+-- VERIFICATION GAPS:
+-- - Insufficient corner case testing
+-- - Missing error condition verification
+-- - Inadequate timing margin validation
+-- - Incomplete interface compliance testing
+--
+-- ============================================================================
+-- IMPLEMENTATION CHECKLIST:
+-- ============================================================================
+-- DESIGN PHASE:
+-- □ Datapath architecture defined and documented
+-- □ Register and multiplexer specifications complete
+-- □ Control interface defined
+-- □ Timing requirements identified
+--
+-- CODING PHASE:
+-- □ All registers implemented with proper reset
+-- □ Multiplexers implemented with correct selection
+-- □ Address decode logic implemented
+-- □ Data routing and buffering implemented
+-- □ Control signal interface implemented
+-- □ Status flag generation implemented
+-- □ Error detection logic implemented
+--
+-- VERIFICATION PHASE:
+-- □ Functional verification completed
+-- □ Timing verification passed
+-- □ Interface compliance verified
+-- □ Error handling tested
+-- □ Performance requirements met
+--
+-- SYNTHESIS PHASE:
+-- □ Design synthesizes without errors
+-- □ Timing constraints satisfied
+-- □ Resource utilization optimized
+-- □ Power consumption acceptable
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for standard logic types
+-- - IEEE.numeric_std.all for arithmetic operations
+-- - IEEE.std_logic_misc.all for additional functions
+--
+-- [Add your entity declaration here]
+-- - Define all input and output ports
+-- - Add generics for parameterization
+-- - Include comprehensive port descriptions
+--
+-- [Add your architecture implementation here]
+-- - Declare internal signals and registers
+-- - Implement address registers and multiplexers
+-- - Implement data registers and routing
+-- - Add control signal decoding
+-- - Include status flag generation
+-- - Add error detection and reporting
+-- - Include proper reset and initialization
+--
+-- ============================================================================

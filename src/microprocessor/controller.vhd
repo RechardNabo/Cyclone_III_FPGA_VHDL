@@ -1,0 +1,647 @@
+-- ============================================================================
+-- Microprocessor Controller Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the main controller for a microprocessor system that
+-- coordinates instruction execution, data flow, and system operations. The
+-- controller acts as the central command unit that interprets instructions,
+-- generates control signals, manages execution phases, and coordinates with
+-- other microprocessor components like the ALU, register file, and memory
+-- interface. This implementation provides a comprehensive control framework
+-- for instruction processing and system management.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand microprocessor control unit design principles
+-- 2. Learn instruction decode and execution control
+-- 3. Practice finite state machine design for control logic
+-- 4. Understand control signal generation and timing
+-- 5. Learn pipeline control and hazard management
+-- 6. Practice system-level coordination and integration
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for advanced controller features
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.microprocessor_pkg.all for custom types
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor controller
+--
+-- Entity Requirements:
+-- - Name: controller (maintain current naming convention)
+-- - Instruction input interface
+-- - Control signal outputs for all components
+-- - Status and flag inputs from execution units
+-- - Clock and reset for sequential operation
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset)
+-- - enable : in std_logic (Controller enable)
+--
+-- Instruction Interface:
+-- - instruction : in std_logic_vector(INSTRUCTION_WIDTH-1 downto 0) (Current instruction)
+-- - pc : in std_logic_vector(PC_WIDTH-1 downto 0) (Program counter)
+-- - ir_valid : in std_logic (Instruction register valid)
+--
+-- Control Outputs:
+-- - alu_op : out std_logic_vector(ALU_OP_WIDTH-1 downto 0) (ALU operation)
+-- - reg_write : out std_logic (Register file write enable)
+-- - mem_read : out std_logic (Memory read enable)
+-- - mem_write : out std_logic (Memory write enable)
+-- - pc_write : out std_logic (Program counter write enable)
+-- - ir_write : out std_logic (Instruction register write enable)
+--
+-- Status Interface:
+-- - alu_flags : in std_logic_vector(FLAG_WIDTH-1 downto 0) (ALU status flags)
+-- - mem_ready : in std_logic (Memory ready signal)
+-- - interrupt : in std_logic (Interrupt request)
+-- - exception : in std_logic (Exception condition)
+--
+-- Debug Interface:
+-- - state : out std_logic_vector(STATE_WIDTH-1 downto 0) (Current state)
+-- - cycle_count : out std_logic_vector(COUNTER_WIDTH-1 downto 0) (Cycle counter)
+--
+-- ============================================================================
+-- STEP 3: MICROPROCESSOR CONTROLLER PRINCIPLES
+-- ============================================================================
+--
+-- Control Unit Fundamentals:
+-- 1. Instruction Processing
+--    - Instruction fetch coordination
+--    - Instruction decode and analysis
+--    - Operand fetch control
+--    - Execution phase management
+--    - Result writeback control
+--
+-- 2. Control Signal Generation
+--    - Component enable signals
+--    - Data path selection controls
+--    - Memory access controls
+--    - Register file controls
+--    - ALU operation controls
+--
+-- 3. Execution Phases
+--    - Fetch phase: Instruction retrieval
+--    - Decode phase: Instruction analysis
+--    - Execute phase: Operation execution
+--    - Memory phase: Memory access (if needed)
+--    - Writeback phase: Result storage
+--
+-- 4. State Management
+--    - Finite state machine design
+--    - State transition logic
+--    - Timing and synchronization
+--    - Error and exception handling
+--
+-- Controller Architectures:
+-- 1. Hardwired Control (Simple)
+--    - Direct logic implementation
+--    - Fast execution speed
+--    - Limited flexibility
+--    - Suitable for simple instruction sets
+--
+-- 2. Microprogrammed Control (Flexible)
+--    - Microcode-based control
+--    - High flexibility
+--    - Slower execution
+--    - Suitable for complex instruction sets
+--
+-- 3. Pipeline Control (High Performance)
+--    - Multi-stage pipeline management
+--    - Hazard detection and resolution
+--    - Branch prediction integration
+--    - Maximum throughput optimization
+--
+-- 4. Superscalar Control (Advanced)
+--    - Multiple instruction issue
+--    - Out-of-order execution control
+--    - Resource allocation management
+--    - Complex dependency tracking
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Sequential Controller (Recommended for beginners)
+-- - Single-cycle or multi-cycle execution
+-- - Sequential state machine
+-- - Basic instruction set support
+-- - Straightforward control logic
+--
+-- OPTION 2: Pipeline Controller (Intermediate)
+-- - 5-stage pipeline management
+-- - Hazard detection and forwarding
+-- - Branch prediction support
+-- - Performance optimization
+--
+-- OPTION 3: Advanced Controller with Exceptions (Advanced)
+-- - Exception and interrupt handling
+-- - Privilege level management
+-- - Memory management unit integration
+-- - System call support
+--
+-- OPTION 4: Superscalar Controller (Expert)
+-- - Multiple instruction issue
+-- - Out-of-order execution
+-- - Register renaming support
+-- - Advanced performance features
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Instruction Set Architecture:
+-- - Supported instruction types and formats
+-- - Addressing mode implementations
+-- - Register and memory operations
+-- - Control flow instructions
+--
+-- Timing and Synchronization:
+-- - Clock domain management
+-- - Setup and hold time requirements
+-- - Critical path optimization
+-- - Metastability prevention
+--
+-- Control Signal Timing:
+-- - Signal assertion and deassertion timing
+-- - Multi-cycle operation coordination
+-- - Memory access timing control
+-- - Pipeline stage synchronization
+--
+-- Error Handling:
+-- - Invalid instruction detection
+-- - Memory access error handling
+-- - Arithmetic overflow detection
+-- - System exception processing
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Pipeline Management:
+-- - Hazard detection and resolution
+-- - Data forwarding implementation
+-- - Branch prediction integration
+-- - Pipeline flush and stall control
+--
+-- Interrupt and Exception Handling:
+-- - Interrupt priority management
+-- - Exception vector handling
+-- - Context save and restore
+-- - Nested interrupt support
+--
+-- Performance Optimization:
+-- - Branch prediction mechanisms
+-- - Cache control integration
+-- - Instruction prefetch control
+-- - Dynamic frequency scaling
+--
+-- Debug and Test Features:
+-- - Single-step execution mode
+-- - Breakpoint support
+-- - Trace and profiling capabilities
+-- - Built-in self-test features
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Embedded Systems: Microcontroller and processor control units
+-- 2. Computer Architecture: CPU design and implementation
+-- 3. Digital Signal Processing: DSP processor control systems
+-- 4. FPGA Designs: Soft processor implementations
+-- 5. System-on-Chip: Integrated processor control
+-- 6. Educational Projects: Computer architecture learning
+-- 7. Research Platforms: Novel architecture exploration
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Functional Testing: All instruction types and execution paths
+-- 2. Timing Testing: Setup, hold, and propagation delay verification
+-- 3. Pipeline Testing: Hazard detection and resolution validation
+-- 4. Exception Testing: Error and interrupt handling verification
+-- 5. Performance Testing: Throughput and latency measurements
+-- 6. Integration Testing: System-level functionality validation
+-- 7. Stress Testing: Maximum frequency and loading conditions
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with simple sequential controller for basic instructions
+-- 2. Implement instruction decode and control signal generation
+-- 3. Add multi-cycle operation support for complex instructions
+-- 4. Implement basic exception and error handling
+-- 5. Add pipeline control for performance improvement
+-- 6. Implement hazard detection and resolution
+-- 7. Add advanced features like branch prediction
+-- 8. Validate with comprehensive test suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement branch prediction with history table
+-- 2. Add cache control and memory management integration
+-- 3. Implement out-of-order execution control
+-- 4. Add dynamic power management features
+-- 5. Implement virtual memory support
+-- 6. Add performance monitoring and profiling
+-- 7. Implement security features and privilege levels
+-- 8. Add debug and trace infrastructure
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Inadequate timing analysis for control signals
+-- 2. Missing hazard detection in pipeline implementations
+-- 3. Improper exception and interrupt handling
+-- 4. Insufficient state machine coverage
+-- 5. Poor control signal synchronization
+-- 6. Missing edge case handling in instruction decode
+-- 7. Inadequate reset and initialization sequences
+-- 8. Insufficient test coverage for all execution paths
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All instruction types execute correctly
+-- □ Control signals properly timed and synchronized
+-- □ Pipeline hazards detected and resolved
+-- □ Exceptions and interrupts handled properly
+-- □ Reset and initialization sequences correct
+-- □ Performance requirements met
+-- □ Resource utilization optimized
+-- □ Test coverage comprehensive
+-- □ Documentation complete and accurate
+-- □ Integration with other components successful
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This controller implementation demonstrates several key concepts:
+-- - Complex finite state machine design
+-- - System-level coordination and control
+-- - Pipeline management and optimization
+-- - Exception and error handling
+-- - Performance-oriented design principles
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider control logic optimization for area and speed
+-- - Plan for signal routing and timing closure
+-- - Account for power consumption in control logic
+-- - Consider testability and debug access
+-- - Plan for manufacturing test and validation
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Superscalar and out-of-order execution
+-- - Dynamic scheduling and resource allocation
+-- - Speculative execution and recovery
+-- - Multi-threading and parallel processing
+-- - Adaptive and reconfigurable control
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive instruction test suites
+-- - Verify timing relationships and critical paths
+-- - Test exception and interrupt scenarios
+-- - Validate pipeline operation and hazard handling
+-- - Check performance metrics and optimization
+-- - Verify integration with memory and I/O systems
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity controller is
+--     generic (
+--         INSTRUCTION_WIDTH : integer := 32;                 -- Instruction width
+--         PC_WIDTH         : integer := 32;                 -- Program counter width
+--         ALU_OP_WIDTH     : integer := 4;                  -- ALU operation width
+--         FLAG_WIDTH       : integer := 4;                  -- Status flag width
+--         STATE_WIDTH      : integer := 4;                  -- State encoding width
+--         COUNTER_WIDTH    : integer := 32;                 -- Cycle counter width
+--         PIPELINE_STAGES  : integer := 5;                  -- Pipeline depth
+--         ENABLE_PIPELINE  : boolean := true;               -- Enable pipeline
+--         ENABLE_BRANCH_PRED : boolean := false;            -- Enable branch prediction
+--         ENABLE_EXCEPTIONS : boolean := true               -- Enable exception handling
+--     );
+--     port (
+--         -- System Interface
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         enable          : in  std_logic;
+--         
+--         -- Instruction Interface
+--         instruction     : in  std_logic_vector(INSTRUCTION_WIDTH-1 downto 0);
+--         pc              : in  std_logic_vector(PC_WIDTH-1 downto 0);
+--         ir_valid        : in  std_logic;
+--         
+--         -- Control Outputs
+--         alu_op          : out std_logic_vector(ALU_OP_WIDTH-1 downto 0);
+--         reg_write       : out std_logic;
+--         reg_read        : out std_logic;
+--         mem_read        : out std_logic;
+--         mem_write       : out std_logic;
+--         pc_write        : out std_logic;
+--         pc_source       : out std_logic_vector(1 downto 0);
+--         ir_write        : out std_logic;
+--         
+--         -- Data Path Controls
+--         alu_src_a       : out std_logic_vector(1 downto 0);
+--         alu_src_b       : out std_logic_vector(1 downto 0);
+--         reg_dst         : out std_logic_vector(1 downto 0);
+--         mem_to_reg      : out std_logic;
+--         
+--         -- Status Interface
+--         alu_flags       : in  std_logic_vector(FLAG_WIDTH-1 downto 0);
+--         mem_ready       : in  std_logic;
+--         interrupt       : in  std_logic;
+--         exception       : in  std_logic;
+--         
+--         -- Pipeline Controls (if enabled)
+--         if_id_write     : out std_logic;
+--         id_ex_write     : out std_logic;
+--         ex_mem_write    : out std_logic;
+--         mem_wb_write    : out std_logic;
+--         pipeline_flush  : out std_logic;
+--         pipeline_stall  : out std_logic;
+--         
+--         -- Hazard Detection
+--         forward_a       : out std_logic_vector(1 downto 0);
+--         forward_b       : out std_logic_vector(1 downto 0);
+--         hazard_detected : out std_logic;
+--         
+--         -- Debug Interface
+--         state           : out std_logic_vector(STATE_WIDTH-1 downto 0);
+--         cycle_count     : out std_logic_vector(COUNTER_WIDTH-1 downto 0);
+--         debug_pc        : out std_logic_vector(PC_WIDTH-1 downto 0);
+--         debug_instruction : out std_logic_vector(INSTRUCTION_WIDTH-1 downto 0)
+--     );
+-- end entity controller;
+--
+-- architecture behavioral of controller is
+--     -- State definitions
+--     type controller_state_type is (
+--         RESET_STATE,
+--         FETCH,
+--         DECODE,
+--         EXECUTE,
+--         MEMORY,
+--         WRITEBACK,
+--         EXCEPTION_HANDLER,
+--         INTERRUPT_HANDLER
+--     );
+--     
+--     -- Internal signals
+--     signal current_state    : controller_state_type;
+--     signal next_state       : controller_state_type;
+--     signal cycle_counter    : unsigned(COUNTER_WIDTH-1 downto 0);
+--     
+--     -- Instruction decode signals
+--     signal opcode          : std_logic_vector(5 downto 0);
+--     signal rs              : std_logic_vector(4 downto 0);
+--     signal rt              : std_logic_vector(4 downto 0);
+--     signal rd              : std_logic_vector(4 downto 0);
+--     signal immediate       : std_logic_vector(15 downto 0);
+--     signal jump_address    : std_logic_vector(25 downto 0);
+--     
+--     -- Control signals
+--     signal control_signals : control_signals_type;
+--     signal hazard_signals  : hazard_signals_type;
+--     signal exception_signals : exception_signals_type;
+--     
+--     -- Pipeline registers (if enabled)
+--     type pipeline_control_array is array (0 to PIPELINE_STAGES-1) of control_signals_type;
+--     signal pipeline_controls : pipeline_control_array;
+--     
+--     -- Branch prediction (if enabled)
+--     signal branch_prediction : std_logic;
+--     signal branch_history    : std_logic_vector(1 downto 0);
+--     
+-- begin
+--     -- Instruction field extraction
+--     opcode <= instruction(31 downto 26);
+--     rs <= instruction(25 downto 21);
+--     rt <= instruction(20 downto 16);
+--     rd <= instruction(15 downto 11);
+--     immediate <= instruction(15 downto 0);
+--     jump_address <= instruction(25 downto 0);
+--     
+--     -- State machine process
+--     state_machine_process: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             current_state <= RESET_STATE;
+--             cycle_counter <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 current_state <= next_state;
+--                 cycle_counter <= cycle_counter + 1;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Next state logic
+--     next_state_logic: process(current_state, instruction, alu_flags, mem_ready, interrupt, exception, ir_valid)
+--     begin
+--         case current_state is
+--             when RESET_STATE =>
+--                 next_state <= FETCH;
+--                 
+--             when FETCH =>
+--                 if ir_valid = '1' then
+--                     next_state <= DECODE;
+--                 else
+--                     next_state <= FETCH;
+--                 end if;
+--                 
+--             when DECODE =>
+--                 if exception = '1' then
+--                     next_state <= EXCEPTION_HANDLER;
+--                 elsif interrupt = '1' then
+--                     next_state <= INTERRUPT_HANDLER;
+--                 else
+--                     next_state <= EXECUTE;
+--                 end if;
+--                 
+--             when EXECUTE =>
+--                 -- Determine if memory access is needed
+--                 if is_memory_instruction(opcode) then
+--                     next_state <= MEMORY;
+--                 else
+--                     next_state <= WRITEBACK;
+--                 end if;
+--                 
+--             when MEMORY =>
+--                 if mem_ready = '1' then
+--                     next_state <= WRITEBACK;
+--                 else
+--                     next_state <= MEMORY;
+--                 end if;
+--                 
+--             when WRITEBACK =>
+--                 next_state <= FETCH;
+--                 
+--             when EXCEPTION_HANDLER =>
+--                 -- Exception handling logic
+--                 next_state <= FETCH;
+--                 
+--             when INTERRUPT_HANDLER =>
+--                 -- Interrupt handling logic
+--                 next_state <= FETCH;
+--                 
+--             when others =>
+--                 next_state <= RESET_STATE;
+--         end case;
+--     end process;
+--     
+--     -- Control signal generation
+--     control_signal_generation: process(current_state, opcode, rs, rt, rd, immediate)
+--     begin
+--         -- Default control signal values
+--         control_signals <= DEFAULT_CONTROL_SIGNALS;
+--         
+--         case current_state is
+--             when FETCH =>
+--                 control_signals.pc_write <= '1';
+--                 control_signals.ir_write <= '1';
+--                 control_signals.mem_read <= '1';
+--                 
+--             when DECODE =>
+--                 control_signals.reg_read <= '1';
+--                 -- Decode instruction and set appropriate controls
+--                 decode_instruction(opcode, control_signals);
+--                 
+--             when EXECUTE =>
+--                 control_signals.alu_op <= get_alu_operation(opcode);
+--                 set_alu_sources(opcode, control_signals);
+--                 
+--             when MEMORY =>
+--                 if is_load_instruction(opcode) then
+--                     control_signals.mem_read <= '1';
+--                 elsif is_store_instruction(opcode) then
+--                     control_signals.mem_write <= '1';
+--                 end if;
+--                 
+--             when WRITEBACK =>
+--                 if requires_writeback(opcode) then
+--                     control_signals.reg_write <= '1';
+--                     control_signals.mem_to_reg <= is_load_instruction(opcode);
+--                 end if;
+--                 
+--             when others =>
+--                 control_signals <= DEFAULT_CONTROL_SIGNALS;
+--         end case;
+--     end process;
+--     
+--     -- Pipeline control generation (if enabled)
+--     pipeline_control_gen: if ENABLE_PIPELINE generate
+--         pipeline_control_process: process(clk, reset)
+--         begin
+--             if reset = '1' then
+--                 for i in 0 to PIPELINE_STAGES-1 loop
+--                     pipeline_controls(i) <= DEFAULT_CONTROL_SIGNALS;
+--                 end loop;
+--             elsif rising_edge(clk) then
+--                 if enable = '1' and pipeline_stall = '0' then
+--                     -- Shift pipeline controls
+--                     for i in PIPELINE_STAGES-1 downto 1 loop
+--                         pipeline_controls(i) <= pipeline_controls(i-1);
+--                     end loop;
+--                     pipeline_controls(0) <= control_signals;
+--                 end if;
+--             end if;
+--         end process;
+--         
+--         -- Pipeline stage write enables
+--         if_id_write <= not pipeline_stall;
+--         id_ex_write <= not pipeline_stall;
+--         ex_mem_write <= not pipeline_stall;
+--         mem_wb_write <= not pipeline_stall;
+--     end generate;
+--     
+--     -- Hazard detection (if pipeline enabled)
+--     hazard_detection_gen: if ENABLE_PIPELINE generate
+--         hazard_detection_process: process(instruction, pipeline_controls)
+--         begin
+--             hazard_signals <= detect_hazards(instruction, pipeline_controls);
+--         end process;
+--         
+--         hazard_detected <= hazard_signals.data_hazard or hazard_signals.control_hazard;
+--         pipeline_stall <= hazard_signals.stall_required;
+--         pipeline_flush <= hazard_signals.flush_required;
+--         forward_a <= hazard_signals.forward_a;
+--         forward_b <= hazard_signals.forward_b;
+--     end generate;
+--     
+--     -- Branch prediction (if enabled)
+--     branch_prediction_gen: if ENABLE_BRANCH_PRED generate
+--         branch_prediction_process: process(clk, reset)
+--         begin
+--             if reset = '1' then
+--                 branch_history <= "00";
+--                 branch_prediction <= '0';
+--             elsif rising_edge(clk) then
+--                 if is_branch_instruction(opcode) then
+--                     -- Update branch history and prediction
+--                     update_branch_prediction(branch_history, branch_prediction, alu_flags);
+--                 end if;
+--             end if;
+--         end process;
+--     end generate;
+--     
+--     -- Output assignments
+--     alu_op <= control_signals.alu_op;
+--     reg_write <= control_signals.reg_write;
+--     reg_read <= control_signals.reg_read;
+--     mem_read <= control_signals.mem_read;
+--     mem_write <= control_signals.mem_write;
+--     pc_write <= control_signals.pc_write;
+--     pc_source <= control_signals.pc_source;
+--     ir_write <= control_signals.ir_write;
+--     alu_src_a <= control_signals.alu_src_a;
+--     alu_src_b <= control_signals.alu_src_b;
+--     reg_dst <= control_signals.reg_dst;
+--     mem_to_reg <= control_signals.mem_to_reg;
+--     
+--     -- Debug outputs
+--     state <= std_logic_vector(to_unsigned(controller_state_type'pos(current_state), STATE_WIDTH));
+--     cycle_count <= std_logic_vector(cycle_counter);
+--     debug_pc <= pc;
+--     debug_instruction <= instruction;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This controller implementation provides comprehensive control for
+-- a microprocessor system. Ensure proper timing analysis, hazard handling,
+-- and exception processing for your specific instruction set and performance
+-- requirements. The design can be customized with different pipeline depths
+-- and advanced features based on application needs.
+-- ============================================================================

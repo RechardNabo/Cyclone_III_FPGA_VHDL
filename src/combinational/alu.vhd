@@ -1,0 +1,657 @@
+-- ============================================================================
+-- Arithmetic Logic Unit (ALU) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a comprehensive Arithmetic Logic Unit (ALU) that performs
+-- various arithmetic and logical operations on two input operands. The ALU is
+-- a fundamental component of processors and microcontrollers, capable of
+-- executing operations like addition, subtraction, logical AND/OR/XOR, shifts,
+-- comparisons, and more. This implementation serves as the computational core
+-- for digital processing systems.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand ALU architecture and operation principles
+-- 2. Learn multi-function combinational circuit design
+-- 3. Practice operation encoding and control signal handling
+-- 4. Explore flag generation and status reporting
+-- 5. Understand processor integration concepts
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations (recommended)
+-- - std_logic_arith and std_logic_unsigned (alternative, not recommended)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (recommended approach)
+-- TODO: Consider use IEEE.std_logic_arith.all; (alternative approach)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the ALU
+--
+-- Entity Requirements:
+-- - Name: alu (maintain current naming convention)
+-- - Inputs: Two operands, operation select, and control signals
+-- - Outputs: Result, flags (zero, carry, overflow, negative)
+-- - Consider enable and mode control signals
+--
+-- Port Specifications:
+-- - A : in std_logic_vector(7 downto 0) (First operand - 8-bit)
+-- - B : in std_logic_vector(7 downto 0) (Second operand - 8-bit)
+-- - ALU_Sel : in std_logic_vector(3 downto 0) (Operation select - 4-bit)
+-- - Result : out std_logic_vector(7 downto 0) (ALU result - 8-bit)
+-- - Zero_Flag : out std_logic (Zero flag - result is zero)
+-- - Carry_Flag : out std_logic (Carry flag - arithmetic overflow)
+-- - Overflow_Flag : out std_logic (Overflow flag - signed overflow)
+-- - Negative_Flag : out std_logic (Negative flag - MSB of result)
+-- - Enable : in std_logic (ALU enable signal - optional)
+--
+-- TODO: Declare entity with appropriate port names
+-- TODO: Add detailed port comments
+-- TODO: Consider signal naming conventions
+-- TODO: Plan for different bit widths (16-bit, 32-bit versions)
+--
+-- ============================================================================
+-- STEP 3: OPERATION ENCODING DEFINITION
+-- ============================================================================
+--
+-- ALU OPERATION ENCODING (4-bit ALU_Sel):
+-- 0000 (0x0) - ADD:     A + B (Addition)
+-- 0001 (0x1) - SUB:     A - B (Subtraction)
+-- 0010 (0x2) - AND:     A AND B (Logical AND)
+-- 0011 (0x3) - OR:      A OR B (Logical OR)
+-- 0100 (0x4) - XOR:     A XOR B (Logical XOR)
+-- 0101 (0x5) - NOT:     NOT A (Logical NOT of A)
+-- 0110 (0x6) - SHL:     A << 1 (Shift Left)
+-- 0111 (0x7) - SHR:     A >> 1 (Shift Right)
+-- 1000 (0x8) - ROL:     Rotate A Left
+-- 1001 (0x9) - ROR:     Rotate A Right
+-- 1010 (0xA) - CMP:     Compare A with B (A - B, flags only)
+-- 1011 (0xB) - INC:     A + 1 (Increment)
+-- 1100 (0xC) - DEC:     A - 1 (Decrement)
+-- 1101 (0xD) - NAND:    A NAND B (Logical NAND)
+-- 1110 (0xE) - NOR:     A NOR B (Logical NOR)
+-- 1111 (0xF) - PASS:    Pass A through (A)
+--
+-- TODO: Define operation constants for readability
+-- TODO: Consider using enumerated types for operations
+-- TODO: Plan for extended operation sets
+-- TODO: Document operation precedence and priority
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BEHAVIORAL ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use high-level VHDL constructs with case statements
+--
+-- Implementation Approach:
+-- - Use process with case statement for operation selection
+-- - Implement each operation using VHDL operators
+-- - Generate flags based on result characteristics
+-- - Simple and readable implementation
+--
+-- Example Structure:
+-- process(A, B, ALU_Sel)
+--     variable temp_result : std_logic_vector(8 downto 0);
+-- begin
+--     case ALU_Sel is
+--         when "0000" => -- ADD
+--             temp_result := ('0' & A) + ('0' & B);
+--             Result <= temp_result(7 downto 0);
+--             Carry_Flag <= temp_result(8);
+--         when "0001" => -- SUB
+--             temp_result := ('0' & A) - ('0' & B);
+--             Result <= temp_result(7 downto 0);
+--             Carry_Flag <= temp_result(8);
+--         when others =>
+--             Result <= (others => '0');
+--             Carry_Flag <= '0';
+--     end case;
+-- end process;
+--
+-- TODO: Implement behavioral architecture with case statement
+-- TODO: Handle all defined operations
+-- TODO: Generate appropriate flags for each operation
+-- TODO: Verify synthesis results
+--
+-- OPTION 2: DATAFLOW ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use concurrent signal assignments with conditional expressions
+--
+-- Implementation Approach:
+-- - Use conditional signal assignments for each operation
+-- - Implement parallel operation execution
+-- - Use multiplexer-style selection for final result
+-- - Explicit flag generation logic
+--
+-- Example Structure:
+-- add_result <= std_logic_vector(unsigned('0' & A) + unsigned('0' & B));
+-- sub_result <= std_logic_vector(unsigned('0' & A) - unsigned('0' & B));
+-- and_result <= '0' & (A and B);
+-- or_result <= '0' & (A or B);
+-- 
+-- Result <= add_result(7 downto 0) when ALU_Sel = "0000" else
+--           sub_result(7 downto 0) when ALU_Sel = "0001" else
+--           and_result(7 downto 0) when ALU_Sel = "0010" else
+--           or_result(7 downto 0) when ALU_Sel = "0011" else
+--           (others => '0');
+--
+-- TODO: Implement dataflow architecture
+-- TODO: Define intermediate result signals
+-- TODO: Implement result multiplexing
+-- TODO: Generate flags concurrently
+--
+-- OPTION 3: STRUCTURAL ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use component instantiation for modular design
+--
+-- Implementation Approach:
+-- - Declare components for each operation type
+-- - Instantiate arithmetic unit, logic unit, shift unit
+-- - Use multiplexers for result and flag selection
+-- - Hierarchical and modular design approach
+--
+-- Component Declarations:
+-- component arithmetic_unit is
+--     port (
+--         A, B : in std_logic_vector(7 downto 0);
+--         Op : in std_logic_vector(1 downto 0);
+--         Result : out std_logic_vector(7 downto 0);
+--         Carry, Overflow : out std_logic
+--     );
+-- end component;
+--
+-- component logic_unit is
+--     port (
+--         A, B : in std_logic_vector(7 downto 0);
+--         Op : in std_logic_vector(1 downto 0);
+--         Result : out std_logic_vector(7 downto 0)
+--     );
+-- end component;
+--
+-- TODO: Declare functional unit components
+-- TODO: Instantiate arithmetic, logic, and shift units
+-- TODO: Implement result multiplexing
+-- TODO: Connect flag generation logic
+--
+-- OPTION 4: OPTIMIZED ARCHITECTURE
+-- ----------------------------------------------------------------------------
+-- Use advanced techniques for improved performance
+--
+-- Implementation Approaches:
+-- - Pipeline stages for high-frequency operation
+-- - Parallel execution of multiple operations
+-- - Look-ahead flag generation
+-- - Resource sharing and optimization
+--
+-- Optimization Techniques:
+-- - Carry look-ahead for arithmetic operations
+-- - Barrel shifter for multi-bit shifts
+-- - Parallel flag computation
+-- - Conditional execution for power savings
+--
+-- TODO: Implement optimized architecture
+-- TODO: Add pipeline registers if needed
+-- TODO: Optimize critical timing paths
+-- TODO: Implement power-saving features
+--
+-- ============================================================================
+-- STEP 5: FLAG GENERATION LOGIC
+-- ============================================================================
+--
+-- FLAG DEFINITIONS:
+-- - Zero Flag (Z): Set when result is all zeros
+-- - Carry Flag (C): Set when arithmetic operation produces carry
+-- - Overflow Flag (V): Set when signed arithmetic overflows
+-- - Negative Flag (N): Set when result MSB is '1' (signed negative)
+--
+-- FLAG GENERATION RULES:
+-- Zero Flag: Z = '1' when Result = "00000000", else '0'
+-- Carry Flag: C = carry out from MSB for arithmetic operations
+-- Overflow Flag: V = (A(7) XOR Result(7)) AND (B(7) XOR Result(7)) for ADD
+--                V = (A(7) XOR Result(7)) AND (A(7) XOR B(7)) for SUB
+-- Negative Flag: N = Result(7)
+--
+-- OPERATION-SPECIFIC FLAG BEHAVIOR:
+-- - Arithmetic (ADD, SUB, INC, DEC): All flags affected
+-- - Logical (AND, OR, XOR, NOT): Zero and Negative flags affected
+-- - Shift/Rotate: Carry flag gets shifted bit, Zero and Negative affected
+-- - Compare: All flags affected (same as subtraction)
+-- - Pass: Zero and Negative flags affected
+--
+-- TODO: Implement flag generation for each operation type
+-- TODO: Verify flag behavior matches processor specifications
+-- TODO: Test flag generation with edge cases
+-- TODO: Consider flag enable/disable controls
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- ARITHMETIC OPERATIONS:
+-- - Two's complement arithmetic for signed operations
+-- - Unsigned arithmetic for logical operations
+-- - Carry propagation and generation
+-- - Overflow detection for signed arithmetic
+-- - Saturation arithmetic (optional enhancement)
+--
+-- LOGICAL OPERATIONS:
+-- - Bitwise operations on all bit positions
+-- - Boolean algebra implementation
+-- - Truth table verification for each operation
+-- - Optimization for common logical patterns
+-- - Support for bit manipulation instructions
+--
+-- SHIFT AND ROTATE OPERATIONS:
+-- - Logical shifts (fill with zeros)
+-- - Arithmetic shifts (preserve sign bit)
+-- - Circular rotations (no bit loss)
+-- - Multi-bit shift capabilities (enhancement)
+-- - Barrel shifter implementation (advanced)
+--
+-- VHDL TECHNIQUES:
+-- - Process vs. concurrent statements
+-- - Variable vs. signal usage
+-- - Type conversions and casting
+-- - Generic parameters for scalability
+-- - Synthesis optimization considerations
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - LUT utilization for different operations
+-- - Multiplexer inference and optimization
+-- - Critical path analysis and timing
+-- - Resource sharing between operations
+-- - Power consumption optimization
+--
+-- TIMING ANALYSIS:
+-- - Combinational delay through ALU
+-- - Setup and hold time requirements
+-- - Clock-to-output delays (if registered)
+-- - Operation-dependent timing variations
+-- - Critical path identification
+--
+-- TESTABILITY FEATURES:
+-- - Comprehensive operation testing
+-- - Flag generation verification
+-- - Boundary condition testing
+-- - Random test vector generation
+-- - Built-in self-test capabilities
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. MICROPROCESSOR CORES:
+--    - Central processing unit arithmetic section
+--    - Instruction execution unit
+--    - Data path implementation
+--    - Register file operations
+--    - Condition code generation
+--
+-- 2. DIGITAL SIGNAL PROCESSING:
+--    - Filter implementations
+--    - Mathematical operations
+--    - Data manipulation and formatting
+--    - Real-time signal processing
+--    - Algorithmic acceleration
+--
+-- 3. CONTROL SYSTEMS:
+--    - PID controller implementations
+--    - State machine calculations
+--    - Sensor data processing
+--    - Actuator control algorithms
+--    - System monitoring and diagnostics
+--
+-- 4. COMMUNICATION SYSTEMS:
+--    - Protocol processing
+--    - Error detection and correction
+--    - Data encoding and decoding
+--    - Checksum calculations
+--    - Packet header processing
+--
+-- 5. GRAPHICS AND MULTIMEDIA:
+--    - Pixel processing operations
+--    - Color space conversions
+--    - Image filtering and enhancement
+--    - Video compression algorithms
+--    - 3D graphics calculations
+--
+-- 6. CRYPTOGRAPHIC APPLICATIONS:
+--    - Encryption and decryption operations
+--    - Hash function implementations
+--    - Key generation algorithms
+--    - Random number processing
+--    - Security protocol operations
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Test each operation individually
+-- - Verify all operation encodings
+-- - Test flag generation for each operation
+-- - Boundary condition testing (0, max values)
+-- - Random test vector generation
+--
+-- ARITHMETIC TESTING:
+-- - Addition with and without carry
+-- - Subtraction with and without borrow
+-- - Overflow condition testing
+-- - Signed and unsigned arithmetic verification
+-- - Edge case testing (min/max values)
+--
+-- LOGICAL TESTING:
+-- - Truth table verification for each logical operation
+-- - Bit pattern testing (all 0s, all 1s, alternating)
+-- - Complement operation verification
+-- - Logical operation combinations
+-- - Boolean algebra property verification
+--
+-- SHIFT AND ROTATE TESTING:
+-- - Single-bit shift operations
+-- - Multi-bit shift verification (if supported)
+-- - Rotate operation continuity testing
+-- - Shift direction verification
+-- - Carry flag behavior during shifts
+--
+-- FLAG TESTING:
+-- - Zero flag generation verification
+-- - Carry flag behavior for all operations
+-- - Overflow flag accuracy testing
+-- - Negative flag consistency checking
+-- - Flag interaction and independence testing
+--
+-- TIMING TESTING:
+-- - Propagation delay measurement
+-- - Setup and hold time verification
+-- - Critical path identification
+-- - Operation timing variations
+-- - Temperature and voltage testing
+--
+-- INTEGRATION TESTING:
+-- - Processor integration verification
+-- - System-level operation testing
+-- - Multi-ALU coordination (if applicable)
+-- - Memory interface testing
+-- - Interrupt handling verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with behavioral architecture using case statements
+-- 2. Implement basic arithmetic operations (ADD, SUB)
+-- 3. Add simple logical operations (AND, OR, XOR)
+-- 4. Implement basic flag generation (Zero, Carry)
+-- 5. Create simple testbench for functionality verification
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement complete operation set with all flags
+-- 2. Add shift and rotate operations
+-- 3. Create comprehensive testbench with edge cases
+-- 4. Analyze timing and resource utilization
+-- 5. Compare different architectural approaches
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement optimized architecture with pipeline stages
+-- 2. Create parameterized design for different bit widths
+-- 3. Optimize for specific FPGA architectures
+-- 4. Implement advanced features (saturation, multi-cycle ops)
+-- 5. Create reusable ALU library components
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. PARAMETERIZED ALU:
+--    - Add generic parameter for data width
+--    - Create scalable architecture (16-bit, 32-bit, 64-bit)
+--    - Implement configurable operation sets
+--    - Add runtime width configuration
+--
+-- 2. MULTI-CYCLE OPERATIONS:
+--    - Implement multiplication and division
+--    - Add multi-bit shift operations
+--    - Create operation sequencing control
+--    - Implement complex mathematical functions
+--
+-- 3. FLOATING-POINT ALU:
+--    - Extend to IEEE 754 floating-point operations
+--    - Implement floating-point addition/subtraction
+--    - Add normalization and rounding logic
+--    - Handle special cases (NaN, infinity, denormals)
+--
+-- 4. VECTOR ALU:
+--    - Implement SIMD (Single Instruction, Multiple Data) operations
+--    - Add parallel processing capabilities
+--    - Create vector register file interface
+--    - Implement vector arithmetic and logical operations
+--
+-- 5. PROCESSOR INTEGRATION:
+--    - Create complete CPU datapath
+--    - Add instruction decode interface
+--    - Implement condition code register
+--    - Create pipeline stage integration
+--
+-- 6. ADVANCED FEATURES:
+--    - Implement saturation arithmetic
+--    - Add conditional execution support
+--    - Create power management features
+--    - Implement built-in self-test capabilities
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. OPERATION ENCODING ERRORS:
+--    - Ensure all operation codes are unique
+--    - Verify case statement covers all encodings
+--    - Handle undefined operation codes gracefully
+--    - Document operation encoding clearly
+--
+-- 2. FLAG GENERATION MISTAKES:
+--    - Implement correct overflow detection logic
+--    - Ensure flag consistency across operations
+--    - Verify flag timing and update behavior
+--    - Test flag generation with edge cases
+--
+-- 3. TYPE CONVERSION ISSUES:
+--    - Use consistent signal types throughout design
+--    - Handle signed vs. unsigned arithmetic correctly
+--    - Avoid mixing different arithmetic packages
+--    - Verify vector width compatibility
+--
+-- 4. SYNTHESIS OPTIMIZATION PROBLEMS:
+--    - Avoid inference of unwanted latches
+--    - Ensure all outputs are driven in all cases
+--    - Check for combinational loops
+--    - Verify synthesis tool interpretation
+--
+-- 5. TIMING CLOSURE ISSUES:
+--    - Consider operation-dependent delays
+--    - Account for multiplexer delays
+--    - Implement proper timing constraints
+--    - Verify critical path timing
+--
+-- 6. TESTBENCH INADEQUACY:
+--    - Test all operations and encodings
+--    - Include comprehensive flag testing
+--    - Verify timing relationships
+--    - Check for race conditions
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all required ports
+-- □ All operation encodings are implemented
+-- □ Flag generation logic is correct for all operations
+-- □ Arithmetic operations handle overflow correctly
+-- □ Logical operations produce correct truth tables
+-- □ Shift and rotate operations work in both directions
+-- □ All operation encodings tested and verified
+-- □ Flag behavior verified for each operation type
+-- □ Timing requirements satisfied for target frequency
+-- □ Synthesis results meet resource constraints
+-- □ Code follows project VHDL style guidelines
+-- □ Testbench provides comprehensive operation coverage
+-- □ Documentation clearly explains all operations
+-- □ Signal assignments avoid combinational loops
+-- □ All outputs are properly driven in all conditions
+-- □ Design is portable across different FPGA families
+-- □ Performance meets or exceeds specifications
+-- □ Power consumption is within acceptable limits
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- PROCESSOR ARCHITECTURE INTEGRATION:
+-- - Datapath central component
+-- - Instruction execution unit
+-- - Register file interface
+-- - Memory address calculation
+-- - Condition code generation
+--
+-- SYSTEM-ON-CHIP APPLICATIONS:
+-- - Embedded processor cores
+-- - DSP acceleration units
+-- - Graphics processing units
+-- - Network packet processors
+-- - Cryptographic engines
+--
+-- PERFORMANCE METRICS:
+-- - Operations per second throughput
+-- - Propagation delay (critical path)
+-- - Area utilization (LUTs, registers)
+-- - Power consumption (static, dynamic)
+-- - Maximum operating frequency
+--
+-- DESIGN TRADE-OFFS:
+-- - Performance vs. area utilization
+-- - Functionality vs. complexity
+-- - Power consumption vs. speed
+-- - Flexibility vs. optimization
+-- - Cost vs. capability
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA RESOURCE UTILIZATION:
+-- - Logic Elements: ~50-100 LUTs for 8-bit ALU
+-- - Multiplexers: Operation selection and result routing
+-- - Carry Logic: Dedicated carry chains for arithmetic
+-- - Registers: Optional for pipeline implementations
+-- - Memory: None required for basic ALU
+--
+-- TIMING CHARACTERISTICS:
+-- - Combinational Delay: ~5-10ns for 8-bit operations
+-- - Critical Path: Usually through arithmetic operations
+-- - Setup Time: Input signal requirements
+-- - Hold Time: Input signal stability
+-- - Clock-to-Output: For registered implementations
+--
+-- POWER CONSUMPTION:
+-- - Static Power: FPGA leakage current
+-- - Dynamic Power: Operation and switching dependent
+-- - Arithmetic Power: Higher for complex operations
+-- - I/O Power: Interface signal switching
+-- - Total Power: Function of utilization and frequency
+--
+-- DESIGN CONSTRAINTS:
+-- - Timing constraints for critical paths
+-- - Area constraints for resource utilization
+-- - Power constraints for thermal management
+-- - I/O constraints for interface compatibility
+-- - Performance constraints for system requirements
+--
+-- ============================================================================
+-- ADVANCED ALU CONCEPTS:
+-- ============================================================================
+--
+-- PIPELINE IMPLEMENTATION:
+-- - Multi-stage pipeline for high frequency
+-- - Operation decode stage
+-- - Execution stage
+-- - Result writeback stage
+-- - Hazard detection and forwarding
+--
+-- SUPERSCALAR EXECUTION:
+-- - Multiple ALU units in parallel
+-- - Operation dispatch and scheduling
+-- - Result forwarding and bypassing
+-- - Resource conflict resolution
+-- - Performance optimization techniques
+--
+-- SPECIALIZED FUNCTIONAL UNITS:
+-- - Dedicated multiplier units
+-- - Floating-point processing units
+-- - Vector processing units
+-- - Cryptographic acceleration units
+-- - DSP-specific operations
+--
+-- POWER OPTIMIZATION:
+-- - Clock gating for unused operations
+-- - Voltage and frequency scaling
+-- - Operation-specific power domains
+-- - Activity-based power management
+-- - Low-power design techniques
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH ARCHITECTURE:
+-- - Comprehensive operation stimulus generation
+-- - Expected result calculation and comparison
+-- - Flag verification and analysis
+-- - Timing verification and analysis
+-- - Coverage analysis and reporting
+--
+-- VERIFICATION METHODOLOGY:
+-- - Directed testing for specific operations
+-- - Random testing for broad coverage
+-- - Constrained random testing for edge cases
+-- - Formal verification for critical properties
+-- - Assertion-based verification for continuous checking
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis for operation behavior
+-- - Breakpoint debugging in simulation
+-- - Signal tracing through ALU stages
+-- - Flag generation analysis
+-- - Performance bottleneck identification
+--
+-- PERFORMANCE ANALYSIS:
+-- - Operation timing characterization
+-- - Critical path identification and optimization
+-- - Resource utilization vs. performance trade-offs
+-- - Power analysis for different operation mixes
+-- - Scalability analysis for larger bit widths
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

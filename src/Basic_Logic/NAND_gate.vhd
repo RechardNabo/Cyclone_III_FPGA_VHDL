@@ -1,27 +1,292 @@
-library IEEE;
-use IEEE.std_logic_1164.all;
-
-entity NAND_gate is
-    port(
-        x : in std_logic;
-        y : in std_logic;
-        f : out std_logic
-    );
-end entity;
-
-architecture NAND_gate of NAND_gate is
-    begin
-        process(x,y)
-        begin
-            if((x = '0') and (y = '0')) then
-                f <= '0';
-            else
-                f <= '1';
-            end if;
-        end process;
-end architecture;
-
-architecture concurent of NAND_gate is
-    begin
-        f<= not(x and y);
-end architecture;
+-- ============================================================================
+-- NAND Gate Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a 2-input NAND (NOT-AND) gate, one of the most
+-- fundamental and versatile logic gates in digital systems. The NAND gate
+-- is functionally complete, meaning any boolean function can be implemented
+-- using only NAND gates. It outputs '0' only when both inputs are '1',
+-- and '1' for all other input combinations.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand NAND gate as universal gate concept
+-- 2. Learn about functional completeness in digital logic
+-- 3. Practice negation and conjunction operations in VHDL
+-- 4. Explore NAND-based implementations of other gates
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ----------------------------------------------------------------------------
+-- The entity defines the NAND gate interface
+--
+-- Entity Requirements:
+-- - Name: NAND_gate
+-- - Inputs: Two std_logic signals (suggest names: a, b or x, y)
+-- - Output: One std_logic signal (suggest name: y or f)
+--
+-- TODO: Declare entity with appropriate port map
+-- TODO: Use descriptive port names and comments
+-- TODO: Consider signal naming consistency across project
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE IMPLEMENTATION
+-- ----------------------------------------------------------------------------
+-- Multiple approaches to implement NAND functionality:
+--
+-- OPTION A: BEHAVIORAL MODELING (Process-based)
+-- - Use process with complete sensitivity list
+-- - Implement with if-then-else statements
+-- - Logic: if both inputs are '1' then output='0' else output='1'
+--
+-- OPTION B: DATAFLOW MODELING (Concurrent assignment)
+-- - Use built-in operators: output <= not (input1 and input2)
+-- - Most direct and efficient approach
+-- - Recommended for simple NAND implementation
+--
+-- OPTION C: BOOLEAN EXPRESSION APPROACH
+-- - Implement using De Morgan's law: F = (AB)' = A' + B'
+-- - Use OR and NOT operators to build NAND function
+-- - Educational value for understanding boolean algebra
+--
+-- OPTION D: TRUTH TABLE APPROACH
+-- - Use case statement or when-else construct
+-- - Explicitly handle all four input combinations
+-- - Good for learning and verification
+--
+-- ============================================================================
+-- NAND GATE TRUTH TABLE:
+-- ============================================================================
+--
+-- Input A | Input B | Output F | Description
+-- --------|---------|----------|-------------
+--    0    |    0    |    1     | NOT(0 AND 0) = NOT(0) = 1
+--    0    |    1    |    1     | NOT(0 AND 1) = NOT(0) = 1
+--    1    |    0    |    1     | NOT(1 AND 0) = NOT(0) = 1
+--    1    |    1    |    0     | NOT(1 AND 1) = NOT(1) = 0
+--
+-- Key Insight: NAND outputs '0' ONLY when both inputs are '1'
+-- Boolean Expression: F = (AB)' = A' + B' (De Morgan's Law)
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- NAND AS UNIVERSAL GATE:
+-- - Any boolean function can be implemented using only NAND gates
+-- - NOT gate: NAND with inputs tied together
+-- - AND gate: NAND followed by NOT (another NAND)
+-- - OR gate: De Morgan's law - (A' • B')' = A + B
+--
+-- VHDL OPERATORS:
+-- - 'and' operator: performs logical AND operation
+-- - 'not' operator: performs logical negation
+-- - Combined: not (A and B) implements NAND function
+-- - Part of IEEE.std_logic_1164 package
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - NAND gates are primitive in most FPGA architectures
+-- - Very efficient mapping to LUT resources
+-- - Often preferred in ASIC designs for power efficiency
+-- - Faster switching than NOR gates in CMOS technology
+--
+-- ============================================================================
+-- NAND GATE APPLICATIONS:
+-- ============================================================================
+--
+-- 1. UNIVERSAL LOGIC IMPLEMENTATION:
+--    - Build any logic function using only NAND gates
+--    - Reduce gate variety in IC manufacturing
+--    - Simplify design and testing processes
+--
+-- 2. MEMORY CIRCUITS:
+--    - SR latch implementation using cross-coupled NANDs
+--    - Basic building block for flip-flops
+--    - Static RAM cell construction
+--
+-- 3. OSCILLATOR CIRCUITS:
+--    - Ring oscillators using odd number of NAND gates
+--    - Clock generation circuits
+--    - Timing reference generation
+--
+-- 4. CONTROL LOGIC:
+--    - Enable/disable signal generation
+--    - Interrupt handling circuits
+--    - Reset and set logic implementation
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- BASIC FUNCTIONALITY TESTS:
+-- 1. Test Case 1: A='0', B='0' → Expected: F='1'
+-- 2. Test Case 2: A='0', B='1' → Expected: F='1'
+-- 3. Test Case 3: A='1', B='0' → Expected: F='1'
+-- 4. Test Case 4: A='1', B='1' → Expected: F='0'
+--
+-- ADVANCED TESTS:
+-- - Test with 'X' (unknown) inputs
+-- - Test with 'Z' (high-impedance) inputs
+-- - Verify timing behavior and propagation delay
+-- - Test in multi-bit configurations
+--
+-- UNIVERSAL GATE VERIFICATION:
+-- - Implement NOT gate using NAND
+-- - Implement AND gate using NAND gates
+-- - Implement OR gate using NAND gates
+-- - Verify functional equivalence
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with truth table analysis
+-- 2. Implement using dataflow modeling with NOT and AND operators
+-- 3. Create simple testbench to verify all cases
+-- 4. Compare results with expected truth table
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement multiple architectures (behavioral and dataflow)
+-- 2. Create other gates using only NAND gates
+-- 3. Analyze synthesis results and resource utilization
+-- 4. Implement multi-bit NAND using generate statements
+--
+-- FOR ADVANCED USERS:
+-- 1. Design complex functions using only NAND gates
+-- 2. Implement SR latch using cross-coupled NANDs
+-- 3. Create NAND-based arithmetic circuits
+-- 4. Optimize for specific FPGA architecture features
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. UNIVERSAL GATE DEMONSTRATION:
+--    - Implement NOT gate: NAND(A,A) = A'
+--    - Implement AND gate: NOT(NAND(A,B)) = AB
+--    - Implement OR gate: NAND(NAND(A,A), NAND(B,B)) = A+B
+--    - Implement XOR gate using only NAND gates
+--
+-- 2. SR LATCH IMPLEMENTATION:
+--    - Use two cross-coupled NAND gates
+--    - Add Set and Reset inputs
+--    - Demonstrate memory functionality
+--
+-- 3. MULTI-INPUT NAND:
+--    - Extend to N inputs using std_logic_vector
+--    - Implement using reduction operators
+--    - Create tree structure for large inputs
+--
+-- 4. NAND-BASED ARITHMETIC:
+--    - Implement half adder using NAND gates
+--    - Create full adder with NAND gates only
+--    - Build ripple carry adder
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. LOGIC CONFUSION:
+--    - Don't confuse NAND with NOR operation
+--    - Remember: NAND = NOT AND, NOR = NOT OR
+--    - NAND outputs '0' only when both inputs are '1'
+--
+-- 2. BOOLEAN EXPRESSION ERRORS:
+--    - Correct: F = (AB)' = A' + B'
+--    - Incorrect: F = A' • B' (this is NOR, not NAND)
+--    - Apply De Morgan's law correctly
+--
+-- 3. SENSITIVITY LIST:
+--    - Include all input signals in process sensitivity list
+--    - Missing signals cause simulation errors
+--
+-- 4. OPERATOR PRECEDENCE:
+--    - Use parentheses: not (A and B)
+--    - Without parentheses: (not A) and B ≠ NAND function
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all required ports
+-- □ Port directions correctly specified (in/out)
+-- □ All four input combinations tested
+-- □ Truth table behavior correctly implemented
+-- □ NAND function verified: F = (AB)'
+-- □ Universal gate properties demonstrated
+-- □ Synthesis completes without errors
+-- □ Timing requirements satisfied
+-- □ Code follows VHDL style guidelines
+-- □ Comments explain NAND functionality clearly
+--
+-- ============================================================================
+-- NAND vs OTHER GATES COMPARISON:
+-- ============================================================================
+--
+-- NAND vs AND:
+-- - NAND: Output '0' only when both inputs are '1'
+-- - AND: Output '1' only when both inputs are '1'
+-- - NAND is complement of AND
+--
+-- NAND vs NOR:
+-- - NAND: Universal gate, faster in CMOS
+-- - NOR: Also universal gate, but slower switching
+-- - Both can implement any boolean function
+--
+-- NAND vs OR:
+-- - NAND: (AB)' = A' + B' (De Morgan's law)
+-- - OR: A + B
+-- - Different logic functions entirely
+--
+-- ============================================================================
+-- DE MORGAN'S LAW APPLICATION:
+-- ============================================================================
+--
+-- De Morgan's Laws:
+-- 1. (A • B)' = A' + B'  (NAND to NOR conversion)
+-- 2. (A + B)' = A' • B'  (NOR to NAND conversion)
+--
+-- NAND Implementation using De Morgan's:
+-- - NAND(A,B) = (A • B)' = A' + B'
+-- - Can be implemented as OR gate with inverted inputs
+-- - Useful for gate-level optimization
+--
+-- ============================================================================
+-- UNIVERSAL GATE IMPLEMENTATIONS:
+-- ============================================================================
+--
+-- NOT Gate using NAND:
+-- - Connect both NAND inputs together: NAND(A,A) = (A•A)' = A'
+--
+-- AND Gate using NAND:
+-- - NAND followed by NOT: NOT(NAND(A,B)) = ((A•B)')' = A•B
+--
+-- OR Gate using NAND:
+-- - Apply De Morgan's: A+B = ((A'•B')')
+-- - Implementation: NAND(NAND(A,A), NAND(B,B))
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

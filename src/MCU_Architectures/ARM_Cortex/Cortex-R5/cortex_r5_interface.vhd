@@ -1,14 +1,438 @@
--- Cortex-R5 Interface VHDL File
--- This file contains the interface definition for ARM Cortex-R5 processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-R5 processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-R5 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-R5 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-R5 processors, providing FPGA-based communication, 
+--              control, and acceleration capabilities for high-performance 
+--              real-time embedded systems with safety-critical requirements.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-R5 architecture and ARMv7-R instruction set
+-- 2. Master AXI4 and AHB bus protocols for high-performance interfaces
+-- 3. Learn ARM Cortex-R5 memory protection and virtualization
+-- 4. Implement dual-core lockstep and error correction mechanisms
+-- 5. Understand real-time interrupt handling and GIC integration
+-- 6. Master cache coherency and memory management
+-- 7. Learn safety mechanisms and fault tolerance features
+-- 8. Implement high-speed peripheral and DMA interfaces
+--
+-- ARM Cortex-R5 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7-R (32-bit ARM/Thumb-2)                       │
+-- │ Pipeline        │ 8-stage dual-issue superscalar                     │
+-- │ Cores           │ Single or dual-core lockstep                       │
+-- │ Cache           │ 32KB I-cache, 32KB D-cache (configurable)          │
+-- │ TCM             │ Tightly Coupled Memory (up to 8MB each)            │
+-- │ MPU             │ 16-region Memory Protection Unit                    │
+-- │ FPU             │ Optional VFPv3-D16 floating-point unit             │
+-- │ Debug           │ CoreSight debug and trace                           │
+-- │ Interrupts      │ GIC-400 Generic Interrupt Controller               │
+-- │ Safety          │ ECC, parity, lockstep operation                    │
+-- │ Frequency       │ Up to 1.2 GHz (implementation dependent)           │
+-- │ Process         │ 28nm to 7nm                                        │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-R5 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-R5     │◀──▶│   AXI4 Bus      │◀──▶│   DDR Memory    │
+-- │   Core(s)       │    │   Interconnect  │    │   Controller    │
+-- │   (ARMv7-R)     │    │   (AXI4/AHB)    │    │   (High Speed)  │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                       │
+--          ▼                       ▼                       ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   GIC-400       │    │   TCM Memory    │    │   CoreSight     │
+-- │   (Interrupt    │    │   (ATCM/BTCM)   │    │   Debug & Trace │
+-- │   Controller)   │    │   (Low Latency) │    │   (ETM/CTI/ITM) │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- AXI4 Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Channel         │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ Global          │ Input           │ ACLK, ARESETn                   │
+-- │ Write Address   │ Master→Slave    │ AWADDR, AWLEN, AWSIZE, AWBURST  │
+-- │ Write Data      │ Master→Slave    │ WDATA, WSTRB, WLAST, WVALID     │
+-- │ Write Response  │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ Read Address    │ Master→Slave    │ ARADDR, ARLEN, ARSIZE, ARBURST  │
+-- │ Read Data       │ Slave→Master    │ RDATA, RRESP, RLAST, RVALID     │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-R5 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 2GB             │ Normal memory region            │
+-- │ 0x8000_0000     │ 1GB             │ ATCM (Instruction TCM)          │
+-- │ 0xB000_0000     │ 1GB             │ BTCM (Data TCM)                 │
+-- │ 0xE000_0000     │ 256MB           │ Private peripheral region       │
+-- │ 0xF000_0000     │ 256MB           │ System peripheral region        │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Cache and Memory Hierarchy:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Memory Type     │ Size/Config     │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ L1 I-Cache      │ 8KB-64KB        │ Instruction cache with ECC      │
+-- │ L1 D-Cache      │ 8KB-64KB        │ Data cache with ECC             │
+-- │ ATCM            │ 0KB-8MB         │ Instruction tightly coupled     │
+-- │ BTCM            │ 0KB-8MB         │ Data tightly coupled memory     │
+-- │ L2 Cache        │ Optional        │ Shared L2 cache (external)      │
+-- │ Main Memory     │ Up to 4GB       │ DDR3/DDR4 via memory controller │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- GIC-400 Interrupt Controller:
+-- 1. **Interrupt Types**:
+--    - SGI: Software Generated Interrupts (0-15)
+--    - PPI: Private Peripheral Interrupts (16-31)
+--    - SPI: Shared Peripheral Interrupts (32-1019)
+--    - Priority levels: 0-255 (0 = highest priority)
+--
+-- 2. **GIC Components**:
+--    - Distributor: Interrupt routing and priority
+--    - CPU Interface: Per-core interrupt delivery
+--    - Virtual Interface: Virtualization support
+--    - Virtual CPU Interface: Guest OS support
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ High-performance memory and peripheral access       │
+-- │ AXI4 Slave      │ FPGA register and accelerator interface             │
+-- │ TCM Interface   │ Tightly coupled memory for deterministic access     │
+-- │ GIC Interface   │ Advanced interrupt controller integration           │
+-- │ Debug Interface │ CoreSight debug, trace, and profiling              │
+-- │ Cache Control   │ Cache coherency and maintenance operations          │
+-- │ MPU Interface   │ Memory protection and access control                │
+-- │ FPU Interface   │ Floating-point unit integration                     │
+-- │ DMA Interface   │ Direct memory access for high-throughput transfers  │
+-- │ Safety Features │ ECC, parity checking, and lockstep operation       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 32/64/128-bit (configurable)
+-- - AXI4 Address Width: 32/40-bit
+-- - Maximum Clock Frequency: 1.2 GHz (typical)
+-- - Interrupt Latency: 12-25 cycles (depending on configuration)
+-- - Cache Line Size: 32 bytes (8 words)
+-- - TCM Access: Single cycle (zero wait state)
+-- - Memory Bandwidth: Up to 19.2 GB/s (dual 64-bit @ 1.2 GHz)
+--
+-- Implementation Approaches:
+-- 1. **High-Performance AXI4 Interface**:
+--    - Full AXI4 protocol with burst support
+--    - Maximum bandwidth and lowest latency
+--    - Complex but highest performance
+--
+-- 2. **Safety-Critical Implementation**:
+--    - Dual-core lockstep operation
+--    - ECC protection on all memories
+--    - Comprehensive error detection and correction
+--
+-- 3. **Real-Time Optimized**:
+--    - Deterministic interrupt handling
+--    - TCM-based critical code execution
+--    - Predictable cache behavior
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select Cortex-R5 configuration (single/dual core)
+-- - Define memory map and protection regions
+-- - Specify AXI4 interface requirements
+-- - Choose safety and debug features
+--
+-- Step 2: Implement AXI4 Interface Logic
+-- - Create AXI4 master interface for CPU access
+-- - Add AXI4 slave interface for FPGA accelerators
+-- - Implement address decoding and routing
+-- - Add burst optimization and error handling
+--
+-- Step 3: Add TCM Memory Interfaces
+-- - Implement ATCM (instruction TCM) interface
+-- - Add BTCM (data TCM) interface
+-- - Create TCM memory controllers
+-- - Add ECC protection for TCM memories
+--
+-- Step 4: Integrate GIC-400 Controller
+-- - Connect to GIC distributor interface
+-- - Implement CPU interface for interrupt delivery
+-- - Add interrupt priority and routing logic
+-- - Create virtual interrupt support if needed
+--
+-- Step 5: Add Cache and Memory Management
+-- - Implement cache maintenance operations
+-- - Add cache coherency protocols
+-- - Create memory protection unit (MPU) interface
+-- - Add translation lookaside buffer (TLB) support
+--
+-- Step 6: Integrate Debug and Trace
+-- - Implement CoreSight debug interface
+-- - Add ETM (Embedded Trace Macrocell) support
+-- - Create CTI (Cross Trigger Interface)
+-- - Add ITM (Instrumentation Trace Macrocell)
+--
+-- Step 7: Add Safety and Error Handling
+-- - Implement ECC for caches and TCM
+-- - Add parity checking for critical paths
+-- - Create lockstep operation for dual-core
+-- - Add error injection and detection
+--
+-- Step 8: Create High-Speed Peripherals
+-- - Add DMA controller interfaces
+-- - Implement high-speed serial interfaces
+-- - Create timer and watchdog interfaces
+-- - Add power management features
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.gic_pkg: GIC interface definitions
+-- - work.cortex_r_pkg: Cortex-R specific constants
+-- - work.safety_pkg: Safety and ECC functions
+--
+-- Advanced Features:
+-- 1. **Dual-Core Lockstep**: Synchronized dual-core execution with comparison
+-- 2. **ECC Protection**: Error correction for all memory interfaces
+-- 3. **Cache Coherency**: MESI protocol implementation
+-- 4. **Virtualization**: Hardware virtualization support
+-- 5. **Performance Monitoring**: PMU counters and profiling
+-- 6. **Power Management**: Dynamic voltage and frequency scaling
+-- 7. **Security Extensions**: TrustZone and secure boot
+-- 8. **Real-Time Extensions**: Deterministic interrupt handling
+--
+-- Applications:
+-- - Automotive ECUs and ADAS systems
+-- - Industrial automation and robotics
+-- - Aerospace and defense systems
+-- - Medical devices and equipment
+-- - Real-time control systems
+-- - Safety-critical embedded systems
+-- - High-performance motor control
+-- - Advanced driver assistance systems
+--
+-- Performance Considerations:
+-- - AXI4 burst optimization for memory bandwidth
+-- - TCM placement for critical real-time code
+-- - Cache configuration for predictable performance
+-- - Interrupt latency minimization
+-- - Memory protection overhead
+-- - Debug interface bandwidth
+-- - Power consumption optimization
+-- - Thermal management
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: AXI4 and GIC protocol verification
+-- 2. **Safety Testing**: ECC, parity, and lockstep verification
+-- 3. **Performance Testing**: Bandwidth and latency measurement
+-- 4. **Real-Time Testing**: Interrupt latency and jitter analysis
+-- 5. **Cache Testing**: Coherency and performance verification
+-- 6. **Debug Testing**: CoreSight interface validation
+-- 7. **Stress Testing**: Long-term reliability and thermal testing
+-- 8. **Compliance Testing**: ARM architecture compliance verification
+--
+-- Common Design Challenges:
+-- - AXI4 protocol complexity and timing closure
+-- - Cache coherency implementation
+-- - Interrupt latency optimization
+-- - TCM memory interface timing
+-- - ECC implementation and verification
+-- - Debug interface integration
+-- - Power domain management
+-- - Safety certification requirements
+--
+-- Verification Checklist:
+-- □ AXI4 master interface functional and compliant
+-- □ AXI4 slave interface working correctly
+-- □ TCM interfaces (ATCM/BTCM) operational
+-- □ GIC-400 interrupt controller functional
+-- □ Cache coherency working correctly
+-- □ MPU memory protection operational
+-- □ Debug interface (CoreSight) functional
+-- □ ECC protection working on all memories
+-- □ Lockstep operation (if dual-core) verified
+-- □ Performance targets achieved
+-- □ Real-time requirements met
+-- □ Safety mechanisms validated
+-- □ Power consumption within specifications
+-- □ Long-term reliability demonstrated
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.gic_pkg.all;
+-- use work.cortex_r_pkg.all;
+-- use work.safety_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_r5_interface is
+--     generic (
+--         DUAL_CORE       : boolean := false;
+--         ENABLE_FPU      : boolean := true;
+--         ENABLE_ECC      : boolean := true;
+--         ATCM_SIZE       : integer := 65536;   -- 64KB
+--         BTCM_SIZE       : integer := 65536;   -- 64KB
+--         ICACHE_SIZE     : integer := 32768;   -- 32KB
+--         DCACHE_SIZE     : integer := 32768;   -- 32KB
+--         AXI_DATA_WIDTH  : integer := 64;      -- 64-bit
+--         AXI_ADDR_WIDTH  : integer := 32;      -- 32-bit
+--         NUM_INTERRUPTS  : integer := 128
+--     );
+--     port (
+--         -- System signals
+--         aclk            : in  std_logic;
+--         aresetn         : in  std_logic;
+--         
+--         -- AXI4 Master interface (CPU to system)
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awqos     : out std_logic_vector(3 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arqos     : out std_logic_vector(3 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AXI4 Slave interface (system to FPGA)
+--         s_axi_awaddr    : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         s_axi_awlen     : in  std_logic_vector(7 downto 0);
+--         s_axi_awsize    : in  std_logic_vector(2 downto 0);
+--         s_axi_awburst   : in  std_logic_vector(1 downto 0);
+--         s_axi_awlock    : in  std_logic;
+--         s_axi_awcache   : in  std_logic_vector(3 downto 0);
+--         s_axi_awprot    : in  std_logic_vector(2 downto 0);
+--         s_axi_awqos     : in  std_logic_vector(3 downto 0);
+--         s_axi_awvalid   : in  std_logic;
+--         s_axi_awready   : out std_logic;
+--         s_axi_wdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         s_axi_wstrb     : in  std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         s_axi_wlast     : in  std_logic;
+--         s_axi_wvalid    : in  std_logic;
+--         s_axi_wready    : out std_logic;
+--         s_axi_bresp     : out std_logic_vector(1 downto 0);
+--         s_axi_bvalid    : out std_logic;
+--         s_axi_bready    : in  std_logic;
+--         s_axi_araddr    : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         s_axi_arlen     : in  std_logic_vector(7 downto 0);
+--         s_axi_arsize    : in  std_logic_vector(2 downto 0);
+--         s_axi_arburst   : in  std_logic_vector(1 downto 0);
+--         s_axi_arlock    : in  std_logic;
+--         s_axi_arcache   : in  std_logic_vector(3 downto 0);
+--         s_axi_arprot    : in  std_logic_vector(2 downto 0);
+--         s_axi_arqos     : in  std_logic_vector(3 downto 0);
+--         s_axi_arvalid   : in  std_logic;
+--         s_axi_arready   : out std_logic;
+--         s_axi_rdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         s_axi_rresp     : out std_logic_vector(1 downto 0);
+--         s_axi_rlast     : out std_logic;
+--         s_axi_rvalid    : out std_logic;
+--         s_axi_rready    : in  std_logic;
+--         
+--         -- GIC-400 Interrupt interface
+--         gic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_fiq         : in  std_logic;
+--         gic_virq        : in  std_logic;
+--         gic_vfiq        : in  std_logic;
+--         
+--         -- TCM interfaces
+--         atcm_addr       : out std_logic_vector(31 downto 0);
+--         atcm_wdata      : out std_logic_vector(31 downto 0);
+--         atcm_rdata      : in  std_logic_vector(31 downto 0);
+--         atcm_we         : out std_logic;
+--         atcm_re         : out std_logic;
+--         
+--         btcm_addr       : out std_logic_vector(31 downto 0);
+--         btcm_wdata      : out std_logic_vector(31 downto 0);
+--         btcm_rdata      : in  std_logic_vector(31 downto 0);
+--         btcm_we         : out std_logic;
+--         btcm_re         : out std_logic;
+--         
+--         -- Debug interface (CoreSight)
+--         debug_req       : in  std_logic;
+--         debug_ack       : out std_logic;
+--         etm_trace       : out std_logic_vector(31 downto 0);
+--         etm_traceclk    : out std_logic;
+--         
+--         -- Cache maintenance
+--         cache_inv       : in  std_logic;
+--         cache_clean     : in  std_logic;
+--         cache_flush     : in  std_logic;
+--         
+--         -- Status and control
+--         cpu_halted      : out std_logic;
+--         lockup          : out std_logic;
+--         reset_req       : out std_logic;
+--         
+--         -- Safety and error signals
+--         ecc_error       : out std_logic;
+--         parity_error    : out std_logic;
+--         lockstep_error  : out std_logic  -- Only if DUAL_CORE = true
+--     );
+-- end entity cortex_r5_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_r5_interface is
+--     -- Component declarations for Cortex-R5 core
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-R5 core(s)
+--     -- Add AXI4 interface logic
+--     -- Connect GIC-400 interrupt controller
+--     -- Add TCM memory interfaces
+--     -- Implement cache and MPU logic
+--     -- Connect debug interface
+--     -- Add safety and ECC logic
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-R5 interface design focuses on real-time performance,
+-- safety, and deterministic behavior. Always consult the ARM Cortex-R5
+-- Technical Reference Manual and ARMv7-R Architecture Reference Manual.
+-- ============================================================================

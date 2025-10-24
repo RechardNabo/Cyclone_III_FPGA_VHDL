@@ -1,0 +1,407 @@
+-- ============================================================================
+-- PROJECT: PCI Bridge Finite State Machine Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a comprehensive finite state machine (FSM) for PCI
+-- bridge control using VHDL. The FSM manages PCI protocol transactions,
+-- bus arbitration, data flow control, and error handling between PCI and
+-- local bus interfaces.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand PCI protocol state machine design principles
+-- - Learn complex FSM implementation with multiple transaction types
+-- - Practice advanced VHDL state machine coding techniques
+-- - Implement bus arbitration and protocol compliance logic
+-- - Understand error handling and recovery mechanisms in FSMs
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - clk: System clock (PCI clock domain)
+-- - reset_n: Active-low asynchronous reset
+-- - pci_frame_n: PCI transaction frame signal
+-- - pci_irdy_n: PCI initiator ready signal
+-- - pci_trdy_n: PCI target ready signal (input when master)
+-- - pci_devsel_n: PCI device select signal
+-- - pci_stop_n: PCI stop signal
+-- - pci_gnt_n: PCI bus grant signal
+-- - local_req: Local bus transaction request
+-- - fifo_status: FIFO status signals (full, empty, etc.)
+-- - addr_decoded: Address decode result from datapath
+-- - config_access: Configuration space access indicator
+-- 
+-- OUTPUTS:
+-- - current_state: Current FSM state (for debugging)
+-- - pci_req_n: PCI bus request signal
+-- - pci_trdy_n_out: PCI target ready output (when target)
+-- - pci_devsel_n_out: PCI device select output (when target)
+-- - pci_stop_n_out: PCI stop output (when target)
+-- - datapath_ctrl: Control signals to datapath
+-- - transaction_complete: Transaction completion indicator
+-- - error_status: Error condition indicators
+--
+-- ============================================================================
+-- STATE MACHINE ARCHITECTURE:
+-- ============================================================================
+-- MAIN STATES:
+-- - IDLE: Wait for transaction initiation or bus requests
+-- - BUS_REQUEST: Request PCI bus ownership for master transactions
+-- - ADDRESS_PHASE: Handle PCI address phase (capture/drive address)
+-- - DATA_PHASE: Manage data transfer phases
+-- - TURNAROUND: Handle bus turnaround cycles
+-- - WAIT_STATE: Insert wait states for slow devices
+-- - RETRY: Handle retry conditions and backoff
+-- - ERROR_RECOVERY: Manage error conditions and recovery
+-- - CONFIG_ACCESS: Handle configuration space transactions
+--
+-- SUB-STATES (for complex operations):
+-- - BURST_CONTINUE: Continue burst data transfers
+-- - DISCONNECT: Handle target disconnect operations
+-- - ABORT: Handle transaction abort conditions
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. HIERARCHICAL STATE MACHINE:
+--    - Main state machine for protocol control
+--    - Sub-state machines for complex operations
+--    - Clear separation of concerns
+--
+-- 2. SINGLE COMPREHENSIVE FSM:
+--    - All states in one state machine
+--    - Simpler control flow
+--    - May become complex for large designs
+--
+-- 3. PARALLEL STATE MACHINES:
+--    - Separate FSMs for master and target modes
+--    - Independent error handling FSM
+--    - Coordinated through shared signals
+--
+-- ============================================================================
+-- PCI PROTOCOL COMPLIANCE:
+-- ============================================================================
+-- TIMING REQUIREMENTS:
+-- - Address phase: 1 clock cycle minimum
+-- - Data phase: 1 clock cycle minimum per data transfer
+-- - Turnaround: 1 clock cycle for bus ownership change
+-- - Setup/hold times: Meet PCI specification requirements
+--
+-- SIGNAL RELATIONSHIPS:
+-- - FRAME# indicates transaction start/end
+-- - IRDY# indicates initiator ready for data transfer
+-- - TRDY# indicates target ready for data transfer
+-- - DEVSEL# indicates target has decoded address
+-- - STOP# indicates target requests transaction termination
+--
+-- TRANSACTION TYPES:
+-- - Memory Read/Write (single and burst)
+-- - I/O Read/Write (single data phase only)
+-- - Configuration Read/Write (Type 0 cycles)
+-- - Special cycles (broadcast transactions)
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- TIMING ANALYSIS:
+-- - Critical path through state transition logic
+-- - Setup/hold requirements for PCI signals
+-- - Clock-to-output delays for PCI compliance
+-- - Metastability prevention for asynchronous inputs
+--
+-- RESOURCE UTILIZATION:
+-- - State encoding optimization (binary vs one-hot)
+-- - Shared logic between similar states
+-- - Register usage minimization
+-- - Combinational logic depth optimization
+--
+-- ERROR HANDLING:
+-- - Parity error detection and reporting
+-- - Protocol violation detection
+-- - Timeout mechanisms for hung transactions
+-- - Graceful recovery from error conditions
+--
+-- TESTABILITY:
+-- - State visibility for debugging
+-- - Test modes for manufacturing test
+-- - Controllability of internal states
+-- - Observability of critical signals
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: STATE ENUMERATION
+-- □ Define all required states with descriptive names
+-- □ Choose appropriate state encoding (binary/one-hot/gray)
+-- □ Consider state machine hierarchy if needed
+-- □ Plan for debug and test states
+--
+-- STEP 2: SIGNAL DECLARATIONS
+-- □ Declare state register and next_state signal
+-- □ Define internal control signals
+-- □ Create timeout counters and retry counters
+-- □ Add debug and status signals
+--
+-- STEP 3: STATE REGISTER PROCESS
+-- □ Implement synchronous state register update
+-- □ Add asynchronous reset handling
+-- □ Consider clock enable for power saving
+-- □ Add state change logging for debug
+--
+-- STEP 4: NEXT STATE LOGIC
+-- □ Implement state transition conditions
+-- □ Handle all input combinations properly
+-- □ Add default cases to prevent latches
+-- □ Optimize for synthesis and timing
+--
+-- STEP 5: OUTPUT LOGIC
+-- □ Generate PCI protocol signals
+-- □ Create datapath control signals
+-- □ Implement error and status indicators
+-- □ Add registered outputs for timing
+--
+-- STEP 6: TIMEOUT AND COUNTERS
+-- □ Implement transaction timeout detection
+-- □ Add retry counters with limits
+-- □ Create burst length counters
+-- □ Add performance monitoring counters
+--
+-- STEP 7: ERROR DETECTION
+-- □ Implement protocol violation detection
+-- □ Add parity error handling
+-- □ Create timeout error conditions
+-- □ Plan error recovery mechanisms
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Standard logic types and functions
+-- - Multi-valued logic system
+-- - Essential for FSM implementation
+--
+-- IEEE.numeric_std.all:
+-- - Arithmetic operations on std_logic_vector
+-- - Counter implementations
+-- - Address calculations
+--
+-- IEEE.std_logic_misc.all:
+-- - Additional logic functions
+-- - Reduction operators
+-- - Useful for complex conditions
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION:
+-- - Pipeline address and data phases
+-- - Prefetch mechanisms for read operations
+-- - Burst optimization for sequential accesses
+-- - Speculative transaction initiation
+--
+-- POWER MANAGEMENT:
+-- - Clock gating for unused states
+-- - Power-down modes during idle
+-- - Dynamic frequency scaling support
+-- - Low-power standby states
+--
+-- DEBUG AND MONITORING:
+-- - Transaction history buffer
+-- - Performance counters
+-- - Error event logging
+-- - Real-time state monitoring
+--
+-- CONFIGURABILITY:
+-- - Parameterizable timeout values
+-- - Selectable state encoding
+-- - Optional features enable/disable
+-- - Runtime configuration support
+--
+-- ============================================================================
+-- MASTER MODE OPERATION:
+-- ============================================================================
+-- BUS ARBITRATION SEQUENCE:
+-- 1. Assert REQ# when local transaction needed
+-- 2. Wait for GNT# assertion from arbiter
+-- 3. Wait for bus idle condition
+-- 4. Begin address phase on next clock
+--
+-- TRANSACTION EXECUTION:
+-- 1. Drive address and command during address phase
+-- 2. Assert FRAME# to indicate transaction start
+-- 3. Execute data phases with IRDY# control
+-- 4. Monitor TRDY#, DEVSEL#, STOP# from target
+-- 5. Complete transaction and release bus
+--
+-- ERROR HANDLING:
+-- - Target abort detection and response
+-- - Master abort timeout implementation
+-- - Retry handling with exponential backoff
+-- - Parity error detection and reporting
+--
+-- ============================================================================
+-- TARGET MODE OPERATION:
+-- ============================================================================
+-- ADDRESS DECODE SEQUENCE:
+-- 1. Monitor address bus during address phase
+-- 2. Compare with Base Address Registers (BARs)
+-- 3. Assert DEVSEL# if address matches
+-- 4. Prepare for data phase execution
+--
+-- DATA TRANSFER CONTROL:
+-- 1. Monitor IRDY# for initiator readiness
+-- 2. Control TRDY# based on internal readiness
+-- 3. Insert wait states when necessary
+-- 4. Handle burst transfers efficiently
+--
+-- TERMINATION CONDITIONS:
+-- - Normal completion after all data transferred
+-- - Target disconnect for long bursts
+-- - Target abort for error conditions
+-- - Retry request for temporary busy conditions
+--
+-- ============================================================================
+-- CONFIGURATION SPACE HANDLING:
+-- ============================================================================
+-- CONFIGURATION REGISTERS:
+-- - Device ID and Vendor ID (read-only)
+-- - Command and Status registers
+-- - Base Address Registers (BARs)
+-- - Interrupt Line and Pin registers
+--
+-- CONFIGURATION ACCESS PROTOCOL:
+-- 1. Detect Type 0 configuration cycles
+-- 2. Check IDSEL signal for device selection
+-- 3. Decode register address from AD[7:2]
+-- 4. Perform register read/write operation
+-- 5. Return configuration data or accept write
+--
+-- PLUG AND PLAY SUPPORT:
+-- - Automatic resource discovery
+-- - Base address assignment
+-- - Interrupt routing configuration
+-- - Power management capabilities
+--
+-- ============================================================================
+-- VERIFICATION STRATEGY:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test all state transitions under normal conditions
+-- □ Verify PCI protocol compliance for all transaction types
+-- □ Test error conditions and recovery mechanisms
+-- □ Validate timeout and retry mechanisms
+-- □ Check configuration space access functionality
+--
+-- TIMING VERIFICATION:
+-- □ Verify setup and hold times for all signals
+-- □ Check propagation delays meet PCI requirements
+-- □ Validate clock-to-output timing
+-- □ Test at maximum and minimum clock frequencies
+--
+-- STRESS TESTING:
+-- □ Back-to-back transactions at maximum rate
+-- □ Random transaction patterns and lengths
+-- □ Error injection and recovery testing
+-- □ Long-duration reliability testing
+--
+-- PROTOCOL COMPLIANCE:
+-- □ PCI specification adherence verification
+-- □ Signal timing relationship validation
+-- □ Bus arbitration protocol compliance
+-- □ Configuration space standard compliance
+--
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION:
+-- ============================================================================
+-- STATE MACHINE OPTIMIZATION:
+-- - Minimize state count for area efficiency
+-- - Optimize critical timing paths
+-- - Use appropriate state encoding
+-- - Balance logic depth and register usage
+--
+-- SIGNAL OPTIMIZATION:
+-- - Register critical outputs for timing
+-- - Minimize combinational logic delays
+-- - Use clock enables for power saving
+-- - Optimize signal fan-out
+--
+-- SYNTHESIS OPTIMIZATION:
+-- - Use synthesis-friendly coding styles
+-- - Add appropriate timing constraints
+-- - Consider FPGA-specific optimizations
+-- - Balance area vs. speed trade-offs
+--
+-- ============================================================================
+-- COMMON DESIGN PITFALLS:
+-- ============================================================================
+-- TIMING VIOLATIONS:
+-- - Combinational loops in state logic
+-- - Setup/hold violations on state transitions
+-- - Clock domain crossing issues
+-- - Insufficient timing margins
+--
+-- PROTOCOL VIOLATIONS:
+-- - Incorrect signal timing relationships
+-- - Missing or incorrect handshake sequences
+-- - Invalid state transitions
+-- - Non-compliant bus arbitration
+--
+-- FUNCTIONAL ERRORS:
+-- - Incomplete state coverage
+-- - Missing error handling
+-- - Incorrect timeout values
+-- - Race conditions between signals
+--
+-- ============================================================================
+-- IMPLEMENTATION CHECKLIST:
+-- ============================================================================
+-- DESIGN PHASE:
+-- □ State diagram complete and reviewed
+-- □ All PCI protocol requirements identified
+-- □ Interface signals properly defined
+-- □ Error handling strategy planned
+--
+-- CODING PHASE:
+-- □ State enumeration properly defined
+-- □ State register implemented correctly
+-- □ Next state logic covers all cases
+-- □ Output logic generates correct signals
+-- □ Timeout and counter logic implemented
+-- □ Error detection and handling coded
+--
+-- VERIFICATION PHASE:
+-- □ Testbench covers all states and transitions
+-- □ PCI protocol compliance verified
+-- □ Timing requirements validated
+-- □ Error conditions tested
+-- □ Performance requirements met
+--
+-- SYNTHESIS PHASE:
+-- □ Design synthesizes without errors
+-- □ Timing constraints met
+-- □ Resource utilization acceptable
+-- □ Power consumption within limits
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for standard logic types
+-- - IEEE.numeric_std.all for arithmetic operations
+-- - Additional libraries as needed
+--
+-- [Add your entity declaration here]
+-- - Define all input and output ports
+-- - Add generics for parameterization
+-- - Include comprehensive port descriptions
+--
+-- [Add your architecture implementation here]
+-- - Declare state enumeration type
+-- - Implement state register process
+-- - Create next state logic
+-- - Generate output signals
+-- - Add timeout and counter logic
+-- - Implement error handling
+--
+-- ============================================================================

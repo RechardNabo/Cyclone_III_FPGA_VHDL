@@ -1,0 +1,529 @@
+-- ============================================================================
+-- ARM CORTEX-M1 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-M1 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-M1 processors, providing FPGA-optimized communication, 
+--              control, and peripheral integration for cost-effective 
+--              microcontroller applications with simplified architecture.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-M1 architecture and ARMv6-M instruction set
+-- 2. Master AHB-Lite protocol for simple microcontroller systems
+-- 3. Learn ARM Cortex-M1 3-stage pipeline architecture
+-- 4. Implement NVIC (Nested Vectored Interrupt Controller) integration
+-- 5. Understand FPGA-optimized design principles
+-- 6. Master debug interface and basic CoreSight integration
+-- 7. Learn low-power design for FPGA implementations
+-- 8. Implement cost-effective peripheral interfaces
+--
+-- ARM Cortex-M1 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv6-M (16-bit Thumb only)                        │
+-- │ Pipeline        │ 3-stage (Fetch, Decode, Execute)                   │
+-- │ Cores           │ Single core                                         │
+-- │ Performance     │ 0.74 DMIPS/MHz                                      │
+-- │ Cache           │ No cache                                            │
+-- │ TCM             │ No TCM                                              │
+-- │ MPU             │ No MPU                                              │
+-- │ FPU             │ No FPU                                              │
+-- │ DSP             │ No DSP extensions                                   │
+-- │ Debug           │ Basic CoreSight debug                              │
+-- │ Interrupts      │ NVIC with up to 32 interrupts                      │
+-- │ Sleep Modes     │ Sleep, Deep Sleep                                   │
+-- │ Frequency       │ Up to 50 MHz (FPGA dependent)                      │
+-- │ FPGA Optimized  │ Yes (Altera/Intel and Xilinx)                      │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-M1 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-M1     │◀──▶│   System Bus    │◀──▶│   Peripherals   │
+-- │   Processor     │    │   (AHB-Lite)    │    │   (Simple)      │
+-- │   (3-stage)     │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                      │
+--          ▼                       ▼                      ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   NVIC          │    │   Memory        │    │   Debug         │
+-- │   (Simple       │    │   System        │    │   Interface     │
+-- │   Interrupt)    │    │   (BRAM/SRAM)   │    │   (Basic)       │
+-- │                 │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- AHB-Lite Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Bus Type        │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HWDATA, HSIZE    │
+-- │ AHB-Lite        │ Slave→Master    │ HRDATA, HREADY, HRESP           │
+-- │ System          │ Input           │ HCLK, HRESETn                   │
+-- │ FPGA            │ Input           │ FCLK, FRESETn                   │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-M1 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 512MB           │ Code region (BRAM/ROM)          │
+-- │ 0x2000_0000     │ 512MB           │ SRAM region (BRAM)              │
+-- │ 0x4000_0000     │ 1GB             │ Peripheral region               │
+-- │ 0x6000_0000     │ 1GB             │ External RAM region             │
+-- │ 0xA000_0000     │ 1GB             │ External device region          │
+-- │ 0xE000_0000     │ 512MB           │ Private peripheral region       │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv6-M Instruction Set:
+-- 1. **Thumb Instructions**:
+--    - 16-bit Thumb instructions only
+--    - No 32-bit instructions
+--    - No conditional execution
+--    - 8 general-purpose registers (R0-R7) + SP, LR, PC
+--    - Program Status Register (xPSR)
+--    - No hardware divide
+--
+-- 2. **Memory Access**:
+--    - Aligned memory access only
+--    - No unaligned access support
+--    - Little-endian byte ordering
+--    - Simple load/store instructions
+--
+-- 3-Stage Pipeline:
+-- 1. **Fetch Stage**:
+--    - Instruction fetch from memory
+--    - Simple instruction buffering
+--    - Sequential address generation
+--
+-- 2. **Decode Stage**:
+--    - Instruction decode
+--    - Register file read
+--    - Immediate generation
+--    - Control signal generation
+--
+-- 3. **Execute Stage**:
+--    - ALU operations
+--    - Memory access
+--    - Register file write
+--    - Branch resolution
+--
+-- NVIC (Nested Vectored Interrupt Controller):
+-- 1. **Interrupt Features**:
+--    - Up to 32 external interrupts
+--    - 16 system exceptions
+--    - 4 priority levels (2-bit priority)
+--    - Simple nested interrupt support
+--    - Basic tail-chaining
+--
+-- 2. **Priority Handling**:
+--    - Simple priority scheme
+--    - No sub-priority
+--    - Basic priority grouping
+--    - Manual state saving/restoring
+--
+-- Debug Interface:
+-- 1. **Debug Features**:
+--    - Serial Wire Debug (SWD)
+--    - 2 breakpoints
+--    - 1 watchpoint
+--    - Basic debug access port
+--    - Simple halt/run control
+--
+-- 2. **FPGA Debug Features**:
+--    - FPGA-specific debug hooks
+--    - Simple trace interface
+--    - Basic performance monitoring
+--    - FPGA resource monitoring
+--
+-- FPGA Optimization Features:
+-- 1. **Resource Optimization**:
+--    - Minimal logic utilization
+--    - Efficient BRAM usage
+--    - Low DSP slice usage
+--    - Optimized routing
+--
+-- 2. **Clock Domain Management**:
+--    - Single clock domain design
+--    - Clock gating support
+--    - Reset synchronization
+--    - Clock enable generation
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AHB-Lite Master │ 32-bit system bus interface                        │
+-- │ NVIC Interface  │ Simple interrupt controller                        │
+-- │ Debug Interface │ Basic SWD debug interface                          │
+-- │ Clock Control   │ FPGA clock management                              │
+-- │ Reset Control   │ System and debug reset handling                    │
+-- │ GPIO Interface  │ Simple I/O control                                 │
+-- │ Timer Interface │ Basic timer support                                │
+-- │ FPGA Interface  │ FPGA-specific control signals                      │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AHB-Lite Data Width: 32-bit
+-- - AHB-Lite Address Width: 32-bit (4GB address space)
+-- - Maximum Clock Frequency: 50 MHz (FPGA dependent)
+-- - Interrupt Latency: 16 cycles
+-- - Memory Access: Single-cycle for BRAM
+-- - Pipeline Depth: 3 stages
+-- - Branch Penalty: 3 cycles
+-- - Power Consumption: FPGA dependent
+-- - Aligned Access: Required
+--
+-- FPGA Implementation Approaches:
+-- 1. **Altera/Intel FPGA Configuration**:
+--    - Cyclone series optimization
+--    - M9K/M10K BRAM utilization
+--    - DSP block minimization
+--    - Quartus-specific optimizations
+--
+-- 2. **Xilinx FPGA Configuration**:
+--    - Spartan/Artix series optimization
+--    - Block RAM utilization
+--    - DSP48 slice minimization
+--    - Vivado-specific optimizations
+--
+-- 3. **Low-Resource Configuration**:
+--    - Minimal feature set
+--    - Basic debug interface
+--    - Simple memory interface
+--    - Essential peripherals only
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define FPGA Architecture
+-- - Select target FPGA family
+-- - Define memory requirements (BRAM)
+-- - Specify AHB-Lite interface requirements
+-- - Choose debug features
+-- - Configure clock domains
+--
+-- Step 2: Implement AHB-Lite Interface Logic
+-- - Create AHB-Lite master interface for CPU access
+-- - Add address decoding for FPGA resources
+-- - Implement BRAM interface
+-- - Add bus error handling
+-- - Configure memory timing
+--
+-- Step 3: Add NVIC Controller
+-- - Connect external interrupt sources
+-- - Implement simple interrupt prioritization
+-- - Add interrupt masking and pending
+-- - Create interrupt vector table
+-- - Add system exception handling
+--
+-- Step 4: Integrate Debug Interface
+-- - Implement SWD (Serial Wire Debug)
+-- - Create breakpoint logic (2 breakpoints)
+-- - Add watchpoint logic (1 watchpoint)
+-- - Add basic trace interface
+-- - Implement debug authentication
+--
+-- Step 5: Add FPGA-Specific Features
+-- - Implement FPGA clock management
+-- - Add reset synchronization
+-- - Create FPGA resource monitoring
+-- - Add clock enable generation
+-- - Implement power management
+--
+-- Step 6: Create Memory Interface
+-- - Connect to FPGA BRAM
+-- - Add memory controller
+-- - Implement wait state generation
+-- - Add memory protection (basic)
+-- - Configure memory timing
+--
+-- Step 7: Add Peripheral Integration
+-- - Connect GPIO interfaces
+-- - Add timer interfaces
+-- - Create peripheral address decoding
+-- - Add interrupt routing
+-- - Implement peripheral control
+--
+-- Step 8: Add System Integration
+-- - Connect system tick timer
+-- - Add reset and clock management
+-- - Create system control registers
+-- - Add performance monitoring
+-- - Implement system exceptions
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.nvic_pkg: NVIC interface definitions
+-- - work.cortex_m1_pkg: Cortex-M1 specific constants
+-- - work.debug_pkg: Debug interface functions
+-- - work.fpga_pkg: FPGA-specific functions
+-- - work.bram_pkg: Block RAM interface functions
+-- - work.armv6m_pkg: ARMv6-M architecture functions
+--
+-- FPGA-Specific Features:
+-- 1. **Resource Optimization**: Minimal logic utilization
+-- 2. **BRAM Integration**: Efficient block RAM usage
+-- 3. **Clock Management**: Single domain with gating
+-- 4. **Debug Interface**: FPGA-optimized debug
+-- 5. **Power Management**: Clock gating and enables
+-- 6. **Simple Architecture**: Reduced complexity
+-- 7. **Fast Integration**: Quick FPGA implementation
+-- 8. **Low Cost**: Minimal resource requirements
+--
+-- Applications:
+-- - FPGA-based control systems
+-- - Soft-core microcontrollers
+-- - Educational platforms
+-- - Prototyping systems
+-- - Simple automation
+-- - Sensor interfaces
+-- - Communication controllers
+-- - Basic signal processing
+-- - IoT edge devices
+--
+-- Performance Considerations:
+-- - FPGA resource utilization
+-- - BRAM access optimization
+-- - Clock frequency optimization
+-- - Power consumption (FPGA)
+-- - Routing optimization
+-- - Logic depth minimization
+-- - Pipeline efficiency
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: AHB-Lite protocol verification
+-- 2. **Instruction Testing**: ARMv6-M instruction set validation
+-- 3. **Interrupt Testing**: NVIC functionality verification
+-- 4. **Debug Testing**: SWD interface validation
+-- 5. **FPGA Testing**: Resource utilization verification
+-- 6. **Memory Testing**: BRAM interface validation
+-- 7. **Performance Testing**: Timing and throughput measurement
+-- 8. **Integration Testing**: System-level validation
+-- 9. **FPGA Synthesis**: Synthesis and place & route testing
+-- 10. **Compliance Testing**: ARM specification compliance
+--
+-- Common Design Challenges:
+-- - FPGA resource constraints
+-- - BRAM interface timing
+-- - Clock domain management
+-- - Debug interface implementation
+-- - Interrupt handling simplicity
+-- - Memory access alignment
+-- - FPGA synthesis optimization
+-- - Reset synchronization
+-- - Power management in FPGA
+-- - Performance optimization
+--
+-- FPGA Vendor Considerations:
+-- 1. **Altera/Intel**:
+--    - Cyclone IV/V optimization
+--    - Quartus synthesis settings
+--    - M9K/M10K BRAM usage
+--    - Clock network utilization
+--
+-- 2. **Xilinx**:
+--    - Spartan-6/7 optimization
+--    - Vivado synthesis settings
+--    - Block RAM usage
+--    - Clock management tiles
+--
+-- 3. **Microsemi/Microchip**:
+--    - SmartFusion optimization
+--    - Libero synthesis settings
+--    - uSRAM usage
+--    - Clock conditioning circuits
+--
+-- Verification Checklist:
+-- □ AHB-Lite master interface functional and compliant
+-- □ NVIC interrupt controller functional
+-- □ External interrupts properly handled
+-- □ System exceptions working correctly
+-- □ Debug interface (SWD) functional
+-- □ Breakpoints and watchpoints working
+-- □ BRAM memory interface operational
+-- □ FPGA resource utilization acceptable
+-- □ Clock management working correctly
+-- □ Reset sequences working correctly
+-- □ Performance targets achieved
+-- □ FPGA synthesis successful
+-- □ Place and route successful
+-- □ Timing constraints met
+-- □ Power consumption acceptable
+-- □ Long-term reliability demonstrated
+-- □ System integration validated
+-- □ Compliance with ARM specifications verified
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.nvic_pkg.all;
+-- use work.cortex_m1_pkg.all;
+-- use work.debug_pkg.all;
+-- use work.fpga_pkg.all;
+-- use work.bram_pkg.all;
+-- use work.armv6m_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_m1_interface is
+--     generic (
+--         FPGA_VENDOR     : string := "ALTERA";     -- "ALTERA", "XILINX", "MICROSEMI"
+--         FPGA_FAMILY     : string := "CYCLONE_IV"; -- Target FPGA family
+--         ENABLE_DEBUG    : boolean := true;        -- Enable debug interface
+--         NUM_INTERRUPTS  : integer := 32;          -- Max external interrupts
+--         BRAM_SIZE       : integer := 32768;       -- 32KB BRAM
+--         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit
+--         AHB_ADDR_WIDTH  : integer := 32;          -- 32-bit
+--         ENABLE_TRACE    : boolean := false;       -- Basic trace
+--         CLOCK_FREQ      : integer := 50000000;    -- 50 MHz
+--         ENABLE_GPIO     : boolean := true;        -- GPIO support
+--         GPIO_WIDTH      : integer := 32           -- GPIO width
+--     );
+--     port (
+--         -- System signals
+--         hclk            : in  std_logic;
+--         hresetn         : in  std_logic;
+--         
+--         -- FPGA-specific clocks
+--         fclk            : in  std_logic;          -- FPGA fabric clock
+--         fresetn         : in  std_logic;          -- FPGA fabric reset
+--         
+--         -- AHB-Lite Master interface (CPU to system)
+--         ahb_haddr       : out std_logic_vector(AHB_ADDR_WIDTH-1 downto 0);
+--         ahb_hwrite      : out std_logic;
+--         ahb_hsize       : out std_logic_vector(2 downto 0);
+--         ahb_hburst      : out std_logic_vector(2 downto 0);
+--         ahb_hprot       : out std_logic_vector(3 downto 0);
+--         ahb_htrans      : out std_logic_vector(1 downto 0);
+--         ahb_hmastlock   : out std_logic;
+--         ahb_hwdata      : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         ahb_hrdata      : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         ahb_hready      : in  std_logic;
+--         ahb_hresp       : in  std_logic;
+--         
+--         -- NVIC (Nested Vectored Interrupt Controller) interface
+--         nvic_irq        : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_priority   : in  std_logic_vector(2*NUM_INTERRUPTS-1 downto 0); -- 2-bit priority
+--         nvic_enable     : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_pending    : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_active     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_ack        : out std_logic;
+--         nvic_vector     : out std_logic_vector(5 downto 0);   -- 6-bit for 32 interrupts
+--         
+--         -- System exceptions
+--         nmi             : in  std_logic;          -- Non-maskable interrupt
+--         hardfault       : out std_logic;          -- Hard fault
+--         svcall          : out std_logic;          -- Supervisor call
+--         pendsv          : in  std_logic;          -- Pendable service request
+--         systick         : out std_logic;          -- System tick
+--         
+--         -- Debug interface (SWD)
+--         swclk           : in  std_logic;          -- Serial wire clock
+--         swdio           : inout std_logic;        -- Serial wire data I/O
+--         swo             : out std_logic;          -- Serial wire output
+--         debug_req       : in  std_logic;          -- Debug request
+--         debug_ack       : out std_logic;          -- Debug acknowledge
+--         
+--         -- Breakpoint and watchpoint interface
+--         bp_match        : out std_logic_vector(1 downto 0);   -- 2 breakpoints
+--         wp_match        : out std_logic;                      -- 1 watchpoint
+--         bp_addr         : in  std_logic_vector(32*2-1 downto 0);
+--         wp_addr         : in  std_logic_vector(31 downto 0);
+--         wp_data         : in  std_logic_vector(31 downto 0);
+--         wp_mask         : in  std_logic_vector(31 downto 0);
+--         
+--         -- BRAM interface
+--         bram_clk        : out std_logic;
+--         bram_rst        : out std_logic;
+--         bram_en         : out std_logic;
+--         bram_we         : out std_logic_vector(3 downto 0);
+--         bram_addr       : out std_logic_vector(15 downto 0);  -- 64KB max
+--         bram_din        : out std_logic_vector(31 downto 0);
+--         bram_dout       : in  std_logic_vector(31 downto 0);
+--         
+--         -- System tick timer
+--         systick_clk     : in  std_logic;
+--         systick_reload  : in  std_logic_vector(23 downto 0);
+--         systick_enable  : in  std_logic;
+--         systick_int_en  : in  std_logic;
+--         systick_count   : out std_logic_vector(23 downto 0);
+--         systick_flag    : out std_logic;
+--         
+--         -- Power management
+--         sleep_req       : out std_logic;          -- Sleep request
+--         deep_sleep_req  : out std_logic;          -- Deep sleep request
+--         sleep_ack       : in  std_logic;          -- Sleep acknowledge
+--         wakeup_event    : in  std_logic;          -- Wake-up event
+--         clock_gate      : in  std_logic;          -- Clock gating enable
+--         clock_enable    : out std_logic;          -- Clock enable output
+--         
+--         -- Status and control
+--         core_halted     : out std_logic;
+--         lockup          : out std_logic;
+--         reset_req       : out std_logic;
+--         
+--         -- Performance monitoring
+--         cycle_count     : out std_logic_vector(31 downto 0);
+--         inst_count      : out std_logic_vector(31 downto 0);
+--         branch_count    : out std_logic_vector(15 downto 0);
+--         mem_access      : out std_logic_vector(15 downto 0);
+--         
+--         -- Trace interface (Basic)
+--         trace_data      : out std_logic_vector(15 downto 0);  -- Simple trace data
+--         trace_valid     : out std_logic;                      -- Trace data valid
+--         trace_ready     : in  std_logic;                      -- Trace ready
+--         
+--         -- GPIO interface
+--         gpio_in         : in  std_logic_vector(GPIO_WIDTH-1 downto 0);
+--         gpio_out        : out std_logic_vector(GPIO_WIDTH-1 downto 0);
+--         gpio_oe         : out std_logic_vector(GPIO_WIDTH-1 downto 0);
+--         gpio_int        : in  std_logic_vector(GPIO_WIDTH-1 downto 0);
+--         
+--         -- FPGA resource monitoring
+--         fpga_temp       : in  std_logic_vector(11 downto 0);  -- Temperature sensor
+--         fpga_vccint     : in  std_logic_vector(11 downto 0);  -- Core voltage
+--         fpga_vccaux     : in  std_logic_vector(11 downto 0);  -- Auxiliary voltage
+--         
+--         -- Clock and reset control
+--         pll_lock        : in  std_logic;
+--         osc_ready       : in  std_logic;
+--         reset_cause     : out std_logic_vector(7 downto 0);
+--         
+--         -- FPGA-specific signals
+--         fpga_ready      : out std_logic;          -- FPGA initialization complete
+--         fpga_error      : out std_logic;          -- FPGA error indication
+--         fpga_status     : out std_logic_vector(7 downto 0)    -- FPGA status
+--     );
+-- end entity cortex_m1_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_m1_interface is
+--     -- Component declarations for Cortex-M1 processor
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+--     -- FPGA-specific constants and signals
+-- begin
+--     -- Instantiate Cortex-M1 processor
+--     -- Add AHB-Lite interface logic
+--     -- Connect NVIC interrupt controller
+--     -- Connect debug interface (SWD)
+--     -- Add BRAM memory interface
+--     -- Add FPGA-specific features
+--     -- Connect system tick timer
+--     -- Add performance monitoring
+--     -- Add GPIO and peripheral interfaces
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-M1 interface design focuses on FPGA-optimized 
+-- microcontroller applications with simplified architecture, minimal resource 
+-- usage, and cost-effective implementation. Always consult the ARM Cortex-M1 
+-- Technical Reference Manual and ARMv6-M Architecture Manual.
+-- ============================================================================
