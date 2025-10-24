@@ -1,0 +1,678 @@
+-- ============================================================================
+-- Microprocessor Register File Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the Register File for a microprocessor that provides
+-- high-speed storage for processor registers and operands. The register file
+-- serves as the primary working memory for the processor, storing temporary
+-- values, operands, and results during instruction execution. This implementation
+-- focuses on multi-port access, register addressing, data forwarding, and
+-- integration with the processor's datapath and control unit.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand register file architecture and multi-port memory design
+-- 2. Learn register addressing and selection mechanisms
+-- 3. Practice simultaneous read/write operations and data forwarding
+-- 4. Understand register allocation and management strategies
+-- 5. Learn pipeline integration and hazard detection
+-- 6. Practice memory organization and access optimization
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for memory utilities and register management
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.memory_pkg.all for memory utilities
+-- TODO: Consider adding work.microprocessor_pkg.all for system definitions
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor register file
+--
+-- Entity Requirements:
+-- - Name: reg_file (maintain current naming convention)
+-- - System control inputs (clock, reset, enable)
+-- - Multi-port read and write interfaces
+-- - Register addressing and selection
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (Register file enable)
+-- - write_enable : in std_logic (Write enable)
+--
+-- Read Port A Interface:
+-- - read_addr_a : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Read address A)
+-- - read_data_a : out std_logic_vector(DATA_WIDTH-1 downto 0) (Read data A)
+-- - read_enable_a : in std_logic (Read enable A)
+-- - read_valid_a : out std_logic (Read valid A)
+--
+-- Read Port B Interface:
+-- - read_addr_b : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Read address B)
+-- - read_data_b : out std_logic_vector(DATA_WIDTH-1 downto 0) (Read data B)
+-- - read_enable_b : in std_logic (Read enable B)
+-- - read_valid_b : out std_logic (Read valid B)
+--
+-- Write Port Interface:
+-- - write_addr : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Write address)
+-- - write_data : in std_logic_vector(DATA_WIDTH-1 downto 0) (Write data)
+-- - write_strobe : in std_logic (Write strobe)
+-- - write_mask : in std_logic_vector(DATA_WIDTH/8-1 downto 0) (Byte write mask)
+--
+-- Register Selection Interface:
+-- - reg_select : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Register select)
+-- - reg_data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (Selected register data)
+-- - reg_valid : out std_logic (Register valid)
+-- - reg_modified : out std_logic (Register modified flag)
+--
+-- Special Register Interface:
+-- - stack_pointer : out std_logic_vector(DATA_WIDTH-1 downto 0) (Stack pointer)
+-- - frame_pointer : out std_logic_vector(DATA_WIDTH-1 downto 0) (Frame pointer)
+-- - link_register : out std_logic_vector(DATA_WIDTH-1 downto 0) (Link register)
+-- - status_register : out std_logic_vector(DATA_WIDTH-1 downto 0) (Status register)
+-- - sp_write : in std_logic (Stack pointer write)
+-- - fp_write : in std_logic (Frame pointer write)
+-- - lr_write : in std_logic (Link register write)
+-- - sr_write : in std_logic (Status register write)
+--
+-- Forwarding Interface:
+-- - forward_enable : in std_logic (Forwarding enable)
+-- - forward_addr : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Forward address)
+-- - forward_data : in std_logic_vector(DATA_WIDTH-1 downto 0) (Forward data)
+-- - forward_valid : in std_logic (Forward valid)
+-- - bypass_enable : in std_logic (Bypass enable)
+--
+-- Pipeline Interface:
+-- - pipeline_stall : in std_logic (Pipeline stall)
+-- - decode_reg_a : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Decode register A)
+-- - decode_reg_b : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Decode register B)
+-- - execute_reg : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Execute register)
+-- - writeback_reg : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Writeback register)
+-- - hazard_detected : out std_logic (Hazard detected)
+--
+-- Debug Interface:
+-- - debug_enable : in std_logic (Debug enable)
+-- - debug_addr : in std_logic_vector(REG_ADDR_WIDTH-1 downto 0) (Debug address)
+-- - debug_data : out std_logic_vector(DATA_WIDTH-1 downto 0) (Debug data)
+-- - debug_valid : out std_logic (Debug valid)
+-- - register_dump : out std_logic (Register dump request)
+--
+-- Status Interface:
+-- - reg_file_ready : out std_logic (Register file ready)
+-- - access_error : out std_logic (Access error)
+-- - write_conflict : out std_logic (Write conflict)
+-- - read_conflict : out std_logic (Read conflict)
+-- - register_busy : out std_logic_vector(NUM_REGISTERS-1 downto 0) (Register busy flags)
+--
+-- Test Interface:
+-- - test_mode : in std_logic (Test mode enable)
+-- - scan_enable : in std_logic (Scan enable)
+-- - scan_in : in std_logic (Scan input)
+-- - scan_out : out std_logic (Scan output)
+-- - bist_enable : in std_logic (Built-in self test enable)
+-- - bist_done : out std_logic (BIST done)
+-- - bist_pass : out std_logic (BIST pass)
+--
+-- Performance Interface:
+-- - read_count : out std_logic_vector(31 downto 0) (Read operation count)
+-- - write_count : out std_logic_vector(31 downto 0) (Write operation count)
+-- - conflict_count : out std_logic_vector(31 downto 0) (Conflict count)
+-- - utilization : out std_logic_vector(7 downto 0) (Register utilization)
+--
+-- ============================================================================
+-- STEP 3: REGISTER FILE PRINCIPLES
+-- ============================================================================
+--
+-- Register File Fundamentals:
+-- 1. Multi-Port Architecture
+--    - Simultaneous read and write operations
+--    - Independent port addressing
+--    - Conflict resolution and arbitration
+--    - Performance optimization
+--
+-- 2. Register Organization
+--    - General-purpose registers
+--    - Special-purpose registers
+--    - Register allocation strategies
+--    - Register renaming support
+--
+-- 3. Data Forwarding
+--    - Write-to-read forwarding
+--    - Pipeline hazard resolution
+--    - Bypass path implementation
+--    - Timing optimization
+--
+-- 4. Memory Implementation
+--    - Dual-port memory blocks
+--    - Register array organization
+--    - Access timing and synchronization
+--    - Power optimization
+--
+-- Register Types:
+-- 1. General Purpose Registers (R0-R31)
+--    - Arithmetic and logic operations
+--    - Temporary storage
+--    - Operand and result storage
+--    - User-accessible registers
+--
+-- 2. Special Purpose Registers
+--    - Stack Pointer (SP)
+--    - Frame Pointer (FP)
+--    - Link Register (LR)
+--    - Status Register (SR)
+--    - Program Counter (PC)
+--
+-- 3. System Registers
+--    - Control registers
+--    - Configuration registers
+--    - Debug registers
+--    - Performance counters
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Register File (Recommended for beginners)
+-- - Basic dual-port register array
+-- - Simple read/write operations
+-- - Basic forwarding support
+-- - Suitable for simple processors
+--
+-- OPTION 2: Enhanced Register File (Intermediate)
+-- - Multi-port access (2R1W or 3R1W)
+-- - Advanced forwarding and bypass
+-- - Register renaming support
+-- - Standard processor features
+--
+-- OPTION 3: High-Performance Register File (Advanced)
+-- - Multiple read/write ports
+-- - Advanced hazard detection
+-- - Register scoreboarding
+-- - High-performance processor support
+--
+-- OPTION 4: Superscalar Register File (Expert)
+-- - Massive multi-port access
+-- - Out-of-order execution support
+-- - Advanced register renaming
+-- - Enterprise processor capabilities
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Memory Organization:
+-- - Register array implementation
+-- - Port arbitration and scheduling
+-- - Access timing and synchronization
+-- - Power and area optimization
+--
+-- Data Forwarding:
+-- - Write-to-read bypass paths
+-- - Hazard detection logic
+-- - Timing closure considerations
+-- - Pipeline integration
+--
+-- Register Management:
+-- - Register allocation tracking
+-- - Special register handling
+-- - Register file initialization
+-- - Reset and power-on behavior
+--
+-- Performance Optimization:
+-- - Critical path analysis
+-- - Port utilization optimization
+-- - Register banking strategies
+-- - Clock gating and power management
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Register Renaming:
+-- - Physical register file
+-- - Register alias table
+-- - Free register management
+-- - Commit and rollback support
+--
+-- Advanced Forwarding:
+-- - Multi-level bypass networks
+-- - Speculative forwarding
+-- - Load-to-use forwarding
+-- - Store-to-load forwarding
+--
+-- Hazard Detection:
+-- - Read-after-write hazards
+-- - Write-after-write hazards
+-- - Write-after-read hazards
+-- - Structural hazards
+--
+-- Performance Features:
+-- - Register file banking
+-- - Hierarchical register files
+-- - Cache-like register files
+-- - Power-aware register allocation
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU register storage and access
+-- 2. Microcontroller Systems: Embedded register management
+-- 3. DSP Processors: Signal processing register files
+-- 4. RISC Processors: Large register file implementations
+-- 5. CISC Processors: Complex register addressing
+-- 6. GPU Architectures: Massive register file arrays
+-- 7. Vector Processors: Vector register file management
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Basic Access Testing: Read and write operations
+-- 2. Multi-Port Testing: Simultaneous access patterns
+-- 3. Forwarding Testing: Data forwarding and bypass
+-- 4. Hazard Testing: Pipeline hazard scenarios
+-- 5. Stress Testing: Maximum throughput and conflicts
+-- 6. Power Testing: Power consumption analysis
+-- 7. Timing Testing: Setup and hold time verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic dual-port register array
+-- 2. Implement simple read and write operations
+-- 3. Add basic data forwarding and bypass
+-- 4. Implement hazard detection logic
+-- 5. Add special register support
+-- 6. Implement advanced forwarding features
+-- 7. Add performance monitoring and optimization
+-- 8. Optimize for target timing and power requirements
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement register renaming and physical register file
+-- 2. Add support for vector and SIMD registers
+-- 3. Implement hierarchical register file organization
+-- 4. Add advanced power management features
+-- 5. Implement register file compression techniques
+-- 6. Add support for debugging and profiling
+-- 7. Implement fault tolerance and error correction
+-- 8. Add support for virtualization and context switching
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Inadequate port arbitration and conflict resolution
+-- 2. Poor forwarding path timing and setup/hold violations
+-- 3. Missing hazard detection and pipeline integration
+-- 4. Inadequate register initialization and reset handling
+-- 5. Poor power management and clock gating
+-- 6. Missing special register support and system integration
+-- 7. Inadequate test and debug capabilities
+-- 8. Poor performance optimization and critical path analysis
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Basic read/write operations working correctly
+-- □ Multi-port access functioning properly
+-- □ Data forwarding and bypass working
+-- □ Hazard detection implemented correctly
+-- □ Special registers functioning properly
+-- □ Pipeline integration working correctly
+-- □ Performance requirements met
+-- □ Power consumption within limits
+-- □ Test and debug features functional
+-- □ Timing closure achieved
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This register file implementation demonstrates several key concepts:
+-- - Multi-port memory design and arbitration
+-- - Data forwarding and pipeline integration
+-- - Hazard detection and resolution
+-- - Performance optimization techniques
+-- - Power-aware design methodologies
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider memory compiler options for register arrays
+-- - Plan for proper power distribution and decoupling
+-- - Account for setup and hold time requirements
+-- - Consider process variation and aging effects
+-- - Plan for testability and debug access
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Register renaming and out-of-order execution
+-- - Vector and SIMD register file architectures
+-- - Hierarchical and distributed register files
+-- - Power-aware register allocation algorithms
+-- - Fault-tolerant register file designs
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Test all port combinations and access patterns
+-- - Verify forwarding paths and timing
+-- - Test hazard detection under all conditions
+-- - Validate special register operations
+-- - Check power consumption and performance
+-- - Verify reset and initialization behavior
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.memory_pkg.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity reg_file is
+--     generic (
+--         DATA_WIDTH      : integer := 32;                   -- Data width
+--         REG_ADDR_WIDTH  : integer := 5;                    -- Register address width
+--         NUM_REGISTERS   : integer := 32;                   -- Number of registers
+--         NUM_READ_PORTS  : integer := 2;                    -- Number of read ports
+--         NUM_WRITE_PORTS : integer := 1;                    -- Number of write ports
+--         ENABLE_FORWARDING: boolean := true;                -- Enable data forwarding
+--         ENABLE_HAZARD_DET: boolean := true;                -- Enable hazard detection
+--         ENABLE_SPECIAL_REGS: boolean := true;              -- Enable special registers
+--         ENABLE_DEBUG    : boolean := true;                 -- Enable debug features
+--         RESET_VALUE     : integer := 0;                    -- Reset value for registers
+--         POWER_OPTIMIZE  : boolean := true                  -- Enable power optimization
+--     );
+--     port (
+--         -- System Interface
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         enable          : in  std_logic;
+--         write_enable    : in  std_logic;
+--         
+--         -- Read Port A Interface
+--         read_addr_a     : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         read_data_a     : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         read_enable_a   : in  std_logic;
+--         read_valid_a    : out std_logic;
+--         
+--         -- Read Port B Interface
+--         read_addr_b     : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         read_data_b     : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         read_enable_b   : in  std_logic;
+--         read_valid_b    : out std_logic;
+--         
+--         -- Write Port Interface
+--         write_addr      : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         write_data      : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         write_strobe    : in  std_logic;
+--         write_mask      : in  std_logic_vector(DATA_WIDTH/8-1 downto 0);
+--         
+--         -- Register Selection Interface
+--         reg_select      : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         reg_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         reg_valid       : out std_logic;
+--         reg_modified    : out std_logic;
+--         
+--         -- Special Register Interface
+--         stack_pointer   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         frame_pointer   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         link_register   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         status_register : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         sp_write        : in  std_logic;
+--         fp_write        : in  std_logic;
+--         lr_write        : in  std_logic;
+--         sr_write        : in  std_logic;
+--         
+--         -- Forwarding Interface
+--         forward_enable  : in  std_logic;
+--         forward_addr    : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         forward_data    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         forward_valid   : in  std_logic;
+--         bypass_enable   : in  std_logic;
+--         
+--         -- Pipeline Interface
+--         pipeline_stall  : in  std_logic;
+--         decode_reg_a    : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         decode_reg_b    : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         execute_reg     : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         writeback_reg   : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         hazard_detected : out std_logic;
+--         
+--         -- Debug Interface
+--         debug_enable    : in  std_logic;
+--         debug_addr      : in  std_logic_vector(REG_ADDR_WIDTH-1 downto 0);
+--         debug_data      : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         debug_valid     : out std_logic;
+--         register_dump   : out std_logic;
+--         
+--         -- Status Interface
+--         reg_file_ready  : out std_logic;
+--         access_error    : out std_logic;
+--         write_conflict  : out std_logic;
+--         read_conflict   : out std_logic;
+--         register_busy   : out std_logic_vector(NUM_REGISTERS-1 downto 0);
+--         
+--         -- Test Interface
+--         test_mode       : in  std_logic;
+--         scan_enable     : in  std_logic;
+--         scan_in         : in  std_logic;
+--         scan_out        : out std_logic;
+--         bist_enable     : in  std_logic;
+--         bist_done       : out std_logic;
+--         bist_pass       : out std_logic;
+--         
+--         -- Performance Interface
+--         read_count      : out std_logic_vector(31 downto 0);
+--         write_count     : out std_logic_vector(31 downto 0);
+--         conflict_count  : out std_logic_vector(31 downto 0);
+--         utilization     : out std_logic_vector(7 downto 0)
+--     );
+-- end entity reg_file;
+--
+-- architecture behavioral of reg_file is
+--     -- Register array
+--     type register_array_t is array (0 to NUM_REGISTERS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal registers : register_array_t;
+--     
+--     -- Special registers
+--     signal sp_reg : std_logic_vector(DATA_WIDTH-1 downto 0);  -- Stack pointer
+--     signal fp_reg : std_logic_vector(DATA_WIDTH-1 downto 0);  -- Frame pointer
+--     signal lr_reg : std_logic_vector(DATA_WIDTH-1 downto 0);  -- Link register
+--     signal sr_reg : std_logic_vector(DATA_WIDTH-1 downto 0);  -- Status register
+--     
+--     -- Internal control signals
+--     signal write_enable_internal : std_logic;
+--     signal read_enable_a_internal : std_logic;
+--     signal read_enable_b_internal : std_logic;
+--     
+--     -- Forwarding signals
+--     signal forward_match_a : std_logic;
+--     signal forward_match_b : std_logic;
+--     signal forwarded_data_a : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal forwarded_data_b : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Hazard detection signals
+--     signal raw_hazard_a : std_logic;
+--     signal raw_hazard_b : std_logic;
+--     signal waw_hazard : std_logic;
+--     signal war_hazard : std_logic;
+--     
+--     -- Access control signals
+--     signal addr_valid_a : std_logic;
+--     signal addr_valid_b : std_logic;
+--     signal addr_valid_w : std_logic;
+--     signal write_conflict_internal : std_logic;
+--     signal read_conflict_internal : std_logic;
+--     
+--     -- Performance counters
+--     signal read_counter : unsigned(31 downto 0);
+--     signal write_counter : unsigned(31 downto 0);
+--     signal conflict_counter : unsigned(31 downto 0);
+--     
+--     -- Register busy tracking
+--     signal busy_flags : std_logic_vector(NUM_REGISTERS-1 downto 0);
+--     
+-- begin
+--     -- Address validation
+--     addr_valid_a <= '1' when unsigned(read_addr_a) < NUM_REGISTERS else '0';
+--     addr_valid_b <= '1' when unsigned(read_addr_b) < NUM_REGISTERS else '0';
+--     addr_valid_w <= '1' when unsigned(write_addr) < NUM_REGISTERS else '0';
+--     
+--     -- Internal enable signals
+--     write_enable_internal <= write_enable and enable and addr_valid_w and not pipeline_stall;
+--     read_enable_a_internal <= read_enable_a and enable and addr_valid_a;
+--     read_enable_b_internal <= read_enable_b and enable and addr_valid_b;
+--     
+--     -- Forwarding logic
+--     forward_match_a <= '1' when (forward_enable = '1' and forward_valid = '1' and 
+--                                  forward_addr = read_addr_a) else '0';
+--     forward_match_b <= '1' when (forward_enable = '1' and forward_valid = '1' and 
+--                                  forward_addr = read_addr_b) else '0';
+--     
+--     forwarded_data_a <= forward_data when forward_match_a = '1' else 
+--                        registers(to_integer(unsigned(read_addr_a)));
+--     forwarded_data_b <= forward_data when forward_match_b = '1' else 
+--                        registers(to_integer(unsigned(read_addr_b)));
+--     
+--     -- Hazard detection
+--     raw_hazard_a <= '1' when (write_enable_internal = '1' and read_enable_a_internal = '1' and 
+--                              write_addr = read_addr_a and forward_match_a = '0') else '0';
+--     raw_hazard_b <= '1' when (write_enable_internal = '1' and read_enable_b_internal = '1' and 
+--                              write_addr = read_addr_b and forward_match_b = '0') else '0';
+--     
+--     -- Conflict detection
+--     write_conflict_internal <= '1' when (write_enable_internal = '1' and 
+--                                         (write_addr = read_addr_a or write_addr = read_addr_b)) else '0';
+--     read_conflict_internal <= '1' when (read_enable_a_internal = '1' and read_enable_b_internal = '1' and 
+--                                        read_addr_a = read_addr_b) else '0';
+--     
+--     -- Main register file process
+--     reg_file_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             registers <= (others => std_logic_vector(to_unsigned(RESET_VALUE, DATA_WIDTH)));
+--             sp_reg <= std_logic_vector(to_unsigned(RESET_VALUE, DATA_WIDTH));
+--             fp_reg <= std_logic_vector(to_unsigned(RESET_VALUE, DATA_WIDTH));
+--             lr_reg <= std_logic_vector(to_unsigned(RESET_VALUE, DATA_WIDTH));
+--             sr_reg <= std_logic_vector(to_unsigned(RESET_VALUE, DATA_WIDTH));
+--             busy_flags <= (others => '0');
+--             read_counter <= (others => '0');
+--             write_counter <= (others => '0');
+--             conflict_counter <= (others => '0');
+--         elsif rising_edge(clk) then
+--             -- Write operations
+--             if write_enable_internal = '1' and write_strobe = '1' then
+--                 -- Byte-wise write with mask
+--                 for i in 0 to DATA_WIDTH/8-1 loop
+--                     if write_mask(i) = '1' then
+--                         registers(to_integer(unsigned(write_addr)))((i+1)*8-1 downto i*8) <= 
+--                             write_data((i+1)*8-1 downto i*8);
+--                     end if;
+--                 end loop;
+--                 write_counter <= write_counter + 1;
+--             end if;
+--             
+--             -- Special register writes
+--             if sp_write = '1' then
+--                 sp_reg <= write_data;
+--             end if;
+--             if fp_write = '1' then
+--                 fp_reg <= write_data;
+--             end if;
+--             if lr_write = '1' then
+--                 lr_reg <= write_data;
+--             end if;
+--             if sr_write = '1' then
+--                 sr_reg <= write_data;
+--             end if;
+--             
+--             -- Performance counters
+--             if read_enable_a_internal = '1' or read_enable_b_internal = '1' then
+--                 read_counter <= read_counter + 1;
+--             end if;
+--             if write_conflict_internal = '1' or read_conflict_internal = '1' then
+--                 conflict_counter <= conflict_counter + 1;
+--             end if;
+--             
+--             -- Busy flag management
+--             if write_enable_internal = '1' then
+--                 busy_flags(to_integer(unsigned(write_addr))) <= '1';
+--             end if;
+--             -- Clear busy flags after one cycle (simplified)
+--             busy_flags <= (others => '0');
+--         end if;
+--     end process;
+--     
+--     -- Read port outputs
+--     read_data_a <= forwarded_data_a when read_enable_a_internal = '1' else (others => '0');
+--     read_data_b <= forwarded_data_b when read_enable_b_internal = '1' else (others => '0');
+--     read_valid_a <= read_enable_a_internal and not raw_hazard_a;
+--     read_valid_b <= read_enable_b_internal and not raw_hazard_b;
+--     
+--     -- Register selection output
+--     reg_data_out <= registers(to_integer(unsigned(reg_select))) when 
+--                    unsigned(reg_select) < NUM_REGISTERS else (others => '0');
+--     reg_valid <= '1' when unsigned(reg_select) < NUM_REGISTERS else '0';
+--     reg_modified <= busy_flags(to_integer(unsigned(reg_select))) when 
+--                    unsigned(reg_select) < NUM_REGISTERS else '0';
+--     
+--     -- Special register outputs
+--     stack_pointer <= sp_reg;
+--     frame_pointer <= fp_reg;
+--     link_register <= lr_reg;
+--     status_register <= sr_reg;
+--     
+--     -- Hazard and status outputs
+--     hazard_detected <= raw_hazard_a or raw_hazard_b when ENABLE_HAZARD_DET else '0';
+--     reg_file_ready <= enable and not pipeline_stall;
+--     access_error <= (not addr_valid_a and read_enable_a) or 
+--                    (not addr_valid_b and read_enable_b) or 
+--                    (not addr_valid_w and write_enable);
+--     write_conflict <= write_conflict_internal;
+--     read_conflict <= read_conflict_internal;
+--     register_busy <= busy_flags;
+--     
+--     -- Debug interface
+--     debug_data <= registers(to_integer(unsigned(debug_addr))) when 
+--                  (debug_enable = '1' and unsigned(debug_addr) < NUM_REGISTERS) else (others => '0');
+--     debug_valid <= debug_enable and addr_valid_a;
+--     register_dump <= debug_enable;
+--     
+--     -- Performance interface
+--     read_count <= std_logic_vector(read_counter);
+--     write_count <= std_logic_vector(write_counter);
+--     conflict_count <= std_logic_vector(conflict_counter);
+--     utilization <= std_logic_vector(to_unsigned(
+--         (to_integer(read_counter) + to_integer(write_counter)) / 256, 8));
+--     
+--     -- Test interface (simplified)
+--     scan_out <= scan_in when scan_enable = '1' else '0';
+--     bist_done <= bist_enable;
+--     bist_pass <= bist_enable;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This register file implementation provides comprehensive
+-- multi-port access with data forwarding, hazard detection, and pipeline
+-- integration. Ensure proper timing analysis and consider the specific
+-- requirements for your target processor architecture.
+-- ============================================================================

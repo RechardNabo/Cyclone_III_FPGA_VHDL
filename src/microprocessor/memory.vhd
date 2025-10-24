@@ -1,0 +1,645 @@
+-- ============================================================================
+-- Microprocessor Memory System Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the Memory System for a microprocessor that provides
+-- unified or separate instruction and data memory interfaces. The memory system
+-- handles read/write operations, address decoding, memory mapping, and cache
+-- integration. This implementation focuses on efficient memory access patterns,
+-- proper timing, and integration with the processor's fetch-decode-execute cycle.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand memory system architecture and organization
+-- 2. Learn memory interface design and timing requirements
+-- 3. Practice address decoding and memory mapping techniques
+-- 4. Understand cache integration and memory hierarchy
+-- 5. Learn memory protection and access control
+-- 6. Practice high-performance memory system design
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for memory models and utilities
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.memory_pkg.all for memory utilities
+-- TODO: Consider adding work.microprocessor_pkg.all for system definitions
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor memory system
+--
+-- Entity Requirements:
+-- - Name: memory (maintain current naming convention)
+-- - System control inputs (clock, reset, enable)
+-- - Instruction memory interface (fetch)
+-- - Data memory interface (load/store)
+-- - Memory control and status signals
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (Memory system enable)
+-- - mem_clk : in std_logic (Memory clock, may be different from system clock)
+--
+-- Instruction Memory Interface:
+-- - i_addr : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Instruction address)
+-- - i_data : out std_logic_vector(DATA_WIDTH-1 downto 0) (Instruction data)
+-- - i_read : in std_logic (Instruction read enable)
+-- - i_ready : out std_logic (Instruction ready signal)
+-- - i_valid : out std_logic (Instruction data valid)
+-- - i_error : out std_logic (Instruction fetch error)
+--
+-- Data Memory Interface:
+-- - d_addr : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Data address)
+-- - d_data_in : in std_logic_vector(DATA_WIDTH-1 downto 0) (Data input for writes)
+-- - d_data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (Data output for reads)
+-- - d_read : in std_logic (Data read enable)
+-- - d_write : in std_logic (Data write enable)
+-- - d_byte_enable : in std_logic_vector(DATA_WIDTH/8-1 downto 0) (Byte enable for partial writes)
+-- - d_ready : out std_logic (Data ready signal)
+-- - d_valid : out std_logic (Data valid signal)
+-- - d_error : out std_logic (Data access error)
+--
+-- Memory Control Interface:
+-- - cache_enable : in std_logic (Cache enable control)
+-- - cache_flush : in std_logic (Cache flush command)
+-- - cache_invalidate : in std_logic (Cache invalidate command)
+-- - mem_protect : in std_logic (Memory protection enable)
+-- - debug_mode : in std_logic (Debug mode enable)
+--
+-- Memory Status Interface:
+-- - cache_hit : out std_logic (Cache hit indicator)
+-- - cache_miss : out std_logic (Cache miss indicator)
+-- - mem_busy : out std_logic (Memory busy indicator)
+-- - mem_fault : out std_logic (Memory fault indicator)
+-- - access_violation : out std_logic (Access violation indicator)
+--
+-- External Memory Interface (for external RAM/ROM):
+-- - ext_addr : out std_logic_vector(EXT_ADDR_WIDTH-1 downto 0) (External address bus)
+-- - ext_data : inout std_logic_vector(EXT_DATA_WIDTH-1 downto 0) (External data bus)
+-- - ext_we : out std_logic (External write enable)
+-- - ext_oe : out std_logic (External output enable)
+-- - ext_cs : out std_logic_vector(NUM_CHIPS-1 downto 0) (External chip select)
+-- - ext_ready : in std_logic (External memory ready)
+--
+-- Debug Interface:
+-- - mem_state : out std_logic_vector(7 downto 0) (Memory state information)
+-- - access_count : out std_logic_vector(31 downto 0) (Memory access counter)
+-- - cache_stats : out std_logic_vector(31 downto 0) (Cache statistics)
+--
+-- ============================================================================
+-- STEP 3: MEMORY SYSTEM PRINCIPLES
+-- ============================================================================
+--
+-- Memory System Fundamentals:
+-- 1. Memory Organization
+--    - Address space layout and mapping
+--    - Instruction and data memory separation
+--    - Memory hierarchy (cache, main memory, storage)
+--    - Memory protection and access control
+--
+-- 2. Memory Interface Design
+--    - Synchronous vs. asynchronous interfaces
+--    - Read and write timing protocols
+--    - Burst and pipeline access modes
+--    - Error detection and handling
+--
+-- 3. Address Decoding
+--    - Memory map implementation
+--    - Chip select generation
+--    - Address range validation
+--    - Memory-mapped I/O support
+--
+-- 4. Cache Integration
+--    - Cache hit/miss handling
+--    - Cache coherency protocols
+--    - Write-through vs. write-back policies
+--    - Cache replacement algorithms
+--
+-- Memory Types and Characteristics:
+-- 1. Instruction Memory (ROM/Flash)
+--    - Read-only or rarely modified
+--    - Sequential access patterns
+--    - High bandwidth requirements
+--    - Code protection features
+--
+-- 2. Data Memory (RAM)
+--    - Read/write operations
+--    - Random access patterns
+--    - Variable data sizes (byte, word, etc.)
+--    - Stack and heap management
+--
+-- 3. Cache Memory
+--    - High-speed temporary storage
+--    - Automatic data management
+--    - Transparent to software
+--    - Performance optimization
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Memory System (Recommended for beginners)
+-- - Single-port memory with basic read/write
+-- - Direct address mapping without cache
+-- - Simple timing and control logic
+-- - Suitable for educational processors
+--
+-- OPTION 2: Harvard Architecture Memory (Intermediate)
+-- - Separate instruction and data memories
+-- - Independent access paths and timing
+-- - Improved performance and parallelism
+-- - Standard microcontroller architecture
+--
+-- OPTION 3: Cached Memory System (Advanced)
+-- - Instruction and data caches
+-- - Cache coherency and replacement
+-- - Write buffering and prefetching
+-- - High-performance processor support
+--
+-- OPTION 4: Multi-Level Memory Hierarchy (Expert)
+-- - L1, L2, and L3 cache levels
+-- - Virtual memory and MMU integration
+-- - Advanced prefetching algorithms
+-- - Enterprise processor features
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Memory Timing Design:
+-- - Setup and hold time requirements
+-- - Access time and cycle time optimization
+-- - Pipeline stage coordination
+-- - Clock domain crossing handling
+--
+-- Address Decoding Optimization:
+-- - Efficient address comparison logic
+-- - Minimized decode delay
+-- - Flexible memory mapping
+-- - Error detection for invalid addresses
+--
+-- Data Path Design:
+-- - Bus width and alignment handling
+-- - Byte enable and partial write support
+-- - Data multiplexing and routing
+-- - Signal integrity considerations
+--
+-- Performance Optimization:
+-- - Memory access scheduling
+-- - Burst and pipeline modes
+-- - Prefetching and speculation
+-- - Bandwidth utilization maximization
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Cache Management:
+-- - Cache line replacement policies (LRU, FIFO, Random)
+-- - Write allocation and write-back strategies
+-- - Cache coherency protocols (MESI, MOESI)
+-- - Cache performance monitoring
+--
+-- Memory Protection:
+-- - Access permission checking (read, write, execute)
+-- - Memory segmentation and paging
+-- - Privilege level enforcement
+-- - Security and isolation features
+--
+-- Performance Monitoring:
+-- - Memory access statistics
+-- - Cache hit/miss ratios
+-- - Bandwidth utilization metrics
+-- - Latency and throughput analysis
+--
+-- Power Management:
+-- - Memory power gating
+-- - Dynamic voltage and frequency scaling
+-- - Sleep and standby modes
+-- - Energy-efficient access patterns
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU memory subsystem implementation
+-- 2. Microcontroller Systems: Embedded memory management
+-- 3. System-on-Chip: Integrated memory hierarchy
+-- 4. FPGA Soft Processors: Configurable memory systems
+-- 5. Digital Signal Processing: High-bandwidth memory access
+-- 6. Graphics Processing: Specialized memory architectures
+-- 7. Network Processors: Packet buffer management
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Functional Testing: All memory operations and addressing modes
+-- 2. Timing Testing: Setup, hold, and access time verification
+-- 3. Cache Testing: Hit/miss scenarios and coherency validation
+-- 4. Stress Testing: High-frequency and burst access patterns
+-- 5. Error Testing: Invalid addresses and protection violations
+-- 6. Performance Testing: Bandwidth and latency measurements
+-- 7. Integration Testing: Memory with processor and peripherals
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with simple single-port memory interface
+-- 2. Implement basic address decoding and memory mapping
+-- 3. Add instruction and data memory separation
+-- 4. Implement cache with basic replacement policy
+-- 5. Add memory protection and error detection
+-- 6. Implement performance monitoring and optimization
+-- 7. Add advanced features like prefetching and speculation
+-- 8. Optimize for target technology and performance requirements
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement virtual memory and address translation
+-- 2. Add multi-level cache hierarchy (L1, L2, L3)
+-- 3. Implement memory compression and deduplication
+-- 4. Add non-volatile memory (Flash, EEPROM) support
+-- 5. Implement memory encryption and security features
+-- 6. Add memory bandwidth optimization techniques
+-- 7. Implement memory fault tolerance and ECC
+-- 8. Add memory power management and optimization
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incorrect memory timing and setup/hold violations
+-- 2. Inadequate address decoding and memory mapping
+-- 3. Missing cache coherency and consistency handling
+-- 4. Poor memory access scheduling and arbitration
+-- 5. Insufficient error detection and recovery
+-- 6. Inadequate memory protection implementation
+-- 7. Poor performance optimization and bottlenecks
+-- 8. Missing memory initialization and reset handling
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Memory read and write operations working correctly
+-- □ Address decoding and memory mapping functional
+-- □ Cache hit/miss detection and handling working
+-- □ Memory timing requirements met
+-- □ Error detection and protection mechanisms active
+-- □ Performance requirements satisfied
+-- □ Integration with processor components verified
+-- □ Memory initialization and reset behavior correct
+-- □ Test coverage comprehensive for all scenarios
+-- □ Power consumption within specifications
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This memory system implementation demonstrates several key concepts:
+-- - Memory interface design and timing
+-- - Address decoding and memory mapping
+-- - Cache design and management
+-- - System integration and performance optimization
+-- - Error detection and fault tolerance
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider memory placement and routing optimization
+-- - Plan for signal integrity and noise immunity
+-- - Account for power distribution and decoupling
+-- - Consider thermal management for high-density memory
+-- - Plan for testability and manufacturing test
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Non-uniform memory access (NUMA) architectures
+-- - Memory virtualization and containerization
+-- - Persistent memory and storage-class memory
+-- - Memory-centric computing architectures
+-- - Quantum and neuromorphic memory systems
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive memory test patterns
+-- - Verify cache behavior under various scenarios
+-- - Test memory protection and security features
+-- - Validate performance under realistic workloads
+-- - Check power consumption and thermal behavior
+-- - Verify manufacturing test coverage
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.memory_pkg.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity memory is
+--     generic (
+--         ADDR_WIDTH       : integer := 32;                  -- Address bus width
+--         DATA_WIDTH       : integer := 32;                  -- Data bus width
+--         CACHE_SIZE       : integer := 8192;                -- Cache size in bytes
+--         CACHE_LINE_SIZE  : integer := 32;                  -- Cache line size in bytes
+--         CACHE_WAYS       : integer := 2;                   -- Cache associativity
+--         MEM_SIZE         : integer := 1048576;             -- Memory size in bytes
+--         ENABLE_CACHE     : boolean := true;                -- Enable cache
+--         ENABLE_PROTECTION: boolean := true;                -- Enable memory protection
+--         ENABLE_DEBUG     : boolean := true;                -- Enable debug features
+--         EXT_ADDR_WIDTH   : integer := 20;                  -- External address width
+--         EXT_DATA_WIDTH   : integer := 16;                  -- External data width
+--         NUM_CHIPS        : integer := 4                    -- Number of external chips
+--     );
+--     port (
+--         -- System Interface
+--         clk              : in  std_logic;
+--         reset            : in  std_logic;
+--         enable           : in  std_logic;
+--         mem_clk          : in  std_logic;
+--         
+--         -- Instruction Memory Interface
+--         i_addr           : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         i_data           : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         i_read           : in  std_logic;
+--         i_ready          : out std_logic;
+--         i_valid          : out std_logic;
+--         i_error          : out std_logic;
+--         
+--         -- Data Memory Interface
+--         d_addr           : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         d_data_in        : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         d_data_out       : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         d_read           : in  std_logic;
+--         d_write          : in  std_logic;
+--         d_byte_enable    : in  std_logic_vector(DATA_WIDTH/8-1 downto 0);
+--         d_ready          : out std_logic;
+--         d_valid          : out std_logic;
+--         d_error          : out std_logic;
+--         
+--         -- Memory Control Interface
+--         cache_enable     : in  std_logic;
+--         cache_flush      : in  std_logic;
+--         cache_invalidate : in  std_logic;
+--         mem_protect      : in  std_logic;
+--         debug_mode       : in  std_logic;
+--         
+--         -- Memory Status Interface
+--         cache_hit        : out std_logic;
+--         cache_miss       : out std_logic;
+--         mem_busy         : out std_logic;
+--         mem_fault        : out std_logic;
+--         access_violation : out std_logic;
+--         
+--         -- External Memory Interface
+--         ext_addr         : out std_logic_vector(EXT_ADDR_WIDTH-1 downto 0);
+--         ext_data         : inout std_logic_vector(EXT_DATA_WIDTH-1 downto 0);
+--         ext_we           : out std_logic;
+--         ext_oe           : out std_logic;
+--         ext_cs           : out std_logic_vector(NUM_CHIPS-1 downto 0);
+--         ext_ready        : in  std_logic;
+--         
+--         -- Debug Interface
+--         mem_state        : out std_logic_vector(7 downto 0);
+--         access_count     : out std_logic_vector(31 downto 0);
+--         cache_stats      : out std_logic_vector(31 downto 0)
+--     );
+-- end entity memory;
+--
+-- architecture behavioral of memory is
+--     -- Memory array declarations
+--     type memory_array_t is array (0 to MEM_SIZE/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal instruction_memory : memory_array_t;
+--     signal data_memory : memory_array_t;
+--     
+--     -- Cache declarations
+--     type cache_line_t is record
+--         valid : std_logic;
+--         dirty : std_logic;
+--         tag   : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         data  : std_logic_vector(CACHE_LINE_SIZE*8-1 downto 0);
+--     end record;
+--     
+--     type cache_array_t is array (0 to CACHE_SIZE/CACHE_LINE_SIZE-1) of cache_line_t;
+--     signal instruction_cache : cache_array_t;
+--     signal data_cache : cache_array_t;
+--     
+--     -- Internal signals
+--     signal i_addr_reg : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal d_addr_reg : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal access_counter : unsigned(31 downto 0);
+--     signal cache_hit_counter : unsigned(15 downto 0);
+--     signal cache_miss_counter : unsigned(15 downto 0);
+--     
+--     -- State machine signals
+--     type mem_state_t is (IDLE, I_ACCESS, D_ACCESS, CACHE_FILL, ERROR_STATE);
+--     signal current_state : mem_state_t;
+--     signal next_state : mem_state_t;
+--     
+--     -- Cache control signals
+--     signal i_cache_hit : std_logic;
+--     signal d_cache_hit : std_logic;
+--     signal cache_line_addr : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal cache_index : integer range 0 to CACHE_SIZE/CACHE_LINE_SIZE-1;
+--     
+-- begin
+--     -- Memory state machine
+--     mem_state_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             current_state <= IDLE;
+--             access_counter <= (others => '0');
+--             cache_hit_counter <= (others => '0');
+--             cache_miss_counter <= (others => '0');
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--             
+--             -- Update access counters
+--             if (i_read = '1' or d_read = '1' or d_write = '1') and enable = '1' then
+--                 access_counter <= access_counter + 1;
+--             end if;
+--             
+--             -- Update cache statistics
+--             if ENABLE_CACHE then
+--                 if (i_cache_hit = '1' or d_cache_hit = '1') then
+--                     cache_hit_counter <= cache_hit_counter + 1;
+--                 elsif (i_read = '1' or d_read = '1' or d_write = '1') then
+--                     cache_miss_counter <= cache_miss_counter + 1;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Next state logic
+--     next_state_proc: process(current_state, i_read, d_read, d_write, enable, i_cache_hit, d_cache_hit)
+--     begin
+--         case current_state is
+--             when IDLE =>
+--                 if enable = '1' then
+--                     if i_read = '1' then
+--                         if ENABLE_CACHE and i_cache_hit = '0' then
+--                             next_state <= CACHE_FILL;
+--                         else
+--                             next_state <= I_ACCESS;
+--                         end if;
+--                     elsif d_read = '1' or d_write = '1' then
+--                         if ENABLE_CACHE and d_cache_hit = '0' then
+--                             next_state <= CACHE_FILL;
+--                         else
+--                             next_state <= D_ACCESS;
+--                         end if;
+--                     else
+--                         next_state <= IDLE;
+--                     end if;
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--                 
+--             when I_ACCESS =>
+--                 next_state <= IDLE;
+--                 
+--             when D_ACCESS =>
+--                 next_state <= IDLE;
+--                 
+--             when CACHE_FILL =>
+--                 next_state <= IDLE;  -- Simplified for template
+--                 
+--             when ERROR_STATE =>
+--                 next_state <= IDLE;
+--                 
+--             when others =>
+--                 next_state <= IDLE;
+--         end case;
+--     end process;
+--     
+--     -- Instruction memory access
+--     instruction_access_proc: process(clk)
+--         variable addr_index : integer;
+--     begin
+--         if rising_edge(clk) then
+--             if reset = '1' then
+--                 i_data <= (others => '0');
+--                 i_ready <= '0';
+--                 i_valid <= '0';
+--                 i_error <= '0';
+--             elsif enable = '1' and i_read = '1' then
+--                 addr_index := to_integer(unsigned(i_addr(ADDR_WIDTH-1 downto 2)));
+--                 if addr_index < MEM_SIZE/4 then
+--                     i_data <= instruction_memory(addr_index);
+--                     i_ready <= '1';
+--                     i_valid <= '1';
+--                     i_error <= '0';
+--                 else
+--                     i_data <= (others => '0');
+--                     i_ready <= '1';
+--                     i_valid <= '0';
+--                     i_error <= '1';
+--                 end if;
+--             else
+--                 i_ready <= '1';
+--                 i_valid <= '0';
+--                 i_error <= '0';
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Data memory access
+--     data_access_proc: process(clk)
+--         variable addr_index : integer;
+--     begin
+--         if rising_edge(clk) then
+--             if reset = '1' then
+--                 d_data_out <= (others => '0');
+--                 d_ready <= '0';
+--                 d_valid <= '0';
+--                 d_error <= '0';
+--             elsif enable = '1' then
+--                 addr_index := to_integer(unsigned(d_addr(ADDR_WIDTH-1 downto 2)));
+--                 if addr_index < MEM_SIZE/4 then
+--                     if d_read = '1' then
+--                         d_data_out <= data_memory(addr_index);
+--                         d_valid <= '1';
+--                     elsif d_write = '1' then
+--                         -- Handle byte enables for partial writes
+--                         for i in 0 to DATA_WIDTH/8-1 loop
+--                             if d_byte_enable(i) = '1' then
+--                                 data_memory(addr_index)(i*8+7 downto i*8) <= d_data_in(i*8+7 downto i*8);
+--                             end if;
+--                         end loop;
+--                         d_valid <= '0';
+--                     end if;
+--                     d_ready <= '1';
+--                     d_error <= '0';
+--                 else
+--                     d_data_out <= (others => '0');
+--                     d_ready <= '1';
+--                     d_valid <= '0';
+--                     d_error <= '1';
+--                 end if;
+--             else
+--                 d_ready <= '1';
+--                 d_valid <= '0';
+--                 d_error <= '0';
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Cache hit detection (simplified)
+--     cache_hit_detection: if ENABLE_CACHE generate
+--         cache_index <= to_integer(unsigned(i_addr(15 downto 5))) when i_read = '1' else
+--                       to_integer(unsigned(d_addr(15 downto 5)));
+--         
+--         i_cache_hit <= '1' when instruction_cache(cache_index).valid = '1' and
+--                               instruction_cache(cache_index).tag = i_addr(ADDR_WIDTH-1 downto 16)
+--                       else '0';
+--         
+--         d_cache_hit <= '1' when data_cache(cache_index).valid = '1' and
+--                               data_cache(cache_index).tag = d_addr(ADDR_WIDTH-1 downto 16)
+--                       else '0';
+--     end generate;
+--     
+--     -- Output assignments
+--     cache_hit <= i_cache_hit or d_cache_hit when ENABLE_CACHE else '0';
+--     cache_miss <= (i_read or d_read or d_write) and not (i_cache_hit or d_cache_hit) when ENABLE_CACHE else '0';
+--     mem_busy <= '1' when current_state /= IDLE else '0';
+--     mem_fault <= '1' when current_state = ERROR_STATE else '0';
+--     access_violation <= '0';  -- Can be extended for protection checking
+--     
+--     -- External memory interface (simplified)
+--     ext_addr <= (others => '0');
+--     ext_data <= (others => 'Z');
+--     ext_we <= '0';
+--     ext_oe <= '0';
+--     ext_cs <= (others => '0');
+--     
+--     -- Debug outputs
+--     mem_state <= std_logic_vector(to_unsigned(mem_state_t'pos(current_state), 3)) & 
+--                  cache_hit & cache_miss & mem_busy & mem_fault & access_violation;
+--     access_count <= std_logic_vector(access_counter);
+--     cache_stats <= std_logic_vector(cache_hit_counter) & std_logic_vector(cache_miss_counter);
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This memory system implementation provides comprehensive memory
+-- management with cache support and performance monitoring. Ensure proper
+-- timing analysis and consider the specific memory requirements for your
+-- processor design and target technology.
+-- ============================================================================

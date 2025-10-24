@@ -1,0 +1,787 @@
+-- ============================================================================
+-- Read-Only Memory (ROM) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a Read-Only Memory (ROM), which provides non-volatile
+-- storage for constant data, lookup tables, configuration parameters, and
+-- program code. ROMs are essential components in digital systems for storing
+-- fixed data that doesn't change during operation.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand ROM architecture and operation principles
+-- 2. Learn memory initialization and data loading techniques
+-- 3. Practice parameterized ROM design with generics
+-- 4. Explore synthesis optimization for ROM implementations
+-- 5. Understand ROM applications in digital systems
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations
+-- - std.textio for file I/O operations (optional)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Add library std; (for file operations)
+-- TODO: Add use std.textio.all; (for file operations)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the ROM
+--
+-- Entity Requirements:
+-- - Name: rom (maintain current naming convention)
+-- - Generic parameters for memory size and data width
+-- - Address and data ports for read operations
+-- - Optional control and status signals
+--
+-- Generic Parameters:
+-- - DATA_WIDTH : positive := 8 (Data bus width in bits)
+-- - ADDR_WIDTH : positive := 10 (Address bus width in bits)
+-- - MEMORY_DEPTH : positive := 1024 (Number of memory locations)
+-- - INIT_FILE : string := "" (Initialization file path)
+-- - ROM_STYLE : string := "auto" (Synthesis style hint)
+-- - DEFAULT_VALUE : std_logic_vector := (others => '0') (Default data value)
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input, optional for synchronous ROM)
+-- - rst : in std_logic (Reset input, optional)
+-- - en : in std_logic (Enable signal, optional)
+-- - addr : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Address input)
+-- - dout : out std_logic_vector(DATA_WIDTH-1 downto 0) (Data output)
+--
+-- Optional Ports:
+-- - ready : out std_logic (ROM ready flag)
+-- - valid : out std_logic (Data valid flag)
+-- - error : out std_logic (Error flag for invalid addresses)
+--
+-- Design Considerations:
+-- - Synchronous vs asynchronous read operation
+-- - Address range validation
+-- - Memory initialization methods
+-- - Synthesis optimization hints
+-- - Resource utilization efficiency
+-- - Technology-specific optimizations
+--
+-- TODO: Declare entity with appropriate generics and ports
+-- TODO: Add comprehensive port comments
+-- TODO: Consider synchronous vs asynchronous operation
+-- TODO: Plan for initialization and configuration
+--
+-- ============================================================================
+-- STEP 3: ROM OPERATION DEFINITIONS
+-- ============================================================================
+--
+-- ROM PRINCIPLES:
+-- - Read-only access (no write operations)
+-- - Non-volatile data storage
+-- - Address-based data retrieval
+-- - Constant data throughout operation
+-- - Initialization at synthesis/configuration time
+--
+-- OPERATION TABLE (Synchronous ROM):
+-- Clock | Reset | Enable | Address | Operation
+-- ------|-------|--------|---------|----------
+--   X   |   1   |   X    |    X    | Reset (if implemented)
+--   ↑   |   0   |   0    |    X    | No operation
+--   ↑   |   0   |   1    |  Valid  | Read operation
+--   ↑   |   0   |   1    | Invalid | Error condition
+--
+-- OPERATION TABLE (Asynchronous ROM):
+-- Reset | Enable | Address | Operation
+-- ------|--------|---------|----------
+--   1   |   X    |    X    | Reset (if implemented)
+--   0   |   0    |    X    | No operation
+--   0   |   1    |  Valid  | Read operation
+--   0   |   1    | Invalid | Error condition
+--
+-- READ OPERATION:
+-- - Address selects memory location
+-- - Data appears on output (immediately for async, after clock for sync)
+-- - Enable controls operation (optional)
+-- - No write capability
+--
+-- TIMING REQUIREMENTS (Synchronous):
+-- - Setup time: Address stable before clock edge
+-- - Hold time: Address stable after clock edge
+-- - Clock-to-Q delay: Time from clock to output valid
+-- - Access time: Total time for read operation
+--
+-- TIMING REQUIREMENTS (Asynchronous):
+-- - Address-to-output delay: Propagation time through ROM
+-- - Enable-to-output delay: Time from enable to valid output
+-- - Setup/hold for address changes
+--
+-- MEMORY ORGANIZATION:
+-- - Linear addressing from 0 to MEMORY_DEPTH-1
+-- - Word-based access (DATA_WIDTH bits per location)
+-- - Fixed initialization values
+-- - Optional address range checking
+--
+-- TODO: Choose synchronous or asynchronous operation
+-- TODO: Define operation tables for chosen configuration
+-- TODO: Specify timing requirements
+-- TODO: Plan memory organization and initialization
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC ASYNCHRONOUS ROM
+-- ----------------------------------------------------------------------------
+-- Simple asynchronous ROM with constant data
+--
+-- Implementation Approach:
+-- - Array-based memory storage
+-- - Combinational read operation
+-- - Constant initialization
+-- - Simple interface
+--
+-- Example Structure:
+-- architecture async_behavioral of rom is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Initialize ROM with constant data
+--     constant memory : memory_array := (
+--         0 => x"00",
+--         1 => x"01",
+--         2 => x"02",
+--         -- Add more initialization data
+--         others => (others => '0')
+--     );
+-- begin
+--     -- Asynchronous read operation
+--     dout <= memory(to_integer(unsigned(addr))) when en = '1' else (others => 'Z');
+-- end async_behavioral;
+--
+-- Memory Management:
+-- - Constant array storage
+-- - Direct address indexing
+-- - Combinational operation
+-- - Simple control logic
+--
+-- Advantages:
+-- - Fast access time
+-- - Simple implementation
+-- - Low latency
+-- - No clock required
+--
+-- Disadvantages:
+-- - Potential glitches
+-- - Power consumption
+-- - Limited size
+-- - No error checking
+--
+-- TODO: Implement basic asynchronous ROM
+-- TODO: Initialize with test data
+-- TODO: Verify read operations
+-- TODO: Test address decoding
+--
+-- OPTION 2: SYNCHRONOUS ROM WITH CLOCK
+-- ----------------------------------------------------------------------------
+-- Synchronous ROM with registered output
+--
+-- Implementation Approach:
+-- - Array-based memory storage
+-- - Synchronous read operation
+-- - Registered output
+-- - Clock-based timing
+--
+-- Example Structure:
+-- architecture sync_behavioral of rom is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Initialize ROM with constant data
+--     constant memory : memory_array := (
+--         0 => x"AA",
+--         1 => x"BB",
+--         2 => x"CC",
+--         -- Add more initialization data
+--         others => (others => '0')
+--     );
+--     
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+-- begin
+--     -- Synchronous read process
+--     read_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             if en = '1' then
+--                 dout_reg <= memory(to_integer(unsigned(addr)));
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignment
+--     dout <= dout_reg;
+-- end sync_behavioral;
+--
+-- Synchronous Features:
+-- - Registered output
+-- - Clock-based timing
+-- - Glitch-free operation
+-- - Pipeline friendly
+--
+-- Timing Characteristics:
+-- - One clock cycle latency
+-- - Predictable timing
+-- - Setup/hold requirements
+-- - Clock-to-Q delay
+--
+-- Advantages:
+-- - Glitch-free output
+-- - Predictable timing
+-- - Pipeline compatible
+-- - System synchronous
+--
+-- Disadvantages:
+-- - One cycle latency
+-- - Clock requirement
+-- - Increased complexity
+-- - Power consumption
+--
+-- TODO: Implement synchronous ROM
+-- TODO: Test clocked operation
+-- TODO: Verify timing behavior
+-- TODO: Validate pipeline integration
+--
+-- OPTION 3: FILE-INITIALIZED ROM
+-- ----------------------------------------------------------------------------
+-- ROM with initialization from external file
+--
+-- Implementation Approach:
+-- - File-based initialization
+-- - Flexible data loading
+-- - Runtime configuration
+-- - Scalable implementation
+--
+-- Example Structure:
+-- architecture file_init of rom is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Function to initialize ROM from file
+--     function init_rom_from_file(file_name : string) return memory_array is
+--         file init_file : text open read_mode is file_name;
+--         variable line_buffer : line;
+--         variable mem : memory_array := (others => (others => '0'));
+--         variable addr : integer := 0;
+--         variable data_value : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     begin
+--         if file_name /= "" then
+--             while not endfile(init_file) and addr < MEMORY_DEPTH loop
+--                 readline(init_file, line_buffer);
+--                 hread(line_buffer, data_value);
+--                 mem(addr) := data_value;
+--                 addr := addr + 1;
+--             end loop;
+--         end if;
+--         return mem;
+--     end function;
+--     
+--     constant memory : memory_array := init_rom_from_file(INIT_FILE);
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+-- begin
+--     -- Synchronous read process
+--     read_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             if en = '1' then
+--                 dout_reg <= memory(to_integer(unsigned(addr)));
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignment
+--     dout <= dout_reg;
+-- end file_init;
+--
+-- File Initialization Features:
+-- - External file loading
+-- - Flexible data format
+-- - Runtime configuration
+-- - Scalable content
+--
+-- File Format Considerations:
+-- - Hexadecimal format
+-- - Binary format
+-- - ASCII format
+-- - Custom formats
+--
+-- Advantages:
+-- - Flexible initialization
+-- - External data source
+-- - Easy content updates
+-- - Scalable implementation
+--
+-- Disadvantages:
+-- - File dependency
+-- - Synthesis complexity
+-- - Tool support required
+-- - Debug challenges
+--
+-- TODO: Implement file-based initialization
+-- TODO: Create test data files
+-- TODO: Test file loading
+-- TODO: Verify data integrity
+--
+-- OPTION 4: PARAMETERIZED ROM WITH FEATURES
+-- ----------------------------------------------------------------------------
+-- Advanced ROM with comprehensive features
+--
+-- Implementation Approach:
+-- - Configurable behavior modes
+-- - Error detection and handling
+-- - Status reporting
+-- - Professional features
+--
+-- Example Structure:
+-- architecture full_featured of rom is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Initialize ROM (file or constant)
+--     function init_rom return memory_array is
+--         variable mem : memory_array := (others => DEFAULT_VALUE);
+--         -- Add initialization logic here
+--     begin
+--         return mem;
+--     end function;
+--     
+--     constant memory : memory_array := init_rom;
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     
+--     -- Status and control signals
+--     signal ready_reg : std_logic := '1';
+--     signal valid_reg : std_logic := '0';
+--     signal error_reg : std_logic := '0';
+--     
+--     -- Address range checking
+--     signal addr_valid : std_logic;
+-- begin
+--     -- Address validation
+--     addr_valid <= '1' when to_integer(unsigned(addr)) < MEMORY_DEPTH else '0';
+--     
+--     -- ROM read process with features
+--     read_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             -- Default status
+--             valid_reg <= '0';
+--             error_reg <= '0';
+--             ready_reg <= '1';
+--             
+--             if en = '1' then
+--                 if addr_valid = '1' then
+--                     -- Valid read operation
+--                     dout_reg <= memory(to_integer(unsigned(addr)));
+--                     valid_reg <= '1';
+--                 else
+--                     -- Address out of range
+--                     error_reg <= '1';
+--                     ready_reg <= '0';
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     dout <= dout_reg;
+--     ready <= ready_reg;
+--     valid <= valid_reg;
+--     error <= error_reg;
+-- end full_featured;
+--
+-- Advanced Features:
+-- - Address range validation
+-- - Status reporting
+-- - Error detection
+-- - Data validity indication
+--
+-- Error Handling:
+-- - Address bounds checking
+-- - Status flag generation
+-- - Error recovery
+-- - System notification
+--
+-- Advantages:
+-- - Professional features
+-- - Robust operation
+-- - System integration friendly
+-- - Comprehensive monitoring
+--
+-- Disadvantages:
+-- - Increased complexity
+-- - Higher resource usage
+-- - More complex verification
+-- - Additional control logic
+--
+-- TODO: Implement full-featured ROM
+-- TODO: Test error handling
+-- TODO: Verify status reporting
+-- TODO: Validate address checking
+--
+-- ============================================================================
+-- STEP 5: ADVANCED ROM FEATURES
+-- ============================================================================
+--
+-- CONTENT ADDRESSABLE MEMORY (CAM):
+-- - Associative lookup
+-- - Parallel search capability
+-- - Match detection
+-- - Priority encoding
+--
+-- MULTI-PORT ROM:
+-- - Multiple read ports
+-- - Concurrent access
+-- - Shared memory
+-- - Performance scaling
+--
+-- PIPELINED ROM:
+-- - Multi-stage pipeline
+-- - Increased throughput
+-- - Latency management
+-- - Performance optimization
+--
+-- COMPRESSED ROM:
+-- - Data compression
+-- - Decompression logic
+-- - Memory efficiency
+-- - Cost optimization
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test integration capabilities
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- MEMORY ORGANIZATION:
+-- - Address space layout
+-- - Data width optimization
+-- - Memory depth calculation
+-- - Resource utilization
+--
+-- INITIALIZATION METHODS:
+-- - Constant initialization
+-- - File-based loading
+-- - Runtime configuration
+-- - Default values
+--
+-- SYNTHESIS OPTIMIZATION:
+-- - ROM inference
+-- - Resource mapping
+-- - Technology optimization
+-- - Performance tuning
+--
+-- TIMING OPTIMIZATION:
+-- - Access time minimization
+-- - Pipeline considerations
+-- - Clock frequency optimization
+-- - Critical path analysis
+--
+-- RESOURCE UTILIZATION:
+-- - Block RAM vs LUT RAM
+-- - Logic resource usage
+-- - Routing considerations
+-- - Area optimization
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. LOOKUP TABLES:
+--    - Mathematical functions
+--    - Trigonometric tables
+--    - Logarithmic tables
+--    - Conversion tables
+--
+-- 2. CONFIGURATION DATA:
+--    - System parameters
+--    - Calibration data
+--    - Default settings
+--    - Boot configuration
+--
+-- 3. PROGRAM STORAGE:
+--    - Microcode
+--    - Instruction memory
+--    - Firmware storage
+--    - Boot code
+--
+-- 4. CONSTANT DATA:
+--    - Filter coefficients
+--    - Encryption keys
+--    - Protocol constants
+--    - System constants
+--
+-- 5. CHARACTER GENERATORS:
+--    - Font data
+--    - Character patterns
+--    - Display data
+--    - Graphics patterns
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Read operations
+-- - Address decoding
+-- - Data integrity verification
+-- - Boundary condition testing
+-- - Initialization verification
+--
+-- PERFORMANCE TESTING:
+-- - Access time measurement
+-- - Throughput analysis
+-- - Resource utilization
+-- - Power consumption
+-- - Frequency characterization
+--
+-- STRESS TESTING:
+-- - Continuous operation
+-- - Random access patterns
+-- - Maximum frequency testing
+-- - Temperature variation
+-- - Voltage variation
+--
+-- ERROR TESTING:
+-- - Address out of bounds
+-- - Invalid control sequences
+-- - Error recovery behavior
+-- - Status flag verification
+-- - Exception handling
+--
+-- INITIALIZATION TESTING:
+-- - File loading verification
+-- - Data integrity checking
+-- - Configuration validation
+-- - Boot sequence testing
+-- - Default value verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with basic asynchronous ROM
+-- 2. Use constant initialization
+-- 3. Implement simple read operations
+-- 4. Test fundamental functionality
+-- 5. Verify data integrity
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Add synchronous operation
+-- 2. Implement file-based initialization
+-- 3. Create comprehensive testbench
+-- 4. Add error detection
+-- 5. Optimize for target technology
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement advanced features
+-- 2. Add comprehensive error handling
+-- 3. Create library-quality component
+-- 4. Implement power management
+-- 5. Develop production verification suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. MULTI-PORT ROM:
+--    - Multiple read ports
+--    - Concurrent access
+--    - Arbitration logic
+--    - Performance scaling
+--
+-- 2. COMPRESSED ROM:
+--    - Data compression algorithms
+--    - Decompression logic
+--    - Memory efficiency
+--    - Access time trade-offs
+--
+-- 3. CONTENT ADDRESSABLE ROM:
+--    - Associative lookup
+--    - Parallel search
+--    - Match detection
+--    - Priority encoding
+--
+-- 4. PIPELINED ROM:
+--    - Multi-stage pipeline
+--    - Throughput optimization
+--    - Latency management
+--    - Flow control
+--
+-- 5. SECURE ROM:
+--    - Access control
+--    - Encryption/decryption
+--    - Authentication
+--    - Security features
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. INITIALIZATION ERRORS:
+--    - Incorrect file formats
+--    - Incomplete initialization
+--    - Data format mismatches
+--    - File path issues
+--
+-- 2. TIMING VIOLATIONS:
+--    - Setup/hold violations
+--    - Clock skew issues
+--    - Propagation delays
+--    - Critical path violations
+--
+-- 3. RESOURCE INEFFICIENCY:
+--    - Poor ROM utilization
+--    - Excessive logic usage
+--    - Suboptimal synthesis
+--    - Routing congestion
+--
+-- 4. ADDRESS HANDLING ERRORS:
+--    - Out-of-bounds access
+--    - Address alignment issues
+--    - Range checking omission
+--    - Index calculation errors
+--
+-- 5. VERIFICATION GAPS:
+--    - Incomplete test coverage
+--    - Missing edge cases
+--    - Inadequate stress testing
+--    - Data integrity validation gaps
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper generics and ports
+-- □ Memory array properly sized and initialized
+-- □ Address decoding working correctly
+-- □ Read operations producing correct data
+-- □ Control signals behaving as expected
+-- □ Timing relationships verified
+-- □ Resource utilization optimized
+-- □ Synthesis results acceptable
+-- □ Performance requirements met
+-- □ Initialization working properly
+-- □ File loading functioning correctly (if implemented)
+-- □ Error handling functioning correctly (if implemented)
+-- □ Status signals accurate (if implemented)
+-- □ Address range checking working (if implemented)
+-- □ Data integrity verified
+-- □ Testbench covers all scenarios
+-- □ Documentation complete and accurate
+-- □ Technology-specific optimizations applied
+-- □ Power consumption acceptable
+-- □ Thermal characteristics verified
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- RELATIONSHIP TO OTHER MEMORY TYPES:
+-- - RAM: Writable vs read-only
+-- - FIFO: Sequential vs random access
+-- - Cache: Temporary vs permanent storage
+-- - Register file: Similar access, different purpose
+--
+-- MEMORY HIERARCHY INTEGRATION:
+-- - Instruction memory
+-- - Configuration storage
+-- - Lookup table implementation
+-- - Constant data storage
+--
+-- SYSTEM INTEGRATION ASPECTS:
+-- - Boot sequence support
+-- - Configuration management
+-- - Constant data provision
+-- - System initialization
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - Block RAM utilization
+-- - LUT RAM alternatives
+-- - Initialization methods
+-- - Timing optimization
+--
+-- ASIC IMPLEMENTATION:
+-- - ROM compiler usage
+-- - Custom ROM design
+-- - Mask programming
+-- - Layout optimization
+--
+-- PERFORMANCE CHARACTERISTICS:
+-- - Access time scaling
+-- - Power consumption patterns
+-- - Area utilization
+-- - Temperature sensitivity
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- ROM OPTIMIZATION:
+-- - Data compression techniques
+-- - Access pattern optimization
+-- - Bandwidth utilization
+-- - Latency minimization
+--
+-- SECURITY CONSIDERATIONS:
+-- - Access control mechanisms
+-- - Data encryption
+-- - Tamper resistance
+-- - Secure boot support
+--
+-- RELIABILITY FEATURES:
+-- - Error detection codes
+-- - Redundancy techniques
+-- - Fault tolerance
+-- - Data integrity assurance
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Comprehensive test scenarios
+-- - Data integrity verification
+-- - Performance measurement
+-- - Coverage analysis
+--
+-- VERIFICATION METHODOLOGY:
+-- - Functional verification
+-- - Timing verification
+-- - Data integrity verification
+-- - Initialization verification
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis
+-- - Memory content inspection
+-- - Access pattern tracking
+-- - Performance profiling
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here with generics]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

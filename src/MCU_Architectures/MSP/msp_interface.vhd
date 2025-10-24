@@ -1,0 +1,239 @@
+-- =====================================================================================
+-- MSP430 MICROCONTROLLER INTERFACE - PROGRAMMING GUIDANCE
+-- =====================================================================================
+-- 
+-- OVERVIEW:
+-- The MSP430 is a family of ultra-low-power 16-bit microcontrollers from Texas Instruments
+-- designed for battery-powered and energy-harvesting applications. It features an efficient
+-- RISC architecture, multiple low-power modes, and integrated peripherals optimized for
+-- minimal power consumption.
+--
+-- KEY FEATURES:
+-- • 16-bit RISC architecture with orthogonal instruction set
+-- • Operating frequency: 1 MHz to 25 MHz (depending on variant)
+-- • Ultra-low power consumption: 0.1 µA in standby mode
+-- • Multiple low-power modes (LPM0-LPM4) with fast wake-up
+-- • Unified memory architecture (Von Neumann)
+-- • 16-bit address bus supporting up to 64KB memory space
+-- • Integrated peripherals: Timers, ADC, UART, SPI, I2C
+-- • Flexible clock system with multiple oscillator sources
+-- • Interrupt-driven architecture with vectored interrupts
+-- • In-system programmable Flash memory
+-- • Built-in hardware multiplier (on select variants)
+-- • Supply voltage range: 1.8V to 3.6V
+--
+-- PROGRAMMING GUIDANCE FOR FPGA IMPLEMENTATION:
+--
+-- 1. CORE ARCHITECTURE SETUP:
+--    - Implement 16-bit RISC CPU with orthogonal instruction set
+--    - Configure unified memory architecture (program and data in same space)
+--    - Set up 16-bit address bus and 16-bit data bus
+--    - Implement efficient instruction fetch and decode pipeline
+--
+-- 2. MEMORY SYSTEM CONFIGURATION:
+--    - Flash Memory: 1KB to 512KB (depending on variant)
+--    - RAM: 128B to 66KB (depending on variant)
+--    - Information Memory: 256B for calibration data
+--    - Memory-mapped I/O for peripheral access
+--    - Implement memory protection for critical areas
+--
+-- 3. CLOCK SYSTEM IMPLEMENTATION:
+--    - Master Clock (MCLK): CPU and high-speed peripherals
+--    - Sub-system Master Clock (SMCLK): Medium-speed peripherals
+--    - Auxiliary Clock (ACLK): Low-speed peripherals (typically 32kHz)
+--    - Multiple oscillator sources: DCO, LFXT1, XT2 (on select variants)
+--    - Clock dividers and multiplexers for flexible configuration
+--
+-- 4. POWER MANAGEMENT SYSTEM:
+--    - Active Mode (AM): CPU and all clocks active
+--    - Low Power Mode 0 (LPM0): CPU off, MCLK off, SMCLK and ACLK active
+--    - Low Power Mode 1 (LPM1): CPU off, MCLK off, DCO off, SMCLK and ACLK active
+--    - Low Power Mode 2 (LPM2): CPU off, MCLK off, SMCLK off, DCO off, ACLK active
+--    - Low Power Mode 3 (LPM3): CPU off, MCLK off, SMCLK off, DCO off, ACLK active
+--    - Low Power Mode 4 (LPM4): CPU and all clocks off
+--    - Fast wake-up from interrupts (typically < 1 µs)
+--
+-- 5. INTERRUPT SYSTEM:
+--    - Vectored interrupt system with priority handling
+--    - 16 interrupt vectors (including reset)
+--    - Automatic context saving and restoration
+--    - Interrupt enable/disable control
+--    - Wake-up capability from all low-power modes
+--
+-- 6. PERIPHERAL INTEGRATION:
+--    - Timer modules (Timer_A, Timer_B) with capture/compare
+--    - Analog-to-Digital Converter (ADC10/ADC12)
+--    - Universal Serial Communication Interface (USCI) for UART/SPI/I2C
+--    - Digital I/O ports with interrupt capability
+--    - Watchdog Timer for system reliability
+--    - Hardware multiplier (on select variants)
+--
+-- 7. INSTRUCTION SET IMPLEMENTATION:
+--    - 27 core instructions with 7 addressing modes
+--    - Single-cycle execution for most instructions
+--    - Efficient bit manipulation instructions
+--    - Jump and branch instructions with relative addressing
+--    - Emulated instructions for enhanced functionality
+--
+-- 8. DEBUG AND PROGRAMMING INTERFACE:
+--    - JTAG interface for debugging and programming
+--    - Spy-Bi-Wire (2-wire JTAG) for reduced pin count
+--    - Bootstrap Loader (BSL) for in-system programming
+--    - Hardware breakpoints and single-step debugging
+--
+-- IMPLEMENTATION TEMPLATE:
+--
+-- entity msp430_interface is
+--     generic (
+--         -- Core Configuration
+--         VARIANT             : string := "MSP430F2274";  -- MSP430 variant
+--         FREQUENCY_MHZ       : integer := 16;            -- Maximum frequency
+--         
+--         -- Memory Configuration
+--         FLASH_SIZE_KB       : integer := 32;            -- Flash memory size
+--         RAM_SIZE_KB         : integer := 1;             -- RAM size
+--         INFO_MEM_SIZE       : integer := 256;           -- Information memory
+--         
+--         -- Peripheral Configuration
+--         TIMER_A_COUNT       : integer := 1;             -- Number of Timer_A modules
+--         TIMER_B_COUNT       : integer := 0;             -- Number of Timer_B modules
+--         USCI_A_COUNT        : integer := 1;             -- Number of USCI_A modules
+--         USCI_B_COUNT        : integer := 1;             -- Number of USCI_B modules
+--         ADC_RESOLUTION      : integer := 10;            -- ADC resolution (10 or 12)
+--         IO_PORTS            : integer := 4;             -- Number of I/O ports
+--         
+--         -- Feature Configuration
+--         HW_MULTIPLIER       : boolean := true;          -- Hardware multiplier
+--         WATCHDOG_ENABLE     : boolean := true;          -- Watchdog timer
+--         BSL_ENABLE          : boolean := true;          -- Bootstrap loader
+--         JTAG_ENABLE         : boolean := true           -- JTAG interface
+--     );
+--     port (
+--         -- Clock and Reset
+--         mclk                : in  std_logic;            -- Master clock
+--         smclk               : in  std_logic;            -- Sub-system master clock
+--         aclk                : in  std_logic;            -- Auxiliary clock
+--         reset_n             : in  std_logic;            -- Reset (active low)
+--         por_n               : in  std_logic;            -- Power-on reset
+--         
+--         -- External Oscillators
+--         lfxt1_in            : in  std_logic;            -- Low-frequency crystal input
+--         lfxt1_out           : out std_logic;            -- Low-frequency crystal output
+--         xt2_in              : in  std_logic;            -- High-frequency crystal input
+--         xt2_out             : out std_logic;            -- High-frequency crystal output
+--         
+--         -- Memory Interface
+--         mem_addr            : out std_logic_vector(15 downto 0);
+--         mem_data_out        : out std_logic_vector(15 downto 0);
+--         mem_data_in         : in  std_logic_vector(15 downto 0);
+--         mem_we              : out std_logic;            -- Write enable
+--         mem_oe              : out std_logic;            -- Output enable
+--         mem_ce              : out std_logic;            -- Chip enable
+--         mem_byte_en         : out std_logic_vector(1 downto 0);
+--         
+--         -- Digital I/O Ports
+--         port1_in            : in  std_logic_vector(7 downto 0);
+--         port1_out           : out std_logic_vector(7 downto 0);
+--         port1_dir           : out std_logic_vector(7 downto 0);
+--         port1_sel           : out std_logic_vector(7 downto 0);
+--         port2_in            : in  std_logic_vector(7 downto 0);
+--         port2_out           : out std_logic_vector(7 downto 0);
+--         port2_dir           : out std_logic_vector(7 downto 0);
+--         port2_sel           : out std_logic_vector(7 downto 0);
+--         
+--         -- USCI_A (UART/SPI) Interface
+--         uca_txd             : out std_logic;            -- UART transmit
+--         uca_rxd             : in  std_logic;            -- UART receive
+--         uca_sclk            : out std_logic;            -- SPI clock
+--         uca_simo            : out std_logic;            -- SPI master out
+--         uca_somi            : in  std_logic;            -- SPI master in
+--         uca_ste             : in  std_logic;            -- SPI slave select
+--         
+--         -- USCI_B (I2C/SPI) Interface
+--         ucb_sda             : inout std_logic;          -- I2C data
+--         ucb_scl             : inout std_logic;          -- I2C clock
+--         ucb_sclk            : out std_logic;            -- SPI clock
+--         ucb_simo            : out std_logic;            -- SPI master out
+--         ucb_somi            : in  std_logic;            -- SPI master in
+--         ucb_ste             : in  std_logic;            -- SPI slave select
+--         
+--         -- Timer_A Interface
+--         ta_clk              : in  std_logic;            -- Timer clock input
+--         ta_ccr0             : out std_logic;            -- Capture/Compare 0 output
+--         ta_ccr1             : out std_logic;            -- Capture/Compare 1 output
+--         ta_ccr2             : out std_logic;            -- Capture/Compare 2 output
+--         
+--         -- ADC Interface
+--         adc_vin_p           : in  std_logic_vector(7 downto 0);  -- Positive inputs
+--         adc_vin_n           : in  std_logic_vector(7 downto 0);  -- Negative inputs
+--         adc_vref_p          : in  std_logic;            -- Positive reference
+--         adc_vref_n          : in  std_logic;            -- Negative reference
+--         
+--         -- Interrupt Signals
+--         nmi                 : in  std_logic;            -- Non-maskable interrupt
+--         irq_port1           : out std_logic;            -- Port 1 interrupt
+--         irq_port2           : out std_logic;            -- Port 2 interrupt
+--         irq_timer_a         : out std_logic;            -- Timer A interrupt
+--         irq_usci_a          : out std_logic;            -- USCI A interrupt
+--         irq_usci_b          : out std_logic;            -- USCI B interrupt
+--         irq_adc             : out std_logic;            -- ADC interrupt
+--         irq_wdt             : out std_logic;            -- Watchdog interrupt
+--         
+--         -- Power Management
+--         lpm_mode            : out std_logic_vector(2 downto 0);  -- Current LPM mode
+--         cpu_off             : out std_logic;            -- CPU off status
+--         osc_off             : out std_logic;            -- Oscillator off status
+--         scg0                : out std_logic;            -- System clock generator 0
+--         scg1                : out std_logic;            -- System clock generator 1
+--         
+--         -- Debug Interface (JTAG)
+--         tdi                 : in  std_logic;            -- Test data input
+--         tdo                 : out std_logic;            -- Test data output
+--         tms                 : in  std_logic;            -- Test mode select
+--         tck                 : in  std_logic;            -- Test clock
+--         trst_n              : in  std_logic;            -- Test reset
+--         
+--         -- Spy-Bi-Wire Interface
+--         sbw_tdio            : inout std_logic;          -- Spy-Bi-Wire data I/O
+--         sbw_tclk            : in  std_logic;            -- Spy-Bi-Wire clock
+--         
+--         -- Status and Configuration
+--         cpu_status          : out std_logic_vector(15 downto 0);
+--         power_status        : out std_logic_vector(7 downto 0)
+--     );
+-- end msp430_interface;
+--
+-- POWER OPTIMIZATION STRATEGIES:
+-- • Use appropriate low-power modes based on application requirements
+-- • Configure unused peripherals to low-power states
+-- • Optimize clock frequencies for minimum power consumption
+-- • Use interrupt-driven programming to minimize active time
+-- • Implement efficient wake-up strategies from low-power modes
+-- • Consider supply voltage scaling for further power reduction
+--
+-- PERFORMANCE OPTIMIZATION:
+-- • Utilize hardware multiplier when available for math operations
+-- • Optimize memory access patterns for cache efficiency
+-- • Use appropriate addressing modes for code density
+-- • Implement efficient interrupt service routines
+-- • Consider DMA for data transfer operations (on supported variants)
+--
+-- DEBUGGING RECOMMENDATIONS:
+-- • Use JTAG interface for comprehensive debugging capabilities
+-- • Implement Spy-Bi-Wire for reduced pin count debugging
+-- • Enable hardware breakpoints for real-time debugging
+-- • Use emulation features for development and testing
+-- • Monitor power consumption during development
+--
+-- PERIPHERAL CONFIGURATION GUIDELINES:
+-- • Configure Timer modules for precise timing requirements
+-- • Set up ADC with appropriate reference and sampling rates
+-- • Configure USCI modules for required communication protocols
+-- • Implement proper I/O port configuration and interrupt handling
+-- • Use Watchdog Timer for system reliability and recovery
+--
+-- =====================================================================================
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;

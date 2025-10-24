@@ -1,0 +1,825 @@
+-- ============================================================================
+-- Mealy Finite State Machine (FSM) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a Mealy Finite State Machine, where outputs depend on
+-- both the current state and the current inputs. Mealy machines are fundamental
+-- sequential logic components used for control logic, protocol implementation,
+-- and complex decision-making systems in digital design.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand Mealy FSM architecture and operation principles
+-- 2. Learn state encoding and transition logic design
+-- 3. Practice output logic implementation for Mealy machines
+-- 4. Explore timing considerations and synchronization
+-- 5. Understand FSM applications in digital systems
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations (if needed)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (if arithmetic operations needed)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the Mealy FSM
+--
+-- Entity Requirements:
+-- - Name: fsm_mealy (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - Input signals for state transitions
+-- - Output signals that depend on state and inputs
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input)
+-- - rst : in std_logic (Reset input - active high or low)
+-- - input_signal : in std_logic (Primary input for transitions)
+-- - output_signal : out std_logic (Primary output)
+--
+-- Optional Ports (depending on application):
+-- - enable : in std_logic (Enable signal)
+-- - additional_inputs : in std_logic_vector (Multiple inputs)
+-- - additional_outputs : out std_logic_vector (Multiple outputs)
+-- - state_out : out std_logic_vector (Current state output for debugging)
+--
+-- Design Considerations:
+-- - Reset strategy (synchronous vs asynchronous)
+-- - Input synchronization requirements
+-- - Output timing characteristics
+-- - State encoding method
+-- - Number of states required
+--
+-- TODO: Declare entity with appropriate ports
+-- TODO: Add comprehensive port comments
+-- TODO: Consider reset polarity and timing
+-- TODO: Plan for state and output requirements
+--
+-- ============================================================================
+-- STEP 3: MEALY FSM OPERATION DEFINITIONS
+-- ============================================================================
+--
+-- MEALY FSM PRINCIPLES:
+-- - Outputs depend on both current state AND current inputs
+-- - State transitions occur on clock edges
+-- - Outputs can change immediately when inputs change
+-- - Generally requires fewer states than Moore machines
+-- - Faster response to input changes
+--
+-- MEALY FSM CHARACTERISTICS:
+-- - Output = f(current_state, inputs)
+-- - Next_state = f(current_state, inputs)
+-- - Outputs can have glitches during state transitions
+-- - More complex timing analysis required
+-- - Better performance in many applications
+--
+-- STATE TRANSITION TABLE EXAMPLE (2-bit counter with enable):
+-- Current State | Input (enable) | Next State | Output
+-- --------------|----------------|------------|--------
+--      00       |       0        |     00     |   0
+--      00       |       1        |     01     |   0
+--      01       |       0        |     01     |   0
+--      01       |       1        |     10     |   0
+--      10       |       0        |     10     |   0
+--      10       |       1        |     11     |   0
+--      11       |       0        |     11     |   0
+--      11       |       1        |     00     |   1 (overflow)
+--
+-- TIMING CHARACTERISTICS:
+-- - Setup time: Inputs stable before clock edge
+-- - Hold time: Inputs stable after clock edge
+-- - Clock-to-output delay: Time from clock to output change
+-- - Input-to-output delay: Combinational delay for output changes
+--
+-- TODO: Define state transition table for your application
+-- TODO: Specify output logic for each state/input combination
+-- TODO: Determine timing requirements
+-- TODO: Choose appropriate state encoding
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC MEALY FSM (Two-Process Model)
+-- ----------------------------------------------------------------------------
+-- Standard implementation with separate state and output processes
+--
+-- Implementation Approach:
+-- - Enumerated type for states
+-- - Clocked process for state transitions
+-- - Combinational process for outputs
+-- - Clear separation of concerns
+--
+-- Example Structure:
+-- architecture behavioral of fsm_mealy is
+--     type state_type is (IDLE, STATE1, STATE2, STATE3);
+--     signal current_state, next_state : state_type := IDLE;
+-- begin
+--     -- State register process (synchronous)
+--     state_register: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Next state and output logic (combinational)
+--     next_state_logic: process(current_state, input_signal)
+--     begin
+--         -- Default assignments
+--         next_state <= current_state;
+--         output_signal <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 if input_signal = '1' then
+--                     next_state <= STATE1;
+--                     output_signal <= '0';
+--                 else
+--                     output_signal <= '0';
+--                 end if;
+--             
+--             when STATE1 =>
+--                 if input_signal = '1' then
+--                     next_state <= STATE2;
+--                     output_signal <= '1';
+--                 else
+--                     next_state <= IDLE;
+--                     output_signal <= '0';
+--                 end if;
+--             
+--             when STATE2 =>
+--                 if input_signal = '0' then
+--                     next_state <= STATE3;
+--                     output_signal <= '1';
+--                 else
+--                     output_signal <= '0';
+--                 end if;
+--             
+--             when STATE3 =>
+--                 next_state <= IDLE;
+--                 output_signal <= '1';
+--         end case;
+--     end process;
+-- end behavioral;
+--
+-- Two-Process Advantages:
+-- - Clear separation of sequential and combinational logic
+-- - Easy to understand and maintain
+-- - Good for complex state machines
+-- - Synthesis-friendly
+--
+-- Two-Process Disadvantages:
+-- - More verbose code
+-- - Potential for incomplete case statements
+-- - Requires careful default assignments
+--
+-- TODO: Implement two-process Mealy FSM
+-- TODO: Define all states and transitions
+-- TODO: Verify complete case coverage
+-- TODO: Test state transitions and outputs
+--
+-- OPTION 2: SINGLE-PROCESS MEALY FSM
+-- ----------------------------------------------------------------------------
+-- Compact implementation with combined state and output logic
+--
+-- Implementation Approach:
+-- - Single clocked process
+-- - State transitions and outputs in same process
+-- - More compact code structure
+-- - Careful timing considerations
+--
+-- Example Structure:
+-- architecture single_process of fsm_mealy is
+--     type state_type is (IDLE, ACTIVE, DONE);
+--     signal current_state : state_type := IDLE;
+-- begin
+--     fsm_process: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--             output_signal <= '0';
+--         elsif rising_edge(clk) then
+--             -- Default output
+--             output_signal <= '0';
+--             
+--             case current_state is
+--                 when IDLE =>
+--                     if input_signal = '1' then
+--                         current_state <= ACTIVE;
+--                         output_signal <= '1';  -- Immediate output
+--                     end if;
+--                 
+--                 when ACTIVE =>
+--                     if input_signal = '0' then
+--                         current_state <= DONE;
+--                         output_signal <= '1';
+--                     else
+--                         output_signal <= '0';
+--                     end if;
+--                 
+--                 when DONE =>
+--                     current_state <= IDLE;
+--                     output_signal <= '1';
+--             end case;
+--         end if;
+--     end process;
+-- end single_process;
+--
+-- Single-Process Advantages:
+-- - Compact code structure
+-- - No intermediate signals needed
+-- - Easier to ensure complete coverage
+-- - Good for simple state machines
+--
+-- Single-Process Disadvantages:
+-- - Mixed sequential and combinational logic
+-- - Potential timing issues
+-- - Less flexible for complex logic
+-- - Harder to optimize
+--
+-- TODO: Implement single-process Mealy FSM
+-- TODO: Ensure proper output timing
+-- TODO: Verify reset behavior
+-- TODO: Test all state transitions
+--
+-- OPTION 3: PARAMETERIZED MEALY FSM
+-- ----------------------------------------------------------------------------
+-- Configurable FSM with generic parameters
+--
+-- Implementation Approach:
+-- - Generic parameters for configuration
+-- - Scalable state encoding
+-- - Flexible input/output widths
+-- - Reusable component design
+--
+-- Example Structure:
+-- entity fsm_mealy_param is
+--     generic (
+--         STATE_BITS : positive := 3;
+--         INPUT_WIDTH : positive := 1;
+--         OUTPUT_WIDTH : positive := 1;
+--         RESET_STATE : natural := 0
+--     );
+--     port (
+--         clk : in std_logic;
+--         rst : in std_logic;
+--         inputs : in std_logic_vector(INPUT_WIDTH-1 downto 0);
+--         outputs : out std_logic_vector(OUTPUT_WIDTH-1 downto 0);
+--         state_out : out std_logic_vector(STATE_BITS-1 downto 0)
+--     );
+-- end fsm_mealy_param;
+--
+-- architecture parameterized of fsm_mealy_param is
+--     signal current_state : std_logic_vector(STATE_BITS-1 downto 0) := 
+--                           std_logic_vector(to_unsigned(RESET_STATE, STATE_BITS));
+--     signal next_state : std_logic_vector(STATE_BITS-1 downto 0);
+-- begin
+--     -- State register
+--     state_reg: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= std_logic_vector(to_unsigned(RESET_STATE, STATE_BITS));
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- State transition and output logic
+--     transition_logic: process(current_state, inputs)
+--     begin
+--         -- Default assignments
+--         next_state <= current_state;
+--         outputs <= (others => '0');
+--         
+--         -- State-specific logic (customize for your application)
+--         case to_integer(unsigned(current_state)) is
+--             when 0 =>  -- IDLE state
+--                 if inputs(0) = '1' then
+--                     next_state <= std_logic_vector(to_unsigned(1, STATE_BITS));
+--                     outputs(0) <= '1';
+--                 end if;
+--             
+--             when 1 =>  -- ACTIVE state
+--                 if inputs(0) = '0' then
+--                     next_state <= std_logic_vector(to_unsigned(2, STATE_BITS));
+--                 end if;
+--                 outputs(0) <= inputs(0);
+--             
+--             when 2 =>  -- DONE state
+--                 next_state <= std_logic_vector(to_unsigned(0, STATE_BITS));
+--                 outputs(0) <= '1';
+--             
+--             when others =>
+--                 next_state <= std_logic_vector(to_unsigned(RESET_STATE, STATE_BITS));
+--         end case;
+--     end process;
+--     
+--     -- State output for debugging
+--     state_out <= current_state;
+-- end parameterized;
+--
+-- Parameterized Advantages:
+-- - Highly configurable and reusable
+-- - Scalable to different applications
+-- - Good for library components
+-- - Flexible state encoding
+--
+-- Parameterized Disadvantages:
+-- - More complex implementation
+-- - Generic validation needed
+-- - Potential synthesis issues
+-- - Debugging complexity
+--
+-- TODO: Implement parameterized Mealy FSM
+-- TODO: Add generic parameter validation
+-- TODO: Test with different configurations
+-- TODO: Verify synthesis results
+--
+-- OPTION 4: ADVANCED MEALY FSM WITH FEATURES
+-- ----------------------------------------------------------------------------
+-- Professional FSM with comprehensive features
+--
+-- Implementation Approach:
+-- - Error detection and handling
+-- - State monitoring and debugging
+-- - Performance optimization
+-- - Comprehensive status reporting
+--
+-- Example Structure:
+-- architecture advanced of fsm_mealy is
+--     type state_type is (IDLE, ACTIVE, PROCESSING, DONE, ERROR);
+--     signal current_state, next_state : state_type := IDLE;
+--     
+--     -- Status and control signals
+--     signal state_changed : std_logic := '0';
+--     signal error_detected : std_logic := '0';
+--     signal state_counter : unsigned(7 downto 0) := (others => '0');
+--     
+--     -- State encoding for debugging
+--     function state_to_vector(state : state_type) return std_logic_vector is
+--     begin
+--         case state is
+--             when IDLE => return "000";
+--             when ACTIVE => return "001";
+--             when PROCESSING => return "010";
+--             when DONE => return "011";
+--             when ERROR => return "111";
+--         end case;
+--     end function;
+-- begin
+--     -- State register with monitoring
+--     state_register: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--             state_counter <= (others => '0');
+--             state_changed <= '0';
+--         elsif rising_edge(clk) then
+--             if current_state /= next_state then
+--                 state_changed <= '1';
+--                 state_counter <= state_counter + 1;
+--             else
+--                 state_changed <= '0';
+--             end if;
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Advanced state transition logic
+--     transition_logic: process(current_state, input_signal, enable)
+--     begin
+--         -- Default assignments
+--         next_state <= current_state;
+--         output_signal <= '0';
+--         error_detected <= '0';
+--         
+--         if enable = '1' then
+--             case current_state is
+--                 when IDLE =>
+--                     if input_signal = '1' then
+--                         next_state <= ACTIVE;
+--                         output_signal <= '1';
+--                     end if;
+--                 
+--                 when ACTIVE =>
+--                     output_signal <= '1';
+--                     if input_signal = '0' then
+--                         next_state <= PROCESSING;
+--                     elsif input_signal = '1' then
+--                         -- Stay in ACTIVE with output
+--                         output_signal <= '1';
+--                     end if;
+--                 
+--                 when PROCESSING =>
+--                     output_signal <= '0';
+--                     -- Processing complete after one cycle
+--                     next_state <= DONE;
+--                 
+--                 when DONE =>
+--                     output_signal <= '1';
+--                     next_state <= IDLE;
+--                 
+--                 when ERROR =>
+--                     error_detected <= '1';
+--                     output_signal <= '0';
+--                     -- Error recovery
+--                     if input_signal = '0' then
+--                         next_state <= IDLE;
+--                     end if;
+--             end case;
+--         else
+--             -- FSM disabled, maintain current state
+--             output_signal <= '0';
+--         end if;
+--     end process;
+--     
+--     -- Additional outputs for monitoring
+--     state_out <= state_to_vector(current_state);
+--     error_flag <= error_detected;
+--     transition_count <= std_logic_vector(state_counter);
+-- end advanced;
+--
+-- Advanced Features:
+-- - State change detection
+-- - Transition counting
+-- - Error handling
+-- - Enable/disable control
+-- - Comprehensive monitoring
+--
+-- TODO: Implement advanced Mealy FSM
+-- TODO: Add error detection logic
+-- TODO: Test monitoring features
+-- TODO: Verify error recovery
+--
+-- ============================================================================
+-- STEP 5: ADVANCED MEALY FSM FEATURES
+-- ============================================================================
+--
+-- HIERARCHICAL STATE MACHINES:
+-- - Nested state machines
+-- - State machine composition
+-- - Modular design approach
+-- - Complex system modeling
+--
+-- PIPELINED STATE MACHINES:
+-- - Multi-stage processing
+-- - Throughput optimization
+-- - Latency management
+-- - Performance scaling
+--
+-- PARALLEL STATE MACHINES:
+-- - Concurrent operation
+-- - Independent state tracking
+-- - Resource sharing
+-- - Synchronization mechanisms
+--
+-- ADAPTIVE STATE MACHINES:
+-- - Dynamic reconfiguration
+-- - Learning capabilities
+-- - Parameter adjustment
+-- - Self-optimization
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test integration capabilities
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- STATE ENCODING:
+-- - Binary encoding (minimum bits)
+-- - One-hot encoding (fast transitions)
+-- - Gray code encoding (glitch reduction)
+-- - Custom encoding (application-specific)
+--
+-- TIMING OPTIMIZATION:
+-- - Critical path analysis
+-- - Pipeline considerations
+-- - Clock frequency optimization
+-- - Setup/hold margin verification
+--
+-- SYNTHESIS OPTIMIZATION:
+-- - FSM inference guidelines
+-- - Resource utilization
+-- - Technology mapping
+-- - Performance tuning
+--
+-- VERIFICATION STRATEGY:
+-- - State coverage analysis
+-- - Transition coverage
+-- - Output verification
+-- - Timing verification
+--
+-- RESET STRATEGY:
+-- - Synchronous vs asynchronous reset
+-- - Reset state selection
+-- - Reset recovery behavior
+-- - Power-on initialization
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. PROTOCOL CONTROLLERS:
+--    - Communication protocols
+--    - Handshaking sequences
+--    - Data transfer control
+--    - Error handling
+--
+-- 2. CONTROL UNITS:
+--    - Processor control
+--    - Memory controllers
+--    - Peripheral interfaces
+--    - System coordination
+--
+-- 3. SEQUENCE DETECTORS:
+--    - Pattern recognition
+--    - Data validation
+--    - Security applications
+--    - Signal processing
+--
+-- 4. ARBITERS:
+--    - Resource allocation
+--    - Priority handling
+--    - Conflict resolution
+--    - Fair access control
+--
+-- 5. USER INTERFACES:
+--    - Button debouncing
+--    - Menu navigation
+--    - Display control
+--    - Input processing
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - State transition verification
+-- - Output correctness
+-- - Reset behavior
+-- - Input response testing
+-- - Edge case handling
+--
+-- COVERAGE TESTING:
+-- - State coverage analysis
+-- - Transition coverage
+-- - Input combination testing
+-- - Output pattern verification
+-- - Timing relationship validation
+--
+-- STRESS TESTING:
+-- - Rapid input changes
+-- - Maximum frequency operation
+-- - Extended operation periods
+-- - Random input sequences
+-- - Boundary condition testing
+--
+-- TIMING VERIFICATION:
+-- - Setup/hold analysis
+-- - Clock-to-output delays
+-- - Input-to-output propagation
+-- - Critical path verification
+-- - Metastability analysis
+--
+-- ERROR INJECTION TESTING:
+-- - Invalid state handling
+-- - Unexpected input sequences
+-- - Reset during operation
+-- - Clock glitch tolerance
+-- - Power supply variations
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with simple two-process model
+-- 2. Use enumerated types for states
+-- 3. Implement basic state transitions
+-- 4. Test fundamental functionality
+-- 5. Verify output timing
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Add comprehensive error handling
+-- 2. Implement state monitoring
+-- 3. Create thorough testbench
+-- 4. Optimize for target technology
+-- 5. Add debugging features
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement advanced features
+-- 2. Add performance optimization
+-- 3. Create library-quality component
+-- 4. Develop comprehensive verification
+-- 5. Consider hierarchical design
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. SEQUENCE DETECTOR:
+--    - Implement specific pattern detection
+--    - Add overlapping sequence support
+--    - Create configurable patterns
+--    - Add multiple pattern detection
+--
+-- 2. TRAFFIC LIGHT CONTROLLER:
+--    - Implement traffic light timing
+--    - Add pedestrian crossing
+--    - Create emergency vehicle priority
+--    - Add sensor-based operation
+--
+-- 3. VENDING MACHINE:
+--    - Implement coin counting
+--    - Add product selection
+--    - Create change calculation
+--    - Add inventory management
+--
+-- 4. UART CONTROLLER:
+--    - Implement serial communication
+--    - Add baud rate generation
+--    - Create error detection
+--    - Add flow control
+--
+-- 5. CACHE CONTROLLER:
+--    - Implement cache states
+--    - Add coherency protocol
+--    - Create replacement policy
+--    - Add performance monitoring
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. INCOMPLETE CASE STATEMENTS:
+--    - Missing state cases
+--    - Incomplete input combinations
+--    - No default assignments
+--    - Unhandled transitions
+--
+-- 2. TIMING VIOLATIONS:
+--    - Setup/hold violations
+--    - Clock skew issues
+--    - Combinational loops
+--    - Race conditions
+--
+-- 3. RESET ISSUES:
+--    - Improper reset handling
+--    - Reset state selection
+--    - Asynchronous reset problems
+--    - Power-on behavior
+--
+-- 4. OUTPUT GLITCHES:
+--    - Unregistered outputs
+--    - Timing hazards
+--    - State transition glitches
+--    - Input change effects
+--
+-- 5. VERIFICATION GAPS:
+--    - Incomplete test coverage
+--    - Missing edge cases
+--    - Inadequate timing verification
+--    - Insufficient stress testing
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper ports
+-- □ State type properly defined
+-- □ All states have complete case coverage
+-- □ Reset behavior correctly implemented
+-- □ State transitions working correctly
+-- □ Outputs correct for all state/input combinations
+-- □ No combinational loops present
+-- □ Timing requirements met
+-- □ Synthesis results acceptable
+-- □ All input combinations tested
+-- □ State coverage analysis complete
+-- □ Transition coverage verified
+-- □ Output timing verified
+-- □ Reset recovery tested
+-- □ Error handling functional (if implemented)
+-- □ Performance requirements met
+-- □ Resource utilization acceptable
+-- □ Documentation complete and accurate
+-- □ Testbench covers all scenarios
+-- □ Critical paths identified and optimized
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- MEALY vs MOORE COMPARISON:
+-- - Mealy: Outputs depend on state and inputs
+-- - Moore: Outputs depend only on state
+-- - Mealy: Generally faster response
+-- - Moore: More stable outputs
+-- - Mealy: Fewer states typically needed
+-- - Moore: Easier timing analysis
+--
+-- SYSTEM INTEGRATION:
+-- - Control unit implementation
+-- - Interface protocol handling
+-- - System coordination
+-- - Error management
+--
+-- PERFORMANCE CONSIDERATIONS:
+-- - Response time optimization
+-- - Throughput maximization
+-- - Resource efficiency
+-- - Power consumption
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - LUT utilization for state logic
+-- - Register usage for state storage
+-- - Routing considerations
+-- - Clock domain management
+--
+-- ASIC IMPLEMENTATION:
+-- - Standard cell usage
+-- - Custom logic optimization
+-- - Layout considerations
+-- - Power optimization
+--
+-- TIMING CLOSURE:
+-- - Critical path optimization
+-- - Clock skew management
+-- - Setup/hold margin
+-- - Performance scaling
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- FSM OPTIMIZATION:
+-- - State minimization techniques
+-- - Encoding optimization
+-- - Logic optimization
+-- - Performance tuning
+--
+-- FORMAL VERIFICATION:
+-- - Model checking
+-- - Property verification
+-- - Equivalence checking
+-- - Coverage analysis
+--
+-- FAULT TOLERANCE:
+-- - Error detection
+-- - Error correction
+-- - Graceful degradation
+-- - Recovery mechanisms
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Comprehensive test scenarios
+-- - State transition testing
+-- - Output verification
+-- - Timing analysis
+--
+-- VERIFICATION METHODOLOGY:
+-- - Functional verification
+-- - Timing verification
+-- - Coverage analysis
+-- - Formal verification
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis
+-- - State tracking
+-- - Transition monitoring
+-- - Performance profiling
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

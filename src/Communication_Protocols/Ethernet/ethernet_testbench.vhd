@@ -1,0 +1,790 @@
+-- ============================================================================
+-- Ethernet MAC Controller Testbench Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a comprehensive testbench for the Ethernet MAC controller
+-- in VHDL. The testbench verifies frame transmission and reception, collision
+-- detection, backoff algorithms, CRC calculation, and protocol compliance.
+-- It includes stimulus generation, response checking, and coverage analysis
+-- for thorough verification of the Ethernet MAC functionality.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand Ethernet MAC verification methodologies
+-- 2. Learn protocol-level testbench design
+-- 3. Master stimulus generation and response checking
+-- 4. Practice advanced verification techniques
+-- 5. Understand network protocol testing
+-- 6. Learn coverage-driven verification
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - std.textio for file I/O operations
+-- - Consider additional packages for advanced verification
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Add library std;
+-- TODO: Add use std.textio.all;
+-- TODO: Consider adding verification packages
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- Define the testbench entity (typically no ports for top-level testbench)
+--
+-- The testbench entity usually has no ports as it's self-contained
+-- and generates all necessary stimulus internally.
+--
+-- ============================================================================
+-- STEP 3: ETHERNET MAC TESTBENCH PRINCIPLES
+-- ============================================================================
+--
+-- Verification Strategy:
+-- 1. Protocol Compliance Testing:
+--    - IEEE 802.3 frame format verification
+--    - Timing requirement validation
+--    - Error condition testing
+--    - Multi-speed operation verification
+--
+-- 2. Functional Testing:
+--    - Frame transmission verification
+--    - Frame reception verification
+--    - CRC generation and checking
+--    - Collision detection and handling
+--
+-- 3. Performance Testing:
+--    - Throughput measurement
+--    - Latency analysis
+--    - Buffer management verification
+--    - Flow control testing
+--
+-- 4. Error Testing:
+--    - CRC error injection
+--    - Collision simulation
+--    - Buffer overflow/underflow
+--    - Malformed frame handling
+--
+-- Frame Generation Strategy:
+-- - Valid Ethernet frames with correct format
+-- - Various frame sizes (minimum to maximum)
+-- - Different frame types and protocols
+-- - Error frames for negative testing
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Basic Testbench (Recommended for beginners)
+-- - Simple frame transmission/reception tests
+-- - Basic stimulus generation
+-- - Simple pass/fail checking
+-- - Manual result verification
+--
+-- OPTION 2: Structured Testbench (Intermediate)
+-- - Organized test procedures
+-- - Automated checking functions
+-- - Multiple test scenarios
+-- - Basic coverage tracking
+--
+-- OPTION 3: Advanced Testbench (Advanced)
+-- - Comprehensive test suite
+-- - Protocol-aware verification
+-- - Advanced coverage analysis
+-- - Performance measurement
+--
+-- OPTION 4: Verification Environment (Expert)
+-- - UVM-based verification
+-- - Constrained random testing
+-- - Functional coverage
+-- - Assertion-based verification
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Clock Generation:
+-- - System clock generation
+-- - PHY interface clocks (TX/RX)
+-- - Clock domain relationship
+-- - Timing accuracy requirements
+--
+-- Stimulus Generation:
+-- - Ethernet frame generation
+-- - PHY interface simulation
+-- - Error injection mechanisms
+-- - Traffic pattern generation
+--
+-- Response Checking:
+-- - Frame integrity verification
+-- - Timing compliance checking
+-- - Protocol conformance validation
+-- - Error detection verification
+--
+-- Test Organization:
+-- - Test case structure
+-- - Reusable procedures
+-- - Configuration management
+-- - Result reporting
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Protocol Verification:
+-- - IEEE 802.3 compliance checking
+-- - VLAN tag verification
+-- - Flow control validation
+-- - Multi-speed operation testing
+--
+-- Performance Analysis:
+-- - Throughput measurement
+-- - Latency calculation
+-- - Jitter analysis
+-- - Buffer utilization tracking
+--
+-- Coverage Analysis:
+-- - Functional coverage points
+-- - Code coverage analysis
+-- - Protocol state coverage
+-- - Error condition coverage
+--
+-- Advanced Testing:
+-- - Constrained random testing
+-- - Directed random testing
+-- - Stress testing scenarios
+-- - Interoperability testing
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. MAC Controller Verification: Complete functional verification
+-- 2. Protocol Compliance: IEEE 802.3 standard compliance
+-- 3. Performance Validation: Throughput and latency verification
+-- 4. Regression Testing: Automated test suite execution
+-- 5. Design Debug: Issue identification and resolution
+-- 6. Certification Testing: Standards compliance verification
+-- 7. Integration Testing: System-level verification
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual function verification
+-- 2. Integration Testing: Component interaction verification
+-- 3. System Testing: End-to-end functionality
+-- 4. Performance Testing: Speed and efficiency validation
+-- 5. Stress Testing: High-load and error conditions
+-- 6. Regression Testing: Continuous verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic frame transmission test
+-- 2. Add frame reception verification
+-- 3. Implement CRC checking
+-- 4. Add collision detection testing
+-- 5. Implement multi-speed testing
+-- 6. Add error injection and handling
+-- 7. Implement comprehensive test suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Add VLAN tag processing verification
+-- 2. Implement jumbo frame testing
+-- 3. Add flow control verification
+-- 4. Implement performance benchmarking
+-- 5. Add security feature testing
+-- 6. Implement interoperability testing
+-- 7. Add power management verification
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Insufficient test coverage
+-- 2. Inadequate timing verification
+-- 3. Missing error condition testing
+-- 4. Poor stimulus generation
+-- 5. Incomplete response checking
+-- 6. Inadequate clock domain testing
+-- 7. Missing protocol compliance verification
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Frame transmission verified
+-- □ Frame reception verified
+-- □ CRC calculation correct
+-- □ Collision detection functional
+-- □ Multi-speed operation tested
+-- □ Error handling verified
+-- □ Performance requirements met
+-- □ Protocol compliance validated
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This testbench demonstrates several key verification concepts:
+-- - Protocol-level verification techniques
+-- - Advanced stimulus generation methods
+-- - Comprehensive response checking
+-- - Coverage-driven verification
+-- - Performance measurement techniques
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider real-world timing constraints
+-- - Model PHY interface accurately
+-- - Include signal integrity effects
+-- - Simulate power-on conditions
+-- - Model environmental variations
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Universal Verification Methodology (UVM)
+-- - Assertion-based verification
+-- - Formal verification techniques
+-- - Emulation and prototyping
+-- - Hardware-in-the-loop testing
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use appropriate simulation time resolution
+-- - Implement comprehensive logging
+-- - Use waveform analysis tools
+-- - Perform timing analysis
+-- - Validate against specifications
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- library std;
+-- use std.textio.all;
+--
+-- entity ethernet_testbench is
+-- end entity ethernet_testbench;
+--
+-- architecture testbench of ethernet_testbench is
+--     -- Constants
+--     constant CLK_PERIOD         : time := 8 ns;      -- 125 MHz
+--     constant PHY_TX_CLK_PERIOD  : time := 8 ns;      -- 125 MHz for Gigabit
+--     constant PHY_RX_CLK_PERIOD  : time := 8 ns;      -- 125 MHz for Gigabit
+--     constant RESET_DURATION     : time := 100 ns;
+--     constant TEST_TIMEOUT       : time := 1 ms;
+--     
+--     -- Ethernet frame constants
+--     constant PREAMBLE           : std_logic_vector(7 downto 0) := x"55";
+--     constant SFD                : std_logic_vector(7 downto 0) := x"D5";
+--     constant MIN_FRAME_SIZE     : integer := 64;
+--     constant MAX_FRAME_SIZE     : integer := 1518;
+--     constant MAC_ADDR_WIDTH     : integer := 48;
+--     constant DATA_WIDTH         : integer := 8;
+--     
+--     -- Test MAC addresses
+--     constant SRC_MAC_ADDR       : std_logic_vector(47 downto 0) := x"001122334455";
+--     constant DST_MAC_ADDR       : std_logic_vector(47 downto 0) := x"AABBCCDDEEFF";
+--     
+--     -- DUT signals
+--     signal clk                  : std_logic := '0';
+--     signal reset                : std_logic := '1';
+--     signal enable               : std_logic := '0';
+--     
+--     -- Configuration signals
+--     signal mac_addr             : std_logic_vector(47 downto 0) := SRC_MAC_ADDR;
+--     signal speed_mode           : std_logic_vector(1 downto 0) := "10";  -- 1G
+--     signal duplex_mode          : std_logic := '1';  -- Full duplex
+--     signal promiscuous_mode     : std_logic := '0';
+--     
+--     -- Transmit interface signals
+--     signal tx_data              : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal tx_valid             : std_logic := '0';
+--     signal tx_ready             : std_logic;
+--     signal tx_start             : std_logic := '0';
+--     signal tx_end               : std_logic := '0';
+--     signal tx_error             : std_logic;
+--     
+--     -- Receive interface signals
+--     signal rx_data              : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal rx_valid             : std_logic;
+--     signal rx_ready             : std_logic := '1';
+--     signal rx_start             : std_logic;
+--     signal rx_end               : std_logic;
+--     signal rx_error             : std_logic;
+--     
+--     -- PHY interface signals
+--     signal phy_tx_clk           : std_logic := '0';
+--     signal phy_tx_data          : std_logic_vector(7 downto 0);
+--     signal phy_tx_en            : std_logic;
+--     signal phy_tx_er            : std_logic;
+--     signal phy_rx_clk           : std_logic := '0';
+--     signal phy_rx_data          : std_logic_vector(7 downto 0) := (others => '0');
+--     signal phy_rx_dv            : std_logic := '0';
+--     signal phy_rx_er            : std_logic := '0';
+--     signal phy_col              : std_logic := '0';
+--     signal phy_crs              : std_logic := '0';
+--     
+--     -- Status signals
+--     signal link_up              : std_logic;
+--     signal tx_busy              : std_logic;
+--     signal rx_busy              : std_logic;
+--     signal collision_count      : std_logic_vector(15 downto 0);
+--     signal error_count          : std_logic_vector(15 downto 0);
+--     
+--     -- Test control signals
+--     signal test_complete        : boolean := false;
+--     signal test_passed          : boolean := true;
+--     signal current_test         : string(1 to 50) := (others => ' ');
+--     
+--     -- Frame generation signals
+--     type byte_array is array (natural range <>) of std_logic_vector(7 downto 0);
+--     signal test_frame           : byte_array(0 to MAX_FRAME_SIZE-1);
+--     signal frame_length         : integer := 0;
+--     
+--     -- Statistics
+--     signal frames_transmitted   : integer := 0;
+--     signal frames_received      : integer := 0;
+--     signal errors_detected      : integer := 0;
+--     
+--     -- Component declaration
+--     component ethernet_mac is
+--         generic (
+--             CLK_FREQ        : integer := 125_000_000;
+--             MAC_ADDR_WIDTH  : integer := 48;
+--             DATA_WIDTH      : integer := 8;
+--             FIFO_DEPTH      : integer := 1024;
+--             ENABLE_JUMBO    : boolean := false;
+--             ENABLE_VLAN     : boolean := false;
+--             ENABLE_FLOW_CTRL: boolean := true
+--         );
+--         port (
+--             clk             : in  std_logic;
+--             reset           : in  std_logic;
+--             enable          : in  std_logic;
+--             mac_addr        : in  std_logic_vector(47 downto 0);
+--             speed_mode      : in  std_logic_vector(1 downto 0);
+--             duplex_mode     : in  std_logic;
+--             promiscuous_mode: in  std_logic;
+--             tx_data         : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             tx_valid        : in  std_logic;
+--             tx_ready        : out std_logic;
+--             tx_start        : in  std_logic;
+--             tx_end          : in  std_logic;
+--             tx_error        : out std_logic;
+--             rx_data         : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             rx_valid        : out std_logic;
+--             rx_ready        : in  std_logic;
+--             rx_start        : out std_logic;
+--             rx_end          : out std_logic;
+--             rx_error        : out std_logic;
+--             phy_tx_clk      : in  std_logic;
+--             phy_tx_data     : out std_logic_vector(7 downto 0);
+--             phy_tx_en       : out std_logic;
+--             phy_tx_er       : out std_logic;
+--             phy_rx_clk      : in  std_logic;
+--             phy_rx_data     : in  std_logic_vector(7 downto 0);
+--             phy_rx_dv       : in  std_logic;
+--             phy_rx_er       : in  std_logic;
+--             phy_col         : in  std_logic;
+--             phy_crs         : in  std_logic;
+--             link_up         : out std_logic;
+--             tx_busy         : out std_logic;
+--             rx_busy         : out std_logic;
+--             collision_count : out std_logic_vector(15 downto 0);
+--             error_count     : out std_logic_vector(15 downto 0)
+--         );
+--     end component;
+--     
+--     -- Procedure declarations
+--     procedure wait_clk_cycles(constant cycles : in integer) is
+--     begin
+--         for i in 1 to cycles loop
+--             wait until rising_edge(clk);
+--         end loop;
+--     end procedure;
+--     
+--     procedure generate_ethernet_frame(
+--         constant dst_addr   : in std_logic_vector(47 downto 0);
+--         constant src_addr   : in std_logic_vector(47 downto 0);
+--         constant eth_type   : in std_logic_vector(15 downto 0);
+--         constant payload    : in byte_array;
+--         variable frame      : out byte_array;
+--         variable length     : out integer
+--     ) is
+--         variable crc        : std_logic_vector(31 downto 0);
+--         variable frame_idx  : integer := 0;
+--     begin
+--         -- Destination MAC address
+--         for i in 0 to 5 loop
+--             frame(frame_idx) := dst_addr(47-i*8 downto 40-i*8);
+--             frame_idx := frame_idx + 1;
+--         end loop;
+--         
+--         -- Source MAC address
+--         for i in 0 to 5 loop
+--             frame(frame_idx) := src_addr(47-i*8 downto 40-i*8);
+--             frame_idx := frame_idx + 1;
+--         end loop;
+--         
+--         -- EtherType
+--         frame(frame_idx) := eth_type(15 downto 8);
+--         frame_idx := frame_idx + 1;
+--         frame(frame_idx) := eth_type(7 downto 0);
+--         frame_idx := frame_idx + 1;
+--         
+--         -- Payload
+--         for i in payload'range loop
+--             frame(frame_idx) := payload(i);
+--             frame_idx := frame_idx + 1;
+--         end loop;
+--         
+--         -- Padding if necessary
+--         while frame_idx < MIN_FRAME_SIZE - 4 loop  -- -4 for CRC
+--             frame(frame_idx) := x"00";
+--             frame_idx := frame_idx + 1;
+--         end loop;
+--         
+--         -- CRC calculation (simplified - implement proper CRC32)
+--         crc := x"12345678";  -- Placeholder
+--         frame(frame_idx) := crc(31 downto 24);
+--         frame_idx := frame_idx + 1;
+--         frame(frame_idx) := crc(23 downto 16);
+--         frame_idx := frame_idx + 1;
+--         frame(frame_idx) := crc(15 downto 8);
+--         frame_idx := frame_idx + 1;
+--         frame(frame_idx) := crc(7 downto 0);
+--         frame_idx := frame_idx + 1;
+--         
+--         length := frame_idx;
+--     end procedure;
+--     
+--     procedure transmit_frame(
+--         constant frame  : in byte_array;
+--         constant length : in integer
+--     ) is
+--     begin
+--         -- Wait for ready
+--         wait until tx_ready = '1';
+--         
+--         -- Start transmission
+--         tx_start <= '1';
+--         wait_clk_cycles(1);
+--         tx_start <= '0';
+--         
+--         -- Send frame data
+--         for i in 0 to length-1 loop
+--             tx_data <= frame(i);
+--             tx_valid <= '1';
+--             wait until tx_ready = '1';
+--             wait_clk_cycles(1);
+--         end loop;
+--         
+--         -- End transmission
+--         tx_end <= '1';
+--         tx_valid <= '0';
+--         wait_clk_cycles(1);
+--         tx_end <= '0';
+--         
+--         frames_transmitted <= frames_transmitted + 1;
+--     end procedure;
+--     
+--     procedure simulate_phy_reception(
+--         constant frame  : in byte_array;
+--         constant length : in integer
+--     ) is
+--     begin
+--         -- Send preamble
+--         for i in 0 to 6 loop
+--             phy_rx_data <= PREAMBLE;
+--             phy_rx_dv <= '1';
+--             wait until rising_edge(phy_rx_clk);
+--         end loop;
+--         
+--         -- Send SFD
+--         phy_rx_data <= SFD;
+--         wait until rising_edge(phy_rx_clk);
+--         
+--         -- Send frame data
+--         for i in 0 to length-1 loop
+--             phy_rx_data <= frame(i);
+--             wait until rising_edge(phy_rx_clk);
+--         end loop;
+--         
+--         -- End reception
+--         phy_rx_dv <= '0';
+--         phy_rx_data <= (others => '0');
+--         
+--         frames_received <= frames_received + 1;
+--     end procedure;
+--     
+--     procedure check_test_result(
+--         constant test_name : in string;
+--         constant condition : in boolean
+--     ) is
+--     begin
+--         if condition then
+--             report "PASS: " & test_name severity note;
+--         else
+--             report "FAIL: " & test_name severity error;
+--             test_passed <= false;
+--             errors_detected <= errors_detected + 1;
+--         end if;
+--     end procedure;
+--     
+-- begin
+--     -- Device Under Test instantiation
+--     dut: ethernet_mac
+--         generic map (
+--             CLK_FREQ        => 125_000_000,
+--             MAC_ADDR_WIDTH  => MAC_ADDR_WIDTH,
+--             DATA_WIDTH      => DATA_WIDTH,
+--             FIFO_DEPTH      => 1024,
+--             ENABLE_JUMBO    => false,
+--             ENABLE_VLAN     => false,
+--             ENABLE_FLOW_CTRL=> true
+--         )
+--         port map (
+--             clk             => clk,
+--             reset           => reset,
+--             enable          => enable,
+--             mac_addr        => mac_addr,
+--             speed_mode      => speed_mode,
+--             duplex_mode     => duplex_mode,
+--             promiscuous_mode=> promiscuous_mode,
+--             tx_data         => tx_data,
+--             tx_valid        => tx_valid,
+--             tx_ready        => tx_ready,
+--             tx_start        => tx_start,
+--             tx_end          => tx_end,
+--             tx_error        => tx_error,
+--             rx_data         => rx_data,
+--             rx_valid        => rx_valid,
+--             rx_ready        => rx_ready,
+--             rx_start        => rx_start,
+--             rx_end          => rx_end,
+--             rx_error        => rx_error,
+--             phy_tx_clk      => phy_tx_clk,
+--             phy_tx_data     => phy_tx_data,
+--             phy_tx_en       => phy_tx_en,
+--             phy_tx_er       => phy_tx_er,
+--             phy_rx_clk      => phy_rx_clk,
+--             phy_rx_data     => phy_rx_data,
+--             phy_rx_dv       => phy_rx_dv,
+--             phy_rx_er       => phy_rx_er,
+--             phy_col         => phy_col,
+--             phy_crs         => phy_crs,
+--             link_up         => link_up,
+--             tx_busy         => tx_busy,
+--             rx_busy         => rx_busy,
+--             collision_count => collision_count,
+--             error_count     => error_count
+--         );
+--     
+--     -- Clock generation
+--     clk_process: process
+--     begin
+--         while not test_complete loop
+--             clk <= '0';
+--             wait for CLK_PERIOD/2;
+--             clk <= '1';
+--             wait for CLK_PERIOD/2;
+--         end loop;
+--         wait;
+--     end process;
+--     
+--     -- PHY TX clock generation
+--     phy_tx_clk_process: process
+--     begin
+--         while not test_complete loop
+--             phy_tx_clk <= '0';
+--             wait for PHY_TX_CLK_PERIOD/2;
+--             phy_tx_clk <= '1';
+--             wait for PHY_TX_CLK_PERIOD/2;
+--         end loop;
+--         wait;
+--     end process;
+--     
+--     -- PHY RX clock generation
+--     phy_rx_clk_process: process
+--     begin
+--         while not test_complete loop
+--             phy_rx_clk <= '0';
+--             wait for PHY_RX_CLK_PERIOD/2;
+--             phy_rx_clk <= '1';
+--             wait for PHY_RX_CLK_PERIOD/2;
+--         end loop;
+--         wait;
+--     end process;
+--     
+--     -- Main test process
+--     test_process: process
+--         variable test_payload : byte_array(0 to 63);
+--         variable test_frame_var : byte_array(0 to MAX_FRAME_SIZE-1);
+--         variable test_length : integer;
+--     begin
+--         -- Initialize
+--         report "Starting Ethernet MAC Testbench" severity note;
+--         
+--         -- Reset sequence
+--         reset <= '1';
+--         wait for RESET_DURATION;
+--         reset <= '0';
+--         wait_clk_cycles(10);
+--         
+--         -- Enable MAC
+--         enable <= '1';
+--         wait_clk_cycles(10);
+--         
+--         -- Test 1: Basic Frame Transmission
+--         current_test <= "Basic Frame Transmission                  ";
+--         report "Test 1: Basic Frame Transmission" severity note;
+--         
+--         -- Generate test payload
+--         for i in 0 to 63 loop
+--             test_payload(i) := std_logic_vector(to_unsigned(i, 8));
+--         end loop;
+--         
+--         -- Generate Ethernet frame
+--         generate_ethernet_frame(
+--             dst_addr => DST_MAC_ADDR,
+--             src_addr => SRC_MAC_ADDR,
+--             eth_type => x"0800",  -- IPv4
+--             payload  => test_payload,
+--             frame    => test_frame_var,
+--             length   => test_length
+--         );
+--         
+--         -- Transmit frame
+--         transmit_frame(test_frame_var, test_length);
+--         
+--         -- Wait for transmission to complete
+--         wait until tx_busy = '0';
+--         wait_clk_cycles(100);
+--         
+--         check_test_result("Basic Frame Transmission", tx_error = '0');
+--         
+--         -- Test 2: Frame Reception
+--         current_test <= "Frame Reception                           ";
+--         report "Test 2: Frame Reception" severity note;
+--         
+--         -- Simulate PHY reception
+--         simulate_phy_reception(test_frame_var, test_length);
+--         
+--         -- Wait for reception to complete
+--         wait until rx_busy = '0';
+--         wait_clk_cycles(100);
+--         
+--         check_test_result("Frame Reception", rx_error = '0');
+--         
+--         -- Test 3: Collision Detection (Half-duplex mode)
+--         current_test <= "Collision Detection                       ";
+--         report "Test 3: Collision Detection" severity note;
+--         
+--         duplex_mode <= '0';  -- Half-duplex
+--         wait_clk_cycles(10);
+--         
+--         -- Start transmission
+--         tx_start <= '1';
+--         wait_clk_cycles(1);
+--         tx_start <= '0';
+--         
+--         -- Simulate collision during transmission
+--         wait_clk_cycles(50);
+--         phy_col <= '1';
+--         wait_clk_cycles(10);
+--         phy_col <= '0';
+--         
+--         -- Wait for collision handling
+--         wait_clk_cycles(1000);
+--         
+--         check_test_result("Collision Detection", collision_count > 0);
+--         
+--         -- Test 4: Multi-speed Operation
+--         current_test <= "Multi-speed Operation                     ";
+--         report "Test 4: Multi-speed Operation" severity note;
+--         
+--         duplex_mode <= '1';  -- Full-duplex
+--         
+--         -- Test 100 Mbps
+--         speed_mode <= "01";
+--         wait_clk_cycles(100);
+--         
+--         -- Test 10 Mbps
+--         speed_mode <= "00";
+--         wait_clk_cycles(100);
+--         
+--         -- Back to 1 Gbps
+--         speed_mode <= "10";
+--         wait_clk_cycles(100);
+--         
+--         check_test_result("Multi-speed Operation", true);  -- Simplified check
+--         
+--         -- Test 5: Error Injection
+--         current_test <= "Error Injection                           ";
+--         report "Test 5: Error Injection" severity note;
+--         
+--         -- Inject PHY error during reception
+--         phy_rx_er <= '1';
+--         simulate_phy_reception(test_frame_var, test_length);
+--         phy_rx_er <= '0';
+--         
+--         wait_clk_cycles(100);
+--         
+--         check_test_result("Error Injection", error_count > 0);
+--         
+--         -- Final Results
+--         wait_clk_cycles(100);
+--         
+--         report "========================================" severity note;
+--         report "Ethernet MAC Testbench Results:" severity note;
+--         report "Frames Transmitted: " & integer'image(frames_transmitted) severity note;
+--         report "Frames Received: " & integer'image(frames_received) severity note;
+--         report "Errors Detected: " & integer'image(errors_detected) severity note;
+--         
+--         if test_passed then
+--             report "ALL TESTS PASSED!" severity note;
+--         else
+--             report "SOME TESTS FAILED!" severity error;
+--         end if;
+--         
+--         report "========================================" severity note;
+--         
+--         test_complete <= true;
+--         wait;
+--     end process;
+--     
+--     -- Timeout watchdog
+--     timeout_process: process
+--     begin
+--         wait for TEST_TIMEOUT;
+--         if not test_complete then
+--             report "TEST TIMEOUT!" severity failure;
+--         end if;
+--         wait;
+--     end process;
+--     
+-- end architecture testbench;
+--
+-- ============================================================================
+-- Remember: This Ethernet MAC testbench provides comprehensive verification
+-- of the MAC controller functionality. Ensure proper test coverage, timing
+-- verification, and protocol compliance checking. The testbench should be
+-- extended based on specific requirements and verification goals.
+-- Consider using advanced verification methodologies for complex designs.
+-- ============================================================================

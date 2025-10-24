@@ -1,0 +1,339 @@
+-- ============================================================================
+-- ESP32 SPI INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ESP32 SPI Communication Interface Design
+-- Description: This project implements a comprehensive SPI interface for ESP32 
+--              microcontrollers, providing FPGA-based communication and control 
+--              capabilities for various ESP32 series processors including 
+--              ESP32, ESP32-S2, ESP32-S3, ESP32-C3, and ESP32-H2.
+--
+-- Learning Objectives:
+-- 1. Understand ESP32 microcontroller architecture and SPI interfaces
+-- 2. Master ESP32 SPI protocol implementation and timing
+-- 3. Learn ESP32 GPIO multiplexing and pin configuration
+-- 4. Implement high-speed SPI communication with ESP32
+-- 5. Understand ESP32 DMA integration for SPI transfers
+-- 6. Master ESP32 interrupt handling and event management
+-- 7. Learn ESP32 power management and sleep modes
+-- 8. Implement ESP32 bootloader and firmware update via SPI
+--
+-- Supported ESP32 Microcontrollers:
+-- ┌─────────────────┬─────────────┬─────────────────────────────────────┐
+-- │ Microcontroller │ Series      │ Key Features                        │
+-- ├─────────────────┼─────────────┼─────────────────────────────────────┤
+-- │ ESP32           │ ESP32       │ Dual-core, WiFi, Bluetooth, 520KB  │
+-- │ ESP32-PICO-D4   │ ESP32       │ System-in-Package, 4MB flash       │
+-- │ ESP32-WROVER    │ ESP32       │ 8MB PSRAM, external antenna        │
+-- │ ESP32-S2        │ ESP32-S2    │ Single-core, WiFi, USB, 320KB      │
+-- │ ESP32-S2-MINI   │ ESP32-S2    │ Compact module, PCB antenna         │
+-- │ ESP32-S3        │ ESP32-S3    │ Dual-core, WiFi, Bluetooth, AI     │
+-- │ ESP32-S3-MINI   │ ESP32-S3    │ Compact, 8MB flash, 8MB PSRAM      │
+-- │ ESP32-C3        │ ESP32-C3    │ RISC-V, WiFi, Bluetooth 5.0        │
+-- │ ESP32-C3-MINI   │ ESP32-C3    │ Compact RISC-V module               │
+-- │ ESP32-C6        │ ESP32-C6    │ RISC-V, WiFi 6, Zigbee, Thread     │
+-- │ ESP32-H2        │ ESP32-H2    │ RISC-V, Zigbee 3.0, Thread, BLE    │
+-- │ ESP32-P4        │ ESP32-P4    │ High-performance, AI acceleration   │
+-- └─────────────────┴─────────────┴─────────────────────────────────────┘
+--
+-- ESP32 SPI Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   ESP32 CPU     │◀──▶│   SPI Master    │◀──▶│   FPGA SPI      │
+-- │   (Xtensa/      │    │   Controller    │    │   Slave         │
+-- │    RISC-V)      │    │   (HSPI/VSPI)   │    │   Interface     │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                       │
+--          ▼                       ▼                       ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   DMA Engine    │    │   GPIO Matrix   │    │   Clock/Reset   │
+-- │   (Transfer     │    │   (Pin Mux)     │    │   Management    │
+-- │    Automation)  │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- ESP32 SPI Controllers:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ SPI Controller  │ Default Pins    │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ SPI0            │ Flash Interface │ Reserved for flash memory       │
+-- │ SPI1 (FSPI)     │ GPIO 6,7,8,9    │ Flash/PSRAM interface           │
+-- │ SPI2 (HSPI)     │ GPIO 12,13,14,15│ High-speed SPI (up to 80MHz)    │
+-- │ SPI3 (VSPI)     │ GPIO 5,18,19,23 │ General purpose SPI             │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- SPI Signal Definitions:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Signal Name     │ ESP32 Pin       │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ SCLK (SCK)      │ Configurable    │ Serial Clock (Master generated) │
+-- │ MOSI (SDO)      │ Configurable    │ Master Out, Slave In            │
+-- │ MISO (SDI)      │ Configurable    │ Master In, Slave Out            │
+-- │ CS (SS)         │ Configurable    │ Chip Select (active low)        │
+-- │ WP              │ Optional        │ Write Protect (Quad SPI)        │
+-- │ HD              │ Optional        │ Hold (Quad SPI)                 │
+-- │ DQS             │ Optional        │ Data Strobe (Octal SPI)         │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- SPI Operating Modes:
+-- 1. **Standard SPI**:
+--    - Single data line in each direction
+--    - MOSI and MISO for full-duplex
+--    - Clock frequencies up to 80 MHz
+--    - Configurable clock polarity and phase
+--
+-- 2. **Dual SPI**:
+--    - Two data lines for increased throughput
+--    - MOSI and MISO used as data lines
+--    - Command and address in single mode
+--    - Data phase in dual mode
+--
+-- 3. **Quad SPI**:
+--    - Four data lines for maximum throughput
+--    - Uses MOSI, MISO, WP, and HD as data lines
+--    - Command in single mode, data in quad mode
+--    - Requires quad-capable slave device
+--
+-- 4. **Octal SPI**:
+--    - Eight data lines (ESP32-S3 and later)
+--    - Maximum data throughput
+--    - Complex timing requirements
+--    - Specialized high-speed applications
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ SPI Controller  │ Master/slave mode SPI protocol implementation      │
+-- │ Clock Generator │ Configurable SPI clock generation                  │
+-- │ GPIO Controller │ Pin multiplexing and configuration                 │
+-- │ DMA Interface   │ Direct memory access for large transfers           │
+-- │ Interrupt Ctrl  │ SPI event and completion interrupt handling        │
+-- │ Buffer Manager  │ TX/RX FIFO buffer management                       │
+-- │ Command Parser  │ SPI command and address parsing                    │
+-- │ Data Formatter  │ Bit order and word size formatting                 │
+-- │ Timing Control  │ Setup/hold time and clock edge control            │
+-- │ Error Handler   │ Timeout, overflow, and protocol error detection   │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - SPI Clock Frequency: Up to 80 MHz (ESP32), 120 MHz (ESP32-S3)
+-- - Data Width: 1-64 bits per transfer (configurable)
+-- - FIFO Depth: 64 bytes TX/RX (hardware dependent)
+-- - DMA Support: Up to 4092 bytes per transfer
+-- - Clock Modes: All 4 SPI modes (CPOL/CPHA combinations)
+-- - Bit Order: MSB or LSB first (configurable)
+-- - CS Control: Hardware or software controlled
+-- - Multi-slave: Up to 6 CS lines (GPIO dependent)
+--
+-- Implementation Approaches:
+-- 1. **Hardware SPI Interface**:
+--    - Direct connection to ESP32 SPI pins
+--    - Maximum performance and efficiency
+--    - Hardware-controlled timing and protocol
+--
+-- 2. **Software SPI (Bit-bang)**:
+--    - GPIO-based SPI implementation
+--    - Flexible pin assignment
+--    - Lower performance but more control
+--
+-- 3. **Hybrid Interface**:
+--    - Hardware SPI with software enhancements
+--    - Custom protocol extensions
+--    - Optimized for specific applications
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define ESP32 SPI Configuration
+-- - Select ESP32 variant and SPI controller
+-- - Define pin assignments and GPIO configuration
+-- - Specify clock frequency and timing requirements
+-- - Choose SPI mode and data format
+--
+-- Step 2: Implement SPI Clock Generation
+-- - Generate appropriate SPI clock signals
+-- - Add clock domain crossing logic
+-- - Implement configurable clock dividers
+-- - Add clock enable and gating control
+--
+-- Step 3: Create SPI Protocol Controller
+-- - Implement SPI master/slave state machine
+-- - Add command and data phase handling
+-- - Create FIFO buffer management
+-- - Add bit counting and transfer control
+--
+-- Step 4: Design Data Path Logic
+-- - Implement shift registers for data transfer
+-- - Add parallel-to-serial conversion
+-- - Create bit order and endianness control
+-- - Add data width and alignment logic
+--
+-- Step 5: Add DMA Integration
+-- - Implement DMA request and acknowledge
+-- - Add burst transfer capabilities
+-- - Create scatter-gather list support
+-- - Add DMA completion interrupt handling
+--
+-- Step 6: Implement Interrupt System
+-- - Add SPI event interrupt generation
+-- - Create interrupt priority and masking
+-- - Implement interrupt service routines
+-- - Add error and timeout interrupt handling
+--
+-- Step 7: Create Control and Status Registers
+-- - Implement configuration registers
+-- - Add status and flag registers
+-- - Create command and control interfaces
+-- - Add debug and monitoring capabilities
+--
+-- Step 8: Add Advanced Features
+-- - Implement multi-slave support
+-- - Add quad/octal SPI modes
+-- - Create custom protocol extensions
+-- - Add power management and sleep modes
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.esp32_pkg: ESP32-specific constants and types
+-- - work.spi_pkg: SPI protocol definitions
+--
+-- Advanced Features:
+-- 1. **High-Speed Operation**: Up to 80/120 MHz SPI clock
+-- 2. **DMA Integration**: Large data transfer automation
+-- 3. **Multi-Mode Support**: Standard, Dual, Quad, Octal SPI
+-- 4. **Flexible GPIO**: Any GPIO pin can be used for SPI
+-- 5. **Command Queuing**: Multiple commands in sequence
+-- 6. **Error Recovery**: Automatic retry and error handling
+-- 7. **Power Optimization**: Dynamic clock gating
+-- 8. **Security Features**: Encrypted SPI communication
+--
+-- Applications:
+-- - IoT device communication
+-- - Sensor data acquisition
+-- - Display and touchscreen interfaces
+-- - External memory interfaces
+-- - Audio codec communication
+-- - Industrial control systems
+-- - Wireless module interfaces
+-- - FPGA configuration and control
+--
+-- Performance Considerations:
+-- - SPI clock frequency optimization
+-- - DMA vs. interrupt-driven transfers
+-- - FIFO depth and buffer management
+-- - GPIO drive strength and slew rate
+-- - PCB layout and signal integrity
+-- - Power consumption optimization
+-- - Interrupt latency minimization
+-- - Multi-tasking and real-time constraints
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: SPI timing and protocol verification
+-- 2. **Performance Testing**: Throughput and latency measurement
+-- 3. **Stress Testing**: Continuous high-speed operation
+-- 4. **Compatibility Testing**: Multiple ESP32 variants
+-- 5. **Signal Integrity**: Eye diagram and jitter analysis
+-- 6. **Power Testing**: Current consumption measurement
+-- 7. **Temperature Testing**: Operating range validation
+-- 8. **EMC Testing**: Electromagnetic compatibility
+--
+-- Common Design Challenges:
+-- - SPI timing violations at high frequencies
+-- - GPIO pin multiplexing conflicts
+-- - DMA synchronization issues
+-- - Interrupt handling priority conflicts
+-- - Power supply noise affecting signals
+-- - PCB layout and crosstalk issues
+-- - Multi-slave arbitration problems
+-- - Clock domain crossing metastability
+--
+-- Verification Checklist:
+-- □ SPI clock generation and timing verified
+-- □ Data transfer accuracy confirmed
+-- □ FIFO buffer operation validated
+-- □ DMA integration functional
+-- □ Interrupt handling working properly
+-- □ Multi-slave operation tested
+-- □ Error handling and recovery verified
+-- □ Performance targets achieved
+-- □ Power consumption within limits
+-- □ Signal integrity validated
+-- □ EMC compliance verified
+-- □ Temperature range tested
+-- □ Long-term reliability confirmed
+-- □ Security features validated
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.esp32_pkg.all;
+-- use work.spi_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity esp32_spi is
+--     generic (
+--         ESP32_TYPE      : string := "ESP32";
+--         SPI_CONTROLLER  : string := "HSPI";
+--         CLOCK_FREQ      : integer := 80_000_000;
+--         SPI_FREQ        : integer := 10_000_000;
+--         DATA_WIDTH      : integer := 8;
+--         FIFO_DEPTH      : integer := 64
+--     );
+--     port (
+--         -- System signals
+--         clk             : in  std_logic;
+--         reset_n         : in  std_logic;
+--         
+--         -- ESP32 SPI interface
+--         spi_clk         : inout std_logic;
+--         spi_mosi        : inout std_logic;
+--         spi_miso        : inout std_logic;
+--         spi_cs_n        : inout std_logic;
+--         spi_wp_n        : inout std_logic;  -- Quad SPI
+--         spi_hd_n        : inout std_logic;  -- Quad SPI
+--         
+--         -- FPGA interface
+--         fpga_data_in    : in  std_logic_vector(31 downto 0);
+--         fpga_data_out   : out std_logic_vector(31 downto 0);
+--         fpga_addr       : in  std_logic_vector(15 downto 0);
+--         fpga_write_en   : in  std_logic;
+--         fpga_read_en    : in  std_logic;
+--         fpga_ready      : out std_logic;
+--         
+--         -- DMA interface
+--         dma_req         : out std_logic;
+--         dma_ack         : in  std_logic;
+--         dma_data        : inout std_logic_vector(31 downto 0);
+--         dma_addr        : out std_logic_vector(31 downto 0);
+--         dma_count       : out std_logic_vector(15 downto 0);
+--         
+--         -- Interrupt and status
+--         spi_interrupt   : out std_logic;
+--         status_reg      : out std_logic_vector(31 downto 0);
+--         control_reg     : in  std_logic_vector(31 downto 0)
+--     );
+-- end entity esp32_spi;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of esp32_spi is
+--     -- Component declarations for SPI controllers
+--     -- Signal declarations for internal connections
+--     -- Constants for timing and configuration
+-- begin
+--     -- Instantiate SPI clock generation
+--     -- Add SPI protocol state machine
+--     -- Connect FIFO buffer management
+--     -- Add DMA interface logic
+--     -- Implement interrupt generation
+--     -- Connect control and status registers
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: ESP32 SPI interface design requires careful attention to timing
+-- requirements, GPIO configuration, and high-speed signal integrity. Always
+-- consult the ESP32 technical reference manual for detailed specifications.
+-- ============================================================================

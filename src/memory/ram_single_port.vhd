@@ -1,0 +1,782 @@
+-- ============================================================================
+-- Single-Port RAM Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a single-port Random Access Memory (RAM), which provides
+-- read and write operations through a single port interface. Single-port RAMs
+-- are fundamental memory components used in digital systems for data storage,
+-- buffering, and temporary storage applications.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand single-port memory architecture and operation
+-- 2. Learn memory timing and control signal management
+-- 3. Practice parameterized memory design with generics
+-- 4. Explore Block RAM utilization and synthesis optimization
+-- 5. Understand memory initialization and configuration
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the single-port RAM
+--
+-- Entity Requirements:
+-- - Name: ram_single_port (maintain current naming convention)
+-- - Generic parameters for memory size and data width
+-- - Single port with address, data, and control signals
+-- - Optional initialization and configuration features
+--
+-- Generic Parameters:
+-- - DATA_WIDTH : positive := 8 (Data bus width in bits)
+-- - ADDR_WIDTH : positive := 10 (Address bus width in bits)
+-- - MEMORY_DEPTH : positive := 1024 (Number of memory locations)
+-- - INIT_FILE : string := "" (Optional initialization file)
+-- - RAM_STYLE : string := "auto" (Synthesis style hint)
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input)
+-- - rst : in std_logic (Reset input, optional)
+-- - en : in std_logic (Enable signal)
+-- - we : in std_logic (Write enable)
+-- - addr : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Address input)
+-- - din : in std_logic_vector(DATA_WIDTH-1 downto 0) (Data input)
+-- - dout : out std_logic_vector(DATA_WIDTH-1 downto 0) (Data output)
+--
+-- Optional Ports:
+-- - ready : out std_logic (Memory ready flag)
+-- - busy : out std_logic (Memory busy flag)
+-- - error : out std_logic (Error flag)
+--
+-- Design Considerations:
+-- - Synchronous operation with single clock
+-- - Address range validation
+-- - Memory initialization capability
+-- - Synthesis optimization hints
+-- - Resource utilization efficiency
+-- - Technology-specific optimizations
+--
+-- TODO: Declare entity with appropriate generics and ports
+-- TODO: Add comprehensive port comments
+-- TODO: Consider optional features and signals
+-- TODO: Plan for initialization and configuration
+--
+-- ============================================================================
+-- STEP 3: SINGLE-PORT RAM OPERATION DEFINITIONS
+-- ============================================================================
+--
+-- SINGLE-PORT RAM PRINCIPLES:
+-- - Single access port for both read and write
+-- - Address-based random access
+-- - Synchronous operation with clock edge
+-- - Write-first or read-first behavior
+-- - Configurable memory behavior
+--
+-- OPERATION TABLE:
+-- Clock | Reset | Enable | WE | Address | Data_In | Operation
+-- ------|-------|--------|----|---------|---------|-----------
+--   X   |   1   |   X    | X  |    X    |    X    | Reset (if async)
+--   ↑   |   0   |   0    | X  |    X    |    X    | No operation
+--   ↑   |   0   |   1    | 0  |  Valid  |    X    | Read operation
+--   ↑   |   0   |   1    | 1  |  Valid  |  Valid  | Write operation
+--
+-- READ OPERATION:
+-- - Address must be stable before clock edge
+-- - Data appears on output after clock-to-Q delay
+-- - Enable must be asserted for operation
+-- - Write enable must be deasserted
+--
+-- WRITE OPERATION:
+-- - Address and data must be stable before clock edge
+-- - Write enable must be asserted
+-- - Enable must be asserted for operation
+-- - Data is stored on rising clock edge
+--
+-- TIMING REQUIREMENTS:
+-- - Setup time: Address and data stable before clock
+-- - Hold time: Signals stable after clock edge
+-- - Clock-to-Q delay: Time from clock to output valid
+-- - Access time: Total time for memory operation
+--
+-- MEMORY ORGANIZATION:
+-- - Linear addressing from 0 to MEMORY_DEPTH-1
+-- - Word-based access (DATA_WIDTH bits per location)
+-- - Configurable initialization values
+-- - Optional address range checking
+--
+-- TODO: Define operation tables for chosen configuration
+-- TODO: Specify timing requirements
+-- TODO: Plan memory organization
+-- TODO: Consider error handling
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC SINGLE-PORT RAM
+-- ----------------------------------------------------------------------------
+-- Simple single-port RAM with essential functionality
+--
+-- Implementation Approach:
+-- - Array-based memory storage
+-- - Synchronous read/write operations
+-- - Basic control logic
+-- - Simple interface
+--
+-- Example Structure:
+-- architecture behavioral of ram_single_port is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal memory : memory_array := (others => (others => '0'));
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+-- begin
+--     -- Memory process
+--     mem_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             if en = '1' then
+--                 if we = '1' then
+--                     -- Write operation
+--                     memory(to_integer(unsigned(addr))) <= din;
+--                 else
+--                     -- Read operation
+--                     dout_reg <= memory(to_integer(unsigned(addr)));
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignment
+--     dout <= dout_reg;
+-- end behavioral;
+--
+-- Memory Management:
+-- - Array-based storage
+-- - Direct address indexing
+-- - Synchronous operation
+-- - Simple control logic
+--
+-- Advantages:
+-- - Simple implementation
+-- - Predictable behavior
+-- - Low complexity
+-- - Easy to understand
+--
+-- Disadvantages:
+-- - No advanced features
+-- - Limited error handling
+-- - Basic performance
+-- - No initialization support
+--
+-- TODO: Implement basic single-port RAM
+-- TODO: Verify read/write operations
+-- TODO: Test address decoding
+-- TODO: Validate timing behavior
+--
+-- OPTION 2: SINGLE-PORT RAM WITH RESET
+-- ----------------------------------------------------------------------------
+-- Single-port RAM with reset capability
+--
+-- Implementation Approach:
+-- - Synchronous or asynchronous reset
+-- - Memory initialization on reset
+-- - Enhanced control logic
+-- - Robust operation
+--
+-- Example Structure:
+-- architecture with_reset of ram_single_port is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal memory : memory_array := (others => (others => '0'));
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+-- begin
+--     -- Memory process with reset
+--     mem_proc: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             -- Asynchronous reset
+--             dout_reg <= (others => '0');
+--             -- Note: Memory array reset would require synthesis support
+--         elsif rising_edge(clk) then
+--             if en = '1' then
+--                 if we = '1' then
+--                     -- Write operation
+--                     memory(to_integer(unsigned(addr))) <= din;
+--                 else
+--                     -- Read operation
+--                     dout_reg <= memory(to_integer(unsigned(addr)));
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignment
+--     dout <= dout_reg;
+-- end with_reset;
+--
+-- Reset Features:
+-- - Output register reset
+-- - Controlled initialization
+-- - Predictable startup
+-- - System integration
+--
+-- Reset Considerations:
+-- - Memory array reset limitations
+-- - Synthesis tool support
+-- - Resource implications
+-- - Timing impact
+--
+-- Advantages:
+-- - Predictable startup behavior
+-- - System integration friendly
+-- - Controlled initialization
+-- - Robust operation
+--
+-- Disadvantages:
+-- - Increased complexity
+-- - Potential resource overhead
+-- - Reset distribution requirements
+-- - Synthesis limitations
+--
+-- TODO: Implement RAM with reset
+-- TODO: Test reset functionality
+-- TODO: Verify initialization behavior
+-- TODO: Validate system integration
+--
+-- OPTION 3: BLOCK RAM OPTIMIZED SINGLE-PORT
+-- ----------------------------------------------------------------------------
+-- Single-port RAM optimized for FPGA Block RAM resources
+--
+-- Implementation Approach:
+-- - Block RAM inference
+-- - Technology-specific optimization
+-- - Maximum performance
+-- - Resource efficiency
+--
+-- Example Structure:
+-- architecture bram_optimized of ram_single_port is
+--     -- Memory array with initialization
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Initialize memory from file if specified
+--     function init_memory return memory_array is
+--         variable mem : memory_array := (others => (others => '0'));
+--         -- Add file reading logic here if INIT_FILE is not empty
+--     begin
+--         return mem;
+--     end function;
+--     
+--     signal memory : memory_array := init_memory;
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     
+--     -- BRAM attributes for synthesis tools
+--     attribute ram_style : string;
+--     attribute ram_style of memory : signal is "block";
+-- begin
+--     -- Memory process (optimized for BRAM)
+--     mem_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             if en = '1' then
+--                 -- Read-first behavior for BRAM optimization
+--                 dout_reg <= memory(to_integer(unsigned(addr)));
+--                 if we = '1' then
+--                     memory(to_integer(unsigned(addr))) <= din;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignment
+--     dout <= dout_reg;
+-- end bram_optimized;
+--
+-- BRAM Optimization Features:
+-- - Block RAM inference
+-- - Synthesis attributes
+-- - Technology mapping
+-- - Performance optimization
+--
+-- Memory Initialization:
+-- - File-based initialization
+-- - Compile-time configuration
+-- - Flexible data loading
+-- - Boot-time setup
+--
+-- Advantages:
+-- - Maximum performance
+-- - Efficient resource usage
+-- - Technology optimized
+-- - Scalable implementation
+--
+-- Disadvantages:
+-- - Technology dependent
+-- - Limited flexibility
+-- - Complex initialization
+-- - Vendor-specific features
+--
+-- TODO: Implement BRAM-optimized RAM
+-- TODO: Add initialization support
+-- TODO: Test synthesis results
+-- TODO: Verify performance characteristics
+--
+-- OPTION 4: PARAMETERIZED SINGLE-PORT WITH FEATURES
+-- ----------------------------------------------------------------------------
+-- Advanced single-port RAM with comprehensive features
+--
+-- Implementation Approach:
+-- - Configurable behavior modes
+-- - Error detection and handling
+-- - Performance monitoring
+-- - Professional features
+--
+-- Example Structure:
+-- architecture full_featured of ram_single_port is
+--     type memory_array is array (0 to MEMORY_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal memory : memory_array := (others => (others => '0'));
+--     signal dout_reg : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     
+--     -- Status and control signals
+--     signal ready_reg : std_logic := '1';
+--     signal busy_reg : std_logic := '0';
+--     signal error_reg : std_logic := '0';
+--     
+--     -- Address range checking
+--     signal addr_valid : std_logic;
+-- begin
+--     -- Address validation
+--     addr_valid <= '1' when to_integer(unsigned(addr)) < MEMORY_DEPTH else '0';
+--     
+--     -- Memory process with features
+--     mem_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             -- Default status
+--             busy_reg <= '0';
+--             error_reg <= '0';
+--             ready_reg <= '1';
+--             
+--             if en = '1' then
+--                 if addr_valid = '1' then
+--                     busy_reg <= '1';
+--                     if we = '1' then
+--                         -- Write operation
+--                         memory(to_integer(unsigned(addr))) <= din;
+--                     else
+--                         -- Read operation
+--                         dout_reg <= memory(to_integer(unsigned(addr)));
+--                     end if;
+--                 else
+--                     -- Address out of range
+--                     error_reg <= '1';
+--                     ready_reg <= '0';
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     dout <= dout_reg;
+--     ready <= ready_reg;
+--     busy <= busy_reg;
+--     error <= error_reg;
+-- end full_featured;
+--
+-- Advanced Features:
+-- - Address range validation
+-- - Status reporting
+-- - Error detection
+-- - Performance monitoring
+--
+-- Error Handling:
+-- - Address bounds checking
+-- - Status flag generation
+-- - Error recovery
+-- - System notification
+--
+-- Advantages:
+-- - Professional features
+-- - Robust operation
+-- - System integration friendly
+-- - Comprehensive monitoring
+--
+-- Disadvantages:
+-- - Increased complexity
+-- - Higher resource usage
+-- - More complex verification
+-- - Additional control logic
+--
+-- TODO: Implement full-featured RAM
+-- TODO: Test error handling
+-- TODO: Verify status reporting
+-- TODO: Validate address checking
+--
+-- ============================================================================
+-- STEP 5: ADVANCED SINGLE-PORT FEATURES
+-- ============================================================================
+--
+-- BYTE-ENABLE SUPPORT:
+-- - Partial word writes
+-- - Byte-level control
+-- - Efficient updates
+-- - System compatibility
+--
+-- PIPELINED OPERATION:
+-- - Multi-stage pipeline
+-- - Increased throughput
+-- - Latency management
+-- - Performance optimization
+--
+-- ERROR CORRECTION:
+-- - ECC (Error Correcting Code) support
+-- - Parity checking
+-- - Error detection and correction
+-- - Data integrity assurance
+--
+-- POWER MANAGEMENT:
+-- - Sleep mode support
+-- - Power gating
+-- - Clock gating
+-- - Energy optimization
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test integration capabilities
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- MEMORY ORGANIZATION:
+-- - Address space layout
+-- - Data width optimization
+-- - Memory depth calculation
+-- - Resource utilization
+--
+-- TIMING OPTIMIZATION:
+-- - Critical path analysis
+-- - Pipeline considerations
+-- - Clock frequency optimization
+-- - Setup/hold requirements
+--
+-- RESOURCE UTILIZATION:
+-- - Block RAM vs distributed RAM
+-- - Logic resource usage
+-- - Routing considerations
+-- - Area optimization
+--
+-- INITIALIZATION:
+-- - Memory content setup
+-- - File-based loading
+-- - Runtime configuration
+-- - Default values
+--
+-- SYNTHESIS OPTIMIZATION:
+-- - Tool-specific attributes
+-- - Inference guidelines
+-- - Resource mapping
+-- - Performance tuning
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. DATA BUFFERING:
+--    - Temporary storage
+--    - Data queues
+--    - Stream buffers
+--    - Protocol buffers
+--
+-- 2. LOOKUP TABLES:
+--    - Configuration data
+--    - Coefficient storage
+--    - Translation tables
+--    - Parameter storage
+--
+-- 3. CACHE MEMORIES:
+--    - Instruction cache
+--    - Data cache
+--    - Buffer cache
+--    - Translation cache
+--
+-- 4. SIGNAL PROCESSING:
+--    - Sample storage
+--    - Filter coefficients
+--    - Transform data
+--    - Algorithm buffers
+--
+-- 5. CONTROL SYSTEMS:
+--    - State storage
+--    - Configuration registers
+--    - Command queues
+--    - Status buffers
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Read/write operations
+-- - Address decoding
+-- - Control signal behavior
+-- - Data integrity verification
+-- - Boundary condition testing
+--
+-- PERFORMANCE TESTING:
+-- - Access time measurement
+-- - Throughput analysis
+-- - Resource utilization
+-- - Power consumption
+-- - Frequency characterization
+--
+-- STRESS TESTING:
+-- - Continuous operation
+-- - Random access patterns
+-- - Maximum frequency testing
+-- - Temperature variation
+-- - Voltage variation
+--
+-- ERROR TESTING:
+-- - Address out of bounds
+-- - Invalid control sequences
+-- - Error recovery behavior
+-- - Status flag verification
+-- - Exception handling
+--
+-- INITIALIZATION TESTING:
+-- - File loading verification
+-- - Default value checking
+-- - Configuration validation
+-- - Boot sequence testing
+-- - Reset behavior
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with basic single-port RAM
+-- 2. Implement simple read/write operations
+-- 3. Add basic control logic
+-- 4. Test fundamental operations
+-- 5. Verify functionality
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Add reset capability
+-- 2. Implement BRAM optimization
+-- 3. Create comprehensive testbench
+-- 4. Add initialization support
+-- 5. Optimize for target technology
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement advanced features
+-- 2. Add error detection and handling
+-- 3. Create library-quality component
+-- 4. Implement power management
+-- 5. Develop production verification suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. MULTI-BANK SINGLE-PORT:
+--    - Multiple memory banks
+--    - Bank selection logic
+--    - Interleaved access
+--    - Performance scaling
+--
+-- 2. CACHED SINGLE-PORT:
+--    - Cache integration
+--    - Hit/miss logic
+--    - Performance optimization
+--    - Cache coherency
+--
+-- 3. ECC SINGLE-PORT:
+--    - Error correction codes
+--    - Syndrome generation
+--    - Error detection/correction
+--    - Reliability enhancement
+--
+-- 4. PIPELINED SINGLE-PORT:
+--    - Multi-stage pipeline
+--    - Throughput optimization
+--    - Latency management
+--    - Flow control
+--
+-- 5. CONTENT-ADDRESSABLE MEMORY:
+--    - Associative lookup
+--    - Parallel search
+--    - Match detection
+--    - Priority encoding
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. TIMING VIOLATIONS:
+--    - Setup/hold violations
+--    - Clock skew issues
+--    - Metastability problems
+--    - Critical path violations
+--
+-- 2. RESOURCE INEFFICIENCY:
+--    - Poor BRAM utilization
+--    - Excessive logic usage
+--    - Suboptimal synthesis
+--    - Routing congestion
+--
+-- 3. INITIALIZATION PROBLEMS:
+--    - Incorrect file formats
+--    - Incomplete initialization
+--    - Runtime configuration errors
+--    - Default value issues
+--
+-- 4. ADDRESS HANDLING ERRORS:
+--    - Out-of-bounds access
+--    - Address alignment issues
+--    - Range checking omission
+--    - Index calculation errors
+--
+-- 5. VERIFICATION GAPS:
+--    - Incomplete test coverage
+--    - Missing edge cases
+--    - Inadequate stress testing
+--    - Performance validation gaps
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper generics and ports
+-- □ Memory array properly sized and initialized
+-- □ Address decoding working correctly
+-- □ Write operations functioning properly
+-- □ Read operations producing correct data
+-- □ Control signals behaving as expected
+-- □ Timing relationships verified
+-- □ Resource utilization optimized
+-- □ Synthesis results acceptable
+-- □ Performance requirements met
+-- □ Initialization working properly (if implemented)
+-- □ Reset functionality correct (if implemented)
+-- □ Error handling functioning correctly (if implemented)
+-- □ Status signals accurate (if implemented)
+-- □ Address range checking working (if implemented)
+-- □ Testbench covers all scenarios
+-- □ Documentation complete and accurate
+-- □ Technology-specific optimizations applied
+-- □ Power consumption acceptable
+-- □ Thermal characteristics verified
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- RELATIONSHIP TO OTHER MEMORY TYPES:
+-- - Dual-port RAM: More complex but higher performance
+-- - FIFO: Sequential vs random access
+-- - Register file: Similar concept, different scale
+-- - Cache: Temporary storage with different policies
+--
+-- MEMORY HIERARCHY INTEGRATION:
+-- - L1/L2 cache implementation
+-- - Main memory interface
+-- - Buffer implementation
+-- - Scratch pad memory
+--
+-- SYSTEM INTEGRATION ASPECTS:
+-- - Bus interface compatibility
+-- - Memory controller integration
+-- - DMA support
+-- - Performance optimization
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - Block RAM utilization
+-- - Distributed RAM alternatives
+-- - Clock network optimization
+-- - Timing constraint application
+--
+-- ASIC IMPLEMENTATION:
+-- - Memory compiler usage
+-- - Custom memory design
+-- - Layout optimization
+-- - Power grid considerations
+--
+-- PERFORMANCE CHARACTERISTICS:
+-- - Access time scaling
+-- - Power consumption patterns
+-- - Area utilization
+-- - Temperature sensitivity
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- MEMORY OPTIMIZATION:
+-- - Access pattern analysis
+-- - Locality exploitation
+-- - Prefetching strategies
+-- - Bandwidth optimization
+--
+-- FAULT TOLERANCE:
+-- - Error detection methods
+-- - Correction algorithms
+-- - Redundancy techniques
+-- - Reliability analysis
+--
+-- POWER OPTIMIZATION:
+-- - Dynamic power management
+-- - Clock gating strategies
+-- - Voltage scaling
+-- - Leakage reduction
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Comprehensive test scenarios
+-- - Random stimulus generation
+-- - Coverage analysis
+-- - Performance measurement
+--
+-- VERIFICATION METHODOLOGY:
+-- - Functional verification
+-- - Timing verification
+-- - Power verification
+-- - Reliability verification
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis
+-- - Memory content inspection
+-- - Access pattern tracking
+-- - Performance profiling
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here with generics]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

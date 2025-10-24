@@ -1,0 +1,632 @@
+-- ============================================================================
+-- Microprocessor Program Counter Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements the Program Counter (PC) for a microprocessor that manages
+-- instruction sequencing and program flow control. The program counter maintains
+-- the address of the current instruction being executed and provides mechanisms
+-- for sequential execution, branching, jumping, subroutine calls, and interrupt
+-- handling. This implementation focuses on address generation, flow control,
+-- and integration with the processor's control unit.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand program counter design and instruction sequencing
+-- 2. Learn address generation and memory interface principles
+-- 3. Practice branch and jump instruction implementation
+-- 4. Understand subroutine call and return mechanisms
+-- 5. Learn interrupt and exception handling in program flow
+-- 6. Practice pipeline integration and hazard management
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for address utilities and pipeline support
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.address_pkg.all for address utilities
+-- TODO: Consider adding work.microprocessor_pkg.all for system definitions
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor program counter
+--
+-- Entity Requirements:
+-- - Name: pc (maintain current naming convention)
+-- - System control inputs (clock, reset, enable)
+-- - Address generation and control interfaces
+-- - Branch and jump control signals
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (PC enable)
+-- - stall : in std_logic (Pipeline stall signal)
+--
+-- Address Interface:
+-- - pc_out : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Current PC value)
+-- - next_pc : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Next PC value)
+-- - pc_plus_4 : out std_logic_vector(ADDR_WIDTH-1 downto 0) (PC + 4 for sequential)
+-- - instruction_addr : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Instruction fetch address)
+--
+-- Control Interface:
+-- - pc_write : in std_logic (PC write enable)
+-- - pc_source : in std_logic_vector(2 downto 0) (PC source selection)
+-- - branch_enable : in std_logic (Branch enable)
+-- - jump_enable : in std_logic (Jump enable)
+-- - call_enable : in std_logic (Subroutine call enable)
+-- - return_enable : in std_logic (Return enable)
+--
+-- Branch and Jump Interface:
+-- - branch_target : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Branch target address)
+-- - jump_target : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Jump target address)
+-- - relative_offset : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Relative branch offset)
+-- - immediate_addr : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Immediate address)
+-- - register_addr : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Register indirect address)
+--
+-- Stack Interface:
+-- - stack_push : in std_logic (Stack push enable)
+-- - stack_pop : in std_logic (Stack pop enable)
+-- - stack_data_in : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Stack input data)
+-- - stack_data_out : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Stack output data)
+-- - stack_full : out std_logic (Stack full indicator)
+-- - stack_empty : out std_logic (Stack empty indicator)
+--
+-- Interrupt Interface:
+-- - interrupt_request : in std_logic (Interrupt request)
+-- - interrupt_vector : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Interrupt vector)
+-- - interrupt_enable : in std_logic (Interrupt enable)
+-- - interrupt_ack : out std_logic (Interrupt acknowledge)
+-- - return_from_int : in std_logic (Return from interrupt)
+--
+-- Exception Interface:
+-- - exception_request : in std_logic (Exception request)
+-- - exception_vector : in std_logic_vector(ADDR_WIDTH-1 downto 0) (Exception vector)
+-- - exception_code : in std_logic_vector(7 downto 0) (Exception code)
+-- - exception_ack : out std_logic (Exception acknowledge)
+--
+-- Pipeline Interface:
+-- - fetch_valid : out std_logic (Fetch valid signal)
+-- - decode_stall : in std_logic (Decode stage stall)
+-- - execute_stall : in std_logic (Execute stage stall)
+-- - memory_stall : in std_logic (Memory stage stall)
+-- - writeback_stall : in std_logic (Writeback stage stall)
+--
+-- Status Interface:
+-- - pc_valid : out std_logic (PC valid indicator)
+-- - address_error : out std_logic (Address error indicator)
+-- - alignment_error : out std_logic (Alignment error indicator)
+-- - overflow_error : out std_logic (Address overflow error)
+--
+-- Test and Debug Interface:
+-- - test_mode : in std_logic (Test mode enable)
+-- - debug_pc : out std_logic_vector(ADDR_WIDTH-1 downto 0) (Debug PC value)
+-- - breakpoint_hit : out std_logic (Breakpoint hit indicator)
+-- - single_step : in std_logic (Single step mode)
+-- - step_complete : out std_logic (Step complete indicator)
+--
+-- ============================================================================
+-- STEP 3: PROGRAM COUNTER PRINCIPLES
+-- ============================================================================
+--
+-- Program Counter Fundamentals:
+-- 1. Sequential Execution
+--    - Automatic increment for next instruction
+--    - Instruction alignment and addressing
+--    - Memory interface timing
+--    - Pipeline synchronization
+--
+-- 2. Branch Control
+--    - Conditional branch evaluation
+--    - Branch target calculation
+--    - Branch prediction integration
+--    - Pipeline flush management
+--
+-- 3. Jump Operations
+--    - Unconditional jumps
+--    - Register indirect jumps
+--    - Immediate address jumps
+--    - Long jump support
+--
+-- 4. Subroutine Management
+--    - Call stack implementation
+--    - Return address storage
+--    - Nested call support
+--    - Stack overflow protection
+--
+-- PC Source Selection:
+-- 1. Sequential (PC + instruction_size)
+--    - Normal instruction flow
+--    - Automatic increment
+--    - Alignment handling
+--    - Size calculation
+--
+-- 2. Branch Target
+--    - Conditional branch destination
+--    - Relative addressing
+--    - Absolute addressing
+--    - PC-relative calculation
+--
+-- 3. Jump Target
+--    - Unconditional jump destination
+--    - Direct addressing
+--    - Indirect addressing
+--    - Register-based addressing
+--
+-- 4. Interrupt/Exception Vector
+--    - Hardware interrupt handling
+--    - Software exception handling
+--    - Vector table lookup
+--    - Context preservation
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple PC (Recommended for beginners)
+-- - Basic sequential execution with simple branching
+-- - Fixed instruction size and alignment
+-- - Simple stack for subroutine calls
+-- - Suitable for basic microprocessor designs
+--
+-- OPTION 2: Enhanced PC (Intermediate)
+-- - Variable instruction size support
+-- - Advanced branch prediction
+-- - Multiple stack levels
+-- - Standard processor features
+--
+-- OPTION 3: Pipelined PC (Advanced)
+-- - Full pipeline integration
+-- - Branch prediction and speculation
+-- - Advanced interrupt handling
+-- - High-performance processor support
+--
+-- OPTION 4: Superscalar PC (Expert)
+-- - Multiple instruction fetch
+-- - Advanced branch prediction
+-- - Out-of-order execution support
+-- - Enterprise processor capabilities
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Address Generation:
+-- - Proper address alignment and validation
+-- - Overflow and underflow detection
+-- - Memory boundary checking
+-- - Address translation support
+--
+-- Pipeline Integration:
+-- - Fetch stage coordination
+-- - Hazard detection and resolution
+-- - Stall and flush management
+-- - Performance optimization
+--
+-- Branch Handling:
+-- - Branch target calculation
+-- - Conditional evaluation
+-- - Prediction accuracy
+-- - Misprediction recovery
+--
+-- Stack Management:
+-- - Call stack implementation
+-- - Overflow and underflow protection
+-- - Multiple stack support
+-- - Context switching
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Branch Prediction:
+-- - Static prediction algorithms
+-- - Dynamic prediction tables
+-- - Branch target buffers
+-- - Return address stacks
+--
+-- Advanced Addressing:
+-- - Virtual memory support
+-- - Address translation
+-- - Memory protection
+-- - Segmentation support
+--
+-- Exception Handling:
+-- - Precise exception support
+-- - Exception prioritization
+-- - Context preservation
+-- - Recovery mechanisms
+--
+-- Performance Features:
+-- - Instruction prefetch
+-- - Cache integration
+-- - Speculation support
+-- - Power optimization
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU instruction sequencing
+-- 2. Microcontroller Systems: Embedded program control
+-- 3. DSP Processors: Signal processing program flow
+-- 4. RISC Processors: Simplified instruction set execution
+-- 5. CISC Processors: Complex instruction set support
+-- 6. Pipeline Processors: High-performance execution
+-- 7. Real-time Systems: Deterministic program flow
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Sequential Testing: Normal instruction flow verification
+-- 2. Branch Testing: All branch conditions and targets
+-- 3. Jump Testing: Direct and indirect jump operations
+-- 4. Stack Testing: Call and return operations
+-- 5. Interrupt Testing: Interrupt and exception handling
+-- 6. Pipeline Testing: Stall and flush operations
+-- 7. Stress Testing: Edge cases and error conditions
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic sequential PC increment
+-- 2. Implement simple branch and jump operations
+-- 3. Add call stack for subroutine support
+-- 4. Implement interrupt and exception handling
+-- 5. Add pipeline integration and hazard handling
+-- 6. Implement branch prediction and optimization
+-- 7. Add advanced addressing and memory management
+-- 8. Optimize for target performance requirements
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement advanced branch prediction algorithms
+-- 2. Add support for variable instruction lengths
+-- 3. Implement virtual memory and address translation
+-- 4. Add support for multiple execution contexts
+-- 5. Implement advanced exception handling
+-- 6. Add performance monitoring and profiling
+-- 7. Implement power management features
+-- 8. Add support for debugging and trace capabilities
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incorrect address alignment and boundary checking
+-- 2. Poor branch target calculation and validation
+-- 3. Inadequate stack overflow and underflow protection
+-- 4. Missing interrupt and exception prioritization
+-- 5. Poor pipeline integration and hazard handling
+-- 6. Inadequate address range and memory protection
+-- 7. Missing debug and test capabilities
+-- 8. Poor performance optimization and power management
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Sequential execution working correctly
+-- □ Branch operations functioning properly
+-- □ Jump operations working as expected
+-- □ Call stack operations verified
+-- □ Interrupt handling working correctly
+-- □ Exception handling implemented properly
+-- □ Pipeline integration functioning
+-- □ Address generation and validation working
+-- □ Stack overflow protection active
+-- □ Debug and test features functional
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This program counter implementation demonstrates several key concepts:
+-- - Sequential logic and state machine design
+-- - Address generation and arithmetic operations
+-- - Control flow and decision making
+-- - Stack-based data structures
+-- - Pipeline coordination and hazard management
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider critical path timing for address generation
+-- - Plan for proper clock distribution and skew
+-- - Account for setup and hold time requirements
+-- - Consider power consumption in address calculations
+-- - Plan for testability and debug access
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Speculative execution and branch prediction
+-- - Out-of-order execution support
+-- - Virtual memory and address translation
+-- - Multi-threading and context switching
+-- - Hardware-software co-design optimization
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Test all addressing modes and calculations
+-- - Verify branch and jump target accuracy
+-- - Test stack operations under all conditions
+-- - Validate interrupt and exception handling
+-- - Check pipeline integration and timing
+-- - Verify address boundary and error conditions
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.address_pkg.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity pc is
+--     generic (
+--         ADDR_WIDTH       : integer := 32;                  -- Address bus width
+--         STACK_DEPTH      : integer := 16;                  -- Call stack depth
+--         INST_SIZE        : integer := 4;                   -- Instruction size in bytes
+--         ENABLE_PREDICTION: boolean := true;                -- Enable branch prediction
+--         ENABLE_STACK     : boolean := true;                -- Enable call stack
+--         ENABLE_INTERRUPTS: boolean := true;                -- Enable interrupt support
+--         ENABLE_EXCEPTIONS: boolean := true;                -- Enable exception support
+--         ENABLE_DEBUG     : boolean := true;                -- Enable debug features
+--         RESET_VECTOR     : integer := 0;                   -- Reset vector address
+--         INT_VECTOR_BASE  : integer := 16#100#;             -- Interrupt vector base
+--         EXC_VECTOR_BASE  : integer := 16#200#              -- Exception vector base
+--     );
+--     port (
+--         -- System Interface
+--         clk              : in  std_logic;
+--         reset            : in  std_logic;
+--         enable           : in  std_logic;
+--         stall            : in  std_logic;
+--         
+--         -- Address Interface
+--         pc_out           : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         next_pc          : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         pc_plus_4        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         instruction_addr : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         
+--         -- Control Interface
+--         pc_write         : in  std_logic;
+--         pc_source        : in  std_logic_vector(2 downto 0);
+--         branch_enable    : in  std_logic;
+--         jump_enable      : in  std_logic;
+--         call_enable      : in  std_logic;
+--         return_enable    : in  std_logic;
+--         
+--         -- Branch and Jump Interface
+--         branch_target    : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         jump_target      : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         relative_offset  : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         immediate_addr   : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         register_addr    : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         
+--         -- Stack Interface
+--         stack_push       : in  std_logic;
+--         stack_pop        : in  std_logic;
+--         stack_data_in    : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         stack_data_out   : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         stack_full       : out std_logic;
+--         stack_empty      : out std_logic;
+--         
+--         -- Interrupt Interface
+--         interrupt_request: in  std_logic;
+--         interrupt_vector : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         interrupt_enable : in  std_logic;
+--         interrupt_ack    : out std_logic;
+--         return_from_int  : in  std_logic;
+--         
+--         -- Exception Interface
+--         exception_request: in  std_logic;
+--         exception_vector : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         exception_code   : in  std_logic_vector(7 downto 0);
+--         exception_ack    : out std_logic;
+--         
+--         -- Pipeline Interface
+--         fetch_valid      : out std_logic;
+--         decode_stall     : in  std_logic;
+--         execute_stall    : in  std_logic;
+--         memory_stall     : in  std_logic;
+--         writeback_stall  : in  std_logic;
+--         
+--         -- Status Interface
+--         pc_valid         : out std_logic;
+--         address_error    : out std_logic;
+--         alignment_error  : out std_logic;
+--         overflow_error   : out std_logic;
+--         
+--         -- Test and Debug Interface
+--         test_mode        : in  std_logic;
+--         debug_pc         : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         breakpoint_hit   : out std_logic;
+--         single_step      : in  std_logic;
+--         step_complete    : out std_logic
+--     );
+-- end entity pc;
+--
+-- architecture behavioral of pc is
+--     -- Program counter register
+--     signal pc_reg : unsigned(ADDR_WIDTH-1 downto 0);
+--     signal next_pc_internal : unsigned(ADDR_WIDTH-1 downto 0);
+--     
+--     -- Call stack implementation
+--     type stack_array_t is array (0 to STACK_DEPTH-1) of unsigned(ADDR_WIDTH-1 downto 0);
+--     signal call_stack : stack_array_t;
+--     signal stack_pointer : integer range 0 to STACK_DEPTH-1;
+--     
+--     -- Control signals
+--     signal pc_update_enable : std_logic;
+--     signal branch_taken : std_logic;
+--     signal jump_taken : std_logic;
+--     signal call_taken : std_logic;
+--     signal return_taken : std_logic;
+--     signal interrupt_taken : std_logic;
+--     signal exception_taken : std_logic;
+--     
+--     -- Address calculation signals
+--     signal sequential_pc : unsigned(ADDR_WIDTH-1 downto 0);
+--     signal branch_pc : unsigned(ADDR_WIDTH-1 downto 0);
+--     signal jump_pc : unsigned(ADDR_WIDTH-1 downto 0);
+--     signal interrupt_pc : unsigned(ADDR_WIDTH-1 downto 0);
+--     signal exception_pc : unsigned(ADDR_WIDTH-1 downto 0);
+--     
+--     -- Status and error signals
+--     signal address_valid : std_logic;
+--     signal alignment_ok : std_logic;
+--     signal address_in_range : std_logic;
+--     
+--     -- Pipeline control
+--     signal pipeline_stall : std_logic;
+--     signal fetch_enable : std_logic;
+--     
+-- begin
+--     -- Pipeline stall detection
+--     pipeline_stall <= decode_stall or execute_stall or memory_stall or writeback_stall or stall;
+--     
+--     -- PC update enable
+--     pc_update_enable <= enable and not pipeline_stall and pc_write;
+--     
+--     -- Address calculations
+--     sequential_pc <= pc_reg + to_unsigned(INST_SIZE, ADDR_WIDTH);
+--     branch_pc <= unsigned(branch_target);
+--     jump_pc <= unsigned(jump_target);
+--     interrupt_pc <= to_unsigned(INT_VECTOR_BASE, ADDR_WIDTH) + unsigned(interrupt_vector);
+--     exception_pc <= to_unsigned(EXC_VECTOR_BASE, ADDR_WIDTH) + unsigned(exception_vector);
+--     
+--     -- Control signal generation
+--     branch_taken <= branch_enable and pc_update_enable;
+--     jump_taken <= jump_enable and pc_update_enable;
+--     call_taken <= call_enable and pc_update_enable;
+--     return_taken <= return_enable and pc_update_enable;
+--     interrupt_taken <= interrupt_request and interrupt_enable and pc_update_enable;
+--     exception_taken <= exception_request and pc_update_enable;
+--     
+--     -- Main PC update process
+--     pc_update_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             pc_reg <= to_unsigned(RESET_VECTOR, ADDR_WIDTH);
+--             stack_pointer <= 0;
+--             call_stack <= (others => (others => '0'));
+--         elsif rising_edge(clk) then
+--             if pc_update_enable = '1' then
+--                 -- Priority: Exception > Interrupt > Return > Call > Jump > Branch > Sequential
+--                 if exception_taken = '1' then
+--                     pc_reg <= exception_pc;
+--                 elsif interrupt_taken = '1' then
+--                     -- Push current PC to stack for interrupt return
+--                     if stack_pointer < STACK_DEPTH-1 then
+--                         call_stack(stack_pointer) <= pc_reg;
+--                         stack_pointer <= stack_pointer + 1;
+--                     end if;
+--                     pc_reg <= interrupt_pc;
+--                 elsif return_from_int = '1' or return_taken = '1' then
+--                     -- Pop return address from stack
+--                     if stack_pointer > 0 then
+--                         stack_pointer <= stack_pointer - 1;
+--                         pc_reg <= call_stack(stack_pointer - 1);
+--                     end if;
+--                 elsif call_taken = '1' then
+--                     -- Push return address and jump to call target
+--                     if stack_pointer < STACK_DEPTH-1 then
+--                         call_stack(stack_pointer) <= sequential_pc;
+--                         stack_pointer <= stack_pointer + 1;
+--                     end if;
+--                     pc_reg <= jump_pc;
+--                 elsif jump_taken = '1' then
+--                     pc_reg <= jump_pc;
+--                 elsif branch_taken = '1' then
+--                     pc_reg <= branch_pc;
+--                 else
+--                     pc_reg <= sequential_pc;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Next PC calculation
+--     next_pc_calc_proc: process(pc_source, sequential_pc, branch_pc, jump_pc, interrupt_pc, exception_pc,
+--                                exception_taken, interrupt_taken, return_taken, call_taken, jump_taken, branch_taken)
+--     begin
+--         if exception_taken = '1' then
+--             next_pc_internal <= exception_pc;
+--         elsif interrupt_taken = '1' then
+--             next_pc_internal <= interrupt_pc;
+--         elsif return_taken = '1' then
+--             if stack_pointer > 0 then
+--                 next_pc_internal <= call_stack(stack_pointer - 1);
+--             else
+--                 next_pc_internal <= sequential_pc;
+--             end if;
+--         elsif call_taken = '1' then
+--             next_pc_internal <= jump_pc;
+--         elsif jump_taken = '1' then
+--             next_pc_internal <= jump_pc;
+--         elsif branch_taken = '1' then
+--             next_pc_internal <= branch_pc;
+--         else
+--             next_pc_internal <= sequential_pc;
+--         end if;
+--     end process;
+--     
+--     -- Address validation
+--     address_valid <= '1' when pc_reg < to_unsigned(2**ADDR_WIDTH - INST_SIZE, ADDR_WIDTH) else '0';
+--     alignment_ok <= '1' when (pc_reg mod INST_SIZE) = 0 else '0';
+--     address_in_range <= address_valid;
+--     
+--     -- Stack status
+--     stack_full <= '1' when stack_pointer >= STACK_DEPTH-1 else '0';
+--     stack_empty <= '1' when stack_pointer = 0 else '0';
+--     
+--     -- Fetch control
+--     fetch_enable <= enable and not pipeline_stall;
+--     fetch_valid <= fetch_enable and address_valid and alignment_ok;
+--     
+--     -- Output assignments
+--     pc_out <= std_logic_vector(pc_reg);
+--     next_pc <= std_logic_vector(next_pc_internal);
+--     pc_plus_4 <= std_logic_vector(sequential_pc);
+--     instruction_addr <= std_logic_vector(pc_reg);
+--     
+--     -- Stack interface
+--     stack_data_out <= std_logic_vector(call_stack(stack_pointer - 1)) when stack_pointer > 0 else (others => '0');
+--     
+--     -- Status outputs
+--     pc_valid <= address_valid and alignment_ok;
+--     address_error <= not address_valid;
+--     alignment_error <= not alignment_ok;
+--     overflow_error <= '1' when pc_reg >= to_unsigned(2**ADDR_WIDTH - INST_SIZE, ADDR_WIDTH) else '0';
+--     
+--     -- Interrupt and exception acknowledgment
+--     interrupt_ack <= interrupt_taken;
+--     exception_ack <= exception_taken;
+--     
+--     -- Debug interface
+--     debug_pc <= std_logic_vector(pc_reg);
+--     breakpoint_hit <= '0';  -- Can be extended for breakpoint support
+--     step_complete <= pc_update_enable when single_step = '1' else '0';
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This program counter implementation provides comprehensive
+-- instruction sequencing with branch prediction, interrupt handling, and
+-- pipeline integration. Ensure proper timing analysis and consider the
+-- specific requirements for your target processor architecture.
+-- ============================================================================

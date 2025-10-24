@@ -1,14 +1,722 @@
--- Cortex-R7 Interface VHDL File
--- This file contains the interface definition for ARM Cortex-R7 processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-R7 processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-R7 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-R7 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-R7 processors, providing FPGA-based communication, 
+--              control, and peripheral integration for advanced real-time 
+--              and safety-critical embedded systems.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-R7 architecture and ARMv7-R instruction set
+-- 2. Master AXI4 and AHB5 protocols for high-performance real-time systems
+-- 3. Learn ARM Cortex-R7 out-of-order superscalar pipeline
+-- 4. Implement advanced interrupt handling and GIC integration
+-- 5. Understand enhanced TCM (Tightly Coupled Memory) integration
+-- 6. Master advanced MPU (Memory Protection Unit) configuration
+-- 7. Learn virtualization and hypervisor support
+-- 8. Implement advanced debug interface and CoreSight integration
+--
+-- ARM Cortex-R7 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7-R (32-bit ARM and Thumb-2)                   │
+-- │ Pipeline        │ 11-stage out-of-order superscalar                  │
+-- │ Cores           │ Single core (out-of-order)                         │
+-- │ Issue Width     │ Dual-issue superscalar                             │
+-- │ Cache           │ 8-64KB I-cache, 8-64KB D-cache                     │
+-- │ TCM             │ 0-8MB ITCM, 0-8MB DTCM                             │
+-- │ MPU             │ ARMv7 PMSA with 16 regions                         │
+-- │ VFP             │ VFPv4-D16 floating-point unit                      │
+-- │ NEON            │ Advanced SIMD (optional)                           │
+-- │ Debug           │ CoreSight debug and trace                          │
+-- │ Interrupts      │ GIC-400 (Generic Interrupt Controller)             │
+-- │ Virtualization  │ Hypervisor support                                 │
+-- │ ECC/Parity      │ Advanced error correction and detection            │
+-- │ Frequency       │ Up to 1.0 GHz (implementation dependent)           │
+-- │ Process         │ 28nm to 16nm                                       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-R7 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-R7     │◀──▶│   TCM           │◀──▶│   External      │
+-- │   Processor     │    │   (Enhanced     │    │   Memory        │
+-- │   (Out-of-Order)│    │   ITCM/DTCM)    │    │   Interface     │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                      │
+--          ▼                       ▼                      ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   GIC-400       │    │   L2 Cache      │    │   CoreSight     │
+-- │   (Generic      │    │   Controller    │    │   Debug & Trace │
+-- │   Interrupt     │    │   (Optional)    │    │   (ETM v4.0)    │
+-- │   Controller)   │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- AXI4/AHB5 Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Channel         │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ Global          │ Input           │ ACLK, ARESETn                   │
+-- │ Write Address   │ Master→Slave    │ AWADDR, AWLEN, AWSIZE, AWBURST  │
+-- │ Write Data      │ Master→Slave    │ WDATA, WSTRB, WLAST, WVALID     │
+-- │ Write Response  │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ Read Address    │ Master→Slave    │ ARADDR, ARLEN, ARSIZE, ARBURST  │
+-- │ Read Data       │ Slave→Master    │ RDATA, RRESP, RLAST, RVALID     │
+-- │ AHB5            │ Bidirectional   │ HADDR, HWRITE, HRDATA, HWDATA   │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-R7 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ Variable        │ ITCM (Instruction TCM)          │
+-- │ 0x0800_0000     │ Variable        │ DTCM (Data TCM)                 │
+-- │ 0x2000_0000     │ 512MB           │ External memory region          │
+-- │ 0x4000_0000     │ 1GB             │ Peripheral region               │
+-- │ 0x8000_0000     │ 1GB             │ External device region          │
+-- │ 0xE000_0000     │ 512MB           │ Private peripheral region       │
+-- │ 0xF000_0000     │ 256MB           │ GIC-400 distributor region      │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Cache and Memory Hierarchy:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Memory Type     │ Size/Config     │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ L1 I-Cache      │ 8-64KB          │ Instruction cache with parity   │
+-- │ L1 D-Cache      │ 8-64KB          │ Data cache with ECC             │
+-- │ L2 Cache        │ 0-1MB           │ Unified L2 cache (optional)     │
+-- │ ITCM            │ 0-8MB           │ Instruction Tightly Coupled Mem │
+-- │ DTCM            │ 0-8MB           │ Data Tightly Coupled Memory     │
+-- │ Main Memory     │ Up to 4GB       │ External memory via AXI4/AHB5   │
+-- │ TLB             │ N/A             │ No TLB (MPU-based)              │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv7-R Instruction Set (Enhanced):
+-- 1. **ARM Instructions**:
+--    - 32-bit fixed-width instructions
+--    - Conditional execution on most instructions
+--    - Load/store architecture
+--    - 16 general-purpose registers (R0-R15)
+--    - Program Status Register (CPSR)
+--    - Enhanced multiply and divide instructions
+--
+-- 2. **Thumb-2 Instructions**:
+--    - 16-bit and 32-bit variable-width instructions
+--    - Improved code density
+--    - Full 32-bit addressing capability
+--    - Compatible with ARM instruction set
+--    - Enhanced IT (If-Then) blocks
+--
+-- Out-of-Order Superscalar Pipeline:
+-- 1. **Pipeline Stages**:
+--    - Fetch: 2 stages (F1-F2)
+--    - Decode: 2 stages (D1-D2)
+--    - Rename: 1 stage (RN)
+--    - Dispatch: 1 stage (DS)
+--    - Issue: 1 stage (IS)
+--    - Execute: 2 stages (E1-E2)
+--    - Writeback: 2 stages (W1-W2)
+--
+-- 2. **Execution Units**:
+--    - 2x Integer ALU pipelines
+--    - 1x Integer multiply/divide pipeline
+--    - 1x Load/Store pipeline
+--    - 1x Branch pipeline
+--    - 1x VFPv4 pipeline
+--    - 1x NEON pipeline (optional)
+--
+-- 3. **Out-of-Order Features**:
+--    - Register renaming
+--    - Instruction reordering
+--    - Speculative execution
+--    - Branch prediction
+--    - Load/store forwarding
+--
+-- GIC-400 (Generic Interrupt Controller):
+-- 1. **Interrupt Types**:
+--    - SGI: Software Generated Interrupts (0-15)
+--    - PPI: Private Peripheral Interrupts (16-31)
+--    - SPI: Shared Peripheral Interrupts (32-1019)
+--    - Priority levels: 0-255 (0 = highest priority)
+--
+-- 2. **GIC-400 Features**:
+--    - Hardware priority resolution
+--    - Interrupt routing and affinity
+--    - Interrupt masking and grouping
+--    - Virtual interrupt support
+--    - Security extensions
+--    - Power management
+--
+-- Enhanced TCM (Tightly Coupled Memory):
+-- 1. **ITCM (Instruction TCM)**:
+--    - Single-cycle access
+--    - 0-8MB configurable size
+--    - ECC protection available
+--    - Deterministic access time
+--    - Prefetch support
+--
+-- 2. **DTCM (Data TCM)**:
+--    - Single-cycle access
+--    - 0-8MB configurable size
+--    - ECC protection available
+--    - Real-time data storage
+--    - Write-through/write-back modes
+--
+-- Advanced MPU (Memory Protection Unit):
+-- 1. **Protection Regions**:
+--    - 16 regions (fixed)
+--    - Minimum region size: 32 bytes
+--    - Maximum region size: 4GB
+--    - Overlapping regions supported
+--    - Background region support
+--
+-- 2. **Access Permissions**:
+--    - No access, read-only, read-write
+--    - Privileged and unprivileged access
+--    - Execute never (XN) attribute
+--    - Memory type attributes
+--    - Shareability attributes
+--    - Cache policy attributes
+--
+-- VFPv4-D16 Floating-Point:
+-- 1. **Register File**:
+--    - 16x64-bit D registers (D0-D15)
+--    - 32x32-bit S registers (S0-S31)
+--    - FPSCR status and control register
+--
+-- 2. **Enhanced Features**:
+--    - IEEE 754 compliant
+--    - Single and double precision
+--    - Hardware square root and divide
+--    - Fused multiply-add (FMA)
+--    - Half-precision support
+--    - Deterministic execution time
+--
+-- NEON Advanced SIMD (Optional):
+-- 1. **Register File**:
+--    - 32x64-bit D registers (D0-D31)
+--    - 16x128-bit Q registers (Q0-Q15)
+--    - FPSCR status and control register
+--
+-- 2. **SIMD Features**:
+--    - 8, 16, 32, 64-bit integer operations
+--    - Single precision floating-point
+--    - Parallel processing
+--    - Vector and scalar operations
+--    - Load/store multiple
+--
+-- Virtualization Support:
+-- 1. **Hypervisor Mode**:
+--    - Hyp mode (PL2) support
+--    - Virtual memory management
+--    - Interrupt virtualization
+--    - Timer virtualization
+--
+-- 2. **Security Extensions**:
+--    - TrustZone support
+--    - Secure and non-secure worlds
+--    - Secure monitor mode
+--    - Secure memory regions
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ 64/128-bit memory and peripheral access interface   │
+-- │ AHB5 Interface  │ High-performance system bus interface              │
+-- │ TCM Interface   │ Enhanced tightly coupled memory interface          │
+-- │ GIC-400 Intfc   │ Generic interrupt controller integration           │
+-- │ Debug Interface │ CoreSight debug and trace interface                │
+-- │ Cache Control   │ L1/L2 cache maintenance and control               │
+-- │ MPU Interface   │ Advanced memory protection unit configuration      │
+-- │ VFPv4 Interface │ Enhanced floating-point coprocessor               │
+-- │ NEON Interface  │ Advanced SIMD coprocessor                         │
+-- │ Hypervisor Ctrl │ Virtualization and hypervisor control             │
+-- │ Security Ctrl   │ TrustZone and security extensions                  │
+-- │ Real-time Ctrl  │ Advanced deterministic execution control           │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 64/128-bit (configurable)
+-- - AXI4 Address Width: 32-bit (4GB address space)
+-- - Maximum Clock Frequency: 1.0 GHz (typical)
+-- - Interrupt Latency: 10 cycles (deterministic)
+-- - Cache Line Size: 64 bytes (16 words)
+-- - Memory Bandwidth: Up to 16 GB/s (128-bit @ 1 GHz)
+-- - TCM Access Time: 1 cycle (deterministic)
+-- - MPU Regions: 16 (fixed)
+-- - VFPv4 Performance: Enhanced single/double precision
+-- - NEON Performance: 128-bit SIMD operations
+--
+-- Implementation Approaches:
+-- 1. **High-Performance Real-Time Configuration**:
+--    - Maximum TCM size (8MB each)
+--    - L2 cache enabled (1MB)
+--    - MPU with optimized regions
+--    - GIC-400 with interrupt affinity
+--    - VFPv4 and NEON enabled
+--    - Out-of-order execution enabled
+--
+-- 2. **Safety-Critical Configuration**:
+--    - ECC on all memories
+--    - MPU with strict protection
+--    - Deterministic execution modes
+--    - Fault detection and handling
+--    - Redundant error checking
+--    - Hypervisor for isolation
+--
+-- 3. **Virtualization Configuration**:
+--    - Hypervisor mode enabled
+--    - Virtual interrupt support
+--    - TrustZone security
+--    - Multiple guest OS support
+--    - Resource partitioning
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define Advanced System Architecture
+-- - Select Cortex-R7 core configuration
+-- - Define TCM sizes and requirements
+-- - Specify AXI4/AHB5 interface requirements
+-- - Choose cache configuration (L1/L2)
+-- - Configure virtualization features
+--
+-- Step 2: Implement AXI4/AHB5 Interface Logic
+-- - Create AXI4 master interface for CPU access
+-- - Add AHB5 peripheral interface
+-- - Implement address decoding and routing
+-- - Add bus arbitration logic
+-- - Configure burst and cache coherency
+--
+-- Step 3: Add Enhanced TCM Support
+-- - Integrate ITCM (Instruction TCM)
+-- - Integrate DTCM (Data TCM)
+-- - Configure TCM sizes and base addresses
+-- - Add ECC protection
+-- - Implement prefetch and write policies
+--
+-- Step 4: Integrate GIC-400 Controller
+-- - Connect to GIC-400 (Generic Interrupt Controller)
+-- - Implement interrupt prioritization
+-- - Add interrupt routing and affinity
+-- - Create interrupt masking and grouping
+-- - Add virtual interrupt support
+-- - Implement security extensions
+--
+-- Step 5: Add Advanced Memory Protection
+-- - Implement ARMv7 PMSA MPU (16 regions)
+-- - Configure protection regions
+-- - Add access permission checking
+-- - Create memory type attributes
+-- - Implement shareability attributes
+-- - Add cache policy configuration
+-- - Implement fault handling
+--
+-- Step 6: Integrate Advanced Debug Interface
+-- - Implement CoreSight debug interface
+-- - Add ETM v4.0 (Embedded Trace Macrocell)
+-- - Create JTAG support
+-- - Add performance monitoring
+-- - Implement debug authentication
+-- - Add cross-trigger interface
+--
+-- Step 7: Add VFPv4 and NEON Support
+-- - Implement VFPv4-D16 floating-point unit
+-- - Add NEON Advanced SIMD (optional)
+-- - Create coprocessor interfaces
+-- - Add register file management
+-- - Implement exception handling
+-- - Add deterministic timing
+-- - Implement FMA operations
+--
+-- Step 8: Create Virtualization Features
+-- - Add hypervisor mode support
+-- - Implement virtual memory management
+-- - Create interrupt virtualization
+-- - Add timer virtualization
+-- - Implement TrustZone security
+-- - Add secure monitor mode
+--
+-- Step 9: Implement Advanced Real-Time Features
+-- - Add out-of-order execution control
+-- - Implement advanced cache locking
+-- - Create interrupt latency optimization
+-- - Add ECC and error handling
+-- - Implement safety mechanisms
+-- - Add performance monitoring
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.ahb5_pkg: AHB5 protocol definitions
+-- - work.tcm_pkg: Enhanced TCM interface definitions
+-- - work.gic400_pkg: GIC-400 interface definitions
+-- - work.cortex_r7_pkg: Cortex-R7 specific constants
+-- - work.cache_pkg: L1/L2 cache controller functions
+-- - work.mpu_pkg: Advanced memory protection functions
+-- - work.vfpv4_pkg: VFPv4 floating-point functions
+-- - work.neon_pkg: NEON SIMD functions
+-- - work.hypervisor_pkg: Virtualization functions
+-- - work.trustzone_pkg: Security extension functions
+-- - work.ecc_pkg: Advanced error correction functions
+-- - work.armv7r_pkg: ARMv7-R architecture functions
+--
+-- Advanced Features:
+-- 1. **Out-of-Order Pipeline**: Advanced superscalar execution
+-- 2. **ARMv7-R Architecture**: Enhanced real-time ARM instruction set
+-- 3. **Enhanced TCM**: Advanced tightly coupled memory
+-- 4. **GIC-400 Controller**: Generic interrupt controller
+-- 5. **Advanced MPU**: 16-region memory protection
+-- 6. **VFPv4 Support**: Enhanced floating-point unit
+-- 7. **NEON SIMD**: Advanced SIMD processing
+-- 8. **Virtualization**: Hypervisor and virtual machine support
+-- 9. **TrustZone**: Security extensions
+-- 10. **Advanced Debug**: CoreSight ETM v4.0
+--
+-- Applications:
+-- - Advanced automotive systems (ADAS)
+-- - Industrial automation and robotics
+-- - Medical devices and equipment
+-- - Aerospace and defense systems
+-- - High-performance real-time control
+-- - Safety-critical applications
+-- - Motor control and power systems
+-- - Communication infrastructure
+-- - Virtualized embedded systems
+--
+-- Performance Considerations:
+-- - Out-of-order pipeline optimization
+-- - Enhanced TCM utilization
+-- - L2 cache configuration
+-- - Interrupt latency minimization
+-- - Memory bandwidth utilization
+-- - Real-time constraint satisfaction
+-- - ECC overhead management
+-- - Power consumption optimization
+-- - Virtualization overhead
+-- - Security extension impact
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: AXI4 and AHB5 protocol verification
+-- 2. **Real-Time Testing**: Advanced deterministic timing verification
+-- 3. **Pipeline Testing**: Out-of-order instruction flow
+-- 4. **ARMv7-R Compliance**: Enhanced architecture compliance testing
+-- 5. **Performance Testing**: Bandwidth and latency measurement
+-- 6. **Safety Testing**: Advanced ECC and fault injection
+-- 7. **MPU Testing**: 16-region memory protection verification
+-- 8. **VFPv4/NEON Testing**: Enhanced floating-point and SIMD validation
+-- 9. **Virtualization Testing**: Hypervisor and VM validation
+-- 10. **Security Testing**: TrustZone and security validation
+--
+-- Common Design Challenges:
+-- - Out-of-order pipeline complexity
+-- - Advanced real-time deterministic execution
+-- - ARMv7-R enhanced architecture compliance
+-- - Enhanced TCM integration and optimization
+-- - Advanced MPU region configuration
+-- - GIC-400 interrupt handling optimization
+-- - VFPv4 and NEON integration
+-- - Virtualization and hypervisor support
+-- - TrustZone security implementation
+-- - Advanced ECC implementation and overhead
+--
+-- Verification Checklist:
+-- □ AXI4 master interface functional and compliant
+-- □ AHB5 peripheral interface working correctly
+-- □ Enhanced TCM (ITCM/DTCM) operational and optimized
+-- □ GIC-400 interrupt controller functional
+-- □ Advanced MPU memory protection operational
+-- □ ARMv7 PMSA working correctly (16 regions)
+-- □ Debug interface (CoreSight ETM v4.0) functional
+-- □ VFPv4 coprocessor working correctly
+-- □ NEON Advanced SIMD working (if enabled)
+-- □ Out-of-order pipeline operational
+-- □ Advanced ECC protection working correctly
+-- □ Real-time constraints satisfied
+-- □ ARMv7-R enhanced architecture compliance verified
+-- □ Performance targets achieved
+-- □ Safety requirements met
+-- □ Virtualization features working (if enabled)
+-- □ TrustZone security working (if enabled)
+-- □ Long-term reliability demonstrated
+-- □ Advanced fault detection and handling validated
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.ahb5_pkg.all;
+-- use work.tcm_pkg.all;
+-- use work.gic400_pkg.all;
+-- use work.cortex_r7_pkg.all;
+-- use work.cache_pkg.all;
+-- use work.mpu_pkg.all;
+-- use work.vfpv4_pkg.all;
+-- use work.neon_pkg.all;
+-- use work.hypervisor_pkg.all;
+-- use work.trustzone_pkg.all;
+-- use work.ecc_pkg.all;
+-- use work.armv7r_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_r7_interface is
+--     generic (
+--         ENABLE_VFP      : boolean := true;
+--         ENABLE_NEON     : boolean := true;
+--         ENABLE_L2_CACHE : boolean := true;
+--         ENABLE_ECC      : boolean := true;       -- For safety-critical
+--         ENABLE_HYPERVISOR : boolean := false;    -- Virtualization
+--         ENABLE_TRUSTZONE : boolean := false;     -- Security extensions
+--         ITCM_SIZE       : integer := 8388608;    -- 8MB
+--         DTCM_SIZE       : integer := 8388608;    -- 8MB
+--         L1_CACHE_SIZE   : integer := 65536;      -- 64KB
+--         L2_CACHE_SIZE   : integer := 1048576;    -- 1MB
+--         AXI_DATA_WIDTH  : integer := 128;        -- 128-bit
+--         AXI_ADDR_WIDTH  : integer := 32;         -- 32-bit
+--         NUM_INTERRUPTS  : integer := 1020;       -- GIC-400 interrupts
+--         MPU_REGIONS     : integer := 16;         -- Fixed 16 regions
+--         ENABLE_DEBUG    : boolean := true;
+--         ENABLE_PMU      : boolean := true;       -- Performance Monitor
+--         ENABLE_OOO      : boolean := true        -- Out-of-order execution
+--     );
+--     port (
+--         -- System signals
+--         aclk            : in  std_logic;
+--         aresetn         : in  std_logic;
+--         
+--         -- AXI4 Master interface (CPU to system)
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awqos     : out std_logic_vector(3 downto 0);
+--         m_axi_awregion  : out std_logic_vector(3 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arqos     : out std_logic_vector(3 downto 0);
+--         m_axi_arregion  : out std_logic_vector(3 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AHB5 Peripheral interface
+--         ahb_haddr       : out std_logic_vector(31 downto 0);
+--         ahb_hwrite      : out std_logic;
+--         ahb_hsize       : out std_logic_vector(2 downto 0);
+--         ahb_hburst      : out std_logic_vector(2 downto 0);
+--         ahb_hprot       : out std_logic_vector(6 downto 0);  -- Enhanced
+--         ahb_htrans      : out std_logic_vector(1 downto 0);
+--         ahb_hmastlock   : out std_logic;
+--         ahb_hwdata      : out std_logic_vector(31 downto 0);
+--         ahb_hrdata      : in  std_logic_vector(31 downto 0);
+--         ahb_hready      : in  std_logic;
+--         ahb_hresp       : in  std_logic_vector(1 downto 0);  -- Enhanced
+--         
+--         -- Enhanced TCM (Tightly Coupled Memory) interfaces
+--         -- ITCM interface
+--         itcm_addr       : out std_logic_vector(22 downto 0);  -- 8MB
+--         itcm_rdata      : in  std_logic_vector(31 downto 0);
+--         itcm_req        : out std_logic;
+--         itcm_ready      : in  std_logic;
+--         itcm_ecc_err    : in  std_logic;
+--         itcm_prefetch   : out std_logic;
+--         
+--         -- DTCM interface
+--         dtcm_addr       : out std_logic_vector(22 downto 0);  -- 8MB
+--         dtcm_wdata      : out std_logic_vector(31 downto 0);
+--         dtcm_rdata      : in  std_logic_vector(31 downto 0);
+--         dtcm_we         : out std_logic_vector(3 downto 0);
+--         dtcm_req        : out std_logic;
+--         dtcm_ready      : in  std_logic;
+--         dtcm_ecc_err    : in  std_logic;
+--         dtcm_policy     : out std_logic_vector(1 downto 0);   -- Write policy
+--         
+--         -- GIC-400 (Generic Interrupt Controller) interface
+--         gic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_fiq         : in  std_logic;
+--         gic_priority    : out std_logic_vector(7 downto 0);   -- 0-255
+--         gic_target      : out std_logic_vector(7 downto 0);   -- CPU targets
+--         gic_config      : out std_logic_vector(1 downto 0);   -- Edge/Level
+--         gic_ack         : out std_logic;
+--         gic_eoi         : out std_logic;                      -- End of interrupt
+--         gic_mask        : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_group       : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_security    : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         
+--         -- Advanced MPU (Memory Protection Unit) interface
+--         mpu_region_en   : in  std_logic_vector(MPU_REGIONS-1 downto 0);
+--         mpu_region_base : in  std_logic_vector(32*MPU_REGIONS-1 downto 0);
+--         mpu_region_size : in  std_logic_vector(6*MPU_REGIONS-1 downto 0);
+--         mpu_region_attr : in  std_logic_vector(16*MPU_REGIONS-1 downto 0);
+--         mpu_region_share: in  std_logic_vector(2*MPU_REGIONS-1 downto 0);
+--         mpu_region_cache: in  std_logic_vector(4*MPU_REGIONS-1 downto 0);
+--         mpu_fault       : out std_logic;
+--         mpu_fault_addr  : out std_logic_vector(31 downto 0);
+--         mpu_fault_type  : out std_logic_vector(3 downto 0);
+--         mpu_background  : in  std_logic;                      -- Background region
+--         
+--         -- Debug interface (CoreSight ETM v4.0)
+--         debug_req       : in  std_logic;
+--         debug_ack       : out std_logic;
+--         etm_trace       : out std_logic_vector(31 downto 0);
+--         etm_traceclk    : out std_logic;
+--         etm_atready     : in  std_logic;
+--         etm_atvalid     : out std_logic;
+--         etm_afready     : in  std_logic;
+--         etm_afvalid     : out std_logic;
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         cti_trigin      : in  std_logic_vector(7 downto 0);   -- Cross-trigger
+--         cti_trigout     : out std_logic_vector(7 downto 0);
+--         
+--         -- Performance monitoring (Enhanced)
+--         pmu_events      : out std_logic_vector(31 downto 0);
+--         pmu_overflow    : out std_logic;
+--         pmu_cycle_cnt   : out std_logic_vector(63 downto 0);  -- 64-bit
+--         pmu_inst_cnt    : out std_logic_vector(31 downto 0);
+--         pmu_cache_miss  : out std_logic_vector(15 downto 0);
+--         pmu_branch_miss : out std_logic_vector(15 downto 0);
+--         pmu_ooo_issue   : out std_logic_vector(15 downto 0);  -- Out-of-order
+--         pmu_stall_cnt   : out std_logic_vector(15 downto 0);
+--         
+--         -- Advanced real-time and deterministic control
+--         rt_mode         : in  std_logic;          -- Real-time mode
+--         ooo_enable      : in  std_logic;          -- Out-of-order enable
+--         cache_lock      : in  std_logic;          -- Lock cache contents
+--         prefetch_dis    : in  std_logic;          -- Disable prefetch
+--         branch_pred_dis : in  std_logic;          -- Disable branch pred
+--         deterministic   : in  std_logic;          -- Deterministic mode
+--         speculation_dis : in  std_logic;          -- Disable speculation
+--         
+--         -- Status and control
+--         core_halted     : out std_logic;
+--         lockup          : out std_logic;
+--         reset_req       : out std_logic;
+--         
+--         -- Cache and memory management (Enhanced)
+--         l1_cache_maint  : in  std_logic_vector(7 downto 0);
+--         l2_cache_maint  : in  std_logic_vector(7 downto 0);
+--         l1_cache_hit    : out std_logic;
+--         l1_cache_miss   : out std_logic;
+--         l2_cache_hit    : out std_logic;
+--         l2_cache_miss   : out std_logic;
+--         
+--         -- VFPv4 floating-point interface (Enhanced)
+--         vfp_data_in     : in  std_logic_vector(63 downto 0);
+--         vfp_data_out    : out std_logic_vector(63 downto 0);
+--         vfp_valid       : in  std_logic;
+--         vfp_ready       : out std_logic;
+--         vfp_op          : in  std_logic_vector(7 downto 0);
+--         vfp_exception   : out std_logic;
+--         vfp_fma_enable  : in  std_logic;          -- Fused multiply-add
+--         vfp_half_prec   : in  std_logic;          -- Half precision
+--         
+--         -- NEON Advanced SIMD interface (Optional)
+--         neon_data_in    : in  std_logic_vector(127 downto 0);
+--         neon_data_out   : out std_logic_vector(127 downto 0);
+--         neon_valid      : in  std_logic;
+--         neon_ready      : out std_logic;
+--         neon_op         : in  std_logic_vector(7 downto 0);
+--         neon_exception  : out std_logic;
+--         neon_lane_sel   : in  std_logic_vector(3 downto 0);
+--         
+--         -- Virtualization and Hypervisor interface (Optional)
+--         hyp_mode        : in  std_logic;          -- Hypervisor mode
+--         virt_irq        : out std_logic;          -- Virtual IRQ
+--         virt_fiq        : out std_logic;          -- Virtual FIQ
+--         vm_id           : in  std_logic_vector(7 downto 0);
+--         stage2_fault    : out std_logic;          -- Stage 2 translation fault
+--         
+--         -- TrustZone Security Extensions (Optional)
+--         secure_world    : in  std_logic;          -- Secure/Non-secure
+--         monitor_mode    : in  std_logic;          -- Secure monitor mode
+--         secure_irq      : in  std_logic;          -- Secure interrupt
+--         secure_fault    : out std_logic;          -- Security fault
+--         
+--         -- Advanced ECC and error handling
+--         ecc_single_err  : out std_logic;
+--         ecc_double_err  : out std_logic;
+--         ecc_err_addr    : out std_logic_vector(31 downto 0);
+--         ecc_correction  : out std_logic_vector(31 downto 0);
+--         ecc_syndrome    : out std_logic_vector(7 downto 0);
+--         
+--         -- Safety and fault detection (Enhanced)
+--         safety_fault    : out std_logic;
+--         watchdog_reset  : in  std_logic;
+--         fault_inject    : in  std_logic_vector(15 downto 0);  -- Enhanced
+--         lockstep_err    : out std_logic;          -- Lockstep error
+--         
+--         -- Power management
+--         power_mode      : in  std_logic_vector(2 downto 0);
+--         clock_gate      : in  std_logic;
+--         retention_mode  : in  std_logic
+--     );
+-- end entity cortex_r7_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_r7_interface is
+--     -- Component declarations for Cortex-R7 processor
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-R7 processor
+--     -- Add AXI4/AHB5 interface logic
+--     -- Connect enhanced TCM interfaces
+--     -- Connect GIC-400 interrupt controller
+--     -- Add advanced MPU memory protection
+--     -- Connect debug interface (ETM v4.0)
+--     -- Add advanced real-time control features
+--     -- Connect VFPv4 coprocessor
+--     -- Connect NEON Advanced SIMD (if enabled)
+--     -- Add virtualization features (if enabled)
+--     -- Add TrustZone security (if enabled)
+--     -- Add advanced ECC and safety features
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-R7 interface design focuses on advanced real-time 
+-- performance, out-of-order execution, enhanced safety-critical features, 
+-- virtualization support, and ARMv7-R architecture. Always consult the ARM 
+-- Cortex-R7 Technical Reference Manual and ARMv7-R Architecture Manual.
+-- ============================================================================

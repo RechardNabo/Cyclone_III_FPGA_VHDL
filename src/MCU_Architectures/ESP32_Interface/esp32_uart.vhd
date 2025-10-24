@@ -1,0 +1,625 @@
+-- ============================================================================
+-- ESP32 UART INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ESP32 UART Communication Interface Design
+-- Description: This project implements a comprehensive UART interface for ESP32 
+--              microcontrollers, providing FPGA-based serial communication and 
+--              control capabilities for various ESP32 series processors including 
+--              ESP32, ESP32-S2, ESP32-S3, ESP32-C3, and ESP32-H2.
+--
+-- Learning Objectives:
+-- 1. Understand ESP32 microcontroller architecture and UART interfaces
+-- 2. Master ESP32 UART protocol implementation and timing
+-- 3. Learn ESP32 GPIO multiplexing and pin configuration
+-- 4. Implement high-speed UART communication with ESP32
+-- 5. Understand ESP32 DMA integration for UART transfers
+-- 6. Master ESP32 interrupt handling and event management
+-- 7. Learn ESP32 power management and sleep modes
+-- 8. Implement ESP32 bootloader and firmware update via UART
+--
+-- Supported ESP32 Microcontrollers:
+-- ┌─────────────────┬─────────────┬─────────────────────────────────────┐
+-- │ Microcontroller │ Series      │ Key Features                        │
+-- ├─────────────────┼─────────────┼─────────────────────────────────────┤
+-- │ ESP32           │ ESP32       │ 3x UART, WiFi, Bluetooth, 520KB    │
+-- │ ESP32-PICO-D4   │ ESP32       │ System-in-Package, 4MB flash       │
+-- │ ESP32-WROVER    │ ESP32       │ 8MB PSRAM, external antenna        │
+-- │ ESP32-S2        │ ESP32-S2    │ 2x UART, WiFi, USB, 320KB          │
+-- │ ESP32-S2-MINI   │ ESP32-S2    │ Compact module, PCB antenna         │
+-- │ ESP32-S3        │ ESP32-S3    │ 3x UART, WiFi, Bluetooth, AI       │
+-- │ ESP32-S3-MINI   │ ESP32-S3    │ Compact, 8MB flash, 8MB PSRAM      │
+-- │ ESP32-C3        │ ESP32-C3    │ 2x UART, RISC-V, WiFi, BLE 5.0     │
+-- │ ESP32-C3-MINI   │ ESP32-C3    │ Compact RISC-V module               │
+-- │ ESP32-C6        │ ESP32-C6    │ 3x UART, RISC-V, WiFi 6, Zigbee    │
+-- │ ESP32-H2        │ ESP32-H2    │ 2x UART, RISC-V, Zigbee, Thread    │
+-- │ ESP32-P4        │ ESP32-P4    │ 5x UART, High-performance, AI      │
+-- └─────────────────┴─────────────┴─────────────────────────────────────┘
+--
+-- ESP32 UART Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   ESP32 CPU     │◀──▶│   UART0/1/2     │◀──▶│   FPGA UART     │
+-- │   (Xtensa/      │    │   Controller    │    │   Interface     │
+-- │    RISC-V)      │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--          │                       │                       │
+--          ▼                       ▼                       ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   DMA Engine    │    │   GPIO Matrix   │    │   Clock/Reset   │
+-- │   (Transfer     │    │   (Pin Mux)     │    │   Management    │
+-- │    Automation)  │    │                 │    │                 │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - Consider additional packages for ESP32-specific utilities
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding ESP32-specific packages if available
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the ESP32 UART controller
+--
+-- Entity Requirements:
+-- - Name: esp32_uart (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - UART interface signals (TX, RX, RTS, CTS, DTR, DSR)
+-- - ESP32 control interface
+-- - Configuration and status signals
+--
+-- Generic Parameters:
+-- - CLK_FREQ: System clock frequency (default: 80 MHz for ESP32)
+-- - BAUD_RATE: Default UART baud rate (default: 115200)
+-- - DATA_BITS: Number of data bits (5-8, default: 8)
+-- - STOP_BITS: Number of stop bits (1-2, default: 1)
+-- - PARITY: Parity type (NONE, EVEN, ODD, default: NONE)
+-- - FIFO_DEPTH: TX/RX FIFO depth (default: 128)
+-- - FLOW_CONTROL: Hardware flow control enable (default: false)
+-- - AUTO_BAUD: Automatic baud rate detection (default: false)
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk           : in  std_logic (System clock)
+-- - rst_n         : in  std_logic (Active-low reset)
+-- - enable        : in  std_logic (Module enable)
+--
+-- ESP32 UART Interface:
+-- - esp32_tx      : out std_logic (ESP32 transmit data)
+-- - esp32_rx      : in  std_logic (ESP32 receive data)
+-- - esp32_rts     : out std_logic (ESP32 request to send)
+-- - esp32_cts     : in  std_logic (ESP32 clear to send)
+-- - esp32_dtr     : out std_logic (ESP32 data terminal ready)
+-- - esp32_dsr     : in  std_logic (ESP32 data set ready)
+-- - esp32_dcd     : in  std_logic (ESP32 data carrier detect)
+-- - esp32_ri      : in  std_logic (ESP32 ring indicator)
+--
+-- FPGA Interface:
+-- - fpga_tx_data  : in  std_logic_vector(7 downto 0) (Transmit data)
+-- - fpga_tx_valid : in  std_logic (Transmit data valid)
+-- - fpga_tx_ready : out std_logic (Transmit ready)
+-- - fpga_rx_data  : out std_logic_vector(7 downto 0) (Receive data)
+-- - fpga_rx_valid : out std_logic (Receive data valid)
+-- - fpga_rx_ready : in  std_logic (Receive ready)
+--
+-- Configuration Interface:
+-- - baud_rate     : in  std_logic_vector(31 downto 0) (Baud rate setting)
+-- - data_bits     : in  std_logic_vector(2 downto 0) (Data bits: 5-8)
+-- - stop_bits     : in  std_logic_vector(1 downto 0) (Stop bits: 1-2)
+-- - parity_type   : in  std_logic_vector(1 downto 0) (Parity: 00=None, 01=Odd, 10=Even)
+-- - flow_ctrl_en  : in  std_logic (Flow control enable)
+-- - loopback_en   : in  std_logic (Loopback mode enable)
+--
+-- Status Interface:
+-- - tx_busy       : out std_logic (Transmitter busy)
+-- - rx_busy       : out std_logic (Receiver busy)
+-- - tx_fifo_full  : out std_logic (TX FIFO full)
+-- - tx_fifo_empty : out std_logic (TX FIFO empty)
+-- - rx_fifo_full  : out std_logic (RX FIFO full)
+-- - rx_fifo_empty : out std_logic (RX FIFO empty)
+-- - frame_error   : out std_logic (Frame error detected)
+-- - parity_error  : out std_logic (Parity error detected)
+-- - overrun_error : out std_logic (Overrun error detected)
+-- - break_detect  : out std_logic (Break condition detected)
+--
+-- Interrupt Interface:
+-- - tx_interrupt  : out std_logic (TX interrupt)
+-- - rx_interrupt  : out std_logic (RX interrupt)
+-- - error_interrupt : out std_logic (Error interrupt)
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE DECLARATION
+-- ============================================================================
+-- Architecture: behavioral (or structural for complex implementations)
+--
+-- Internal Signal Requirements:
+-- - Clock generation and baud rate timing
+-- - TX/RX state machines
+-- - FIFO buffers for transmit and receive
+-- - Parity generation and checking
+-- - Flow control logic
+-- - Error detection and handling
+-- - Interrupt generation logic
+--
+-- ============================================================================
+-- STEP 4: INTERNAL SIGNALS AND CONSTANTS
+-- ============================================================================
+--
+-- Clock and Timing Signals:
+-- - baud_clk_tx    : std_logic (TX baud clock)
+-- - baud_clk_rx    : std_logic (RX baud clock)
+-- - baud_counter   : unsigned(15 downto 0) (Baud rate counter)
+-- - sample_counter : unsigned(3 downto 0) (RX sampling counter)
+--
+-- TX State Machine Signals:
+-- - tx_state       : tx_state_type (TX state machine)
+-- - tx_shift_reg   : std_logic_vector(10 downto 0) (TX shift register)
+-- - tx_bit_counter : unsigned(3 downto 0) (TX bit counter)
+-- - tx_data_reg    : std_logic_vector(7 downto 0) (TX data register)
+--
+-- RX State Machine Signals:
+-- - rx_state       : rx_state_type (RX state machine)
+-- - rx_shift_reg   : std_logic_vector(10 downto 0) (RX shift register)
+-- - rx_bit_counter : unsigned(3 downto 0) (RX bit counter)
+-- - rx_data_reg    : std_logic_vector(7 downto 0) (RX data register)
+-- - rx_sync        : std_logic_vector(2 downto 0) (RX synchronizer)
+--
+-- FIFO Signals:
+-- - tx_fifo_wr_en  : std_logic (TX FIFO write enable)
+-- - tx_fifo_rd_en  : std_logic (TX FIFO read enable)
+-- - tx_fifo_data_in : std_logic_vector(7 downto 0) (TX FIFO input)
+-- - tx_fifo_data_out : std_logic_vector(7 downto 0) (TX FIFO output)
+-- - rx_fifo_wr_en  : std_logic (RX FIFO write enable)
+-- - rx_fifo_rd_en  : std_logic (RX FIFO read enable)
+-- - rx_fifo_data_in : std_logic_vector(7 downto 0) (RX FIFO input)
+-- - rx_fifo_data_out : std_logic_vector(7 downto 0) (RX FIFO output)
+--
+-- Error Detection Signals:
+-- - parity_calc    : std_logic (Calculated parity)
+-- - parity_rx      : std_logic (Received parity)
+-- - frame_err_det  : std_logic (Frame error detection)
+-- - overrun_err_det : std_logic (Overrun error detection)
+--
+-- ============================================================================
+-- STEP 5: BAUD RATE GENERATOR
+-- ============================================================================
+-- Implement baud rate generation for ESP32 UART communication
+--
+-- Baud Rate Calculation:
+-- - ESP32 supports baud rates from 300 to 5,000,000 bps
+-- - Common rates: 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
+-- - Baud divisor = CLK_FREQ / (16 * BAUD_RATE) for 16x oversampling
+-- - Support fractional baud rate generation for accuracy
+--
+-- Implementation Requirements:
+-- - Configurable baud rate divisor
+-- - 16x oversampling for RX (recommended)
+-- - Separate TX and RX baud clocks
+-- - Auto-baud detection capability
+-- - Baud rate error calculation and reporting
+--
+-- ============================================================================
+-- STEP 6: TRANSMITTER IMPLEMENTATION
+-- ============================================================================
+-- Implement UART transmitter with ESP32 compatibility
+--
+-- TX State Machine States:
+-- - IDLE: Waiting for data to transmit
+-- - START: Transmitting start bit
+-- - DATA: Transmitting data bits
+-- - PARITY: Transmitting parity bit (if enabled)
+-- - STOP: Transmitting stop bits
+--
+-- TX Features:
+-- - Configurable data bits (5-8)
+-- - Configurable stop bits (1, 1.5, 2)
+-- - Parity generation (None, Even, Odd, Mark, Space)
+-- - TX FIFO with configurable depth
+-- - Hardware flow control (RTS/CTS)
+-- - Break generation
+-- - Interrupt generation on TX complete/FIFO empty
+--
+-- ============================================================================
+-- STEP 7: RECEIVER IMPLEMENTATION
+-- ============================================================================
+-- Implement UART receiver with ESP32 compatibility
+--
+-- RX State Machine States:
+-- - IDLE: Waiting for start bit
+-- - START: Detecting start bit
+-- - DATA: Receiving data bits
+-- - PARITY: Receiving parity bit (if enabled)
+-- - STOP: Receiving stop bits
+--
+-- RX Features:
+-- - 16x oversampling for noise immunity
+-- - Start bit detection and validation
+-- - Configurable data bits (5-8)
+-- - Parity checking (None, Even, Odd, Mark, Space)
+-- - Frame error detection
+-- - Overrun error detection
+-- - RX FIFO with configurable depth
+-- - Hardware flow control (RTS/CTS)
+-- - Break detection
+-- - Interrupt generation on RX complete/FIFO full/errors
+--
+-- ============================================================================
+-- STEP 8: FIFO IMPLEMENTATION
+-- ============================================================================
+-- Implement TX and RX FIFOs for buffering
+--
+-- FIFO Requirements:
+-- - Configurable depth (16, 32, 64, 128, 256 bytes)
+-- - Full/empty status flags
+-- - Almost full/empty thresholds
+-- - FIFO level indicators
+-- - Overflow/underflow protection
+-- - Reset capability
+--
+-- ESP32 FIFO Compatibility:
+-- - ESP32 has 128-byte TX and RX FIFOs
+-- - Support FIFO threshold interrupts
+-- - DMA integration capability
+-- - FIFO status register compatibility
+--
+-- ============================================================================
+-- STEP 9: FLOW CONTROL IMPLEMENTATION
+-- ============================================================================
+-- Implement hardware flow control (RTS/CTS)
+--
+-- Flow Control Features:
+-- - RTS (Request to Send) output control
+-- - CTS (Clear to Send) input monitoring
+-- - Automatic flow control based on FIFO levels
+-- - Manual flow control via software
+-- - DTR/DSR support for modem control
+-- - Flow control enable/disable
+--
+-- ESP32 Flow Control Compatibility:
+-- - Support ESP32 flow control timing
+-- - Configurable RTS assertion/deassertion thresholds
+-- - CTS timeout handling
+-- - Flow control status reporting
+--
+-- ============================================================================
+-- STEP 10: ERROR DETECTION AND HANDLING
+-- ============================================================================
+-- Implement comprehensive error detection
+--
+-- Error Types:
+-- - Frame Error: Invalid stop bit
+-- - Parity Error: Parity mismatch
+-- - Overrun Error: RX FIFO overflow
+-- - Break Condition: Extended low period
+-- - Noise Error: Sampling inconsistency
+--
+-- Error Handling:
+-- - Error status registers
+-- - Error interrupt generation
+-- - Error recovery mechanisms
+-- - Error statistics collection
+-- - Configurable error response
+--
+-- ============================================================================
+-- STEP 11: INTERRUPT CONTROLLER
+-- ============================================================================
+-- Implement interrupt generation and control
+--
+-- Interrupt Sources:
+-- - TX FIFO empty/threshold
+-- - RX FIFO full/threshold
+-- - Frame/parity/overrun errors
+-- - Break detection
+-- - CTS change
+-- - TX complete
+-- - RX timeout
+--
+-- Interrupt Features:
+-- - Individual interrupt enable/disable
+-- - Interrupt status register
+-- - Interrupt priority levels
+-- - Edge/level triggered options
+-- - Interrupt clear mechanisms
+--
+-- ============================================================================
+-- STEP 12: ESP32 SPECIFIC FEATURES
+-- ============================================================================
+-- Implement ESP32-specific UART features
+--
+-- ESP32 Features:
+-- - Auto-baud detection
+-- - RS485 mode support
+-- - IrDA mode support
+-- - Light sleep wake-up
+-- - Pattern detection
+-- - AT command detection
+-- - DMA integration
+-- - Clock source selection
+--
+-- Configuration Registers:
+-- - UART_CONF0_REG: Basic configuration
+-- - UART_CONF1_REG: Advanced configuration
+-- - UART_LOWPULSE_REG: Low pulse detection
+-- - UART_HIGHPULSE_REG: High pulse detection
+-- - UART_RXD_CNT_REG: RX byte count
+-- - UART_FLOW_CONF_REG: Flow control configuration
+--
+-- ============================================================================
+-- STEP 13: POWER MANAGEMENT
+-- ============================================================================
+-- Implement power management features
+--
+-- Power Features:
+-- - Clock gating when idle
+-- - Light sleep mode support
+-- - Wake-up on RX activity
+-- - Power-down mode
+-- - Clock source switching
+-- - Dynamic frequency scaling
+--
+-- ESP32 Power Compatibility:
+-- - Support ESP32 sleep modes
+-- - Wake-up source configuration
+-- - Power consumption optimization
+-- - Clock domain isolation
+--
+-- ============================================================================
+-- STEP 14: TESTING AND VERIFICATION
+-- ============================================================================
+-- Comprehensive testing strategy
+--
+-- Functional Testing:
+-- - Basic TX/RX operation
+-- - All baud rates and configurations
+-- - Flow control operation
+-- - Error detection and handling
+-- - FIFO operation
+-- - Interrupt generation
+--
+-- Performance Testing:
+-- - Maximum throughput
+-- - Latency measurements
+-- - FIFO utilization
+-- - Error rates
+-- - Power consumption
+--
+-- Compatibility Testing:
+-- - ESP32 bootloader communication
+-- - AT command interface
+-- - Arduino IDE compatibility
+-- - ESP-IDF compatibility
+-- - Third-party tool compatibility
+--
+-- ============================================================================
+-- STEP 15: IMPLEMENTATION TEMPLATE
+-- ============================================================================
+-- Complete implementation template with all required components
+--
+-- Template Structure:
+-- 1. Library declarations
+-- 2. Entity declaration with all ports
+-- 3. Architecture with internal signals
+-- 4. Baud rate generator process
+-- 5. TX state machine process
+-- 6. RX state machine process
+-- 7. FIFO instantiations
+-- 8. Flow control logic
+-- 9. Error detection logic
+-- 10. Interrupt controller
+-- 11. Status register updates
+-- 12. Output assignments
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS
+-- ============================================================================
+--
+-- Timing Analysis:
+-- - Setup and hold time requirements
+-- - Clock domain crossing
+-- - Metastability prevention
+-- - Jitter tolerance
+-- - Baud rate accuracy
+--
+-- Reset Strategy:
+-- - Synchronous reset implementation
+-- - Reset sequence timing
+-- - State machine reset states
+-- - FIFO reset behavior
+-- - Register initialization
+--
+-- Clock Domain Considerations:
+-- - System clock vs. baud clock
+-- - Clock enable generation
+-- - Synchronizer design
+-- - Clock gating implementation
+-- - Phase relationship management
+--
+-- Synthesis Optimization:
+-- - Resource utilization
+-- - Timing closure
+-- - Power optimization
+-- - Area optimization
+-- - Performance tuning
+--
+-- Testability Features:
+-- - Built-in self-test (BIST)
+-- - Scan chain insertion
+-- - Observability points
+-- - Debug interfaces
+-- - Simulation models
+--
+-- ============================================================================
+-- APPLICATIONS AND USE CASES
+-- ============================================================================
+--
+-- ESP32 Communication Applications:
+-- - ESP32 programming and debugging
+-- - AT command interface
+-- - Sensor data collection
+-- - IoT device communication
+-- - Bootloader interface
+-- - Firmware update
+-- - Configuration management
+-- - Real-time data streaming
+--
+-- System Integration:
+-- - FPGA-ESP32 hybrid systems
+-- - Multi-processor communication
+-- - Protocol bridging
+-- - Data logging systems
+-- - Industrial automation
+-- - Smart home devices
+-- - Wireless gateways
+-- - Edge computing nodes
+--
+-- ============================================================================
+-- TESTING STRATEGY
+-- ============================================================================
+--
+-- Simulation Testing:
+-- - Functional verification
+-- - Timing verification
+-- - Protocol compliance
+-- - Error injection testing
+-- - Performance analysis
+-- - Power analysis
+-- - Coverage analysis
+--
+-- Hardware Testing:
+-- - FPGA implementation testing
+-- - ESP32 board testing
+-- - Signal integrity analysis
+-- - EMI/EMC compliance
+-- - Temperature testing
+-- - Stress testing
+-- - Long-term reliability
+--
+-- Software Testing:
+-- - Driver development
+-- - Application testing
+-- - Performance benchmarking
+-- - Compatibility testing
+-- - Regression testing
+-- - Integration testing
+-- - System testing
+--
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION
+-- ============================================================================
+--
+-- Throughput Optimization:
+-- - FIFO depth optimization
+-- - DMA integration
+-- - Interrupt latency reduction
+-- - Flow control tuning
+-- - Baud rate optimization
+-- - Parallel processing
+-- - Pipeline optimization
+--
+-- Latency Optimization:
+-- - Interrupt response time
+-- - FIFO bypass modes
+-- - Hardware acceleration
+-- - Predictive algorithms
+-- - Cache optimization
+-- - Memory bandwidth
+-- - Processing efficiency
+--
+-- Power Optimization:
+-- - Clock gating strategies
+-- - Voltage scaling
+-- - Sleep mode utilization
+-- - Activity monitoring
+-- - Dynamic configuration
+-- - Leakage reduction
+-- - Thermal management
+--
+-- ============================================================================
+-- ADVANCED FEATURES
+-- ============================================================================
+--
+-- DMA Integration:
+-- - DMA controller interface
+-- - Scatter-gather support
+-- - Circular buffer mode
+-- - Interrupt coalescing
+-- - Bandwidth management
+-- - Priority handling
+-- - Error recovery
+--
+-- Security Features:
+-- - Data encryption
+-- - Authentication
+-- - Secure boot support
+-- - Key management
+-- - Access control
+-- - Audit logging
+-- - Tamper detection
+--
+-- Debug and Monitoring:
+-- - Performance counters
+-- - Error statistics
+-- - Traffic analysis
+-- - Protocol analysis
+-- - Real-time monitoring
+-- - Debug interfaces
+-- - Trace capabilities
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST
+-- ============================================================================
+--
+-- Functional Verification:
+-- □ Basic UART TX/RX operation verified
+-- □ All baud rates tested and working
+-- □ Data bit configurations (5-8) verified
+-- □ Stop bit configurations (1, 1.5, 2) verified
+-- □ Parity generation and checking verified
+-- □ Flow control (RTS/CTS) operation verified
+-- □ FIFO operation and thresholds verified
+-- □ Error detection (frame, parity, overrun) verified
+-- □ Break detection and generation verified
+-- □ Interrupt generation and handling verified
+-- □ ESP32 compatibility verified
+-- □ Auto-baud detection verified (if implemented)
+-- □ Power management features verified
+-- □ DMA integration verified (if implemented)
+-- □ Loopback mode operation verified
+--
+-- Synthesis Verification:
+-- □ Design synthesizes without errors
+-- □ Timing constraints met
+-- □ Resource utilization acceptable
+-- □ Power consumption within limits
+-- □ No critical warnings
+-- □ Clock domain crossings properly handled
+-- □ Reset behavior verified
+-- □ I/O standards compatible
+-- □ Pin assignments correct
+-- □ Placement and routing successful
+--
+-- Hardware Verification:
+-- □ FPGA programming successful
+-- □ ESP32 communication established
+-- □ Signal integrity verified
+-- □ Timing margins adequate
+-- □ Temperature operation verified
+-- □ EMI/EMC compliance verified
+-- □ Long-term stability verified
+-- □ Performance benchmarks met
+-- □ Interoperability verified
+-- □ Regression tests passed
+--
+-- ============================================================================
+-- END OF PROGRAMMING GUIDE
+-- ============================================================================

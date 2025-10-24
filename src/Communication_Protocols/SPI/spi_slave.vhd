@@ -1,0 +1,639 @@
+-- ============================================================================
+-- SPI Slave Controller Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a comprehensive SPI (Serial Peripheral Interface) slave
+-- controller in VHDL. The SPI slave responds to commands from an SPI master,
+-- supporting configurable data width, clock polarity/phase, and various
+-- operating modes. It includes features for data buffering, status reporting,
+-- and error detection.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand SPI slave protocol implementation
+-- 2. Learn synchronous serial communication principles
+-- 3. Master clock domain considerations in slave devices
+-- 4. Practice state machine design for protocol handling
+-- 5. Understand data buffering and flow control
+-- 6. Learn error detection and status reporting
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations
+-- - std_logic_misc for additional logic functions
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Add use IEEE.std_logic_misc.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- Define the SPI slave controller entity with comprehensive interface
+--
+-- Generic Parameters:
+-- - DATA_WIDTH: Width of data words (typically 8, 16, or 32 bits)
+-- - CPOL: Clock polarity (0 = idle low, 1 = idle high)
+-- - CPHA: Clock phase (0 = sample on first edge, 1 = sample on second edge)
+-- - MSB_FIRST: Data bit order (true = MSB first, false = LSB first)
+-- - BUFFER_DEPTH: Depth of internal data buffers
+--
+-- Port Signals:
+-- - System Interface: clk, reset, enable
+-- - SPI Interface: sclk, mosi, miso, cs_n
+-- - Data Interface: tx_data, tx_valid, tx_ready, rx_data, rx_valid, rx_ready
+-- - Status Interface: busy, error, buffer_full, buffer_empty
+-- - Configuration: mode_select, interrupt_enable
+--
+-- ============================================================================
+-- STEP 3: SPI SLAVE PROTOCOL PRINCIPLES
+-- ============================================================================
+--
+-- SPI Slave Operation:
+-- 1. Clock Synchronization:
+--    - Slave synchronizes to master's SCLK
+--    - No internal clock generation required
+--    - Must handle clock domain crossing
+--    - Support different CPOL/CPHA modes
+--
+-- 2. Chip Select Handling:
+--    - CS_N (active low) enables slave operation
+--    - Transaction starts on CS_N assertion
+--    - Transaction ends on CS_N deassertion
+--    - Must handle CS_N glitches and timing
+--
+-- 3. Data Transfer:
+--    - Simultaneous bidirectional data transfer
+--    - MOSI: Master Out, Slave In (receive data)
+--    - MISO: Master In, Slave Out (transmit data)
+--    - Configurable data width and bit order
+--
+-- 4. Timing Modes (CPOL/CPHA combinations):
+--    - Mode 0: CPOL=0, CPHA=0 (sample on rising, setup on falling)
+--    - Mode 1: CPOL=0, CPHA=1 (setup on rising, sample on falling)
+--    - Mode 2: CPOL=1, CPHA=0 (sample on falling, setup on rising)
+--    - Mode 3: CPOL=1, CPHA=1 (setup on falling, sample on rising)
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Basic SPI Slave (Recommended for beginners)
+-- - Simple shift register implementation
+-- - Fixed 8-bit data width
+-- - Single SPI mode support
+-- - Basic status reporting
+--
+-- OPTION 2: Configurable SPI Slave (Intermediate)
+-- - Parameterizable data width
+-- - All four SPI modes support
+-- - Data buffering capabilities
+-- - Enhanced error detection
+--
+-- OPTION 3: Advanced SPI Slave (Advanced)
+-- - Multi-mode operation
+-- - DMA interface support
+-- - Advanced flow control
+-- - Performance optimization
+--
+-- OPTION 4: System-Level SPI Slave (Expert)
+-- - Protocol-specific implementations
+-- - Command/response handling
+-- - Multi-slave arbitration
+-- - Power management features
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Clock Domain Crossing:
+-- - SCLK is asynchronous to system clock
+-- - Proper synchronization required
+-- - Metastability prevention
+-- - Setup/hold time compliance
+--
+-- State Machine Design:
+-- - IDLE: Waiting for CS_N assertion
+-- - ACTIVE: Processing SPI transaction
+-- - COMPLETE: Transaction finished
+-- - ERROR: Error condition detected
+--
+-- Data Buffering:
+-- - Input buffer for received data
+-- - Output buffer for transmit data
+-- - FIFO implementation for continuous operation
+-- - Flow control mechanisms
+--
+-- Timing Considerations:
+-- - SCLK frequency limitations
+-- - Propagation delay compensation
+-- - Setup/hold time margins
+-- - CS_N timing requirements
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Multi-Mode Support:
+-- - Runtime mode switching
+-- - Mode detection and adaptation
+-- - Backward compatibility
+-- - Performance optimization per mode
+--
+-- Error Detection:
+-- - Framing errors
+-- - Overrun/underrun detection
+-- - CS_N timing violations
+-- - Data corruption detection
+--
+-- Flow Control:
+-- - Backpressure handling
+-- - Buffer management
+-- - Priority-based data handling
+-- - Congestion control
+--
+-- Performance Features:
+-- - Burst transfer support
+-- - DMA integration
+-- - Interrupt generation
+-- - Statistical monitoring
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Sensor Interfaces: ADC, DAC, temperature sensors
+-- 2. Memory Devices: Flash, EEPROM, SRAM interfaces
+-- 3. Display Controllers: LCD, OLED, LED matrix drivers
+-- 4. Communication Modules: RF transceivers, Ethernet PHYs
+-- 5. Peripheral Controllers: GPIO expanders, PWM controllers
+-- 6. System Monitoring: Power management, health monitoring
+-- 7. Test Equipment: Protocol analyzers, signal generators
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Unit Testing: Individual component validation
+-- 2. Protocol Testing: SPI compliance verification
+-- 3. Timing Testing: Setup/hold time validation
+-- 4. Stress Testing: High-speed operation validation
+-- 5. Error Testing: Fault injection and recovery
+-- 6. Integration Testing: System-level validation
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic shift register implementation
+-- 2. Add clock domain crossing logic
+-- 3. Implement state machine for transaction control
+-- 4. Add data buffering capabilities
+-- 5. Implement error detection and reporting
+-- 6. Add advanced features and optimization
+-- 7. Validate with comprehensive testbench
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Add support for variable-length transfers
+-- 2. Implement command/response protocol handling
+-- 3. Add DMA interface for high-speed transfers
+-- 4. Implement multi-slave daisy-chain support
+-- 5. Add power management and low-power modes
+-- 6. Implement protocol-specific features (e.g., SD card)
+-- 7. Add real-time performance monitoring
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Improper clock domain crossing
+-- 2. Insufficient setup/hold time margins
+-- 3. Missing CS_N edge detection
+-- 4. Inadequate error handling
+-- 5. Poor buffer management
+-- 6. Incorrect CPOL/CPHA implementation
+-- 7. Missing metastability protection
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All SPI modes (0-3) work correctly
+-- □ Clock domain crossing is properly handled
+-- □ CS_N timing requirements are met
+-- □ Data integrity is maintained
+-- □ Error conditions are properly detected
+-- □ Buffer overflow/underflow is handled
+-- □ Performance requirements are met
+-- □ Power consumption is optimized
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This SPI slave controller demonstrates several key concepts:
+-- - Synchronous serial communication protocols
+-- - Clock domain crossing techniques
+-- - State machine design for protocol handling
+-- - Data buffering and flow control
+-- - Error detection and recovery mechanisms
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider signal integrity at high frequencies
+-- - Implement proper termination for long traces
+-- - Account for propagation delays in timing analysis
+-- - Use appropriate I/O standards for voltage levels
+-- - Consider EMI/EMC requirements for high-speed signals
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Multi-protocol support (SPI, QSPI, DSPI)
+-- - Advanced error correction codes
+-- - Adaptive timing adjustment
+-- - Protocol bridging and translation
+-- - Security features for sensitive applications
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Model realistic timing conditions
+-- - Include process, voltage, temperature variations
+-- - Test with various master implementations
+-- - Verify corner cases and error conditions
+-- - Use assertion-based verification techniques
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use IEEE.std_logic_misc.all;
+--
+-- entity spi_slave is
+--     generic (
+--         DATA_WIDTH    : integer := 8;        -- Data width in bits
+--         CPOL          : integer := 0;        -- Clock polarity
+--         CPHA          : integer := 0;        -- Clock phase
+--         MSB_FIRST     : boolean := true;     -- Bit order
+--         BUFFER_DEPTH  : integer := 16;       -- Buffer depth
+--         SYNC_STAGES   : integer := 2         -- Synchronizer stages
+--     );
+--     port (
+--         -- System interface
+--         clk           : in  std_logic;       -- System clock
+--         reset         : in  std_logic;       -- Asynchronous reset
+--         enable        : in  std_logic;       -- Module enable
+--         
+--         -- SPI interface
+--         sclk          : in  std_logic;       -- SPI clock from master
+--         mosi          : in  std_logic;       -- Master out, slave in
+--         miso          : out std_logic;       -- Master in, slave out
+--         cs_n          : in  std_logic;       -- Chip select (active low)
+--         
+--         -- Data interface
+--         tx_data       : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Transmit data
+--         tx_valid      : in  std_logic;       -- Transmit data valid
+--         tx_ready      : out std_logic;       -- Ready for transmit data
+--         rx_data       : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Received data
+--         rx_valid      : out std_logic;       -- Received data valid
+--         rx_ready      : in  std_logic;       -- Ready for received data
+--         
+--         -- Status interface
+--         busy          : out std_logic;       -- Transaction in progress
+--         error         : out std_logic;       -- Error condition
+--         buffer_full   : out std_logic;       -- Buffer full status
+--         buffer_empty  : out std_logic;       -- Buffer empty status
+--         
+--         -- Configuration interface
+--         mode_select   : in  std_logic_vector(1 downto 0);  -- SPI mode selection
+--         interrupt_en  : in  std_logic;       -- Interrupt enable
+--         interrupt     : out std_logic        -- Interrupt output
+--     );
+-- end entity spi_slave;
+--
+-- architecture behavioral of spi_slave is
+--     -- Type definitions
+--     type state_type is (IDLE, ACTIVE, COMPLETE, ERROR_STATE);
+--     type buffer_type is array (0 to BUFFER_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     
+--     -- Constants
+--     constant SYNC_RESET_VALUE : std_logic_vector(SYNC_STAGES-1 downto 0) := (others => '0');
+--     constant COUNTER_WIDTH    : integer := integer(ceil(log2(real(DATA_WIDTH))));
+--     
+--     -- State machine signals
+--     signal current_state      : state_type := IDLE;
+--     signal next_state         : state_type;
+--     
+--     -- Synchronization signals
+--     signal sclk_sync          : std_logic_vector(SYNC_STAGES-1 downto 0) := SYNC_RESET_VALUE;
+--     signal cs_n_sync          : std_logic_vector(SYNC_STAGES-1 downto 0) := (others => '1');
+--     signal mosi_sync          : std_logic_vector(SYNC_STAGES-1 downto 0) := SYNC_RESET_VALUE;
+--     
+--     -- Edge detection signals
+--     signal sclk_rising_edge   : std_logic;
+--     signal sclk_falling_edge  : std_logic;
+--     signal cs_n_falling_edge  : std_logic;
+--     signal cs_n_rising_edge   : std_logic;
+--     
+--     -- Shift register signals
+--     signal shift_reg_tx       : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal shift_reg_rx       : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+--     signal bit_counter        : unsigned(COUNTER_WIDTH-1 downto 0) := (others => '0');
+--     
+--     -- Buffer signals
+--     signal tx_buffer          : buffer_type := (others => (others => '0'));
+--     signal rx_buffer          : buffer_type := (others => (others => '0'));
+--     signal tx_write_ptr       : unsigned(integer(ceil(log2(real(BUFFER_DEPTH))))-1 downto 0) := (others => '0');
+--     signal tx_read_ptr        : unsigned(integer(ceil(log2(real(BUFFER_DEPTH))))-1 downto 0) := (others => '0');
+--     signal rx_write_ptr       : unsigned(integer(ceil(log2(real(BUFFER_DEPTH))))-1 downto 0) := (others => '0');
+--     signal rx_read_ptr        : unsigned(integer(ceil(log2(real(BUFFER_DEPTH))))-1 downto 0) := (others => '0');
+--     
+--     -- Control signals
+--     signal transaction_active : std_logic := '0';
+--     signal data_ready         : std_logic := '0';
+--     signal transfer_complete  : std_logic := '0';
+--     signal error_flag         : std_logic := '0';
+--     
+--     -- Configuration signals
+--     signal current_cpol       : std_logic;
+--     signal current_cpha       : std_logic;
+--     signal sample_edge        : std_logic;
+--     signal setup_edge         : std_logic;
+--     
+--     -- Status signals
+--     signal tx_buffer_count    : unsigned(integer(ceil(log2(real(BUFFER_DEPTH+1))))-1 downto 0) := (others => '0');
+--     signal rx_buffer_count    : unsigned(integer(ceil(log2(real(BUFFER_DEPTH+1))))-1 downto 0) := (others => '0');
+--     signal tx_buffer_full     : std_logic;
+--     signal tx_buffer_empty    : std_logic;
+--     signal rx_buffer_full     : std_logic;
+--     signal rx_buffer_empty    : std_logic;
+--     
+-- begin
+--     -- Configuration decode
+--     config_decode_proc: process(mode_select)
+--     begin
+--         case mode_select is
+--             when "00" =>  -- Mode 0: CPOL=0, CPHA=0
+--                 current_cpol <= '0';
+--                 current_cpha <= '0';
+--             when "01" =>  -- Mode 1: CPOL=0, CPHA=1
+--                 current_cpol <= '0';
+--                 current_cpha <= '1';
+--             when "10" =>  -- Mode 2: CPOL=1, CPHA=0
+--                 current_cpol <= '1';
+--                 current_cpha <= '0';
+--             when "11" =>  -- Mode 3: CPOL=1, CPHA=1
+--                 current_cpol <= '1';
+--                 current_cpha <= '1';
+--             when others =>
+--                 current_cpol <= '0';
+--                 current_cpha <= '0';
+--         end case;
+--     end process;
+--     
+--     -- Sample and setup edge determination
+--     sample_edge <= sclk_rising_edge when (current_cpol = '0' and current_cpha = '0') or 
+--                                          (current_cpol = '1' and current_cpha = '1') else
+--                    sclk_falling_edge;
+--     
+--     setup_edge  <= sclk_falling_edge when (current_cpol = '0' and current_cpha = '0') or 
+--                                           (current_cpol = '1' and current_cpha = '1') else
+--                    sclk_rising_edge;
+--     
+--     -- Input synchronization
+--     sync_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             sclk_sync <= SYNC_RESET_VALUE;
+--             cs_n_sync <= (others => '1');
+--             mosi_sync <= SYNC_RESET_VALUE;
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 sclk_sync <= sclk_sync(SYNC_STAGES-2 downto 0) & sclk;
+--                 cs_n_sync <= cs_n_sync(SYNC_STAGES-2 downto 0) & cs_n;
+--                 mosi_sync <= mosi_sync(SYNC_STAGES-2 downto 0) & mosi;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Edge detection
+--     sclk_rising_edge  <= '1' when sclk_sync(SYNC_STAGES-1 downto SYNC_STAGES-2) = "01" else '0';
+--     sclk_falling_edge <= '1' when sclk_sync(SYNC_STAGES-1 downto SYNC_STAGES-2) = "10" else '0';
+--     cs_n_falling_edge <= '1' when cs_n_sync(SYNC_STAGES-1 downto SYNC_STAGES-2) = "10" else '0';
+--     cs_n_rising_edge  <= '1' when cs_n_sync(SYNC_STAGES-1 downto SYNC_STAGES-2) = "01" else '0';
+--     
+--     -- State machine
+--     state_machine_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             current_state <= IDLE;
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 current_state <= next_state;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Next state logic
+--     next_state_logic_proc: process(current_state, cs_n_falling_edge, cs_n_rising_edge, 
+--                                    transfer_complete, error_flag)
+--     begin
+--         case current_state is
+--             when IDLE =>
+--                 if cs_n_falling_edge = '1' then
+--                     next_state <= ACTIVE;
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--                 
+--             when ACTIVE =>
+--                 if cs_n_rising_edge = '1' then
+--                     if transfer_complete = '1' then
+--                         next_state <= COMPLETE;
+--                     else
+--                         next_state <= ERROR_STATE;
+--                     end if;
+--                 elsif error_flag = '1' then
+--                     next_state <= ERROR_STATE;
+--                 else
+--                     next_state <= ACTIVE;
+--                 end if;
+--                 
+--             when COMPLETE =>
+--                 next_state <= IDLE;
+--                 
+--             when ERROR_STATE =>
+--                 if cs_n_rising_edge = '1' then
+--                     next_state <= IDLE;
+--                 else
+--                     next_state <= ERROR_STATE;
+--                 end if;
+--                 
+--             when others =>
+--                 next_state <= IDLE;
+--         end case;
+--     end process;
+--     
+--     -- SPI transaction control
+--     spi_control_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             shift_reg_tx <= (others => '0');
+--             shift_reg_rx <= (others => '0');
+--             bit_counter <= (others => '0');
+--             transfer_complete <= '0';
+--             transaction_active <= '0';
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 case current_state is
+--                     when IDLE =>
+--                         bit_counter <= (others => '0');
+--                         transfer_complete <= '0';
+--                         transaction_active <= '0';
+--                         
+--                         -- Load transmit data if available
+--                         if tx_buffer_empty = '0' then
+--                             shift_reg_tx <= tx_buffer(to_integer(tx_read_ptr));
+--                         else
+--                             shift_reg_tx <= (others => '0');
+--                         end if;
+--                         
+--                     when ACTIVE =>
+--                         transaction_active <= '1';
+--                         
+--                         -- Handle data sampling
+--                         if sample_edge = '1' then
+--                             if MSB_FIRST then
+--                                 shift_reg_rx <= shift_reg_rx(DATA_WIDTH-2 downto 0) & mosi_sync(SYNC_STAGES-1);
+--                             else
+--                                 shift_reg_rx <= mosi_sync(SYNC_STAGES-1) & shift_reg_rx(DATA_WIDTH-1 downto 1);
+--                             end if;
+--                             
+--                             bit_counter <= bit_counter + 1;
+--                             
+--                             if bit_counter = DATA_WIDTH-1 then
+--                                 transfer_complete <= '1';
+--                             end if;
+--                         end if;
+--                         
+--                         -- Handle data setup
+--                         if setup_edge = '1' then
+--                             if MSB_FIRST then
+--                                 shift_reg_tx <= shift_reg_tx(DATA_WIDTH-2 downto 0) & '0';
+--                             else
+--                                 shift_reg_tx <= '0' & shift_reg_tx(DATA_WIDTH-1 downto 1);
+--                             end if;
+--                         end if;
+--                         
+--                     when COMPLETE =>
+--                         -- Store received data
+--                         if rx_buffer_full = '0' then
+--                             rx_buffer(to_integer(rx_write_ptr)) <= shift_reg_rx;
+--                         end if;
+--                         
+--                         -- Update transmit buffer pointer
+--                         if tx_buffer_empty = '0' then
+--                             -- Pointer update handled in buffer management
+--                         end if;
+--                         
+--                     when ERROR_STATE =>
+--                         error_flag <= '1';
+--                         
+--                     when others =>
+--                         null;
+--                 end case;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- MISO output
+--     miso_output_proc: process(shift_reg_tx, MSB_FIRST, current_state)
+--     begin
+--         if current_state = ACTIVE then
+--             if MSB_FIRST then
+--                 miso <= shift_reg_tx(DATA_WIDTH-1);
+--             else
+--                 miso <= shift_reg_tx(0);
+--             end if;
+--         else
+--             miso <= 'Z';  -- High impedance when not active
+--         end if;
+--     end process;
+--     
+--     -- Buffer management
+--     buffer_management_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             tx_write_ptr <= (others => '0');
+--             tx_read_ptr <= (others => '0');
+--             rx_write_ptr <= (others => '0');
+--             rx_read_ptr <= (others => '0');
+--             tx_buffer_count <= (others => '0');
+--             rx_buffer_count <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 -- Transmit buffer write
+--                 if tx_valid = '1' and tx_buffer_full = '0' then
+--                     tx_buffer(to_integer(tx_write_ptr)) <= tx_data;
+--                     tx_write_ptr <= tx_write_ptr + 1;
+--                     tx_buffer_count <= tx_buffer_count + 1;
+--                 end if;
+--                 
+--                 -- Transmit buffer read
+--                 if current_state = COMPLETE and tx_buffer_empty = '0' then
+--                     tx_read_ptr <= tx_read_ptr + 1;
+--                     tx_buffer_count <= tx_buffer_count - 1;
+--                 end if;
+--                 
+--                 -- Receive buffer write
+--                 if current_state = COMPLETE and rx_buffer_full = '0' then
+--                     rx_write_ptr <= rx_write_ptr + 1;
+--                     rx_buffer_count <= rx_buffer_count + 1;
+--                 end if;
+--                 
+--                 -- Receive buffer read
+--                 if rx_ready = '1' and rx_buffer_empty = '0' then
+--                     rx_read_ptr <= rx_read_ptr + 1;
+--                     rx_buffer_count <= rx_buffer_count - 1;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Buffer status
+--     tx_buffer_full  <= '1' when tx_buffer_count = BUFFER_DEPTH else '0';
+--     tx_buffer_empty <= '1' when tx_buffer_count = 0 else '0';
+--     rx_buffer_full  <= '1' when rx_buffer_count = BUFFER_DEPTH else '0';
+--     rx_buffer_empty <= '1' when rx_buffer_count = 0 else '0';
+--     
+--     -- Output assignments
+--     tx_ready <= not tx_buffer_full;
+--     rx_data <= rx_buffer(to_integer(rx_read_ptr));
+--     rx_valid <= not rx_buffer_empty;
+--     
+--     busy <= transaction_active;
+--     error <= error_flag;
+--     buffer_full <= rx_buffer_full;
+--     buffer_empty <= tx_buffer_empty;
+--     
+--     -- Interrupt generation
+--     interrupt <= (transfer_complete or error_flag) and interrupt_en;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This SPI slave controller provides comprehensive functionality
+-- for SPI communication. Ensure proper clock domain crossing, timing
+-- compliance, and thorough testing with various master implementations.
+-- The design can be customized for specific application requirements.
+-- ============================================================================

@@ -1,27 +1,291 @@
-library IEEE;
-use IEEE.std_logic_1164.all;
-
-entity NOR_gate is
-    port(
-        x : in std_logic;
-        y : in std_logic;
-        f : out std_logic
-    );
-end entity;
-
-architecture NOR_gate of NOR_gate is
-    begin
-        process(x,y)
-        begin
-            if((x = '1') and (y = '1')) then
-                f <= '0';
-            else
-                f <= '1';
-            end if;
-        end process;
-end architecture;
-
-architecture concurent of NOR_gate is
-    begin
-        f<= not(x or y);
-end architecture;
+-- ============================================================================
+-- NOR Gate Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a 2-input NOR (NOT-OR) gate, another universal gate
+-- in digital logic systems. The NOR gate is functionally complete, meaning
+-- any boolean function can be implemented using only NOR gates. It outputs
+-- '1' only when both inputs are '0', and '0' for all other input combinations.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand NOR gate as universal gate concept
+-- 2. Learn about functional completeness in digital logic
+-- 3. Practice negation and disjunction operations in VHDL
+-- 4. Explore NOR-based implementations of other gates
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ----------------------------------------------------------------------------
+-- The entity defines the NOR gate interface
+--
+-- Entity Requirements:
+-- - Name: NOR_gate
+-- - Inputs: Two std_logic signals (suggest names: a, b or x, y)
+-- - Output: One std_logic signal (suggest name: y or f)
+--
+-- TODO: Declare entity with appropriate port map
+-- TODO: Use descriptive port names and comments
+-- TODO: Consider signal naming consistency across project
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE IMPLEMENTATION
+-- ----------------------------------------------------------------------------
+-- Multiple approaches to implement NOR functionality:
+--
+-- OPTION A: BEHAVIORAL MODELING (Process-based)
+-- - Use process with complete sensitivity list
+-- - Implement with if-then-else statements
+-- - Logic: if both inputs are '0' then output='1' else output='0'
+--
+-- OPTION B: DATAFLOW MODELING (Concurrent assignment)
+-- - Use built-in operators: output <= not (input1 or input2)
+-- - Most direct and efficient approach
+-- - Recommended for simple NOR implementation
+--
+-- OPTION C: BOOLEAN EXPRESSION APPROACH
+-- - Implement using De Morgan's law: F = (A+B)' = A' • B'
+-- - Use AND and NOT operators to build NOR function
+-- - Educational value for understanding boolean algebra
+--
+-- OPTION D: TRUTH TABLE APPROACH
+-- - Use case statement or when-else construct
+-- - Explicitly handle all four input combinations
+-- - Good for learning and verification
+--
+-- ============================================================================
+-- NOR GATE TRUTH TABLE:
+-- ============================================================================
+--
+-- Input A | Input B | Output F | Description
+-- --------|---------|----------|-------------
+--    0    |    0    |    1     | NOT(0 OR 0) = NOT(0) = 1
+--    0    |    1    |    0     | NOT(0 OR 1) = NOT(1) = 0
+--    1    |    0    |    0     | NOT(1 OR 0) = NOT(1) = 0
+--    1    |    1    |    0     | NOT(1 OR 1) = NOT(1) = 0
+--
+-- Key Insight: NOR outputs '1' ONLY when both inputs are '0'
+-- Boolean Expression: F = (A+B)' = A' • B' (De Morgan's Law)
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- NOR AS UNIVERSAL GATE:
+-- - Any boolean function can be implemented using only NOR gates
+-- - NOT gate: NOR with inputs tied together
+-- - OR gate: NOR followed by NOT (another NOR)
+-- - AND gate: De Morgan's law - (A' + B')' = A • B
+--
+-- VHDL OPERATORS:
+-- - 'or' operator: performs logical OR operation
+-- - 'not' operator: performs logical negation
+-- - Combined: not (A or B) implements NOR function
+-- - Part of IEEE.std_logic_1164 package
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - NOR gates map efficiently to FPGA LUT resources
+-- - Less common than NAND in ASIC designs
+-- - Slower switching than NAND gates in CMOS technology
+-- - Still provides universal logic capability
+--
+-- ============================================================================
+-- NOR GATE APPLICATIONS:
+-- ============================================================================
+--
+-- 1. UNIVERSAL LOGIC IMPLEMENTATION:
+--    - Build any logic function using only NOR gates
+--    - Alternative to NAND-based implementations
+--    - Useful in specific technology contexts
+--
+-- 2. MEMORY CIRCUITS:
+--    - SR latch implementation using cross-coupled NORs
+--    - Alternative flip-flop building block
+--    - Reset-dominant latch designs
+--
+-- 3. CONTROL LOGIC:
+--    - Priority encoding circuits
+--    - Interrupt disable logic
+--    - Safety shutdown systems
+--
+-- 4. ARITHMETIC CIRCUITS:
+--    - Complement generation
+--    - Zero detection circuits
+--    - Overflow detection logic
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- BASIC FUNCTIONALITY TESTS:
+-- 1. Test Case 1: A='0', B='0' → Expected: F='1'
+-- 2. Test Case 2: A='0', B='1' → Expected: F='0'
+-- 3. Test Case 3: A='1', B='0' → Expected: F='0'
+-- 4. Test Case 4: A='1', B='1' → Expected: F='0'
+--
+-- ADVANCED TESTS:
+-- - Test with 'X' (unknown) inputs
+-- - Test with 'Z' (high-impedance) inputs
+-- - Verify timing behavior and propagation delay
+-- - Test in multi-bit configurations
+--
+-- UNIVERSAL GATE VERIFICATION:
+-- - Implement NOT gate using NOR
+-- - Implement OR gate using NOR gates
+-- - Implement AND gate using NOR gates
+-- - Verify functional equivalence
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with truth table analysis
+-- 2. Implement using dataflow modeling with NOT and OR operators
+-- 3. Create simple testbench to verify all cases
+-- 4. Compare results with expected truth table
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement multiple architectures (behavioral and dataflow)
+-- 2. Create other gates using only NOR gates
+-- 3. Analyze synthesis results and resource utilization
+-- 4. Compare with NAND gate implementations
+--
+-- FOR ADVANCED USERS:
+-- 1. Design complex functions using only NOR gates
+-- 2. Implement SR latch using cross-coupled NORs
+-- 3. Create NOR-based arithmetic circuits
+-- 4. Optimize for specific applications
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. UNIVERSAL GATE DEMONSTRATION:
+--    - Implement NOT gate: NOR(A,A) = A'
+--    - Implement OR gate: NOT(NOR(A,B)) = A+B
+--    - Implement AND gate: NOR(NOR(A,A), NOR(B,B)) = A•B
+--    - Implement XOR gate using only NOR gates
+--
+-- 2. SR LATCH IMPLEMENTATION:
+--    - Use two cross-coupled NOR gates
+--    - Add Set and Reset inputs
+--    - Compare with NAND-based SR latch
+--
+-- 3. MULTI-INPUT NOR:
+--    - Extend to N inputs using std_logic_vector
+--    - Implement using reduction operators
+--    - Create tree structure for large inputs
+--
+-- 4. PRIORITY ENCODER:
+--    - Use NOR gates for priority logic
+--    - Implement interrupt priority system
+--    - Add enable/disable functionality
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. LOGIC CONFUSION:
+--    - Don't confuse NOR with NAND operation
+--    - Remember: NOR = NOT OR, NAND = NOT AND
+--    - NOR outputs '1' only when both inputs are '0'
+--
+-- 2. BOOLEAN EXPRESSION ERRORS:
+--    - Correct: F = (A+B)' = A' • B'
+--    - Incorrect: F = A' + B' (this is NAND, not NOR)
+--    - Apply De Morgan's law correctly
+--
+-- 3. SENSITIVITY LIST:
+--    - Include all input signals in process sensitivity list
+--    - Missing signals cause simulation errors
+--
+-- 4. OPERATOR PRECEDENCE:
+--    - Use parentheses: not (A or B)
+--    - Without parentheses: (not A) or B ≠ NOR function
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all required ports
+-- □ Port directions correctly specified (in/out)
+-- □ All four input combinations tested
+-- □ Truth table behavior correctly implemented
+-- □ NOR function verified: F = (A+B)'
+-- □ Universal gate properties demonstrated
+-- □ Synthesis completes without errors
+-- □ Timing requirements satisfied
+-- □ Code follows VHDL style guidelines
+-- □ Comments explain NOR functionality clearly
+--
+-- ============================================================================
+-- NOR vs OTHER GATES COMPARISON:
+-- ============================================================================
+--
+-- NOR vs OR:
+-- - NOR: Output '1' only when both inputs are '0'
+-- - OR: Output '1' when at least one input is '1'
+-- - NOR is complement of OR
+--
+-- NOR vs NAND:
+-- - NOR: Universal gate, slower in CMOS
+-- - NAND: Also universal gate, but faster switching
+-- - Both can implement any boolean function
+--
+-- NOR vs AND:
+-- - NOR: (A+B)' = A' • B' (De Morgan's law)
+-- - AND: A • B
+-- - Different logic functions entirely
+--
+-- ============================================================================
+-- DE MORGAN'S LAW APPLICATION:
+-- ============================================================================
+--
+-- De Morgan's Laws:
+-- 1. (A • B)' = A' + B'  (NAND to NOR conversion)
+-- 2. (A + B)' = A' • B'  (NOR to NAND conversion)
+--
+-- NOR Implementation using De Morgan's:
+-- - NOR(A,B) = (A + B)' = A' • B'
+-- - Can be implemented as AND gate with inverted inputs
+-- - Useful for gate-level optimization
+--
+-- ============================================================================
+-- UNIVERSAL GATE IMPLEMENTATIONS:
+-- ============================================================================
+--
+-- NOT Gate using NOR:
+-- - Connect both NOR inputs together: NOR(A,A) = (A+A)' = A'
+--
+-- OR Gate using NOR:
+-- - NOR followed by NOT: NOT(NOR(A,B)) = ((A+B)')' = A+B
+--
+-- AND Gate using NOR:
+-- - Apply De Morgan's: A•B = ((A'+B')')
+-- - Implementation: NOR(NOR(A,A), NOR(B,B))
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

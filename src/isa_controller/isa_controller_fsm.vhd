@@ -1,0 +1,483 @@
+-- ============================================================================
+-- PROJECT: ISA Controller FSM Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a comprehensive Finite State Machine (FSM) for an
+-- ISA (Industry Standard Architecture) bus controller using VHDL. The FSM
+-- manages the control flow and protocol compliance for ISA bus transactions,
+-- coordinating between the CPU/local bus and the ISA bus interface.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand ISA bus protocol and state machine design
+-- - Learn advanced FSM design techniques for bus controllers
+-- - Practice VHDL state machine implementation and optimization
+-- - Implement protocol compliance and timing control
+-- - Understand legacy bus arbitration and control mechanisms
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - clk: System clock (ISA bus clock domain)
+-- - reset_n: Active-low asynchronous reset
+-- - cpu_request: CPU transaction request
+-- - cpu_read_write: CPU read/write control (1=write, 0=read)
+-- - cpu_byte_word: CPU byte/word select (1=word, 0=byte)
+-- - isa_ready: ISA bus ready signal
+-- - isa_wait: ISA bus wait state request
+-- - address_valid: Address decode valid signal
+-- - data_valid: Data path valid signal
+-- - error_detected: Error condition detected
+-- - dma_request: DMA transfer request
+-- - interrupt_request: Interrupt service request
+-- - config_enable: Configuration access enable
+--
+-- OUTPUTS:
+-- - cpu_acknowledge: CPU transaction acknowledge
+-- - cpu_data_ready: CPU data ready signal
+-- - isa_address_enable: ISA address bus enable
+-- - isa_data_enable: ISA data bus enable
+-- - isa_read_strobe: ISA read strobe signal
+-- - isa_write_strobe: ISA write strobe signal
+-- - isa_io_read: ISA I/O read signal
+-- - isa_io_write: ISA I/O write signal
+-- - isa_memory_read: ISA memory read signal
+-- - isa_memory_write: ISA memory write signal
+-- - datapath_control: Control signals to datapath
+--   - addr_latch_enable: Address latch control
+--   - data_latch_enable: Data latch control
+--   - mux_select: Multiplexer selection
+--   - buffer_enable: Buffer control signals
+-- - status_outputs: FSM status indicators
+--   - current_state: Current FSM state (for debug)
+--   - transaction_active: Transaction in progress
+--   - error_flag: Error condition flag
+--   - busy_flag: Controller busy indicator
+--
+-- ============================================================================
+-- ISA BUS PROTOCOL OVERVIEW:
+-- ============================================================================
+-- ISA BUS CHARACTERISTICS:
+-- - Asynchronous operation with handshaking
+-- - Support for 8-bit and 16-bit data transfers
+-- - Memory and I/O address spaces
+-- - Wait state insertion capability
+-- - DMA and interrupt support
+-- - Backward compatibility with 8-bit ISA
+--
+-- TRANSACTION TYPES:
+-- - Memory Read Cycle
+-- - Memory Write Cycle
+-- - I/O Read Cycle
+-- - I/O Write Cycle
+-- - DMA Transfer Cycles
+-- - Interrupt Acknowledge Cycles
+-- - Configuration Space Access
+--
+-- TIMING PHASES:
+-- 1. Address Setup Phase (T1)
+-- 2. Command Assertion Phase (T2)
+-- 3. Data Transfer Phase (T3)
+-- 4. Recovery Phase (T4)
+-- 5. Wait States (Tw) - inserted as needed
+--
+-- ============================================================================
+-- FSM ARCHITECTURE:
+-- ============================================================================
+-- MAIN STATES:
+-- - IDLE: Waiting for transaction requests
+-- - ADDRESS_SETUP: Setting up address and control signals
+-- - COMMAND_ASSERT: Asserting read/write commands
+-- - DATA_TRANSFER: Performing data transfer
+-- - WAIT_STATE: Handling ISA wait state requests
+-- - RECOVERY: Transaction recovery and cleanup
+-- - ERROR_HANDLE: Error condition handling
+-- - DMA_CYCLE: DMA transfer management
+-- - INTERRUPT_ACK: Interrupt acknowledge cycle
+-- - CONFIG_ACCESS: Configuration space access
+--
+-- SUB-STATES (for complex operations):
+-- - ADDR_DECODE: Address decoding and validation
+-- - DATA_SETUP: Data path setup and alignment
+-- - TIMING_CHECK: Protocol timing validation
+-- - ERROR_RECOVERY: Error recovery procedures
+-- - BURST_SETUP: Burst transfer initialization
+-- - BURST_DATA: Burst data transfer phases
+--
+-- STATE TRANSITIONS:
+-- - Event-driven transitions based on protocol requirements
+-- - Timeout handling for protocol violations
+-- - Error condition transitions to recovery states
+-- - Priority handling for interrupt and DMA requests
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. SINGLE-PROCESS FSM:
+--    - All state logic in one process
+--    - Simple structure and easy to understand
+--    - Potential for large combinational logic
+--    - Good for simple state machines
+--
+-- 2. TWO-PROCESS FSM:
+--    - Separate state register and next-state logic
+--    - Clear separation of sequential and combinational logic
+--    - Better for complex state machines
+--    - Easier timing analysis and optimization
+--
+-- 3. THREE-PROCESS FSM:
+--    - State register, next-state logic, and output logic
+--    - Maximum flexibility and control
+--    - Best for complex protocols with registered outputs
+--    - Higher resource usage but better performance
+--
+-- 4. HIERARCHICAL FSM:
+--    - Main FSM with sub-state machines
+--    - Good for complex protocols with multiple phases
+--    - Modular design and easier maintenance
+--    - Requires careful state coordination
+--
+-- ============================================================================
+-- ISA PROTOCOL COMPLIANCE:
+-- ============================================================================
+-- TIMING REQUIREMENTS:
+-- - Address setup time: 50ns minimum before command
+-- - Address hold time: 10ns minimum after command
+-- - Data setup time: 30ns minimum before strobe deassertion
+-- - Data hold time: 10ns minimum after strobe deassertion
+-- - Command pulse width: 100ns minimum
+-- - Recovery time: 50ns minimum between cycles
+--
+-- SIGNAL SEQUENCING:
+-- 1. Assert address and ALE (Address Latch Enable)
+-- 2. Setup command signals (IOR, IOW, MEMR, MEMW)
+-- 3. Assert appropriate strobe signal
+-- 4. Wait for ready or insert wait states
+-- 5. Capture/drive data during transfer phase
+-- 6. Deassert strobe and command signals
+-- 7. Maintain address hold time
+-- 8. Enter recovery phase before next cycle
+--
+-- WAIT STATE HANDLING:
+-- - Monitor ISA CHRDY (Channel Ready) signal
+-- - Insert Tw states when CHRDY is deasserted
+-- - Maintain all signals during wait states
+-- - Resume normal timing when CHRDY reasserted
+--
+-- ERROR CONDITIONS:
+-- - Address decode timeout
+-- - Data transfer timeout
+-- - Protocol violation detection
+-- - Parity error detection
+-- - Bus conflict detection
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- TIMING ANALYSIS:
+-- - Meet all ISA protocol timing requirements
+-- - Account for clock domain crossing delays
+-- - Consider setup/hold times for all registers
+-- - Minimize state transition delays
+--
+-- RESOURCE UTILIZATION:
+-- - Optimize state encoding for target device
+-- - Minimize logic depth in critical paths
+-- - Use efficient coding styles for synthesis
+-- - Balance area vs. performance requirements
+--
+-- POWER CONSUMPTION:
+-- - Use clock gating for inactive states
+-- - Minimize unnecessary state transitions
+-- - Implement low-power idle modes
+-- - Consider dynamic voltage scaling
+--
+-- TESTABILITY:
+-- - Provide state visibility for debugging
+-- - Include test modes and bypass paths
+-- - Support boundary scan testing
+-- - Add built-in self-test capabilities
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: STATE DEFINITION
+-- □ Define all main states and sub-states
+-- □ Create state encoding scheme
+-- □ Document state transition conditions
+-- □ Plan state machine hierarchy
+--
+-- STEP 2: INPUT/OUTPUT INTERFACE
+-- □ Define all input signals and their timing
+-- □ Specify all output signals and their behavior
+-- □ Create control signal interface to datapath
+-- □ Add status and debug output signals
+--
+-- STEP 3: STATE TRANSITION LOGIC
+-- □ Implement state register with proper reset
+-- □ Create next-state combinational logic
+-- □ Add timeout and error condition handling
+-- □ Include priority arbitration logic
+--
+-- STEP 4: OUTPUT GENERATION
+-- □ Implement output signal generation
+-- □ Add proper signal timing and sequencing
+-- □ Include tri-state and enable control
+-- □ Add status flag generation
+--
+-- STEP 5: PROTOCOL COMPLIANCE
+-- □ Verify ISA timing requirements
+-- □ Add wait state insertion logic
+-- □ Implement error detection and recovery
+-- □ Add protocol violation checking
+--
+-- STEP 6: ADVANCED FEATURES
+-- □ Add DMA transfer support
+-- □ Implement interrupt handling
+-- □ Include configuration space access
+-- □ Add burst transfer capabilities
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Standard logic types for FSM implementation
+-- - Multi-valued logic for bus control
+-- - Essential for state machine design
+--
+-- IEEE.numeric_std.all:
+-- - Arithmetic operations for counters and timers
+-- - State encoding and comparison operations
+-- - Timeout and delay calculations
+--
+-- IEEE.std_logic_misc.all:
+-- - Additional logic functions
+-- - State encoding utilities
+-- - Reduction operators for condition checking
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- PERFORMANCE ENHANCEMENTS:
+-- - Speculative state transitions
+-- - Parallel state machine execution
+-- - Predictive wait state insertion
+-- - Optimized critical path timing
+--
+-- ERROR HANDLING:
+-- - Comprehensive error detection
+-- - Automatic error recovery procedures
+-- - Error logging and reporting
+-- - Graceful degradation modes
+--
+-- CONFIGURABILITY:
+-- - Parameterizable timing values
+-- - Optional feature enables/disables
+-- - Runtime configuration registers
+-- - Protocol variant support
+--
+-- DEBUG AND MONITORING:
+-- - Real-time state visibility
+-- - Transaction history logging
+-- - Performance monitoring counters
+-- - Protocol analyzer interface
+--
+-- ============================================================================
+-- MASTER MODE OPERATIONS:
+-- ============================================================================
+-- CPU-INITIATED TRANSACTIONS:
+-- - CPU read/write request processing
+-- - Address and data path coordination
+-- - ISA protocol sequence generation
+-- - Transaction completion signaling
+--
+-- DMA CONTROLLER INTERFACE:
+-- - DMA request arbitration
+-- - DMA acknowledge generation
+-- - Transfer count management
+-- - End-of-process handling
+--
+-- BURST TRANSFER SUPPORT:
+-- - Burst mode initialization
+-- - Address increment management
+-- - Data streaming control
+-- - Burst termination handling
+--
+-- ============================================================================
+-- TARGET MODE OPERATIONS:
+-- ============================================================================
+-- ISA-INITIATED TRANSACTIONS:
+-- - ISA master request detection
+-- - Local bus arbitration
+-- - Address decode and routing
+-- - Data transfer coordination
+--
+-- INTERRUPT PROCESSING:
+-- - Interrupt request capture
+-- - Priority level arbitration
+-- - Interrupt vector generation
+-- - Interrupt acknowledge cycles
+--
+-- CONFIGURATION ACCESS:
+-- - Configuration space decoding
+-- - Register read/write operations
+-- - Configuration change handling
+-- - Status register updates
+--
+-- ============================================================================
+-- CONFIGURATION SPACE HANDLING:
+-- ============================================================================
+-- CONFIGURATION REGISTERS:
+-- - Device identification registers
+-- - Command and status registers
+-- - Base address registers
+-- - Interrupt configuration registers
+--
+-- CONFIGURATION CYCLES:
+-- - Configuration read cycles
+-- - Configuration write cycles
+-- - Special cycle handling
+-- - Configuration space locking
+--
+-- PLUG AND PLAY SUPPORT:
+-- - Device enumeration support
+-- - Resource allocation assistance
+-- - Conflict resolution mechanisms
+-- - Hot-plug detection and handling
+--
+-- ============================================================================
+-- VERIFICATION STRATEGY:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test all state transitions and conditions
+-- □ Verify protocol timing compliance
+-- □ Test error detection and recovery
+-- □ Validate interrupt and DMA handling
+-- □ Check configuration space access
+-- □ Test all transaction types
+-- □ Verify wait state insertion
+--
+-- TIMING VERIFICATION:
+-- □ Verify setup/hold times for all signals
+-- □ Check state transition timing
+-- □ Validate protocol timing requirements
+-- □ Test at various clock frequencies
+-- □ Verify metastability protection
+--
+-- PROTOCOL VERIFICATION:
+-- □ Test ISA protocol compliance
+-- □ Verify signal sequencing
+-- □ Check timing parameter adherence
+-- □ Validate handshaking protocols
+-- □ Test protocol violation detection
+--
+-- STRESS TESTING:
+-- □ Continuous operation testing
+-- □ Random transaction patterns
+-- □ Error injection testing
+-- □ Maximum frequency operation
+-- □ Temperature and voltage variation
+--
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION:
+-- ============================================================================
+-- CRITICAL PATH OPTIMIZATION:
+-- - Identify longest combinational paths
+-- - Optimize state transition logic
+-- - Use efficient state encoding
+-- - Minimize logic depth in critical states
+--
+-- STATE MACHINE OPTIMIZATION:
+-- - Optimize state encoding for target device
+-- - Use one-hot encoding for speed
+-- - Use binary encoding for area
+-- - Consider Gray code for low power
+--
+-- RESOURCE OPTIMIZATION:
+-- - Share logic between similar states
+-- - Use case statements for efficiency
+-- - Optimize multiplexer structures
+-- - Minimize register usage
+--
+-- ============================================================================
+-- COMMON DESIGN PITFALLS:
+-- ============================================================================
+-- STATE MACHINE ISSUES:
+-- - Incomplete state coverage
+-- - Missing reset conditions
+-- - Race conditions in state transitions
+-- - Improper state encoding
+--
+-- TIMING VIOLATIONS:
+-- - ISA protocol timing violations
+-- - Setup/hold time violations
+-- - Clock domain crossing issues
+-- - Metastability problems
+--
+-- PROTOCOL ERRORS:
+-- - Incorrect signal sequencing
+-- - Missing handshaking signals
+-- - Improper wait state handling
+-- - Protocol violation detection gaps
+--
+-- VERIFICATION GAPS:
+-- - Insufficient corner case testing
+-- - Missing error condition verification
+-- - Inadequate timing margin validation
+-- - Incomplete protocol compliance testing
+--
+-- ============================================================================
+-- IMPLEMENTATION CHECKLIST:
+-- ============================================================================
+-- DESIGN PHASE:
+-- □ FSM architecture defined and documented
+-- □ State diagram created and reviewed
+-- □ Input/output interface specified
+-- □ Timing requirements identified
+--
+-- CODING PHASE:
+-- □ State machine implemented with proper reset
+-- □ All state transitions implemented
+-- □ Output generation logic implemented
+-- □ Error handling implemented
+-- □ Protocol compliance verified
+-- □ Control interface implemented
+-- □ Status generation implemented
+--
+-- VERIFICATION PHASE:
+-- □ Functional verification completed
+-- □ Timing verification passed
+-- □ Protocol compliance verified
+-- □ Error handling tested
+-- □ Performance requirements met
+--
+-- SYNTHESIS PHASE:
+-- □ Design synthesizes without errors
+-- □ Timing constraints satisfied
+-- □ Resource utilization optimized
+-- □ Power consumption acceptable
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for standard logic types
+-- - IEEE.numeric_std.all for arithmetic operations
+-- - IEEE.std_logic_misc.all for additional functions
+--
+-- [Add your entity declaration here]
+-- - Define all input and output ports
+-- - Add generics for parameterization
+-- - Include comprehensive port descriptions
+--
+-- [Add your architecture implementation here]
+-- - Define state type and state signals
+-- - Implement state register process
+-- - Implement next-state logic process
+-- - Implement output generation process
+-- - Add timeout and error handling
+-- - Include protocol compliance logic
+-- - Add debug and status outputs
+--
+-- ============================================================================

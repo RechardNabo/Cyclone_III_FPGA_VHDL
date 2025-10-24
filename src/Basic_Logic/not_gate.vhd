@@ -1,0 +1,304 @@
+-- ============================================================================
+-- NOT Gate (Inverter) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a NOT gate (also called an inverter), which is the
+-- most fundamental logic gate in digital systems. The NOT gate performs
+-- logical negation, outputting the complement of its input. It is essential
+-- for creating other logic functions and is used extensively in digital
+-- circuit design.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand NOT gate as basic logical inverter
+-- 2. Learn complement operation in VHDL
+-- 3. Practice single-input gate implementation
+-- 4. Explore NOT gate applications in digital systems
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and NOT operator
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ----------------------------------------------------------------------------
+-- The entity defines the NOT gate interface
+--
+-- Entity Requirements:
+-- - Name: not_gate (consistent with project naming)
+-- - Input: One std_logic signal (suggest names: a, input, or x)
+-- - Output: One std_logic signal (suggest names: y, output, or f)
+--
+-- TODO: Declare entity with appropriate port map
+-- TODO: Use descriptive port names and comments
+-- TODO: Consider signal naming consistency across project
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE IMPLEMENTATION
+-- ----------------------------------------------------------------------------
+-- Multiple approaches to implement NOT functionality:
+--
+-- OPTION A: BEHAVIORAL MODELING (Process-based)
+-- - Use process with complete sensitivity list
+-- - Implement with if-then-else statements
+-- - Logic: if input='0' then output='1' else output='0'
+--
+-- OPTION B: DATAFLOW MODELING (Concurrent assignment)
+-- - Use built-in NOT operator: output <= not input
+-- - Most direct and efficient approach
+-- - Recommended for simple NOT implementation
+--
+-- OPTION C: CONDITIONAL ASSIGNMENT
+-- - Use when-else statement: output <= '1' when input='0' else '0'
+-- - Alternative dataflow approach
+-- - Good for educational purposes
+--
+-- OPTION D: SELECTED ASSIGNMENT
+-- - Use with-select statement for truth table implementation
+-- - More verbose but shows explicit mapping
+-- - Educational value for understanding truth tables
+--
+-- ============================================================================
+-- NOT GATE TRUTH TABLE:
+-- ============================================================================
+--
+-- Input A | Output F | Description
+-- --------|----------|-------------
+--    0    |    1     | Logical complement
+--    1    |    0     | Logical complement
+--
+-- Key Insight: NOT gate always outputs the complement of input
+-- Boolean Expression: F = A' = ~A = ¬A
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- NOT OPERATOR IN VHDL:
+-- - 'not' operator: performs logical negation
+-- - Returns '1' when operand is '0'
+-- - Returns '0' when operand is '1'
+-- - Part of IEEE.std_logic_1164 package
+-- - Highest precedence among logical operators
+--
+-- SIGNAL TYPES:
+-- - std_logic: Recommended for single-bit signals
+-- - Supports 9-value logic system ('0', '1', 'X', 'Z', etc.)
+-- - Proper handling of unknown and high-impedance states
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - NOT gate maps directly to FPGA LUT resources
+-- - Minimal resource utilization (fraction of LUT)
+-- - No timing concerns for simple inversion
+-- - Can be absorbed into other logic functions during optimization
+--
+-- ============================================================================
+-- NOT GATE APPLICATIONS:
+-- ============================================================================
+--
+-- 1. SIGNAL INVERSION:
+--    - Active-low signal generation
+--    - Polarity conversion
+--    - Clock inversion for dual-edge systems
+--
+-- 2. LOGIC FUNCTION BUILDING:
+--    - Building blocks for NAND, NOR gates
+--    - De Morgan's law implementations
+--    - Complement generation in arithmetic circuits
+--
+-- 3. ENABLE SIGNAL GENERATION:
+--    - Creating complementary enable signals
+--    - Chip select inversion
+--    - Control signal polarity conversion
+--
+-- 4. BUFFER APPLICATIONS:
+--    - Signal buffering with inversion
+--    - Drive strength enhancement
+--    - Signal isolation with complement
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- BASIC FUNCTIONALITY TESTS:
+-- 1. Test Case 1: Input='0' → Expected: Output='1'
+-- 2. Test Case 2: Input='1' → Expected: Output='0'
+--
+-- EXTENDED TESTS:
+-- - Test with 'X' (unknown) input → Expected: 'X' output
+-- - Test with 'Z' (high-impedance) input → Expected: 'X' output
+-- - Test with '-' (don't care) input → Expected: 'X' output
+-- - Verify timing behavior and propagation delay
+--
+-- EDGE CASE TESTING:
+-- - Test rapid input transitions
+-- - Verify no glitches in output
+-- - Test with different drive strengths
+-- - Verify proper initialization behavior
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with truth table analysis
+-- 2. Implement using dataflow modeling with NOT operator
+-- 3. Create simple testbench to verify both cases
+-- 4. Understand complement operation concept
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement multiple architectures (behavioral and dataflow)
+-- 2. Create conditional assignment implementation
+-- 3. Analyze synthesis results and resource utilization
+-- 4. Explore timing characteristics
+--
+-- FOR ADVANCED USERS:
+-- 1. Create multi-bit inverter using std_logic_vector
+-- 2. Implement with custom drive strength control
+-- 3. Design inverter chain for delay generation
+-- 4. Optimize for specific FPGA architecture features
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. MULTI-BIT INVERTER:
+--    - Extend to N-bit inversion using std_logic_vector
+--    - Implement bus inversion functionality
+--    - Add enable control for conditional inversion
+--
+-- 2. INVERTER CHAIN:
+--    - Create chain of inverters for delay generation
+--    - Implement ring oscillator using odd number of inverters
+--    - Add programmable delay control
+--
+-- 3. SCHMITT TRIGGER INVERTER:
+--    - Add hysteresis to input threshold
+--    - Implement noise immunity features
+--    - Create clean digital output from analog input
+--
+-- 4. TRI-STATE INVERTER:
+--    - Add output enable control
+--    - Implement high-impedance state capability
+--    - Create bus driver with inversion
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. OPERATOR PRECEDENCE:
+--    - NOT has highest precedence among logical operators
+--    - Use parentheses for complex expressions
+--    - Example: not a and b = (not a) and b, not (a and b)
+--
+-- 2. SIGNAL INITIALIZATION:
+--    - Ensure proper signal initialization in testbenches
+--    - Avoid 'U' (uninitialized) states in simulation
+--    - Initialize all signals before testing
+--
+-- 3. SENSITIVITY LIST:
+--    - Include input signal in process sensitivity list
+--    - Missing signals cause simulation errors
+--    - Use 'all' keyword for automatic sensitivity (VHDL-2008)
+--
+-- 4. METAVALUE HANDLING:
+--    - Understand behavior with 'X', 'Z', '-' inputs
+--    - NOT of unknown value is unknown
+--    - Plan for proper error handling
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes input and output ports
+-- □ Port directions correctly specified (in/out)
+-- □ Both input combinations tested ('0' and '1')
+-- □ Truth table behavior correctly implemented
+-- □ NOT operation verified: output = not input
+-- □ Metavalue behavior understood and tested
+-- □ Synthesis completes without errors
+-- □ Timing requirements satisfied (if any)
+-- □ Code follows VHDL style guidelines
+-- □ Comments explain NOT gate functionality clearly
+--
+-- ============================================================================
+-- NOT GATE IN BOOLEAN ALGEBRA:
+-- ============================================================================
+--
+-- BASIC PROPERTIES:
+-- - Involution: (A')' = A (double negation)
+-- - Complement: A + A' = 1, A · A' = 0
+-- - Identity: A' = 1 if A = 0, A' = 0 if A = 1
+--
+-- DE MORGAN'S LAWS:
+-- - (A + B)' = A' · B' (NOT OR = AND of NOTs)
+-- - (A · B)' = A' + B' (NOT AND = OR of NOTs)
+-- - Essential for logic optimization and gate conversion
+--
+-- DUALITY PRINCIPLE:
+-- - NOT operation maintains duality in Boolean expressions
+-- - Swapping AND/OR and 0/1 with complementation
+-- - Fundamental to Boolean algebra theory
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- CMOS IMPLEMENTATION:
+-- - Complementary PMOS and NMOS transistors
+-- - PMOS pulls output high when input is low
+-- - NMOS pulls output low when input is high
+-- - Natural implementation in CMOS technology
+--
+-- FPGA IMPLEMENTATION:
+-- - Implemented using LUT (Look-Up Table)
+-- - Can be absorbed into other logic functions
+-- - Minimal resource utilization
+-- - Fast propagation through dedicated routing
+--
+-- TIMING CHARACTERISTICS:
+-- - Propagation delay: input change to output change
+-- - Rise time: output transition from low to high
+-- - Fall time: output transition from high to low
+-- - Usually symmetric for CMOS implementations
+--
+-- ============================================================================
+-- POWER CONSIDERATIONS:
+-- ============================================================================
+--
+-- STATIC POWER:
+-- - Minimal leakage current in CMOS
+-- - No static current path in steady state
+-- - Power consumption mainly from leakage
+--
+-- DYNAMIC POWER:
+-- - Power consumed during switching transitions
+-- - Proportional to switching frequency
+-- - Capacitive load affects power consumption
+-- - P = C × V² × f (capacitance × voltage² × frequency)
+--
+-- OPTIMIZATION STRATEGIES:
+-- - Minimize unnecessary inversions
+-- - Use clock gating when appropriate
+-- - Consider voltage scaling for low-power applications
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

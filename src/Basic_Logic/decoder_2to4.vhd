@@ -1,0 +1,391 @@
+-- ============================================================================
+-- 2-to-4 Decoder Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a 2-to-4 Decoder, which is a fundamental combinational
+-- logic circuit that converts binary information from 2 input lines to a
+-- maximum of 4 unique output lines. Only one output is active (high) at any
+-- given time, corresponding to the binary value of the input combination.
+-- Decoders are essential building blocks for memory addressing, instruction
+-- decoding, and data routing applications.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand decoder functionality and binary-to-unary conversion
+-- 2. Learn combinational logic design principles in VHDL
+-- 3. Practice multi-input, multi-output circuit implementation
+-- 4. Explore decoder applications in digital system design
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for integer and unsigned types (recommended)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (for advanced implementations)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ----------------------------------------------------------------------------
+-- The entity defines the 2-to-4 decoder interface
+--
+-- Entity Requirements:
+-- - Name: decoder_2to4 (maintain current naming convention)
+-- - Inputs: 2-bit address/select signal (A1, A0 or sel(1 downto 0))
+-- - Outputs: 4-bit decoded output (Y3, Y2, Y1, Y0 or out(3 downto 0))
+-- - Optional: Enable input for decoder control
+--
+-- Port Naming Options:
+-- OPTION A: Individual signals
+-- - Inputs: A1, A0 (address bits)
+-- - Outputs: Y3, Y2, Y1, Y0 (decoded outputs)
+--
+-- OPTION B: Vector signals
+-- - Input: sel : in std_logic_vector(1 downto 0)
+-- - Output: decoded_out : out std_logic_vector(3 downto 0)
+--
+-- OPTION C: With Enable
+-- - Input: enable : in std_logic
+-- - Behavior: All outputs '0' when enable = '0'
+--
+-- TODO: Declare entity with appropriate port map
+-- TODO: Add port comments for clarity
+-- TODO: Consider enable control for practical applications
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE IMPLEMENTATION
+-- ============================================================================
+-- Multiple approaches to implement 2-to-4 decoder functionality:
+--
+-- OPTION A: BEHAVIORAL MODELING (Process-based)
+-- - Use process with complete sensitivity list
+-- - Implement with case statement for clear logic mapping
+-- - Good for understanding decoder operation
+-- - Easy to extend and modify
+--
+-- OPTION B: DATAFLOW MODELING (Concurrent assignments)
+-- - Use individual concurrent assignments for each output
+-- - Implement Boolean expressions for each output
+-- - Direct mapping from truth table to VHDL
+-- - Efficient synthesis results
+--
+-- OPTION C: CONDITIONAL ASSIGNMENTS
+-- - Use when-else statements for each output
+-- - Clear conditional logic representation
+-- - Good for understanding input-output relationships
+--
+-- OPTION D: SELECTED ASSIGNMENTS
+-- - Use with-select statement for decoder mapping
+-- - Compact representation of truth table
+-- - Excellent for decoder implementations
+--
+-- ============================================================================
+-- 2-TO-4 DECODER TRUTH TABLE:
+-- ============================================================================
+--
+-- Inputs    | Outputs
+-- A1  A0    | Y3  Y2  Y1  Y0  | Selected Output
+-- ----------|------------------|----------------
+--  0   0    |  0   0   0   1  | Y0 (Output 0)
+--  0   1    |  0   0   1   0  | Y1 (Output 1)
+--  1   0    |  0   1   0   0  | Y2 (Output 2)
+--  1   1    |  1   0   0   0  | Y3 (Output 3)
+--
+-- Key Insight: Only one output is active (high) for each input combination
+-- Binary Input Value = Active Output Index
+--
+-- WITH ENABLE CONTROL:
+-- Enable | A1  A0 | Y3  Y2  Y1  Y0  | Description
+-- -------|--------|------------------|-------------
+--   0    | X   X  |  0   0   0   0  | All disabled
+--   1    | 0   0  |  0   0   0   1  | Y0 active
+--   1    | 0   1  |  0   0   1   0  | Y1 active
+--   1    | 1   0  |  0   1   0   0  | Y2 active
+--   1    | 1   1  |  1   0   0   0  | Y3 active
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- BOOLEAN EXPRESSIONS FOR EACH OUTPUT:
+-- - Y0 = Enable · A1' · A0' (Active when input = "00")
+-- - Y1 = Enable · A1' · A0  (Active when input = "01")
+-- - Y2 = Enable · A1  · A0' (Active when input = "10")
+-- - Y3 = Enable · A1  · A0  (Active when input = "11")
+--
+-- VHDL IMPLEMENTATION TECHNIQUES:
+-- - Use 'and', 'or', 'not' operators for Boolean expressions
+-- - Utilize case statements for clear logic mapping
+-- - Consider std_logic_vector for compact representation
+-- - Implement proper signal assignments and timing
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - Decoder maps efficiently to FPGA LUT resources
+-- - Each output typically requires one LUT
+-- - Enable control adds minimal resource overhead
+-- - Synthesis tools optimize Boolean expressions automatically
+--
+-- TIMING CHARACTERISTICS:
+-- - Propagation delay from input change to output change
+-- - All outputs change simultaneously for input transitions
+-- - Consider setup and hold times for input signals
+-- - Enable control affects output timing
+--
+-- ============================================================================
+-- DECODER APPLICATIONS:
+-- ============================================================================
+--
+-- 1. MEMORY ADDRESSING:
+--    - Address decoding for memory chip selection
+--    - Bank selection in multi-bank memory systems
+--    - Cache line selection and indexing
+--
+-- 2. INSTRUCTION DECODING:
+--    - CPU instruction decode units
+--    - Microcode address generation
+--    - Control signal generation from opcodes
+--
+-- 3. DATA ROUTING:
+--    - Demultiplexer implementations
+--    - Data path selection and routing
+--    - Bus arbitration and selection
+--
+-- 4. PERIPHERAL SELECTION:
+--    - I/O device chip select generation
+--    - Peripheral address decoding
+--    - Device enable signal generation
+--
+-- 5. STATE MACHINE DECODING:
+--    - State-to-output mapping in FSMs
+--    - Control signal generation from state
+--    - One-hot state encoding support
+--
+-- 6. DISPLAY APPLICATIONS:
+--    - 7-segment display digit selection
+--    - LED matrix row/column selection
+--    - Multiplexed display control
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- BASIC FUNCTIONALITY TESTS:
+-- 1. Test Case 1: Input="00" → Expected: Y0='1', others='0'
+-- 2. Test Case 2: Input="01" → Expected: Y1='1', others='0'
+-- 3. Test Case 3: Input="10" → Expected: Y2='1', others='0'
+-- 4. Test Case 4: Input="11" → Expected: Y3='1', others='0'
+--
+-- ENABLE CONTROL TESTS (if implemented):
+-- - Test with Enable='0' → Expected: All outputs='0'
+-- - Test enable transitions with various input combinations
+-- - Verify proper enable timing and control
+--
+-- TRANSITION TESTING:
+-- - Test all possible input transitions (16 combinations)
+-- - Verify no intermediate states or glitches
+-- - Check for proper output timing relationships
+-- - Validate simultaneous output changes
+--
+-- METAVALUE HANDLING:
+-- - Test with 'X' (unknown) inputs → Expected: 'X' outputs
+-- - Test with 'Z' (high-impedance) inputs → Expected: 'X' outputs
+-- - Test with 'U' (uninitialized) inputs → Expected: 'X' outputs
+-- - Verify proper metavalue propagation
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with truth table analysis and understanding
+-- 2. Implement using case statement in behavioral architecture
+-- 3. Create comprehensive testbench covering all input combinations
+-- 4. Understand one-hot output concept
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement multiple architectures (behavioral, dataflow, selected)
+-- 2. Add enable control for practical applications
+-- 3. Compare synthesis results between different approaches
+-- 4. Analyze resource utilization and timing characteristics
+--
+-- FOR ADVANCED USERS:
+-- 1. Create parameterized N-to-2^N decoder designs
+-- 2. Implement hierarchical decoder structures
+-- 3. Add priority encoding and error detection
+-- 4. Optimize for specific FPGA architectures
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. PARAMETERIZED DECODER:
+--    - Create generic N-to-2^N decoder using generics
+--    - Implement using generate statements for scalability
+--    - Add configurable output polarity (active high/low)
+--
+-- 2. DECODER WITH PRIORITY:
+--    - Add priority encoding functionality
+--    - Implement multiple input selection capability
+--    - Create priority decoder with valid output indication
+--
+-- 3. HIERARCHICAL DECODER:
+--    - Build larger decoders using 2-to-4 building blocks
+--    - Implement 4-to-16 decoder using multiple 2-to-4 decoders
+--    - Create tree-structured decoder architectures
+--
+-- 4. DECODER WITH ERROR DETECTION:
+--    - Add parity checking for input validation
+--    - Implement error indication outputs
+--    - Create fault-tolerant decoder designs
+--
+-- 5. BCD TO DECIMAL DECODER:
+--    - Extend to BCD (Binary Coded Decimal) decoding
+--    - Implement 4-to-10 decoder for decimal applications
+--    - Add invalid code detection and handling
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. INCOMPLETE CASE COVERAGE:
+--    - Always cover all possible input combinations
+--    - Use 'others' clause for undefined states
+--    - Avoid incomplete case statements causing latches
+--
+-- 2. SENSITIVITY LIST ERRORS:
+--    - Include all input signals in process sensitivity list
+--    - Missing signals cause simulation/synthesis mismatch
+--    - Use 'all' keyword for automatic sensitivity (VHDL-2008)
+--
+-- 3. OUTPUT INITIALIZATION:
+--    - Properly initialize all outputs in all cases
+--    - Avoid 'U' (uninitialized) states in simulation
+--    - Ensure all outputs have defined values
+--
+-- 4. ENABLE CONTROL LOGIC:
+--    - Properly implement enable functionality
+--    - Ensure all outputs are controlled by enable
+--    - Avoid enable timing issues and race conditions
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all input and output ports
+-- □ Port directions correctly specified (in/out)
+-- □ All input combinations tested (4 test cases minimum)
+-- □ Only one output active for each input combination
+-- □ Truth table behavior correctly implemented
+-- □ Enable control functionality verified (if implemented)
+-- □ No undefined or uninitialized output states
+-- □ All case statement branches covered
+-- □ Metavalue behavior tested and understood
+-- □ Synthesis completes without errors or warnings
+-- □ Timing requirements satisfied
+-- □ Resource utilization acceptable
+-- □ Code follows project VHDL style guidelines
+-- □ Comments clearly explain decoder functionality
+--
+-- ============================================================================
+-- DECODER IN DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- RELATIONSHIP TO OTHER CIRCUITS:
+-- - Inverse function of encoder (encoder: 2^N-to-N)
+-- - Building block for demultiplexers
+-- - Component in address decoding systems
+-- - Used in memory and peripheral interfacing
+--
+-- BOOLEAN ALGEBRA PROPERTIES:
+-- - Implements minterm generation for Boolean functions
+-- - Each output represents a unique minterm
+-- - Can be used to implement any Boolean function
+-- - Fundamental in canonical form implementations
+--
+-- OPTIMIZATION CONSIDERATIONS:
+-- - Shared logic optimization in synthesis
+-- - Resource sharing between multiple decoders
+-- - Pipeline considerations for high-speed operation
+-- - Power optimization through enable gating
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - Each output typically uses one LUT
+-- - Enable control adds minimal overhead
+-- - Can be implemented using distributed or block RAM
+-- - Modern FPGAs have dedicated decoder resources
+--
+-- TIMING CHARACTERISTICS:
+-- - Propagation delay: tpd (input to output delay)
+-- - Setup time: tsu (input setup before clock, if clocked)
+-- - Hold time: th (input hold after clock, if clocked)
+-- - Enable delay: ten (enable to output active)
+--
+-- POWER CONSUMPTION:
+-- - Static: Leakage current in CMOS implementation
+-- - Dynamic: Switching power proportional to activity
+-- - Enable gating reduces power when decoder unused
+-- - Output loading affects power consumption
+--
+-- ============================================================================
+-- ADVANCED DECODER CONCEPTS:
+-- ============================================================================
+--
+-- PRIORITY DECODER:
+-- - Multiple inputs can be active simultaneously
+-- - Outputs indicate highest priority active input
+-- - Used in interrupt controllers and arbiters
+--
+-- BINARY TO ONE-HOT DECODER:
+-- - Converts binary representation to one-hot encoding
+-- - Essential for state machine implementations
+-- - Simplifies control logic in many applications
+--
+-- ADDRESS DECODER:
+-- - Specialized for memory and I/O addressing
+-- - Often includes address range checking
+-- - May have multiple chip select outputs
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH REQUIREMENTS:
+-- - Systematic stimulus generation for all combinations
+-- - Expected result checking with assertions
+-- - Timing verification with appropriate delays
+-- - Corner case testing with metavalues
+--
+-- WAVEFORM ANALYSIS:
+-- - Verify exclusive output activation (one-hot)
+-- - Check transition timing and glitch-free operation
+-- - Validate enable control timing
+-- - Confirm proper initialization behavior
+--
+-- COVERAGE ANALYSIS:
+-- - Functional coverage for all input combinations
+-- - Toggle coverage for all input and output signals
+-- - State coverage for enable control scenarios
+-- - Assertion coverage for design requirements
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

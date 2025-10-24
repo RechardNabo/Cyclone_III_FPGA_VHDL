@@ -1,0 +1,1097 @@
+-- ============================================================================
+-- Traffic Light Controller FSM Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a traffic light controller using finite state machine
+-- principles. Traffic light controllers are classic examples of real-world FSM
+-- applications, demonstrating timing control, state transitions, and safety
+-- considerations in embedded systems.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand real-world FSM applications and timing control
+-- 2. Learn safety-critical system design principles
+-- 3. Practice timer-based state transitions
+-- 4. Explore pedestrian crossing and sensor integration
+-- 5. Understand traffic flow optimization and emergency handling
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations and counters
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the traffic light controller
+--
+-- Entity Requirements:
+-- - Name: traffic_light (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - Sensor inputs for traffic detection
+-- - Light control outputs for both directions
+-- - Optional pedestrian crossing controls
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input - typically 1 Hz or system clock)
+-- - rst : in std_logic (Reset input - active high or low)
+-- - sensor_ns : in std_logic (North-South traffic sensor)
+-- - sensor_ew : in std_logic (East-West traffic sensor)
+-- - pedestrian_btn : in std_logic (Pedestrian crossing button)
+-- - emergency : in std_logic (Emergency vehicle override)
+--
+-- Light Outputs:
+-- - ns_red : out std_logic (North-South red light)
+-- - ns_yellow : out std_logic (North-South yellow light)
+-- - ns_green : out std_logic (North-South green light)
+-- - ew_red : out std_logic (East-West red light)
+-- - ew_yellow : out std_logic (East-West yellow light)
+-- - ew_green : out std_logic (East-West green light)
+-- - walk_signal : out std_logic (Pedestrian walk signal)
+-- - dont_walk : out std_logic (Pedestrian don't walk signal)
+--
+-- Optional Ports:
+-- - timer_value : out integer (Current timer value for debugging)
+-- - current_state_debug : out std_logic_vector (State encoding for debug)
+-- - traffic_count_ns : out integer (North-South traffic count)
+-- - traffic_count_ew : out integer (East-West traffic count)
+--
+-- Design Considerations:
+-- - Timing requirements for each state
+-- - Safety interlocks (never green in both directions)
+-- - Emergency vehicle priority
+-- - Pedestrian crossing integration
+-- - Traffic flow optimization
+-- - Power failure and recovery behavior
+--
+-- TODO: Declare entity with appropriate ports
+-- TODO: Add comprehensive port comments
+-- TODO: Define timing parameters
+-- TODO: Consider safety requirements
+--
+-- ============================================================================
+-- STEP 3: TRAFFIC LIGHT CONTROL PRINCIPLES
+-- ============================================================================
+--
+-- TRAFFIC LIGHT FUNDAMENTALS:
+-- - Sequential state control with timing
+-- - Safety-critical operation requirements
+-- - Mutual exclusion of conflicting signals
+-- - Timer-based state transitions
+-- - Sensor-based adaptive control
+--
+-- BASIC TRAFFIC LIGHT SEQUENCE:
+-- 1. North-South Green, East-West Red
+-- 2. North-South Yellow, East-West Red
+-- 3. North-South Red, East-West Red (All Red safety period)
+-- 4. North-South Red, East-West Green
+-- 5. North-South Red, East-West Yellow
+-- 6. North-South Red, East-West Red (All Red safety period)
+-- 7. Repeat from step 1
+--
+-- TIMING CONSIDERATIONS:
+-- - Green light duration (typically 30-60 seconds)
+-- - Yellow light duration (typically 3-5 seconds)
+-- - All-red safety period (typically 1-2 seconds)
+-- - Minimum green time for safety
+-- - Maximum wait time for cross traffic
+--
+-- SAFETY REQUIREMENTS:
+-- - Never have green lights in both directions simultaneously
+-- - Always have all-red period between conflicting greens
+-- - Maintain minimum green times
+-- - Handle power failure gracefully
+-- - Provide emergency override capability
+--
+-- ADAPTIVE FEATURES:
+-- - Extend green time when traffic is detected
+-- - Reduce green time when no traffic is present
+-- - Pedestrian crossing integration
+-- - Emergency vehicle preemption
+-- - Time-of-day scheduling
+--
+-- TODO: Define timing parameters
+-- TODO: Specify safety requirements
+-- TODO: Choose adaptive features
+-- TODO: Plan emergency handling
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC FIXED-TIME CONTROLLER
+-- ----------------------------------------------------------------------------
+-- Simple controller with fixed timing for each state
+--
+-- Implementation Approach:
+-- - Enumerated type for traffic light states
+-- - Timer counter for state duration
+-- - State register process
+-- - Timer process
+-- - Output logic for light control
+--
+-- Example Structure:
+-- architecture basic_controller of traffic_light is
+--     type state_type is (NS_GREEN, NS_YELLOW, ALL_RED1, 
+--                        EW_GREEN, EW_YELLOW, ALL_RED2);
+--     signal current_state : state_type := NS_GREEN;
+--     signal timer : integer range 0 to 60 := 0;
+--     
+--     -- Timing constants (in seconds, assuming 1 Hz clock)
+--     constant GREEN_TIME : integer := 30;
+--     constant YELLOW_TIME : integer := 3;
+--     constant ALL_RED_TIME : integer := 2;
+-- begin
+--     -- State machine process
+--     state_machine: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= NS_GREEN;
+--             timer <= 0;
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when NS_GREEN =>
+--                     if timer >= GREEN_TIME - 1 then
+--                         current_state <= NS_YELLOW;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when NS_YELLOW =>
+--                     if timer >= YELLOW_TIME - 1 then
+--                         current_state <= ALL_RED1;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when ALL_RED1 =>
+--                     if timer >= ALL_RED_TIME - 1 then
+--                         current_state <= EW_GREEN;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when EW_GREEN =>
+--                     if timer >= GREEN_TIME - 1 then
+--                         current_state <= EW_YELLOW;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when EW_YELLOW =>
+--                     if timer >= YELLOW_TIME - 1 then
+--                         current_state <= ALL_RED2;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when ALL_RED2 =>
+--                     if timer >= ALL_RED_TIME - 1 then
+--                         current_state <= NS_GREEN;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output logic
+--     output_logic: process(current_state)
+--     begin
+--         -- Default all lights off
+--         ns_red <= '0'; ns_yellow <= '0'; ns_green <= '0';
+--         ew_red <= '0'; ew_yellow <= '0'; ew_green <= '0';
+--         
+--         case current_state is
+--             when NS_GREEN =>
+--                 ns_green <= '1';
+--                 ew_red <= '1';
+--             
+--             when NS_YELLOW =>
+--                 ns_yellow <= '1';
+--                 ew_red <= '1';
+--             
+--             when ALL_RED1 | ALL_RED2 =>
+--                 ns_red <= '1';
+--                 ew_red <= '1';
+--             
+--             when EW_GREEN =>
+--                 ns_red <= '1';
+--                 ew_green <= '1';
+--             
+--             when EW_YELLOW =>
+--                 ns_red <= '1';
+--                 ew_yellow <= '1';
+--         end case;
+--     end process;
+-- end basic_controller;
+--
+-- Basic Controller Advantages:
+-- - Simple and predictable operation
+-- - Easy to understand and verify
+-- - Reliable timing behavior
+-- - Low resource requirements
+--
+-- Basic Controller Disadvantages:
+-- - Inefficient for varying traffic loads
+-- - No adaptive behavior
+-- - Fixed timing regardless of conditions
+-- - Limited optimization potential
+--
+-- TODO: Implement basic fixed-time controller
+-- TODO: Define appropriate timing constants
+-- TODO: Verify safety interlocks
+-- TODO: Test all state transitions
+--
+-- OPTION 2: SENSOR-BASED ADAPTIVE CONTROLLER
+-- ----------------------------------------------------------------------------
+-- Controller that adapts timing based on traffic sensor inputs
+--
+-- Implementation Approach:
+-- - Traffic sensors for each direction
+-- - Variable timing based on sensor inputs
+-- - Minimum and maximum time limits
+-- - Adaptive green extension
+-- - Early termination for no traffic
+--
+-- Example Structure:
+-- architecture adaptive_controller of traffic_light is
+--     type state_type is (NS_GREEN, NS_YELLOW, ALL_RED1, 
+--                        EW_GREEN, EW_YELLOW, ALL_RED2);
+--     signal current_state : state_type := NS_GREEN;
+--     signal timer : integer range 0 to 120 := 0;
+--     
+--     -- Timing constants
+--     constant MIN_GREEN_TIME : integer := 10;
+--     constant MAX_GREEN_TIME : integer := 60;
+--     constant YELLOW_TIME : integer := 3;
+--     constant ALL_RED_TIME : integer := 2;
+--     constant EXTENSION_TIME : integer := 5;
+-- begin
+--     -- Adaptive state machine process
+--     adaptive_fsm: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= NS_GREEN;
+--             timer <= 0;
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when NS_GREEN =>
+--                     timer <= timer + 1;
+--                     
+--                     -- Check for early termination or extension
+--                     if timer >= MIN_GREEN_TIME then
+--                         if sensor_ew = '1' and sensor_ns = '0' then
+--                             -- Cross traffic waiting, no current traffic
+--                             current_state <= NS_YELLOW;
+--                             timer <= 0;
+--                         elsif timer >= MAX_GREEN_TIME then
+--                             -- Maximum time reached
+--                             current_state <= NS_YELLOW;
+--                             timer <= 0;
+--                         elsif sensor_ns = '1' and timer >= GREEN_TIME then
+--                             -- Extend green for continuing traffic
+--                             if timer >= GREEN_TIME + EXTENSION_TIME then
+--                                 current_state <= NS_YELLOW;
+--                                 timer <= 0;
+--                             end if;
+--                         elsif timer >= GREEN_TIME then
+--                             -- Normal green time expired
+--                             current_state <= NS_YELLOW;
+--                             timer <= 0;
+--                         end if;
+--                     end if;
+--                 
+--                 when NS_YELLOW =>
+--                     if timer >= YELLOW_TIME - 1 then
+--                         current_state <= ALL_RED1;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when ALL_RED1 =>
+--                     if timer >= ALL_RED_TIME - 1 then
+--                         current_state <= EW_GREEN;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when EW_GREEN =>
+--                     timer <= timer + 1;
+--                     
+--                     -- Similar adaptive logic for EW direction
+--                     if timer >= MIN_GREEN_TIME then
+--                         if sensor_ns = '1' and sensor_ew = '0' then
+--                             current_state <= EW_YELLOW;
+--                             timer <= 0;
+--                         elsif timer >= MAX_GREEN_TIME then
+--                             current_state <= EW_YELLOW;
+--                             timer <= 0;
+--                         elsif sensor_ew = '1' and timer >= GREEN_TIME then
+--                             if timer >= GREEN_TIME + EXTENSION_TIME then
+--                                 current_state <= EW_YELLOW;
+--                                 timer <= 0;
+--                             end if;
+--                         elsif timer >= GREEN_TIME then
+--                             current_state <= EW_YELLOW;
+--                             timer <= 0;
+--                         end if;
+--                     end if;
+--                 
+--                 when EW_YELLOW =>
+--                     if timer >= YELLOW_TIME - 1 then
+--                         current_state <= ALL_RED2;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when ALL_RED2 =>
+--                     if timer >= ALL_RED_TIME - 1 then
+--                         current_state <= NS_GREEN;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output logic (same as basic controller)
+--     -- ... (output assignments)
+-- end adaptive_controller;
+--
+-- Adaptive Controller Advantages:
+-- - Efficient traffic flow management
+-- - Reduced waiting times
+-- - Better fuel efficiency and emissions
+-- - Responsive to traffic patterns
+--
+-- Adaptive Controller Disadvantages:
+-- - More complex implementation
+-- - Requires reliable sensors
+-- - More difficult to verify
+-- - Potential for unexpected behavior
+--
+-- TODO: Implement adaptive controller
+-- TODO: Define sensor interface requirements
+-- TODO: Set appropriate timing limits
+-- TODO: Test various traffic scenarios
+--
+-- OPTION 3: PEDESTRIAN CROSSING INTEGRATION
+-- ----------------------------------------------------------------------------
+-- Controller with pedestrian crossing capability
+--
+-- Implementation Approach:
+-- - Additional states for pedestrian crossing
+-- - Pedestrian button input handling
+-- - Walk/Don't Walk signal control
+-- - Integration with vehicle traffic control
+-- - Minimum pedestrian crossing time
+--
+-- Example Structure:
+-- architecture pedestrian_controller of traffic_light is
+--     type state_type is (NS_GREEN, NS_YELLOW, ALL_RED1, 
+--                        EW_GREEN, EW_YELLOW, ALL_RED2,
+--                        PED_WALK, PED_CLEARANCE);
+--     signal current_state : state_type := NS_GREEN;
+--     signal timer : integer range 0 to 120 := 0;
+--     signal ped_request : std_logic := '0';
+--     signal ped_served : std_logic := '0';
+--     
+--     -- Timing constants
+--     constant GREEN_TIME : integer := 30;
+--     constant YELLOW_TIME : integer := 3;
+--     constant ALL_RED_TIME : integer := 2;
+--     constant WALK_TIME : integer := 15;
+--     constant CLEARANCE_TIME : integer := 10;
+-- begin
+--     -- Pedestrian request latch
+--     ped_request_latch: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             ped_request <= '0';
+--         elsif rising_edge(clk) then
+--             if pedestrian_btn = '1' then
+--                 ped_request <= '1';
+--             elsif current_state = PED_WALK then
+--                 ped_request <= '0';  -- Clear request when served
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Main state machine with pedestrian integration
+--     pedestrian_fsm: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= NS_GREEN;
+--             timer <= 0;
+--             ped_served <= '0';
+--         elsif rising_edge(clk) then
+--             case current_state is
+--                 when NS_GREEN =>
+--                     if timer >= GREEN_TIME - 1 then
+--                         current_state <= NS_YELLOW;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when NS_YELLOW =>
+--                     if timer >= YELLOW_TIME - 1 then
+--                         if ped_request = '1' and ped_served = '0' then
+--                             current_state <= PED_WALK;
+--                             timer <= 0;
+--                         else
+--                             current_state <= ALL_RED1;
+--                             timer <= 0;
+--                         end if;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when PED_WALK =>
+--                     if timer >= WALK_TIME - 1 then
+--                         current_state <= PED_CLEARANCE;
+--                         timer <= 0;
+--                         ped_served <= '1';
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when PED_CLEARANCE =>
+--                     if timer >= CLEARANCE_TIME - 1 then
+--                         current_state <= ALL_RED1;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when ALL_RED1 =>
+--                     if timer >= ALL_RED_TIME - 1 then
+--                         current_state <= EW_GREEN;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when EW_GREEN =>
+--                     if timer >= GREEN_TIME - 1 then
+--                         current_state <= EW_YELLOW;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when EW_YELLOW =>
+--                     if timer >= YELLOW_TIME - 1 then
+--                         current_state <= ALL_RED2;
+--                         timer <= 0;
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--                 
+--                 when ALL_RED2 =>
+--                     if timer >= ALL_RED_TIME - 1 then
+--                         current_state <= NS_GREEN;
+--                         timer <= 0;
+--                         ped_served <= '0';  -- Reset for next cycle
+--                     else
+--                         timer <= timer + 1;
+--                     end if;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output logic with pedestrian signals
+--     output_logic: process(current_state)
+--     begin
+--         -- Default all lights off
+--         ns_red <= '0'; ns_yellow <= '0'; ns_green <= '0';
+--         ew_red <= '0'; ew_yellow <= '0'; ew_green <= '0';
+--         walk_signal <= '0'; dont_walk <= '1';  -- Default don't walk
+--         
+--         case current_state is
+--             when NS_GREEN =>
+--                 ns_green <= '1';
+--                 ew_red <= '1';
+--             
+--             when NS_YELLOW =>
+--                 ns_yellow <= '1';
+--                 ew_red <= '1';
+--             
+--             when PED_WALK =>
+--                 ns_red <= '1';
+--                 ew_red <= '1';
+--                 walk_signal <= '1';
+--                 dont_walk <= '0';
+--             
+--             when PED_CLEARANCE =>
+--                 ns_red <= '1';
+--                 ew_red <= '1';
+--                 walk_signal <= '0';
+--                 dont_walk <= '1';  -- Flashing don't walk (implement with timer)
+--             
+--             when ALL_RED1 | ALL_RED2 =>
+--                 ns_red <= '1';
+--                 ew_red <= '1';
+--             
+--             when EW_GREEN =>
+--                 ns_red <= '1';
+--                 ew_green <= '1';
+--             
+--             when EW_YELLOW =>
+--                 ns_red <= '1';
+--                 ew_yellow <= '1';
+--         end case;
+--     end process;
+-- end pedestrian_controller;
+--
+-- Pedestrian Controller Advantages:
+-- - Complete intersection control
+-- - Pedestrian safety integration
+-- - Flexible crossing timing
+-- - Real-world applicability
+--
+-- Pedestrian Controller Disadvantages:
+-- - Increased complexity
+-- - More states to verify
+-- - Additional timing requirements
+-- - Complex interaction scenarios
+--
+-- TODO: Implement pedestrian controller
+-- TODO: Define pedestrian timing requirements
+-- TODO: Add button debouncing logic
+-- TODO: Test pedestrian request scenarios
+--
+-- OPTION 4: EMERGENCY VEHICLE PREEMPTION
+-- ----------------------------------------------------------------------------
+-- Controller with emergency vehicle override capability
+--
+-- Implementation Approach:
+-- - Emergency vehicle detection input
+-- - Immediate preemption logic
+-- - Safe transition to emergency state
+-- - Return to normal operation
+-- - Emergency state logging
+--
+-- Example Structure:
+-- architecture emergency_controller of traffic_light is
+--     type state_type is (NS_GREEN, NS_YELLOW, ALL_RED1, 
+--                        EW_GREEN, EW_YELLOW, ALL_RED2,
+--                        EMERGENCY_NS, EMERGENCY_EW, EMERGENCY_CLEAR);
+--     signal current_state, saved_state : state_type := NS_GREEN;
+--     signal timer, saved_timer : integer range 0 to 120 := 0;
+--     signal emergency_active : std_logic := '0';
+--     signal emergency_direction : std_logic := '0';  -- 0=NS, 1=EW
+-- begin
+--     -- Emergency detection and handling
+--     emergency_handler: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             emergency_active <= '0';
+--             saved_state <= NS_GREEN;
+--             saved_timer <= 0;
+--         elsif rising_edge(clk) then
+--             if emergency = '1' and emergency_active = '0' then
+--                 -- Emergency vehicle detected
+--                 emergency_active <= '1';
+--                 saved_state <= current_state;
+--                 saved_timer <= timer;
+--                 -- Determine emergency direction based on current state or sensor
+--                 if current_state = NS_GREEN or current_state = NS_YELLOW then
+--                     emergency_direction <= '0';  -- NS direction
+--                 else
+--                     emergency_direction <= '1';  -- EW direction
+--                 end if;
+--             elsif emergency = '0' and emergency_active = '1' then
+--                 -- Emergency cleared
+--                 emergency_active <= '0';
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Main state machine with emergency preemption
+--     emergency_fsm: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= NS_GREEN;
+--             timer <= 0;
+--         elsif rising_edge(clk) then
+--             if emergency_active = '1' then
+--                 -- Emergency preemption logic
+--                 case current_state is
+--                     when NS_GREEN | NS_YELLOW | EW_GREEN | EW_YELLOW =>
+--                         -- Transition to emergency clearance
+--                         current_state <= EMERGENCY_CLEAR;
+--                         timer <= 0;
+--                     
+--                     when EMERGENCY_CLEAR =>
+--                         if timer >= 3 then  -- 3 second clearance
+--                             if emergency_direction = '0' then
+--                                 current_state <= EMERGENCY_NS;
+--                             else
+--                                 current_state <= EMERGENCY_EW;
+--                             end if;
+--                             timer <= 0;
+--                         else
+--                             timer <= timer + 1;
+--                         end if;
+--                     
+--                     when EMERGENCY_NS =>
+--                         -- Maintain NS green for emergency vehicle
+--                         timer <= timer + 1;
+--                     
+--                     when EMERGENCY_EW =>
+--                         -- Maintain EW green for emergency vehicle
+--                         timer <= timer + 1;
+--                     
+--                     when others =>
+--                         -- Stay in current emergency state
+--                         timer <= timer + 1;
+--                 end case;
+--             else
+--                 -- Normal operation or return from emergency
+--                 if current_state = EMERGENCY_NS or current_state = EMERGENCY_EW or 
+--                    current_state = EMERGENCY_CLEAR then
+--                     -- Return to saved state or start new cycle
+--                     current_state <= NS_GREEN;  -- Safe restart
+--                     timer <= 0;
+--                 else
+--                     -- Normal state machine operation
+--                     case current_state is
+--                         when NS_GREEN =>
+--                             if timer >= GREEN_TIME - 1 then
+--                                 current_state <= NS_YELLOW;
+--                                 timer <= 0;
+--                             else
+--                                 timer <= timer + 1;
+--                             end if;
+--                         
+--                         -- ... (other normal states)
+--                         
+--                         when others =>
+--                             current_state <= NS_GREEN;
+--                             timer <= 0;
+--                     end case;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output logic with emergency states
+--     emergency_output: process(current_state, emergency_active)
+--     begin
+--         -- Default all lights off
+--         ns_red <= '0'; ns_yellow <= '0'; ns_green <= '0';
+--         ew_red <= '0'; ew_yellow <= '0'; ew_green <= '0';
+--         
+--         case current_state is
+--             when EMERGENCY_CLEAR =>
+--                 ns_red <= '1';
+--                 ew_red <= '1';
+--             
+--             when EMERGENCY_NS =>
+--                 ns_green <= '1';
+--                 ew_red <= '1';
+--             
+--             when EMERGENCY_EW =>
+--                 ns_red <= '1';
+--                 ew_green <= '1';
+--             
+--             -- ... (other normal state outputs)
+--             
+--             when others =>
+--                 -- Normal state outputs
+--                 ns_red <= '1';
+--                 ew_red <= '1';
+--         end case;
+--     end process;
+-- end emergency_controller;
+--
+-- Emergency Controller Advantages:
+-- - Critical safety feature
+-- - Rapid response capability
+-- - Maintains traffic safety
+-- - Real emergency system integration
+--
+-- Emergency Controller Disadvantages:
+-- - Complex state management
+-- - Requires reliable emergency detection
+-- - Potential for system disruption
+-- - Extensive testing requirements
+--
+-- TODO: Implement emergency preemption
+-- TODO: Define emergency detection interface
+-- TODO: Plan safe state transitions
+-- TODO: Test emergency scenarios thoroughly
+--
+-- ============================================================================
+-- STEP 5: ADVANCED FEATURES
+-- ============================================================================
+--
+-- TIME-OF-DAY SCHEDULING:
+-- - Different timing patterns for different times
+-- - Rush hour vs off-peak optimization
+-- - Night mode with flashing operation
+-- - Weekend vs weekday patterns
+--
+-- TRAFFIC FLOW OPTIMIZATION:
+-- - Coordinated signal timing with adjacent intersections
+-- - Green wave progression
+-- - Adaptive timing based on traffic patterns
+-- - Machine learning integration
+--
+-- FAULT DETECTION AND RECOVERY:
+-- - Light bulb failure detection
+-- - Sensor malfunction handling
+-- - Communication failure recovery
+-- - Graceful degradation modes
+--
+-- COMMUNICATION INTERFACES:
+-- - Central traffic management system
+-- - Vehicle-to-infrastructure (V2I) communication
+-- - Remote monitoring and control
+-- - Data logging and analytics
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test integration scenarios
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- SAFETY ANALYSIS:
+-- - Failure mode and effects analysis (FMEA)
+-- - Safety integrity level (SIL) requirements
+-- - Redundancy and backup systems
+-- - Fail-safe operation modes
+--
+-- TIMING VERIFICATION:
+-- - Real-time constraints verification
+-- - Worst-case timing analysis
+-- - Clock domain considerations
+-- - Jitter and stability analysis
+--
+-- ENVIRONMENTAL CONSIDERATIONS:
+-- - Temperature range operation
+-- - Power supply variations
+-- - Electromagnetic interference (EMI)
+-- - Vibration and shock resistance
+--
+-- REGULATORY COMPLIANCE:
+-- - Traffic signal standards compliance
+-- - Safety certification requirements
+-- - Accessibility requirements
+-- - Environmental regulations
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. URBAN INTERSECTIONS:
+--    - Standard four-way intersections
+--    - Complex multi-lane intersections
+--    - Pedestrian crossing integration
+--    - Public transportation priority
+--
+-- 2. HIGHWAY RAMP CONTROL:
+--    - On-ramp metering systems
+--    - Variable speed limit control
+--    - Incident management
+--    - Traffic flow optimization
+--
+-- 3. CONSTRUCTION ZONES:
+--    - Temporary traffic control
+--    - Work zone safety
+--    - Flagging operation automation
+--    - Variable message signs
+--
+-- 4. EMERGENCY SERVICES:
+--    - Fire station exit control
+--    - Hospital emergency access
+--    - Police station integration
+--    - Emergency vehicle preemption
+--
+-- 5. SMART CITY INTEGRATION:
+--    - Connected vehicle systems
+--    - IoT sensor networks
+--    - Data analytics platforms
+--    - Autonomous vehicle support
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - All state transitions verification
+-- - Timing accuracy testing
+-- - Safety interlock verification
+-- - Emergency scenario testing
+-- - Pedestrian crossing testing
+--
+-- SAFETY TESTING:
+-- - Fault injection testing
+-- - Power failure scenarios
+-- - Sensor failure testing
+-- - Communication failure testing
+-- - Worst-case timing verification
+--
+-- PERFORMANCE TESTING:
+-- - Traffic flow efficiency measurement
+-- - Response time analysis
+-- - Resource utilization testing
+-- - Long-term reliability testing
+-- - Environmental stress testing
+--
+-- INTEGRATION TESTING:
+-- - Multi-intersection coordination
+-- - Emergency vehicle integration
+-- - Central system communication
+-- - Sensor system integration
+-- - User interface testing
+--
+-- COMPLIANCE TESTING:
+-- - Standards compliance verification
+-- - Safety certification testing
+-- - Accessibility testing
+-- - Environmental compliance
+-- - Regulatory approval testing
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with basic fixed-time controller
+-- 2. Implement simple two-direction control
+-- 3. Add proper safety interlocks
+-- 4. Create comprehensive testbench
+-- 5. Verify timing and safety
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Add sensor-based adaptive control
+-- 2. Implement pedestrian crossing
+-- 3. Add emergency vehicle preemption
+-- 4. Optimize timing parameters
+-- 5. Create realistic test scenarios
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement full-featured controller
+-- 2. Add communication interfaces
+-- 3. Implement fault detection
+-- 4. Create system-level integration
+-- 5. Develop safety certification
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. ROUNDABOUT CONTROLLER:
+--    - Implement roundabout traffic control
+--    - Add yield management
+--    - Handle pedestrian crossings
+--    - Optimize traffic flow
+--
+-- 2. RAILROAD CROSSING:
+--    - Implement railroad crossing control
+--    - Add train detection
+--    - Handle emergency scenarios
+--    - Integrate with traffic signals
+--
+-- 3. SCHOOL ZONE CONTROL:
+--    - Implement school zone timing
+--    - Add time-of-day scheduling
+--    - Handle crossing guard integration
+--    - Add safety features
+--
+-- 4. HIGHWAY WORK ZONE:
+--    - Implement work zone control
+--    - Add variable timing
+--    - Handle flagging operations
+--    - Add safety monitoring
+--
+-- 5. SMART INTERSECTION:
+--    - Implement IoT integration
+--    - Add machine learning
+--    - Handle connected vehicles
+--    - Add predictive control
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. SAFETY VIOLATIONS:
+--    - Simultaneous green lights
+--    - Missing all-red periods
+--    - Inadequate yellow timing
+--    - Unsafe emergency transitions
+--
+-- 2. TIMING ERRORS:
+--    - Incorrect timer calculations
+--    - Missing timer resets
+--    - Race conditions
+--    - Clock domain issues
+--
+-- 3. STATE MACHINE ERRORS:
+--    - Incomplete state coverage
+--    - Missing state transitions
+--    - Unreachable states
+--    - State encoding issues
+--
+-- 4. SENSOR HANDLING:
+--    - Inadequate debouncing
+--    - Missing sensor validation
+--    - Sensor failure handling
+--    - Noise immunity issues
+--
+-- 5. EMERGENCY HANDLING:
+--    - Unsafe emergency transitions
+--    - Missing emergency states
+--    - Inadequate recovery procedures
+--    - Emergency detection failures
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper ports
+-- □ All required states defined
+-- □ Complete state transition coverage
+-- □ Safety interlocks implemented
+-- □ Timer logic verified
+-- □ Emergency handling implemented
+-- □ Pedestrian crossing integrated
+-- □ Sensor inputs properly handled
+-- □ Output logic verified
+-- □ Reset behavior correct
+-- □ Timing requirements met
+-- □ Safety analysis complete
+-- □ Fault handling implemented
+-- □ Test coverage adequate
+-- □ Documentation complete
+-- □ Standards compliance verified
+-- □ Integration testing passed
+-- □ Performance requirements met
+-- □ Environmental testing complete
+-- □ Regulatory approval obtained
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- REAL-TIME SYSTEMS:
+-- - Hard real-time constraints
+-- - Deterministic behavior
+-- - Timing predictability
+-- - Resource management
+--
+-- SAFETY-CRITICAL SYSTEMS:
+-- - Fault tolerance design
+-- - Redundancy implementation
+-- - Safety integrity levels
+-- - Hazard analysis
+--
+-- EMBEDDED SYSTEMS:
+-- - Resource constraints
+-- - Power management
+-- - Environmental considerations
+-- - System integration
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - Clock management for timing
+-- - I/O pin assignment
+-- - Power supply considerations
+-- - Environmental protection
+--
+-- MICROCONTROLLER INTEGRATION:
+-- - Real-time operating system
+-- - Interrupt handling
+-- - Communication protocols
+-- - Memory management
+--
+-- SYSTEM INTEGRATION:
+-- - Sensor interface design
+-- - Communication bus implementation
+-- - Power distribution
+-- - Enclosure and protection
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- TRAFFIC ENGINEERING:
+-- - Traffic flow theory
+-- - Capacity analysis
+-- - Level of service
+-- - Optimization algorithms
+--
+-- CONTROL THEORY:
+-- - Feedback control systems
+-- - Adaptive control
+-- - Predictive control
+-- - Optimization theory
+--
+-- COMMUNICATION SYSTEMS:
+-- - Vehicle-to-infrastructure
+-- - Wireless communication
+-- - Network protocols
+-- - Data security
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Traffic scenario modeling
+-- - Timing verification
+-- - Safety testing
+-- - Performance analysis
+--
+-- VERIFICATION METHODOLOGY:
+-- - Formal verification
+-- - Model checking
+-- - Safety analysis
+-- - Compliance testing
+--
+-- DEBUGGING TECHNIQUES:
+-- - State machine visualization
+-- - Timing analysis
+-- - Safety violation detection
+-- - Performance monitoring
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

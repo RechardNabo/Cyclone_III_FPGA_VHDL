@@ -1,0 +1,513 @@
+-- ============================================================================
+-- PROJECT: ISA Controller FSMD Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a comprehensive Finite State Machine with Datapath
+-- (FSMD) for an ISA (Industry Standard Architecture) bus controller using VHDL.
+-- The FSMD combines control logic and datapath operations in a single integrated
+-- design, providing efficient ISA bus transaction management with embedded
+-- data processing capabilities.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand FSMD design methodology and its advantages
+-- - Learn integrated control and datapath design techniques
+-- - Practice advanced VHDL FSMD implementation patterns
+-- - Implement ISA bus protocol with embedded data operations
+-- - Understand the trade-offs between FSMD and separate FSM+Datapath designs
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - clk: System clock (ISA bus clock domain)
+-- - reset_n: Active-low asynchronous reset
+-- - cpu_request: CPU transaction request
+-- - cpu_read_write: CPU read/write control (1=write, 0=read)
+-- - cpu_byte_word: CPU byte/word select (1=word, 0=byte)
+-- - cpu_address: CPU address bus
+-- - cpu_data_in: CPU write data
+-- - isa_data_in: ISA bus read data
+-- - isa_ready: ISA bus ready signal
+-- - isa_wait: ISA bus wait state request
+-- - error_detected: Error condition detected
+-- - dma_request: DMA transfer request
+-- - interrupt_request: Interrupt service request
+-- - config_data: Configuration register data
+-- - status_flags: External status flags
+--
+-- OUTPUTS:
+-- - cpu_acknowledge: CPU transaction acknowledge
+-- - cpu_data_out: CPU read data (processed)
+-- - cpu_data_ready: CPU data ready signal
+-- - isa_address: ISA address bus (latched/processed)
+-- - isa_data_out: ISA write data (processed)
+-- - isa_address_enable: ISA address bus enable
+-- - isa_data_enable: ISA data bus enable
+-- - isa_read_strobe: ISA read strobe signal
+-- - isa_write_strobe: ISA write strobe signal
+-- - isa_io_read: ISA I/O read signal
+-- - isa_io_write: ISA I/O write signal
+-- - isa_memory_read: ISA memory read signal
+-- - isa_memory_write: ISA memory write signal
+-- - status_outputs: FSMD status indicators
+--   - current_state: Current FSMD state (for debug)
+--   - transaction_active: Transaction in progress
+--   - error_flag: Error condition flag
+--   - busy_flag: Controller busy indicator
+--   - data_valid: Processed data valid flag
+--
+-- ============================================================================
+-- FSMD ARCHITECTURE OVERVIEW:
+-- ============================================================================
+-- INTEGRATED COMPONENTS:
+-- The FSMD integrates the following components in a single design:
+-- - State Machine Controller: Manages ISA protocol states
+-- - Address Processing Unit: Address translation and validation
+-- - Data Processing Unit: Data formatting and conversion
+-- - Buffer Management: Internal data buffering and queuing
+-- - Error Detection Logic: Protocol and data error checking
+-- - Timing Control: ISA protocol timing generation
+-- - Status Generation: System status and flag management
+--
+-- STATES WITH EMBEDDED OPERATIONS:
+-- - IDLE: Wait for requests + status monitoring
+-- - ADDR_SETUP: Address processing + validation + ISA setup
+-- - CMD_ASSERT: Command generation + data preparation
+-- - DATA_XFER: Data transfer + format conversion + error checking
+-- - WAIT_STATE: Wait handling + data buffering + timeout monitoring
+-- - RECOVERY: Transaction cleanup + status update + buffer management
+-- - ERROR_HANDLE: Error processing + recovery actions + logging
+-- - DMA_CYCLE: DMA management + address increment + count tracking
+-- - INT_ACK: Interrupt processing + vector handling + priority management
+-- - CONFIG_ACCESS: Configuration operations + register updates
+--
+-- DATA OPERATIONS PER STATE:
+-- Each state performs specific data operations:
+-- - Address translation and range checking
+-- - Data format conversion (byte/word alignment)
+-- - Protocol signal generation and timing
+-- - Buffer management and data queuing
+-- - Error detection and correction
+-- - Status flag generation and monitoring
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. SINGLE-PROCESS FSMD:
+--    - All state logic and data operations in one process
+--    - Compact implementation with shared resources
+--    - Potential for complex combinational logic
+--    - Good for simple FSMD designs
+--    - Easier resource sharing and optimization
+--
+-- 2. TWO-PROCESS FSMD:
+--    - Separate state register and combined next-state/datapath logic
+--    - Clear separation of sequential and combinational logic
+--    - Better for complex FSMD designs
+--    - Easier timing analysis and optimization
+--    - More predictable synthesis results
+--
+-- 3. HIERARCHICAL FSMD:
+--    - Main FSMD with sub-FSMD modules
+--    - Modular design with clear interfaces
+--    - Good for complex protocols with multiple phases
+--    - Easier maintenance and verification
+--    - Requires careful state and data coordination
+--
+-- 4. PIPELINE FSMD:
+--    - Multiple pipeline stages with state control
+--    - High throughput for streaming operations
+--    - Complex control and data flow management
+--    - Best for high-performance applications
+--    - Requires advanced verification techniques
+--
+-- ============================================================================
+-- FSMD vs. FSM+DATAPATH COMPARISON:
+-- ============================================================================
+-- FSMD ADVANTAGES:
+-- - Integrated design with optimized resource sharing
+-- - Reduced inter-module communication overhead
+-- - Simplified timing analysis and closure
+-- - Better optimization opportunities for synthesis
+-- - Reduced design complexity for simple operations
+-- - More efficient for control-dominated applications
+--
+-- FSMD DISADVANTAGES:
+-- - Less modular than separate FSM+Datapath
+-- - Harder to reuse datapath components
+-- - More complex verification and debugging
+-- - Potential for large state machines
+-- - Less flexibility for datapath modifications
+--
+-- FSM+DATAPATH ADVANTAGES:
+-- - Clear separation of control and data
+-- - Modular design with reusable components
+-- - Easier verification and testing
+-- - Better for complex datapath operations
+-- - More flexible for design modifications
+--
+-- DESIGN CHOICE GUIDELINES:
+-- - Use FSMD for: Simple protocols, control-heavy applications
+-- - Use FSM+Datapath for: Complex datapaths, reusable designs
+-- - Consider hybrid approaches for optimal solutions
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- TIMING ANALYSIS:
+-- - Meet all ISA protocol timing requirements
+-- - Account for embedded data processing delays
+-- - Consider setup/hold times for integrated registers
+-- - Minimize critical path through state and data logic
+-- - Balance state transition and data processing timing
+--
+-- RESOURCE UTILIZATION:
+-- - Optimize shared resources between states
+-- - Minimize register usage through state-based sharing
+-- - Use efficient coding styles for integrated logic
+-- - Balance area vs. performance for embedded operations
+-- - Consider memory vs. logic trade-offs
+--
+-- POWER CONSUMPTION:
+-- - Use clock gating for inactive data paths
+-- - Minimize unnecessary data processing
+-- - Implement low-power idle modes with data retention
+-- - Consider dynamic voltage scaling for data operations
+-- - Optimize switching activity in data paths
+--
+-- TESTABILITY:
+-- - Provide visibility for both state and data
+-- - Include test modes for data path verification
+-- - Support boundary scan for integrated design
+-- - Add built-in self-test for data operations
+-- - Implement debug interfaces for state and data monitoring
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ARCHITECTURE PLANNING
+-- □ Define integrated state and data operations
+-- □ Plan resource sharing between states
+-- □ Design data flow through state machine
+-- □ Identify critical timing paths
+--
+-- STEP 2: STATE AND DATA DEFINITION
+-- □ Define all states with embedded operations
+-- □ Specify data types and signal widths
+-- □ Plan internal registers and buffers
+-- □ Design state encoding with data considerations
+--
+-- STEP 3: INTEGRATED PROCESS IMPLEMENTATION
+-- □ Implement combined state and data process
+-- □ Add proper reset for state and data registers
+-- □ Include data operations within each state
+-- □ Add timeout and error handling with data recovery
+--
+-- STEP 4: DATA PATH INTEGRATION
+-- □ Implement address processing within states
+-- □ Add data format conversion logic
+-- □ Include buffer management operations
+-- □ Add error detection and correction
+--
+-- STEP 5: PROTOCOL COMPLIANCE WITH DATA
+-- □ Verify ISA timing with embedded operations
+-- □ Add wait state handling with data buffering
+-- □ Implement error recovery with data integrity
+-- □ Add protocol violation detection
+--
+-- STEP 6: ADVANCED INTEGRATED FEATURES
+-- □ Add DMA support with address management
+-- □ Implement interrupt handling with data context
+-- □ Include configuration with register operations
+-- □ Add performance monitoring and optimization
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Standard logic types for FSMD implementation
+-- - Multi-valued logic for integrated bus control
+-- - Essential for state machine and data path design
+--
+-- IEEE.numeric_std.all:
+-- - Arithmetic operations for embedded data processing
+-- - Address calculations and data conversions
+-- - Counter and timer operations within states
+-- - Comparison operations for data validation
+--
+-- IEEE.std_logic_misc.all:
+-- - Additional logic functions for data operations
+-- - State encoding utilities with data considerations
+-- - Reduction operators for integrated condition checking
+-- - Vector manipulation functions
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- PERFORMANCE ENHANCEMENTS:
+-- - Speculative data processing in parallel with state transitions
+-- - Pipelined data operations within states
+-- - Predictive buffer management
+-- - Optimized critical path through integrated logic
+-- - Parallel state and data evaluation
+--
+-- ERROR HANDLING WITH DATA INTEGRITY:
+-- - Comprehensive error detection with data validation
+-- - Automatic error recovery with data restoration
+-- - Error logging with transaction context
+-- - Graceful degradation with data preservation
+-- - Parity and checksum generation/checking
+--
+-- CONFIGURABILITY:
+-- - Parameterizable data widths and buffer sizes
+-- - Optional feature enables/disables
+-- - Runtime configuration with data format selection
+-- - Protocol variant support with data adaptation
+-- - Performance tuning parameters
+--
+-- DEBUG AND MONITORING:
+-- - Real-time state and data visibility
+-- - Transaction history with data logging
+-- - Performance monitoring with data throughput
+-- - Protocol analyzer interface with data capture
+-- - Built-in logic analyzer functionality
+--
+-- ============================================================================
+-- ISA PROTOCOL INTEGRATION:
+-- ============================================================================
+-- PROTOCOL STATES WITH DATA OPERATIONS:
+-- - T1 (Address Setup): Address processing + validation + ISA drive
+-- - T2 (Command Assert): Command generation + data preparation + timing
+-- - T3 (Data Transfer): Data conversion + transfer + error checking
+-- - T4 (Recovery): Cleanup + status update + buffer management
+-- - Tw (Wait States): Data buffering + timeout + signal maintenance
+--
+-- DATA PROCESSING INTEGRATION:
+-- - Address translation during setup phase
+-- - Data format conversion during transfer phase
+-- - Error detection during all phases
+-- - Buffer management across state transitions
+-- - Status generation with data context
+--
+-- TIMING INTEGRATION:
+-- - Embedded timing counters within states
+-- - Data processing time consideration
+-- - Protocol timing with data operation delays
+-- - Wait state insertion with data buffering
+-- - Recovery timing with data cleanup
+--
+-- ============================================================================
+-- DATAPATH INTEGRATION:
+-- ============================================================================
+-- INTEGRATED DATAPATH COMPONENTS:
+-- - Address Processing Unit (within address states)
+-- - Data Format Converter (within data states)
+-- - Buffer Management Unit (across all states)
+-- - Error Detection Logic (within all states)
+-- - Status Generator (within status states)
+--
+-- DATA FLOW THROUGH STATES:
+-- - Input data capture and validation
+-- - Address processing and translation
+-- - Data format conversion and alignment
+-- - Buffer management and queuing
+-- - Output data generation and timing
+-- - Error detection and reporting
+--
+-- RESOURCE SHARING:
+-- - Shared arithmetic units across states
+-- - Common buffer memory for different operations
+-- - Multiplexed data paths based on state
+-- - Shared error detection logic
+-- - Common timing and control resources
+--
+-- ============================================================================
+-- CONFIGURATION SPACE INTEGRATION:
+-- ============================================================================
+-- CONFIGURATION WITH DATA PROCESSING:
+-- - Configuration register read/write with data validation
+-- - Parameter updates with immediate effect on data processing
+-- - Status register updates with real-time data
+-- - Error configuration with data integrity checking
+-- - Performance tuning with data throughput optimization
+--
+-- CONFIGURATION STATES:
+-- - CONFIG_READ: Register access + data formatting + validation
+-- - CONFIG_WRITE: Data validation + register update + effect application
+-- - CONFIG_STATUS: Status collection + formatting + reporting
+-- - CONFIG_ERROR: Error handling + logging + recovery
+--
+-- RUNTIME RECONFIGURATION:
+-- - Dynamic parameter changes during operation
+-- - Data format reconfiguration on-the-fly
+-- - Buffer size adjustments with data preservation
+-- - Protocol variant switching with data adaptation
+-- - Performance optimization with real-time feedback
+--
+-- ============================================================================
+-- ERROR HANDLING INTEGRATION:
+-- ============================================================================
+-- ERROR DETECTION WITH DATA CONTEXT:
+-- - Protocol errors with transaction data logging
+-- - Data integrity errors with automatic correction
+-- - Timing violations with data preservation
+-- - Buffer overflow/underflow with data recovery
+-- - Configuration errors with parameter validation
+--
+-- ERROR RECOVERY WITH DATA INTEGRITY:
+-- - Transaction retry with data restoration
+-- - Data correction using error correction codes
+-- - Buffer recovery with data reorganization
+-- - State recovery with data context preservation
+-- - System recovery with minimal data loss
+--
+-- ERROR REPORTING:
+-- - Error logging with complete transaction context
+-- - Real-time error status with data validity flags
+-- - Error statistics with data throughput impact
+-- - Debug information with state and data snapshots
+-- - Recovery status with data integrity confirmation
+--
+-- ============================================================================
+-- VERIFICATION STRATEGY:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test all state transitions with data operations
+-- □ Verify protocol compliance with embedded data processing
+-- □ Test error detection and recovery with data integrity
+-- □ Validate interrupt and DMA handling with data context
+-- □ Check configuration operations with data validation
+-- □ Test all transaction types with data verification
+-- □ Verify buffer management across state transitions
+--
+-- DATA INTEGRITY VERIFICATION:
+-- □ Verify data format conversions in all states
+-- □ Test address processing and validation
+-- □ Check buffer operations and data preservation
+-- □ Validate error detection and correction
+-- □ Test data throughput and timing
+--
+-- TIMING VERIFICATION:
+-- □ Verify setup/hold times for integrated design
+-- □ Check state transition timing with data operations
+-- □ Validate protocol timing with embedded processing
+-- □ Test at various clock frequencies with data loads
+-- □ Verify metastability protection for data paths
+--
+-- INTEGRATION VERIFICATION:
+-- □ Test state machine and datapath integration
+-- □ Verify resource sharing between states
+-- □ Check data flow through state transitions
+-- □ Validate timing closure for integrated design
+-- □ Test power consumption with data operations
+--
+-- ============================================================================
+-- PERFORMANCE OPTIMIZATION:
+-- ============================================================================
+-- CRITICAL PATH OPTIMIZATION:
+-- - Identify longest paths through integrated logic
+-- - Optimize state transition with data processing
+-- - Use efficient state encoding with data considerations
+-- - Minimize logic depth in critical data paths
+-- - Balance state and data operation timing
+--
+-- RESOURCE OPTIMIZATION:
+-- - Share arithmetic units between states
+-- - Optimize buffer usage across state transitions
+-- - Use efficient multiplexing for data paths
+-- - Minimize register usage through state-based sharing
+-- - Optimize memory vs. logic trade-offs
+--
+-- THROUGHPUT OPTIMIZATION:
+-- - Pipeline data operations within states
+-- - Overlap state transitions with data processing
+-- - Optimize buffer management for continuous flow
+-- - Minimize wait states with predictive processing
+-- - Use speculative operations where safe
+--
+-- ============================================================================
+-- COMMON DESIGN PITFALLS:
+-- ============================================================================
+-- INTEGRATION ISSUES:
+-- - Incomplete integration of state and data logic
+-- - Resource conflicts between state operations
+-- - Timing violations in integrated paths
+-- - Data corruption during state transitions
+--
+-- STATE MACHINE ISSUES:
+-- - States too complex with excessive data operations
+-- - Missing data initialization in state transitions
+-- - Race conditions between state and data updates
+-- - Improper state encoding with data considerations
+--
+-- DATA PATH ISSUES:
+-- - Data format errors during state transitions
+-- - Buffer overflow/underflow in state operations
+-- - Incorrect data timing relative to state changes
+-- - Missing data validation in state processing
+--
+-- VERIFICATION GAPS:
+-- - Insufficient integration testing
+-- - Missing data integrity verification
+-- - Inadequate timing analysis for integrated design
+-- - Incomplete error handling verification
+--
+-- ============================================================================
+-- IMPLEMENTATION CHECKLIST:
+-- ============================================================================
+-- DESIGN PHASE:
+-- □ FSMD architecture defined and documented
+-- □ State diagram with data operations created
+-- □ Data flow through states specified
+-- □ Resource sharing plan developed
+-- □ Timing requirements identified
+--
+-- CODING PHASE:
+-- □ Integrated state machine implemented with proper reset
+-- □ All state transitions with data operations implemented
+-- □ Data processing logic integrated within states
+-- □ Error handling with data integrity implemented
+-- □ Protocol compliance with data operations verified
+-- □ Buffer management across states implemented
+-- □ Status generation with data context implemented
+--
+-- VERIFICATION PHASE:
+-- □ Functional verification with data operations completed
+-- □ Data integrity verification passed
+-- □ Timing verification for integrated design passed
+-- □ Protocol compliance with embedded processing verified
+-- □ Error handling with data recovery tested
+-- □ Performance requirements with data loads met
+--
+-- SYNTHESIS PHASE:
+-- □ Integrated design synthesizes without errors
+-- □ Timing constraints for combined logic satisfied
+-- □ Resource utilization optimized for integration
+-- □ Power consumption with data operations acceptable
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for standard logic types
+-- - IEEE.numeric_std.all for arithmetic operations
+-- - IEEE.std_logic_misc.all for additional functions
+--
+-- [Add your entity declaration here]
+-- - Define all input and output ports
+-- - Add generics for parameterization
+-- - Include comprehensive port descriptions
+-- - Consider data width and buffer size parameters
+--
+-- [Add your architecture implementation here]
+-- - Define state type with data operation considerations
+-- - Declare internal signals for integrated design
+-- - Implement combined state and data process
+-- - Add data processing within each state
+-- - Include buffer management across states
+-- - Add error handling with data integrity
+-- - Include protocol compliance with data operations
+-- - Add debug and status outputs for state and data
+--
+-- ============================================================================

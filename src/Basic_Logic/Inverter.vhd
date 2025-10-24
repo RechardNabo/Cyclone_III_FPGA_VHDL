@@ -1,30 +1,311 @@
-library  IEEE;
-use IEEE.std_logic_1164.all;
-use IEEE.numeric_std.all;
-
-
-entity Inverter is
-    port(
-        x : in std_logic;
-        f : out std_logic
-    );
-end entity;
-
-
-architecture inverter of Inverter is
-    begin
-        process(x)
-        begin
-            if (x = '1') then
-                f <= '0';
-            else
-                f <= '1';
-            end if;
-        end process;
-end architecture;
-
-
-architecture cocurrent of Inverter is
-    begin
-        f <= not(x);
-end architecture;
+-- ============================================================================
+-- Inverter (NOT Gate) Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements an Inverter circuit, which is functionally identical
+-- to a NOT gate. The inverter is one of the most fundamental building blocks
+-- in digital electronics, performing logical negation by outputting the
+-- complement of its input signal. It serves as a basic component for more
+-- complex logic functions and signal conditioning.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand inverter as fundamental digital building block
+-- 2. Learn signal inversion and complement operations in VHDL
+-- 3. Practice basic digital circuit implementation
+-- 4. Explore inverter applications in signal processing and logic design
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Consider if numeric_std is needed for this simple circuit
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ----------------------------------------------------------------------------
+-- The entity defines the inverter interface
+--
+-- Entity Requirements:
+-- - Name: Inverter (maintain current naming convention)
+-- - Input: One std_logic signal (current: x, alternatives: a, input)
+-- - Output: One std_logic signal (current: f, alternatives: y, output)
+--
+-- TODO: Declare entity with appropriate port map
+-- TODO: Add port comments for clarity
+-- TODO: Consider consistent naming with other project files
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE IMPLEMENTATION
+-- ----------------------------------------------------------------------------
+-- Multiple approaches to implement inverter functionality:
+--
+-- OPTION A: BEHAVIORAL MODELING (Process-based)
+-- - Use process with complete sensitivity list
+-- - Implement with if-then-else statements
+-- - Logic: if input='1' then output='0' else output='1'
+-- - Good for understanding sequential logic concepts
+--
+-- OPTION B: DATAFLOW MODELING (Concurrent assignment)
+-- - Use built-in NOT operator: output <= not input
+-- - Most direct and efficient approach
+-- - Recommended for simple inversion operations
+-- - Maps directly to hardware implementation
+--
+-- OPTION C: CONDITIONAL ASSIGNMENT
+-- - Use when-else statement for explicit truth table
+-- - Educational value for understanding conditional logic
+-- - Alternative dataflow approach
+--
+-- OPTION D: SELECTED ASSIGNMENT
+-- - Use with-select statement for truth table mapping
+-- - More verbose but shows explicit input-output relationship
+-- - Good for complex logic function understanding
+--
+-- ============================================================================
+-- INVERTER TRUTH TABLE:
+-- ============================================================================
+--
+-- Input X | Output F | Description
+-- --------|----------|-------------
+--    0    |    1     | Logical inversion
+--    1    |    0     | Logical inversion
+--
+-- Key Insight: Inverter always outputs the logical complement of input
+-- Boolean Expression: F = X' = ~X = ¬X
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- LOGICAL INVERSION IN VHDL:
+-- - 'not' operator: performs bitwise logical negation
+-- - Operates on std_logic and std_logic_vector types
+-- - Returns complement of input ('0' becomes '1', '1' becomes '0')
+-- - Handles metavalues appropriately (X, Z, U, etc.)
+--
+-- SIGNAL TYPES AND HANDLING:
+-- - std_logic: 9-value logic system for robust simulation
+-- - Proper handling of unknown ('X') and high-impedance ('Z') states
+-- - Uninitialized ('U') and don't-care ('-') value handling
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - Inverter maps efficiently to FPGA LUT resources
+-- - Minimal resource utilization (fraction of LUT)
+-- - Can be absorbed into adjacent logic during optimization
+-- - No significant timing impact for simple inversion
+--
+-- ============================================================================
+-- INVERTER APPLICATIONS:
+-- ============================================================================
+--
+-- 1. SIGNAL CONDITIONING:
+--    - Active-low to active-high conversion
+--    - Signal polarity adjustment
+--    - Interface level translation
+--
+-- 2. LOGIC FUNCTION BUILDING:
+--    - Component of NAND, NOR, and other complex gates
+--    - De Morgan's law implementations
+--    - Boolean function optimization
+--
+-- 3. CLOCK AND TIMING:
+--    - Clock signal inversion for dual-edge systems
+--    - Phase shift generation (180-degree phase shift)
+--    - Timing adjustment in synchronous systems
+--
+-- 4. BUFFER AND DRIVE:
+--    - Signal buffering with inversion
+--    - Drive strength enhancement
+--    - Fan-out improvement with signal inversion
+--
+-- 5. CONTROL LOGIC:
+--    - Enable signal generation (active-low from active-high)
+--    - Chip select polarity conversion
+--    - Reset signal polarity adjustment
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- BASIC FUNCTIONALITY TESTS:
+-- 1. Test Case 1: Input='0' → Expected: Output='1'
+-- 2. Test Case 2: Input='1' → Expected: Output='0'
+--
+-- EXTENDED SIGNAL TESTS:
+-- - Test with 'X' (unknown) input → Expected: 'X' output
+-- - Test with 'Z' (high-impedance) input → Expected: 'X' output
+-- - Test with 'U' (uninitialized) input → Expected: 'X' output
+-- - Test with '-' (don't care) input → Expected: 'X' output
+--
+-- TIMING AND PERFORMANCE TESTS:
+-- - Verify propagation delay characteristics
+-- - Test rapid input transitions
+-- - Check for output glitches or metastability
+-- - Validate setup and hold time requirements
+--
+-- STRESS TESTING:
+-- - Continuous switching at maximum frequency
+-- - Temperature and voltage variation effects
+-- - Long-term reliability under constant operation
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with truth table analysis and understanding
+-- 2. Implement using simple dataflow modeling (concurrent assignment)
+-- 3. Create basic testbench to verify both input cases
+-- 4. Understand the concept of logical complement
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement multiple architectures (behavioral and dataflow)
+-- 2. Compare synthesis results between different approaches
+-- 3. Analyze resource utilization and timing characteristics
+-- 4. Explore metavalue handling in simulation
+--
+-- FOR ADVANCED USERS:
+-- 1. Create parameterized multi-bit inverter designs
+-- 2. Implement custom drive strength and timing control
+-- 3. Design inverter chains for specific delay requirements
+-- 4. Optimize for target FPGA architecture characteristics
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. MULTI-BIT INVERTER:
+--    - Extend to N-bit bus inversion using std_logic_vector
+--    - Implement vectorized inversion operations
+--    - Add selective bit inversion with mask control
+--
+-- 2. CONTROLLED INVERTER:
+--    - Add enable control for conditional inversion
+--    - Implement tri-state output capability
+--    - Create bidirectional inverter buffer
+--
+-- 3. INVERTER CHAIN:
+--    - Design chain of inverters for precise delay generation
+--    - Implement ring oscillator using odd number of inverters
+--    - Create programmable delay line with inverter stages
+--
+-- 4. SCHMITT TRIGGER INVERTER:
+--    - Add hysteresis for noise immunity
+--    - Implement threshold control for analog input conditioning
+--    - Create noise-tolerant digital interface
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. SENSITIVITY LIST ERRORS:
+--    - Always include input signal in process sensitivity list
+--    - Missing sensitivity causes simulation/synthesis mismatch
+--    - Use 'all' keyword for automatic sensitivity (VHDL-2008)
+--
+-- 2. SIGNAL INITIALIZATION:
+--    - Properly initialize signals in testbenches
+--    - Avoid 'U' (uninitialized) states in simulation
+--    - Understand metavalue propagation through inverter
+--
+-- 3. TIMING ASSUMPTIONS:
+--    - Don't assume zero propagation delay
+--    - Consider setup and hold time requirements
+--    - Account for signal skew in multi-bit operations
+--
+-- 4. RESOURCE OPTIMIZATION:
+--    - Avoid unnecessary inverter chains
+--    - Let synthesis tools optimize inverter placement
+--    - Consider logic absorption during optimization
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes input and output ports
+-- □ Port directions correctly specified (in/out)
+-- □ Both input states tested ('0' and '1')
+-- □ Truth table behavior correctly implemented
+-- □ Inversion operation verified: output = not input
+-- □ Metavalue behavior tested and understood
+-- □ Synthesis completes without errors or warnings
+-- □ Timing requirements satisfied
+-- □ Code follows project VHDL style guidelines
+-- □ Comments clearly explain inverter functionality
+--
+-- ============================================================================
+-- INVERTER IN DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- BOOLEAN ALGEBRA PROPERTIES:
+-- - Involution: (A')' = A (double inversion returns original)
+-- - Complement: A + A' = 1, A · A' = 0
+-- - De Morgan's Laws: (A+B)' = A'·B', (A·B)' = A'+B'
+--
+-- LOGIC FAMILY CONSIDERATIONS:
+-- - TTL: Typically faster fall time than rise time
+-- - CMOS: Symmetric rise and fall times
+-- - FPGA: Implemented in LUT with configurable drive strength
+--
+-- POWER CONSUMPTION:
+-- - Static: Minimal leakage current in CMOS
+-- - Dynamic: Proportional to switching frequency and load capacitance
+-- - Optimization: Minimize unnecessary inversions in design
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- TRANSISTOR LEVEL (CMOS):
+-- - PMOS transistor: Pulls output high when input is low
+-- - NMOS transistor: Pulls output low when input is high
+-- - Complementary operation ensures no static current path
+--
+-- FPGA IMPLEMENTATION:
+-- - Implemented using Look-Up Table (LUT) configuration
+-- - Can be absorbed into adjacent logic functions
+-- - Dedicated fast carry chains may include inversion capability
+-- - Modern FPGAs optimize inverter placement automatically
+--
+-- TIMING CHARACTERISTICS:
+-- - Propagation delay: tpd (input transition to output transition)
+-- - Rise time: tr (output low-to-high transition time)
+-- - Fall time: tf (output high-to-low transition time)
+-- - Input capacitance: Cin (loading effect on driving circuit)
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH REQUIREMENTS:
+-- - Stimulus generation for all input combinations
+-- - Expected result checking and assertion
+-- - Timing verification with appropriate delays
+-- - Corner case testing with metavalues
+--
+-- WAVEFORM ANALYSIS:
+-- - Verify clean transitions without glitches
+-- - Check propagation delay consistency
+-- - Validate output drive strength adequacy
+-- - Confirm proper initialization behavior
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

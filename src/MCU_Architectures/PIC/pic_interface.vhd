@@ -1,0 +1,266 @@
+-- =====================================================================================
+-- PIC MICROCONTROLLER INTERFACE - PROGRAMMING GUIDANCE
+-- =====================================================================================
+-- 
+-- OVERVIEW:
+-- The PIC (Peripheral Interface Controller) is a family of microcontrollers from
+-- Microchip Technology, ranging from 8-bit to 32-bit architectures. Known for their
+-- simplicity, cost-effectiveness, and wide variety of peripheral integration options,
+-- PIC microcontrollers are widely used in embedded applications from simple control
+-- systems to complex industrial automation.
+--
+-- KEY FEATURES:
+-- • Multiple architectures: 8-bit (PIC10/12/16/18), 16-bit (PIC24/dsPIC), 32-bit (PIC32)
+-- • Harvard architecture with separate program and data memory spaces
+-- • RISC instruction set with single-cycle execution (most instructions)
+-- • Operating frequency: 32 kHz to 200 MHz (depending on family)
+-- • Wide range of memory options: 384B to 2MB Flash, 16B to 512KB RAM
+-- • Extensive peripheral integration: Timers, ADC, DAC, UART, SPI, I2C, USB, Ethernet
+-- • Multiple oscillator options: Internal RC, External Crystal, PLL
+-- • Low-power modes with fast wake-up capabilities
+-- • In-Circuit Serial Programming (ICSP) and debugging
+-- • Wide operating voltage range: 1.8V to 5.5V
+-- • Enhanced instruction sets (PIC18 Enhanced, PIC24/dsPIC, PIC32)
+--
+-- PROGRAMMING GUIDANCE FOR FPGA IMPLEMENTATION:
+--
+-- 1. CORE ARCHITECTURE SETUP (8-bit PIC):
+--    - Implement Harvard architecture with separate program and data buses
+--    - Configure 14-bit instruction width (PIC16) or 16-bit (PIC18)
+--    - Set up 8-bit data bus and appropriate address bus width
+--    - Implement single-cycle instruction execution pipeline
+--    - Configure working register (W) and file register architecture
+--
+-- 2. CORE ARCHITECTURE SETUP (16-bit PIC24/dsPIC):
+--    - Implement modified Harvard architecture with 24-bit instruction width
+--    - Configure 16-bit data bus and 23-bit program address space
+--    - Set up 16 working registers (W0-W15) with flexible addressing
+--    - Implement DSP engine for dsPIC variants (MAC, barrel shifter)
+--    - Configure interrupt controller with priority levels
+--
+-- 3. CORE ARCHITECTURE SETUP (32-bit PIC32):
+--    - Implement MIPS32 M4K core architecture
+--    - Configure 32-bit data and address buses
+--    - Set up 32 general-purpose registers
+--    - Implement 5-stage pipeline with branch prediction
+--    - Configure memory management unit (MMU) for virtual memory
+--
+-- 4. MEMORY SYSTEM CONFIGURATION:
+--    - Program Memory: Flash memory for instruction storage
+--    - Data Memory: SRAM for variables and stack
+--    - EEPROM: Non-volatile data storage (on select variants)
+--    - Configuration bits: Device configuration and fuse settings
+--    - Special Function Registers (SFRs): Peripheral control registers
+--
+-- 5. CLOCK SYSTEM IMPLEMENTATION:
+--    - Primary Oscillator (POSC): External crystal/resonator
+--    - Internal Oscillator (IOSC): Internal RC oscillator
+--    - Secondary Oscillator (SOSC): 32.768 kHz crystal for RTC
+--    - Phase-Locked Loop (PLL): Frequency multiplication
+--    - Clock switching and fail-safe clock monitor
+--    - Peripheral clock dividers and enables
+--
+-- 6. POWER MANAGEMENT SYSTEM:
+--    - Run Mode: Full operation with all peripherals active
+--    - Idle Mode: CPU stopped, peripherals active
+--    - Sleep Mode: CPU and most peripherals stopped
+--    - Deep Sleep Mode: Ultra-low power with minimal wake-up sources
+--    - Doze Mode: CPU clock reduced, peripherals at full speed
+--    - Power-on Reset (POR) and Brown-out Reset (BOR)
+--
+-- 7. INTERRUPT SYSTEM:
+--    - Vectored interrupt controller with priority levels
+--    - Multiple interrupt sources: External, Timer, Peripheral
+--    - Interrupt enable/disable control at global and individual levels
+--    - Context saving and restoration (automatic or manual)
+--    - Interrupt nesting support (on advanced variants)
+--
+-- 8. PERIPHERAL INTEGRATION:
+--    - Timer modules: 8/16/32-bit timers with capture/compare/PWM
+--    - Analog-to-Digital Converter: 10/12-bit resolution, multiple channels
+--    - Digital-to-Analog Converter: 8/10/12-bit resolution
+--    - Communication interfaces: UART, SPI, I2C, CAN, USB, Ethernet
+--    - Digital I/O ports with configurable pin functions
+--    - Comparators and operational amplifiers
+--    - Real-Time Clock and Calendar (RTCC)
+--    - Watchdog Timer for system reliability
+--
+-- 9. INSTRUCTION SET IMPLEMENTATION:
+--    - RISC instruction set with orthogonal operations
+--    - Single-cycle execution for most instructions
+--    - Bit manipulation and test instructions
+--    - Arithmetic and logical operations
+--    - Program flow control (branches, calls, returns)
+--    - Data movement instructions
+--
+-- 10. DEBUG AND PROGRAMMING INTERFACE:
+--     - In-Circuit Serial Programming (ICSP) interface
+--     - In-Circuit Debugger (ICD) support
+--     - JTAG interface (on select variants)
+--     - Real-time debugging with breakpoints
+--     - Program memory and data memory access
+--
+-- IMPLEMENTATION TEMPLATE:
+--
+-- entity pic_interface is
+--     generic (
+--         -- Core Configuration
+--         FAMILY              : string := "PIC18F";        -- PIC family
+--         VARIANT             : string := "PIC18F4550";    -- Specific variant
+--         FREQUENCY_MHZ       : integer := 48;             -- Maximum frequency
+--         INSTRUCTION_WIDTH   : integer := 16;             -- Instruction width
+--         
+--         -- Memory Configuration
+--         PROGRAM_MEM_SIZE    : integer := 32768;          -- Program memory (words)
+--         DATA_MEM_SIZE       : integer := 2048;           -- Data memory (bytes)
+--         EEPROM_SIZE         : integer := 256;            -- EEPROM size (bytes)
+--         STACK_DEPTH         : integer := 31;             -- Hardware stack depth
+--         
+--         -- Peripheral Configuration
+--         TIMER_COUNT         : integer := 4;              -- Number of timers
+--         CCP_COUNT           : integer := 2;              -- Capture/Compare/PWM modules
+--         ADC_CHANNELS        : integer := 13;             -- ADC input channels
+--         ADC_RESOLUTION      : integer := 10;             -- ADC resolution
+--         UART_COUNT          : integer := 1;              -- Number of UART modules
+--         SPI_COUNT           : integer := 1;              -- Number of SPI modules
+--         I2C_COUNT           : integer := 1;              -- Number of I2C modules
+--         USB_ENABLE          : boolean := true;           -- USB interface
+--         
+--         -- Feature Configuration
+--         ENHANCED_CORE       : boolean := true;           -- Enhanced instruction set
+--         EXTENDED_MODE       : boolean := true;           -- Extended instruction set
+--         PLL_ENABLE          : boolean := true;           -- Phase-locked loop
+--         BOR_ENABLE          : boolean := true;           -- Brown-out reset
+--         WDT_ENABLE          : boolean := true            -- Watchdog timer
+--     );
+--     port (
+--         -- Clock and Reset
+--         osc1                : in  std_logic;             -- Primary oscillator input
+--         osc2                : out std_logic;             -- Primary oscillator output
+--         sosc1               : in  std_logic;             -- Secondary oscillator input
+--         sosc2               : out std_logic;             -- Secondary oscillator output
+--         mclr_n              : in  std_logic;             -- Master clear (reset)
+--         
+--         -- Power Supply
+--         vdd                 : in  std_logic;             -- Positive supply
+--         vss                 : in  std_logic;             -- Ground
+--         vddcore             : in  std_logic;             -- Core supply
+--         vcap                : out std_logic;             -- Internal regulator cap
+--         
+--         -- Digital I/O Ports
+--         porta               : inout std_logic_vector(7 downto 0);
+--         portb               : inout std_logic_vector(7 downto 0);
+--         portc               : inout std_logic_vector(7 downto 0);
+--         portd               : inout std_logic_vector(7 downto 0);
+--         porte               : inout std_logic_vector(3 downto 0);
+--         
+--         -- Analog Inputs
+--         an0                 : in  std_logic;             -- Analog input 0
+--         an1                 : in  std_logic;             -- Analog input 1
+--         an2                 : in  std_logic;             -- Analog input 2
+--         an3                 : in  std_logic;             -- Analog input 3
+--         an4                 : in  std_logic;             -- Analog input 4
+--         an5                 : in  std_logic;             -- Analog input 5
+--         an6                 : in  std_logic;             -- Analog input 6
+--         an7                 : in  std_logic;             -- Analog input 7
+--         an8                 : in  std_logic;             -- Analog input 8
+--         an9                 : in  std_logic;             -- Analog input 9
+--         an10                : in  std_logic;             -- Analog input 10
+--         an11                : in  std_logic;             -- Analog input 11
+--         an12                : in  std_logic;             -- Analog input 12
+--         
+--         -- Reference Voltages
+--         vref_plus           : in  std_logic;             -- Positive reference
+--         vref_minus          : in  std_logic;             -- Negative reference
+--         
+--         -- Timer/Counter External Inputs
+--         t0cki               : in  std_logic;             -- Timer0 external clock
+--         t1cki               : in  std_logic;             -- Timer1 external clock
+--         t3cki               : in  std_logic;             -- Timer3 external clock
+--         
+--         -- Capture/Compare/PWM Outputs
+--         ccp1                : out std_logic;             -- CCP1 output
+--         ccp2                : out std_logic;             -- CCP2 output
+--         
+--         -- Communication Interfaces
+--         -- UART
+--         tx                  : out std_logic;             -- UART transmit
+--         rx                  : in  std_logic;             -- UART receive
+--         
+--         -- SPI
+--         sck                 : out std_logic;             -- SPI clock
+--         sdi                 : in  std_logic;             -- SPI data input
+--         sdo                 : out std_logic;             -- SPI data output
+--         ss_n                : in  std_logic;             -- SPI slave select
+--         
+--         -- I2C
+--         scl                 : inout std_logic;           -- I2C clock
+--         sda                 : inout std_logic;           -- I2C data
+--         
+--         -- USB Interface
+--         usb_dp              : inout std_logic;           -- USB D+
+--         usb_dm              : inout std_logic;           -- USB D-
+--         vusb                : in  std_logic;             -- USB supply
+--         
+--         -- External Interrupts
+--         int0                : in  std_logic;             -- External interrupt 0
+--         int1                : in  std_logic;             -- External interrupt 1
+--         int2                : in  std_logic;             -- External interrupt 2
+--         
+--         -- Programming/Debug Interface
+--         pgc                 : in  std_logic;             -- Program clock
+--         pgd                 : inout std_logic;           -- Program data
+--         
+--         -- Status and Control
+--         cpu_status          : out std_logic_vector(7 downto 0);
+--         power_mode          : out std_logic_vector(2 downto 0);
+--         interrupt_pending   : out std_logic;
+--         watchdog_reset      : out std_logic
+--     );
+-- end pic_interface;
+--
+-- POWER OPTIMIZATION STRATEGIES:
+-- • Use appropriate sleep modes based on application requirements
+-- • Configure unused peripherals to low-power states
+-- • Optimize oscillator selection for power vs. performance
+-- • Use interrupt-driven programming to minimize active time
+-- • Implement efficient wake-up strategies from sleep modes
+-- • Consider supply voltage scaling for further power reduction
+-- • Use peripheral module disable (PMD) registers to save power
+--
+-- PERFORMANCE OPTIMIZATION:
+-- • Utilize hardware peripherals to offload CPU tasks
+-- • Optimize instruction selection for single-cycle execution
+-- • Use appropriate addressing modes for code efficiency
+-- • Implement efficient interrupt service routines
+-- • Consider DMA for data transfer operations (on supported variants)
+-- • Use PLL for higher operating frequencies when needed
+--
+-- DEBUGGING RECOMMENDATIONS:
+-- • Use ICSP interface for programming and basic debugging
+-- • Implement ICD for real-time debugging capabilities
+-- • Enable hardware breakpoints for development
+-- • Use simulator for initial code development and testing
+-- • Monitor power consumption during development
+-- • Implement proper error handling and recovery mechanisms
+--
+-- PERIPHERAL CONFIGURATION GUIDELINES:
+-- • Configure Timer modules for precise timing requirements
+-- • Set up ADC with appropriate reference and sampling rates
+-- • Configure communication interfaces for required protocols
+-- • Implement proper I/O port configuration and interrupt handling
+-- • Use Watchdog Timer for system reliability and recovery
+-- • Configure oscillator and PLL for optimal performance/power balance
+--
+-- MEMORY MANAGEMENT:
+-- • Organize code efficiently within program memory constraints
+-- • Use data memory efficiently with proper variable placement
+-- • Implement stack overflow protection mechanisms
+-- • Use EEPROM for non-volatile parameter storage
+-- • Consider code compression techniques for large applications
+--
+-- =====================================================================================
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;

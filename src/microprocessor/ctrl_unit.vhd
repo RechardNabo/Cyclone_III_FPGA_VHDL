@@ -1,0 +1,641 @@
+-- ============================================================================
+-- Microprocessor Control Unit Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a control unit for a microprocessor system that
+-- generates control signals based on instruction opcodes and system state.
+-- The control unit is responsible for coordinating the execution of
+-- instructions by providing appropriate control signals to the datapath,
+-- ALU, memory interface, and register file. This implementation focuses
+-- on instruction decode logic and control signal generation for efficient
+-- microprocessor operation.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand control unit design principles and operation
+-- 2. Learn instruction decode and control signal mapping
+-- 3. Practice combinational logic design for control functions
+-- 4. Understand microprocessor control flow and timing
+-- 5. Learn control signal optimization and timing analysis
+-- 6. Practice modular control unit design and integration
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for control unit specific functions
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.microprocessor_pkg.all for custom types
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor control unit
+--
+-- Entity Requirements:
+-- - Name: ctrl_unit (maintain current naming convention)
+-- - Instruction opcode input for decode
+-- - Control signal outputs for all system components
+-- - Status inputs for conditional operations
+-- - Clock and reset for sequential elements (if needed)
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock - optional for combinational design)
+-- - reset : in std_logic (System reset - optional for combinational design)
+-- - enable : in std_logic (Control unit enable)
+--
+-- Instruction Interface:
+-- - opcode : in std_logic_vector(OPCODE_WIDTH-1 downto 0) (Instruction opcode)
+-- - funct : in std_logic_vector(FUNCT_WIDTH-1 downto 0) (Function field)
+-- - instruction_type : in std_logic_vector(2 downto 0) (Instruction type)
+--
+-- Control Outputs - ALU Control:
+-- - alu_op : out std_logic_vector(ALU_OP_WIDTH-1 downto 0) (ALU operation)
+-- - alu_src_a : out std_logic_vector(1 downto 0) (ALU source A selection)
+-- - alu_src_b : out std_logic_vector(1 downto 0) (ALU source B selection)
+--
+-- Control Outputs - Register File:
+-- - reg_write : out std_logic (Register write enable)
+-- - reg_dst : out std_logic_vector(1 downto 0) (Register destination selection)
+-- - reg_src : out std_logic_vector(1 downto 0) (Register source selection)
+--
+-- Control Outputs - Memory Interface:
+-- - mem_read : out std_logic (Memory read enable)
+-- - mem_write : out std_logic (Memory write enable)
+-- - mem_to_reg : out std_logic (Memory to register data selection)
+--
+-- Control Outputs - Program Counter:
+-- - pc_src : out std_logic_vector(1 downto 0) (PC source selection)
+-- - pc_write : out std_logic (PC write enable)
+-- - branch : out std_logic (Branch instruction indicator)
+-- - jump : out std_logic (Jump instruction indicator)
+--
+-- Status Interface:
+-- - zero_flag : in std_logic (ALU zero flag)
+-- - overflow_flag : in std_logic (ALU overflow flag)
+-- - carry_flag : in std_logic (ALU carry flag)
+-- - negative_flag : in std_logic (ALU negative flag)
+--
+-- Debug Interface:
+-- - control_state : out std_logic_vector(STATE_WIDTH-1 downto 0) (Control state)
+-- - instruction_valid : out std_logic (Valid instruction indicator)
+--
+-- ============================================================================
+-- STEP 3: CONTROL UNIT PRINCIPLES
+-- ============================================================================
+--
+-- Control Unit Fundamentals:
+-- 1. Instruction Decode
+--    - Opcode analysis and interpretation
+--    - Function field processing
+--    - Instruction type classification
+--    - Addressing mode determination
+--
+-- 2. Control Signal Generation
+--    - ALU operation control
+--    - Data path multiplexer controls
+--    - Memory access controls
+--    - Register file controls
+--    - Program counter controls
+--
+-- 3. Control Logic Types
+--    - Combinational control (fast, simple)
+--    - Sequential control (complex instructions)
+--    - Microprogrammed control (flexible)
+--    - Hardwired control (optimized)
+--
+-- 4. Instruction Set Support
+--    - Arithmetic and logic instructions
+--    - Load and store instructions
+--    - Branch and jump instructions
+--    - System and control instructions
+--
+-- Control Signal Categories:
+-- 1. Data Path Controls
+--    - Multiplexer selection signals
+--    - Register enable signals
+--    - Data routing controls
+--    - Operand source selection
+--
+-- 2. Execution Controls
+--    - ALU operation codes
+--    - Memory access controls
+--    - Branch condition evaluation
+--    - Exception handling controls
+--
+-- 3. Timing Controls
+--    - Multi-cycle operation sequencing
+--    - Pipeline stage controls
+--    - Synchronization signals
+--    - Clock enable signals
+--
+-- 4. Status Controls
+--    - Flag register updates
+--    - Condition code handling
+--    - Interrupt acknowledgment
+--    - Error condition signaling
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Combinational Control Unit (Recommended for beginners)
+-- - Pure combinational logic design
+-- - Direct opcode to control signal mapping
+-- - Fast single-cycle operation
+-- - Suitable for simple instruction sets
+--
+-- OPTION 2: Sequential Control Unit (Intermediate)
+-- - State machine based control
+-- - Multi-cycle instruction support
+-- - Complex instruction handling
+-- - Flexible timing control
+--
+-- OPTION 3: Microprogrammed Control Unit (Advanced)
+-- - Microcode-based control generation
+-- - High flexibility and extensibility
+-- - Complex instruction set support
+-- - Slower but very flexible operation
+--
+-- OPTION 4: Pipeline Control Unit (Expert)
+-- - Pipeline stage control generation
+-- - Hazard detection integration
+-- - High-performance operation
+-- - Complex timing and synchronization
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Instruction Set Architecture:
+-- - Supported instruction formats and types
+-- - Opcode encoding and decoding scheme
+-- - Function field interpretation
+-- - Addressing mode support
+--
+-- Control Signal Timing:
+-- - Setup and hold time requirements
+-- - Propagation delay considerations
+-- - Critical path optimization
+-- - Clock skew and jitter effects
+--
+-- Logic Optimization:
+-- - Boolean logic minimization
+-- - Resource sharing opportunities
+-- - Power consumption optimization
+-- - Area vs. speed trade-offs
+--
+-- Error Handling:
+-- - Invalid opcode detection
+-- - Illegal instruction handling
+-- - Exception condition processing
+-- - Error recovery mechanisms
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Conditional Execution:
+-- - Branch condition evaluation
+-- - Predicated instruction support
+-- - Flag-based control decisions
+-- - Conditional control signal generation
+--
+-- Multi-Cycle Operations:
+-- - Complex instruction sequencing
+-- - State-based control generation
+-- - Multi-phase execution control
+-- - Resource allocation management
+--
+-- Pipeline Integration:
+-- - Pipeline stage control signals
+-- - Hazard detection support
+-- - Forwarding control generation
+-- - Stall and flush signal generation
+--
+-- Debug and Test Features:
+-- - Control signal monitoring
+-- - Instruction trace support
+-- - Single-step execution control
+-- - Built-in self-test capabilities
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: CPU control unit implementation
+-- 2. Microcontroller Systems: Embedded processor control
+-- 3. Digital Signal Processing: DSP control unit design
+-- 4. FPGA Soft Processors: Configurable processor control
+-- 5. System-on-Chip: Integrated control unit design
+-- 6. Educational Projects: Computer architecture learning
+-- 7. Custom Processors: Application-specific control units
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Functional Testing: All instruction types and control combinations
+-- 2. Timing Testing: Setup, hold, and propagation delay verification
+-- 3. Coverage Testing: All opcode and function field combinations
+-- 4. Integration Testing: Control unit with datapath validation
+-- 5. Performance Testing: Critical path and frequency analysis
+-- 6. Error Testing: Invalid instruction and error condition handling
+-- 7. Regression Testing: Design change impact verification
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic instruction set and simple control logic
+-- 2. Implement opcode decode and primary control signal generation
+-- 3. Add function field decode for extended instruction support
+-- 4. Implement conditional control based on status flags
+-- 5. Add multi-cycle instruction support if needed
+-- 6. Optimize control logic for timing and area
+-- 7. Add debug and monitoring features
+-- 8. Validate with comprehensive test suite
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement microprogrammed control with ROM-based microcode
+-- 2. Add support for floating-point instruction control
+-- 3. Implement privilege level and protection control
+-- 4. Add cache control and memory management signals
+-- 5. Implement interrupt and exception control logic
+-- 6. Add performance monitoring and profiling controls
+-- 7. Implement dynamic power management controls
+-- 8. Add security and encryption instruction support
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Incomplete opcode decode coverage
+-- 2. Incorrect control signal timing relationships
+-- 3. Missing default control signal values
+-- 4. Inadequate error and exception handling
+-- 5. Poor logic optimization leading to timing issues
+-- 6. Insufficient test coverage for all instruction types
+-- 7. Missing documentation for control signal functions
+-- 8. Inadequate consideration of pipeline hazards
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ All instruction opcodes properly decoded
+-- □ Control signals correctly generated for each instruction
+-- □ Timing requirements met for all control paths
+-- □ Error conditions properly detected and handled
+-- □ Control logic optimized for area and speed
+-- □ Integration with datapath components verified
+-- □ Test coverage comprehensive for all scenarios
+-- □ Documentation complete and accurate
+-- □ Performance requirements satisfied
+-- □ Power consumption within acceptable limits
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This control unit implementation demonstrates several key concepts:
+-- - Complex combinational logic design and optimization
+-- - Instruction set architecture implementation
+-- - Control signal generation and timing
+-- - System-level integration and coordination
+-- - Performance-oriented digital design principles
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider logic synthesis and optimization settings
+-- - Plan for signal routing and placement constraints
+-- - Account for power consumption in control logic
+-- - Consider testability and debug access requirements
+-- - Plan for manufacturing test and fault coverage
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Dynamic control signal generation
+-- - Adaptive instruction scheduling
+-- - Speculative control signal generation
+-- - Multi-threaded control unit design
+-- - Reconfigurable control logic
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Use comprehensive instruction test vectors
+-- - Verify control signal timing and relationships
+-- - Test error and exception handling scenarios
+-- - Validate integration with other system components
+-- - Check performance metrics and optimization
+-- - Verify power consumption and thermal characteristics
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity ctrl_unit is
+--     generic (
+--         OPCODE_WIDTH     : integer := 6;                   -- Opcode field width
+--         FUNCT_WIDTH      : integer := 6;                   -- Function field width
+--         ALU_OP_WIDTH     : integer := 4;                   -- ALU operation width
+--         STATE_WIDTH      : integer := 4;                   -- Control state width
+--         INSTRUCTION_TYPES : integer := 8;                  -- Number of instruction types
+--         ENABLE_PIPELINE  : boolean := false;               -- Enable pipeline controls
+--         ENABLE_EXCEPTIONS : boolean := true;               -- Enable exception handling
+--         ENABLE_DEBUG     : boolean := true                 -- Enable debug features
+--     );
+--     port (
+--         -- System Interface (optional for combinational design)
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         enable          : in  std_logic;
+--         
+--         -- Instruction Interface
+--         opcode          : in  std_logic_vector(OPCODE_WIDTH-1 downto 0);
+--         funct           : in  std_logic_vector(FUNCT_WIDTH-1 downto 0);
+--         instruction_type : in  std_logic_vector(2 downto 0);
+--         immediate_valid : in  std_logic;
+--         
+--         -- Control Outputs - ALU Control
+--         alu_op          : out std_logic_vector(ALU_OP_WIDTH-1 downto 0);
+--         alu_src_a       : out std_logic_vector(1 downto 0);
+--         alu_src_b       : out std_logic_vector(1 downto 0);
+--         
+--         -- Control Outputs - Register File
+--         reg_write       : out std_logic;
+--         reg_read        : out std_logic;
+--         reg_dst         : out std_logic_vector(1 downto 0);
+--         reg_src         : out std_logic_vector(1 downto 0);
+--         
+--         -- Control Outputs - Memory Interface
+--         mem_read        : out std_logic;
+--         mem_write       : out std_logic;
+--         mem_to_reg      : out std_logic;
+--         mem_byte_enable : out std_logic_vector(3 downto 0);
+--         
+--         -- Control Outputs - Program Counter
+--         pc_src          : out std_logic_vector(1 downto 0);
+--         pc_write        : out std_logic;
+--         branch          : out std_logic;
+--         jump            : out std_logic;
+--         
+--         -- Control Outputs - Data Path
+--         sign_extend     : out std_logic;
+--         shift_amount    : out std_logic_vector(4 downto 0);
+--         immediate_src   : out std_logic_vector(1 downto 0);
+--         
+--         -- Status Interface
+--         zero_flag       : in  std_logic;
+--         overflow_flag   : in  std_logic;
+--         carry_flag      : in  std_logic;
+--         negative_flag   : in  std_logic;
+--         
+--         -- Conditional Controls
+--         branch_taken    : out std_logic;
+--         condition_met   : out std_logic;
+--         
+--         -- Exception and Error Handling
+--         invalid_opcode  : out std_logic;
+--         exception_req   : out std_logic;
+--         privilege_violation : out std_logic;
+--         
+--         -- Debug Interface
+--         control_state   : out std_logic_vector(STATE_WIDTH-1 downto 0);
+--         instruction_valid : out std_logic;
+--         debug_controls  : out std_logic_vector(31 downto 0)
+--     );
+-- end entity ctrl_unit;
+--
+-- architecture behavioral of ctrl_unit is
+--     -- Instruction type constants
+--     constant R_TYPE     : std_logic_vector(2 downto 0) := "000";
+--     constant I_TYPE     : std_logic_vector(2 downto 0) := "001";
+--     constant J_TYPE     : std_logic_vector(2 downto 0) := "010";
+--     constant LOAD_TYPE  : std_logic_vector(2 downto 0) := "011";
+--     constant STORE_TYPE : std_logic_vector(2 downto 0) := "100";
+--     constant BRANCH_TYPE : std_logic_vector(2 downto 0) := "101";
+--     constant SYSTEM_TYPE : std_logic_vector(2 downto 0) := "110";
+--     
+--     -- ALU operation constants
+--     constant ALU_ADD    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0000";
+--     constant ALU_SUB    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0001";
+--     constant ALU_AND    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0010";
+--     constant ALU_OR     : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0011";
+--     constant ALU_XOR    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0100";
+--     constant ALU_SLT    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0101";
+--     constant ALU_SLL    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0110";
+--     constant ALU_SRL    : std_logic_vector(ALU_OP_WIDTH-1 downto 0) := "0111";
+--     
+--     -- Internal control signals
+--     signal control_vector : std_logic_vector(31 downto 0);
+--     signal decoded_opcode : std_logic_vector(63 downto 0);
+--     signal branch_condition : std_logic;
+--     signal jump_condition : std_logic;
+--     
+--     -- Control state (for sequential designs)
+--     type control_state_type is (IDLE, DECODE, EXECUTE, MEMORY_ACCESS, WRITEBACK);
+--     signal current_state : control_state_type;
+--     
+-- begin
+--     -- Opcode decoder
+--     opcode_decoder: process(opcode)
+--     begin
+--         decoded_opcode <= (others => '0');
+--         case opcode is
+--             when "000000" => decoded_opcode(0) <= '1';  -- R-type
+--             when "001000" => decoded_opcode(1) <= '1';  -- ADDI
+--             when "001100" => decoded_opcode(2) <= '1';  -- ANDI
+--             when "001101" => decoded_opcode(3) <= '1';  -- ORI
+--             when "001110" => decoded_opcode(4) <= '1';  -- XORI
+--             when "001010" => decoded_opcode(5) <= '1';  -- SLTI
+--             when "100011" => decoded_opcode(6) <= '1';  -- LW
+--             when "101011" => decoded_opcode(7) <= '1';  -- SW
+--             when "000100" => decoded_opcode(8) <= '1';  -- BEQ
+--             when "000101" => decoded_opcode(9) <= '1';  -- BNE
+--             when "000010" => decoded_opcode(10) <= '1'; -- J
+--             when "000011" => decoded_opcode(11) <= '1'; -- JAL
+--             when others => decoded_opcode(63) <= '1';   -- Invalid
+--         end case;
+--     end process;
+--     
+--     -- Main control logic
+--     main_control: process(instruction_type, opcode, funct, decoded_opcode)
+--     begin
+--         -- Default control signal values
+--         alu_op <= ALU_ADD;
+--         alu_src_a <= "00";
+--         alu_src_b <= "00";
+--         reg_write <= '0';
+--         reg_read <= '0';
+--         reg_dst <= "00";
+--         reg_src <= "00";
+--         mem_read <= '0';
+--         mem_write <= '0';
+--         mem_to_reg <= '0';
+--         mem_byte_enable <= "1111";
+--         pc_src <= "00";
+--         pc_write <= '1';
+--         branch <= '0';
+--         jump <= '0';
+--         sign_extend <= '1';
+--         shift_amount <= "00000";
+--         immediate_src <= "00";
+--         invalid_opcode <= '0';
+--         exception_req <= '0';
+--         privilege_violation <= '0';
+--         instruction_valid <= '1';
+--         
+--         case instruction_type is
+--             when R_TYPE =>
+--                 reg_write <= '1';
+--                 reg_read <= '1';
+--                 reg_dst <= "01";
+--                 alu_src_a <= "00";
+--                 alu_src_b <= "00";
+--                 
+--                 -- Function field decode for R-type instructions
+--                 case funct is
+--                     when "100000" => alu_op <= ALU_ADD;  -- ADD
+--                     when "100010" => alu_op <= ALU_SUB;  -- SUB
+--                     when "100100" => alu_op <= ALU_AND;  -- AND
+--                     when "100101" => alu_op <= ALU_OR;   -- OR
+--                     when "100110" => alu_op <= ALU_XOR;  -- XOR
+--                     when "101010" => alu_op <= ALU_SLT;  -- SLT
+--                     when "000000" => alu_op <= ALU_SLL;  -- SLL
+--                     when "000010" => alu_op <= ALU_SRL;  -- SRL
+--                     when others => 
+--                         invalid_opcode <= '1';
+--                         instruction_valid <= '0';
+--                 end case;
+--                 
+--             when I_TYPE =>
+--                 reg_write <= '1';
+--                 reg_read <= '1';
+--                 reg_dst <= "00";
+--                 alu_src_a <= "00";
+--                 alu_src_b <= "01";
+--                 immediate_src <= "00";
+--                 
+--                 case opcode is
+--                     when "001000" => alu_op <= ALU_ADD;  -- ADDI
+--                     when "001100" => alu_op <= ALU_AND;  -- ANDI
+--                     when "001101" => alu_op <= ALU_OR;   -- ORI
+--                     when "001110" => alu_op <= ALU_XOR;  -- XORI
+--                     when "001010" => alu_op <= ALU_SLT;  -- SLTI
+--                     when others => 
+--                         invalid_opcode <= '1';
+--                         instruction_valid <= '0';
+--                 end case;
+--                 
+--             when LOAD_TYPE =>
+--                 reg_write <= '1';
+--                 reg_read <= '1';
+--                 reg_dst <= "00";
+--                 alu_src_a <= "00";
+--                 alu_src_b <= "01";
+--                 alu_op <= ALU_ADD;
+--                 mem_read <= '1';
+--                 mem_to_reg <= '1';
+--                 immediate_src <= "00";
+--                 
+--             when STORE_TYPE =>
+--                 reg_read <= '1';
+--                 alu_src_a <= "00";
+--                 alu_src_b <= "01";
+--                 alu_op <= ALU_ADD;
+--                 mem_write <= '1';
+--                 immediate_src <= "00";
+--                 
+--             when BRANCH_TYPE =>
+--                 reg_read <= '1';
+--                 alu_src_a <= "00";
+--                 alu_src_b <= "00";
+--                 alu_op <= ALU_SUB;
+--                 branch <= '1';
+--                 pc_src <= "01";
+--                 pc_write <= branch_condition;
+--                 immediate_src <= "01";
+--                 
+--             when J_TYPE =>
+--                 jump <= '1';
+--                 pc_src <= "10";
+--                 pc_write <= '1';
+--                 if opcode = "000011" then  -- JAL
+--                     reg_write <= '1';
+--                     reg_dst <= "10";
+--                 end if;
+--                 
+--             when SYSTEM_TYPE =>
+--                 -- System instructions (NOP, SYSCALL, etc.)
+--                 pc_write <= '1';
+--                 
+--             when others =>
+--                 invalid_opcode <= '1';
+--                 instruction_valid <= '0';
+--                 exception_req <= '1';
+--         end case;
+--         
+--         -- Check for invalid opcode
+--         if decoded_opcode(63) = '1' then
+--             invalid_opcode <= '1';
+--             instruction_valid <= '0';
+--             exception_req <= '1';
+--         end if;
+--     end process;
+--     
+--     -- Branch condition evaluation
+--     branch_condition_eval: process(opcode, zero_flag, overflow_flag, carry_flag, negative_flag)
+--     begin
+--         branch_condition <= '0';
+--         case opcode is
+--             when "000100" => -- BEQ
+--                 branch_condition <= zero_flag;
+--             when "000101" => -- BNE
+--                 branch_condition <= not zero_flag;
+--             when "000110" => -- BLEZ
+--                 branch_condition <= zero_flag or negative_flag;
+--             when "000111" => -- BGTZ
+--                 branch_condition <= not (zero_flag or negative_flag);
+--             when others =>
+--                 branch_condition <= '0';
+--         end case;
+--     end process;
+--     
+--     -- Output assignments
+--     branch_taken <= branch and branch_condition;
+--     condition_met <= branch_condition when branch = '1' else '1';
+--     
+--     -- Debug control vector
+--     debug_controls <= control_vector;
+--     control_state <= std_logic_vector(to_unsigned(control_state_type'pos(current_state), STATE_WIDTH));
+--     
+--     -- Control vector assembly for debug
+--     control_vector <= reg_write & reg_read & mem_read & mem_write & mem_to_reg & 
+--                      branch & jump & pc_write & alu_op & alu_src_a & alu_src_b & 
+--                      reg_dst & pc_src & sign_extend & "000000";
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This control unit implementation provides comprehensive instruction
+-- decode and control signal generation. Ensure proper timing analysis and
+-- integration with your specific microprocessor datapath and instruction set
+-- architecture. The design can be customized for different instruction sets
+-- and performance requirements.
+-- ============================================================================

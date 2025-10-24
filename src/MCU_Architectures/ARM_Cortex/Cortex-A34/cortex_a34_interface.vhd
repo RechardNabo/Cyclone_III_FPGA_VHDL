@@ -1,0 +1,841 @@
+-- ============================================================================
+-- ARM CORTEX-A34 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-A34 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-A34 processors, providing ultra-efficient 64-bit 
+--              processor communication, control, and peripheral integration 
+--              for power-sensitive mobile, IoT, and embedded applications 
+--              requiring high performance with minimal power consumption.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-A34 architecture and ARMv8-A instruction set
+-- 2. Master AXI4 and AHB-Lite protocols for efficient systems
+-- 3. Learn ARM Cortex-A34 in-order dual-issue pipeline design
+-- 4. Implement GIC-400/500 for advanced interrupt management
+-- 5. Understand DynamIQ cluster architecture and DSU
+-- 6. Master cache coherency and memory management (MMU)
+-- 7. Learn NEON and Crypto extension integration
+-- 8. Implement CoreSight debug and ETM trace interface
+-- 9. Understand TrustZone security with pointer authentication
+-- 10. Master ultra-low power management and thermal control
+--
+-- ARM Cortex-A34 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv8-A (64-bit with 32-bit compatibility)         │
+-- │ Pipeline        │ In-order dual-issue (8-stage)                      │
+-- │ Cores           │ 1-4 cores (DynamIQ cluster)                        │
+-- │ Performance     │ 1.8 DMIPS/MHz                                      │
+-- │ Instructions    │ A64 + A32 + T32 + NEON + Crypto                    │
+-- │ Registers       │ 31 x 64-bit general purpose + SP + PC              │
+-- │ NEON            │ Advanced SIMD (128-bit vectors)                     │
+-- │ Cache           │ L1: 8-64KB I + 8-64KB D, L2: 128KB-1MB             │
+-- │ Interrupts      │ GIC-400/500 (Generic Interrupt Controller)         │
+-- │ Debug           │ CoreSight + ETM + Real-time trace                   │
+-- │ Memory          │ MMU with 4KB/16KB/64KB pages                       │
+-- │ Security        │ TrustZone + Pointer Authentication                  │
+-- │ Frequency       │ Up to 1.3 GHz                                       │
+-- │ Process         │ 16nm-7nm                                            │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-A34 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-A34    │    │   GIC-400/500   │    │   CoreSight     │
+-- │   Processor     │◀──▶│   (Generic      │◀──▶│   Debug         │
+-- │   Core(s)       │    │   Interrupt     │    │   Infrastructure│
+-- └─────────────────┘    │   Controller)   │    └─────────────────┘
+--          │              └─────────────────┘             │
+--          ▼                       │                      ▼
+-- ┌─────────────────┐              ▼              ┌─────────────────┐
+-- │   DSU (Debug    │    ┌─────────────────┐     │   ETM + PTM     │
+-- │   & Snoop       │    │   MMU (Memory   │     │   Program       │
+-- │   Unit)         │    │   Management    │     │   Trace         │
+-- └─────────────────┘    │   Unit)         │     └─────────────────┘
+--          │              └─────────────────┘             │
+-- ┌─────────────────┐              │                      ▼
+-- │   AXI4 Bus      │              ▼              ┌─────────────────┐
+-- │   Interface     │    ┌─────────────────┐     │   JTAG + SWD    │
+-- │   + AMBA        │    │   NEON + Crypto │     │   Interface     │
+-- └─────────────────┘    │   Extensions    │     │                 │
+--          │              └─────────────────┘     └─────────────────┘
+--          ▼                       │                      │
+-- ┌─────────────────┐              ▼                      ▼
+-- │   TrustZone &   │    ┌─────────────────┐    ┌─────────────────┐
+-- │   Pointer Auth  │    │   DynamIQ       │    │   Power & Clock │
+-- │   Security      │    │   Cluster       │    │   Management    │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- Bus Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Bus Type        │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ AXI4            │ Master→Slave    │ AWADDR, AWVALID, AWREADY        │
+-- │ AXI4            │ Master→Slave    │ WDATA, WVALID, WREADY           │
+-- │ AXI4            │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ AXI4            │ Master→Slave    │ ARADDR, ARVALID, ARREADY        │
+-- │ AXI4            │ Slave→Master    │ RDATA, RRESP, RVALID, RREADY    │
+-- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HSIZE, HBURST    │
+-- │ System          │ Input           │ CLK, nRESET                     │
+-- │ Debug           │ Bidirectional   │ SWCLK, SWDIO, JTAG signals      │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-A34 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 2GB             │ Normal memory region            │
+-- │ 0x8000_0000     │ 2GB             │ Normal memory region            │
+-- │ 0x0001_0000_0000│ 1TB             │ Extended memory region (64-bit) │
+-- │ 0xC000_0000     │ 512MB           │ Device memory region            │
+-- │ 0xE000_0000     │ 256MB           │ Device memory region            │
+-- │ 0xF000_0000     │ 128MB           │ Strongly-ordered memory         │
+-- │ 0xF800_0000     │ 64MB            │ Private memory region           │
+-- │ 0xFC00_0000     │ 32MB            │ Implementation defined          │
+-- │ 0xFE00_0000     │ 32MB            │ Implementation defined          │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv8-A Instruction Set:
+-- 1. **A64 Instructions (64-bit)**:
+--    - 64-bit ARM instruction set
+--    - 31 general-purpose 64-bit registers
+--    - Load/store with scaling and extension
+--    - Branch and conditional operations
+--    - Arithmetic and logic operations
+--    - Advanced addressing modes
+--    - Efficient 64-bit operations
+--
+-- 2. **A32 Instructions (32-bit ARM)**:
+--    - Legacy 32-bit ARM compatibility
+--    - Conditional execution
+--    - Load/store multiple
+--    - Branch and branch with link
+--    - Arithmetic and logic operations
+--    - Multiply and multiply-accumulate
+--    - Backward compatibility mode
+--
+-- 3. **T32 Instructions (Thumb-2)**:
+--    - 16-bit and 32-bit Thumb instructions
+--    - Improved code density
+--    - Complete instruction set
+--    - IT (If-Then) conditional blocks
+--    - Wide immediate constants
+--    - Efficient mixed 16/32-bit execution
+--
+-- 4. **NEON Instructions**:
+--    - Advanced SIMD operations
+--    - 128-bit vector operations
+--    - Integer and floating-point SIMD
+--    - Load/store multiple vectors
+--    - Vector arithmetic and logic
+--    - Cryptographic acceleration
+--
+-- In-Order Dual-Issue Pipeline:
+-- 1. **Fetch Stage**:
+--    - Instruction fetch (up to 2 instructions)
+--    - Branch prediction (2-level adaptive)
+--    - Return address stack (8 entries)
+--    - Instruction cache access
+--    - Power-efficient fetch
+--
+-- 2. **Decode Stage**:
+--    - Instruction decode (dual-issue)
+--    - Register dependency check
+--    - Micro-operation generation
+--    - Issue queue management
+--    - Power-aware scheduling
+--
+-- 3. **Issue Stage**:
+--    - In-order issue (up to 2 instructions)
+--    - Resource allocation
+--    - Scoreboard management
+--    - Load/store queue management
+--    - Efficient resource utilization
+--
+-- 4. **Execute Stages**:
+--    - ALU operations (2 units)
+--    - Load/store unit (1 unit)
+--    - Branch unit
+--    - NEON/Crypto unit
+--    - Multiply-accumulate unit
+--    - Power-optimized execution
+--
+-- 5. **Writeback Stage**:
+--    - Register writeback
+--    - Exception handling
+--    - Retirement (in-order)
+--    - Power management integration
+--
+-- Cache System:
+-- 1. **L1 Instruction Cache**:
+--    - Size: 8KB to 64KB
+--    - Associativity: 2-way or 4-way
+--    - Line size: 64 bytes
+--    - Virtual index, physical tag
+--    - Parity protection
+--    - Power-efficient access
+--
+-- 2. **L1 Data Cache**:
+--    - Size: 8KB to 64KB
+--    - Associativity: 2-way or 4-way
+--    - Line size: 64 bytes
+--    - Write-back policy
+--    - PIPT (Physically Indexed, Physically Tagged)
+--    - ECC protection (optional)
+--    - Power-aware replacement
+--
+-- 3. **L2 Unified Cache**:
+--    - Size: 128KB to 1MB
+--    - Associativity: 8-way or 16-way
+--    - Line size: 64 bytes
+--    - Inclusive of L1 caches
+--    - ECC protection
+--    - Configurable replacement policy
+--    - Power gating support
+--
+-- GIC-400/500 (Generic Interrupt Controller):
+-- 1. **Interrupt Types**:
+--    - SGI (Software Generated Interrupts): 0-15
+--    - PPI (Private Peripheral Interrupts): 16-31
+--    - SPI (Shared Peripheral Interrupts): 32-1019
+--    - LPI (Locality-specific Peripheral Interrupts): 8192+
+--
+-- 2. **Features**:
+--    - Up to 1020 interrupt sources (GIC-400)
+--    - Up to 64K interrupt sources (GIC-500)
+--    - 256 priority levels
+--    - Interrupt routing and affinity
+--    - Power management integration
+--    - Virtualization support
+--
+-- 3. **Advanced Features**:
+--    - Message-based interrupts (GIC-500)
+--    - Interrupt translation service
+--    - Power state coordination
+--    - Interrupt grouping and security
+--    - Performance monitoring
+--
+-- MMU (Memory Management Unit):
+-- 1. **Translation Tables**:
+--    - 4KB, 16KB, or 64KB page sizes
+--    - Up to 4-level translation tables
+--    - Translation table base registers
+--    - Address space identifiers (ASID)
+--    - Virtual machine identifiers (VMID)
+--
+-- 2. **TLB (Translation Lookaside Buffer)**:
+--    - Instruction and data TLBs
+--    - Unified L2 TLB
+--    - TLB maintenance operations
+--    - Context switching support
+--    - Power-efficient TLB design
+--
+-- DynamIQ Cluster Architecture:
+-- 1. **Cluster Features**:
+--    - Heterogeneous core support
+--    - Shared L3 cache (optional)
+--    - DSU (Debug and Snoop Unit)
+--    - Power and performance scaling
+--    - Thermal management integration
+--
+-- 2. **DSU (Debug and Snoop Unit)**:
+--    - Cache coherency management
+--    - Debug and trace aggregation
+--    - Performance monitoring
+--    - Power management coordination
+--    - Cross-trigger interface
+--
+-- NEON Advanced SIMD:
+-- 1. **Register File**:
+--    - 32 x 128-bit V registers
+--    - Shared with floating-point registers
+--    - ECC protection (optional)
+--    - Power gating support
+--
+-- 2. **Data Types**:
+--    - 8, 16, 32, 64-bit integers
+--    - 16, 32, 64-bit floating-point
+--    - Polynomial arithmetic
+--    - Fixed-point arithmetic
+--
+-- 3. **Operations**:
+--    - Arithmetic (add, subtract, multiply)
+--    - Logic (AND, OR, XOR)
+--    - Shift and rotate
+--    - Load/store multiple
+--    - Vector table lookup
+--    - Cryptographic operations
+--
+-- Cryptographic Extensions:
+-- 1. **AES (Advanced Encryption Standard)**:
+--    - AES encryption/decryption
+--    - Key expansion
+--    - Mix columns operations
+--    - Inverse mix columns
+--    - Hardware acceleration
+--
+-- 2. **SHA (Secure Hash Algorithm)**:
+--    - SHA-1 hash computation
+--    - SHA-256 hash computation
+--    - Message scheduling
+--    - Hash update operations
+--    - Cryptographic acceleration
+--
+-- 3. **PMULL (Polynomial Multiply)**:
+--    - Polynomial multiplication
+--    - GCM (Galois/Counter Mode) support
+--    - Cryptographic hash functions
+--    - Error correction codes
+--    - Security protocol acceleration
+--
+-- Debug and Trace:
+-- 1. **CoreSight Debug**:
+--    - Debug Access Port (DAP)
+--    - Cross Trigger Interface (CTI)
+--    - Debug and trace components
+--    - Non-intrusive debugging
+--    - Power-aware debug
+--
+-- 2. **Embedded Trace Macrocell (ETM)**:
+--    - Instruction trace
+--    - Data trace
+--    - Trace filtering
+--    - Trace compression
+--    - Real-time trace streaming
+--
+-- 3. **Program Trace Macrocell (PTM)**:
+--    - Program flow trace
+--    - Branch trace
+--    - Exception trace
+--    - Timestamp support
+--    - Efficient trace generation
+--
+-- 4. **Debug Features**:
+--    - Hardware breakpoints (6)
+--    - Watchpoints (4)
+--    - Single-step execution
+--    - Performance monitoring
+--    - System analysis
+--
+-- TrustZone Security:
+-- 1. **Secure and Non-secure Worlds**:
+--    - Hardware-enforced separation
+--    - Secure monitor mode
+--    - World switching
+--    - Secure memory regions
+--    - Secure peripheral access
+--
+-- 2. **Pointer Authentication**:
+--    - Return address protection
+--    - Function pointer protection
+--    - Cryptographic signatures
+--    - Key management
+--    - ROP/JOP attack mitigation
+--
+-- 3. **Security Features**:
+--    - Secure boot support
+--    - Cryptographic acceleration
+--    - Random number generation
+--    - Secure key storage
+--    - Hardware security modules
+--
+-- Power Management:
+-- 1. **Dynamic Scaling**:
+--    - Dynamic Voltage and Frequency Scaling (DVFS)
+--    - Per-core power control
+--    - Clock gating
+--    - Power gating
+--    - Retention modes
+--
+-- 2. **Sleep States**:
+--    - WFI (Wait For Interrupt)
+--    - WFE (Wait For Event)
+--    - Dormant mode
+--    - Shutdown mode
+--    - Ultra-fast wake-up (<10μs)
+--
+-- 3. **Ultra-Low Power Features**:
+--    - Adaptive voltage scaling
+--    - Dynamic power management
+--    - Thermal-aware scheduling
+--    - Battery life optimization
+--    - Energy-efficient execution
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ High-performance bus interface                      │
+-- │ AHB-Lite Master │ System bus interface                                │
+-- │ GIC-400/500     │ Generic Interrupt Controller                        │
+-- │ DSU             │ Debug and Snoop Unit                                │
+-- │ MMU             │ Memory Management Unit                              │
+-- │ NEON Unit       │ Advanced SIMD coprocessor                           │
+-- │ Crypto Unit     │ Cryptographic extensions                            │
+-- │ Debug Interface │ CoreSight debug and trace                           │
+-- │ TrustZone       │ Security architecture                               │
+-- │ Power Mgmt      │ Ultra-low power management                          │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 64-bit or 128-bit
+-- - AHB-Lite Data Width: 32-bit
+-- - Address Width: 64-bit (with 32-bit compatibility)
+-- - Maximum Clock Frequency: 1.3 GHz
+-- - Interrupt Latency: <20 cycles
+-- - Memory Access: Single-cycle for L1 hit
+-- - Pipeline Depth: 8 stages (in-order)
+-- - Cache Sizes: L1 8-64KB, L2 128KB-1MB
+-- - NEON Performance: 128-bit SIMD operations
+-- - Power Efficiency: <0.5mW/MHz
+--
+-- Implementation Approaches:
+-- 1. **Ultra-Low Power Configuration**:
+--    - Single-core with aggressive power management
+--    - Minimum cache sizes
+--    - Basic NEON support
+--    - Essential debug interface
+--    - Battery-powered optimization
+--
+-- 2. **Balanced Performance Configuration**:
+--    - Dual-core with moderate power management
+--    - Medium cache sizes
+--    - Full NEON and Crypto support
+--    - Standard debug interface
+--    - Performance-power balance
+--
+-- 3. **High-Performance Configuration**:
+--    - Quad-core with advanced features
+--    - Maximum cache sizes
+--    - Full NEON and Crypto support
+--    - Advanced debug and trace
+--    - Performance optimization
+--
+-- 4. **Security-Focused Configuration**:
+--    - TrustZone with pointer authentication
+--    - Cryptographic acceleration
+--    - Secure boot support
+--    - Enhanced security features
+--    - Security protocol optimization
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select core configuration (single/dual/quad)
+-- - Define memory map and cache hierarchy
+-- - Specify bus interface requirements
+-- - Choose debug and trace features
+-- - Configure security mechanisms
+--
+-- Step 2: Implement Bus Interface Logic
+-- - Create AXI4 master interface
+-- - Add AHB-Lite master interface
+-- - Implement bus arbitration
+-- - Add wait state generation
+-- - Configure memory attributes
+--
+-- Step 3: Add Cache System
+-- - Implement L1 instruction cache
+-- - Add L1 data cache
+-- - Create L2 unified cache controller
+-- - Add ECC protection logic (optional)
+-- - Implement cache maintenance operations
+--
+-- Step 4: Add GIC-400/500 (Generic Interrupt Controller)
+-- - Connect interrupt inputs (up to 1020/64K)
+-- - Implement priority handling
+-- - Add interrupt routing and affinity
+-- - Create power management integration
+-- - Add virtualization support
+--
+-- Step 5: Implement MMU (Memory Management Unit)
+-- - Add translation table support
+-- - Implement TLB management
+-- - Add page table walking
+-- - Create address translation logic
+-- - Add memory protection
+--
+-- Step 6: Integrate NEON Advanced SIMD
+-- - Add NEON register file
+-- - Implement SIMD execution units
+-- - Connect to main pipeline
+-- - Add NEON instruction decode
+-- - Implement power management
+--
+-- Step 7: Integrate Cryptographic Extensions
+-- - Add AES acceleration units
+-- - Implement SHA hash units
+-- - Add PMULL polynomial multiply
+-- - Connect to NEON pipeline
+-- - Implement security features
+--
+-- Step 8: Add Debug and Trace Interface
+-- - Implement CoreSight infrastructure
+-- - Add Debug Access Port (DAP)
+-- - Connect ETM/PTM trace interface
+-- - Add Cross Trigger Interface (CTI)
+-- - Implement non-intrusive debugging
+--
+-- Step 9: Implement TrustZone Security
+-- - Add secure and non-secure worlds
+-- - Implement pointer authentication
+-- - Add secure monitor mode
+-- - Create world switching logic
+-- - Add security state management
+--
+-- Step 10: Add Power and Thermal Management
+-- - Implement DVFS control
+-- - Add clock gating logic
+-- - Create power domains
+-- - Add thermal monitoring
+-- - Implement ultra-low power modes
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.gic_pkg: GIC interface definitions
+-- - work.mmu_pkg: MMU interface definitions
+-- - work.cortex_a34_pkg: Cortex-A34 specific constants
+-- - work.neon_pkg: NEON SIMD functions
+-- - work.crypto_pkg: Cryptographic functions
+-- - work.coresight_pkg: CoreSight debug functions
+-- - work.trustzone_pkg: TrustZone security functions
+-- - work.cache_pkg: Cache system functions
+-- - work.power_pkg: Power management functions
+-- - work.thermal_pkg: Thermal management functions
+-- - work.dynamiq_pkg: DynamIQ cluster functions
+-- - work.armv8a_pkg: ARMv8-A architecture functions
+--
+-- Advanced Features:
+-- 1. **Dual-Issue Pipeline**: Efficient in-order execution
+-- 2. **DynamIQ Cluster**: Advanced cluster architecture
+-- 3. **Advanced SIMD**: NEON with cryptographic extensions
+-- 4. **Memory Management**: MMU with multiple page sizes
+-- 5. **Debug and Trace**: Comprehensive debugging support
+-- 6. **Security Architecture**: TrustZone with pointer authentication
+-- 7. **Ultra-Low Power**: Advanced power management
+-- 8. **Interrupt Management**: GIC-400/500 support
+-- 9. **Cache Coherency**: DSU-based coherency
+-- 10. **Performance Monitoring**: Comprehensive PMU support
+--
+-- Applications:
+-- - Mobile and smartphone processors
+-- - IoT and edge computing devices
+-- - Embedded systems and controllers
+-- - Automotive infotainment systems
+-- - Wearable devices and sensors
+-- - Smart home and building automation
+-- - Industrial IoT applications
+-- - Battery-powered devices
+-- - Real-time embedded systems
+-- - Security and cryptographic applications
+--
+-- Performance Considerations:
+-- - Dual-issue execution efficiency
+-- - Cache hit rates and power consumption
+-- - Branch prediction accuracy (>90%)
+-- - NEON utilization for multimedia
+-- - Interrupt latency and response time
+-- - Memory management overhead
+-- - Security mechanism impact
+-- - Power consumption optimization
+-- - Thermal management efficiency
+-- - Battery life optimization
+--
+-- Verification Strategy:
+-- 1. **Instruction Testing**: ARMv8-A instruction set validation
+-- 2. **Bus Protocol Testing**: AXI4 and AHB-Lite compliance
+-- 3. **Cache Testing**: Cache functionality and coherency
+-- 4. **NEON Testing**: SIMD operations and performance
+-- 5. **Crypto Testing**: Cryptographic acceleration validation
+-- 6. **Interrupt Testing**: GIC functionality and latency
+-- 7. **MMU Testing**: Memory management and protection
+-- 8. **Debug Testing**: CoreSight and trace functionality
+-- 9. **Security Testing**: TrustZone and pointer authentication
+-- 10. **Power Testing**: DVFS and thermal management
+-- 11. **Performance Testing**: Benchmark validation
+--
+-- Common Design Challenges:
+-- - Dual-issue pipeline optimization
+-- - Power consumption minimization
+-- - Cache coherency in DynamIQ clusters
+-- - Security mechanism implementation
+-- - Debug interface timing at high frequencies
+-- - NEON and Crypto integration
+-- - MMU configuration complexity
+-- - Interrupt latency optimization
+-- - Thermal management in mobile devices
+-- - Battery life optimization
+--
+-- Verification Checklist:
+-- □ AXI4 and AHB-Lite interfaces functional
+-- □ Cache system operational
+-- □ GIC interrupt handling working
+-- □ MMU memory management functional
+-- □ NEON SIMD operations validated
+-- □ Cryptographic extensions working
+-- □ Debug interface (CoreSight/ETM) operational
+-- □ TrustZone security functional
+-- □ Pointer authentication working
+-- □ Power and thermal management working
+-- □ DynamIQ cluster features operational
+-- □ Exception handling validated
+-- □ Memory protection working
+-- □ Branch prediction optimized
+-- □ Pipeline efficiency validated
+-- □ Security features validated
+-- □ System integration validated
+-- □ Power efficiency demonstrated
+-- □ Compliance with ARM specifications
+-- □ Performance targets achieved
+-- □ Ultra-low power modes functional
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.gic_pkg.all;
+-- use work.mmu_pkg.all;
+-- use work.cortex_a34_pkg.all;
+-- use work.neon_pkg.all;
+-- use work.crypto_pkg.all;
+-- use work.coresight_pkg.all;
+-- use work.trustzone_pkg.all;
+-- use work.cache_pkg.all;
+-- use work.power_pkg.all;
+-- use work.thermal_pkg.all;
+-- use work.dynamiq_pkg.all;
+-- use work.armv8a_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_a34_interface is
+--     generic (
+--         NUM_CORES       : integer := 1;           -- 1-4 cores
+--         ENABLE_NEON     : boolean := true;        -- NEON Advanced SIMD
+--         ENABLE_CRYPTO   : boolean := true;        -- Cryptographic extensions
+--         ENABLE_MMU      : boolean := true;        -- Memory Management Unit
+--         L1_ICACHE_SIZE  : integer := 32768;       -- L1 I-Cache size (32KB)
+--         L1_DCACHE_SIZE  : integer := 32768;       -- L1 D-Cache size (32KB)
+--         L2_CACHE_SIZE   : integer := 524288;      -- L2 Cache size (512KB)
+--         ENABLE_L2_ECC   : boolean := false;       -- L2 ECC protection
+--         PAGE_SIZE       : integer := 4096;        -- MMU page size (4KB)
+--         NUM_INTERRUPTS  : integer := 1020;        -- GIC interrupts
+--         GIC_VERSION     : integer := 400;         -- GIC-400 or GIC-500
+--         ENABLE_DEBUG    : boolean := true;        -- Debug interface
+--         ENABLE_ETM      : boolean := true;        -- ETM trace
+--         ENABLE_PTM      : boolean := true;        -- PTM trace
+--         AXI_DATA_WIDTH  : integer := 64;          -- 64-bit AXI4
+--         AXI_ADDR_WIDTH  : integer := 64;          -- 64-bit address
+--         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit AHB-Lite
+--         CLOCK_FREQ      : integer := 1300000000;  -- 1.3 GHz
+--         ENABLE_TRUSTZONE: boolean := true;        -- TrustZone security
+--         ENABLE_POINTER_AUTH: boolean := true;     -- Pointer authentication
+--         ENABLE_THERMAL  : boolean := true;        -- Thermal management
+--         DYNAMIQ_CLUSTER : boolean := true         -- DynamIQ cluster support
+--     );
+--     port (
+--         -- System signals
+--         clk             : in  std_logic;
+--         nreset          : in  std_logic;
+--         
+--         -- AXI4 Master interface
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awqos     : out std_logic_vector(3 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arqos     : out std_logic_vector(3 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AHB-Lite Master interface
+--         haddr           : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         htrans          : out std_logic_vector(1 downto 0);
+--         hwrite          : out std_logic;
+--         hsize           : out std_logic_vector(2 downto 0);
+--         hburst          : out std_logic_vector(2 downto 0);
+--         hprot           : out std_logic_vector(3 downto 0);
+--         hwdata          : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hrdata          : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hready          : in  std_logic;
+--         hresp           : in  std_logic;
+--         
+--         -- GIC (Generic Interrupt Controller)
+--         gic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_fiq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_priority    : in  std_logic_vector(NUM_INTERRUPTS*8-1 downto 0);
+--         gic_target      : in  std_logic_vector(NUM_INTERRUPTS*8-1 downto 0);
+--         gic_config      : in  std_logic_vector(NUM_INTERRUPTS*2-1 downto 0);
+--         gic_ack         : out std_logic;
+--         gic_eoi         : out std_logic;
+--         gic_running_prio: out std_logic_vector(7 downto 0);
+--         
+--         -- MMU (Memory Management Unit) (if enabled)
+--         mmu_enable      : in  std_logic;
+--         mmu_ttbr0       : in  std_logic_vector(63 downto 0);
+--         mmu_ttbr1       : in  std_logic_vector(63 downto 0);
+--         mmu_tcr         : in  std_logic_vector(63 downto 0);
+--         mmu_mair        : in  std_logic_vector(63 downto 0);
+--         mmu_fault       : out std_logic;
+--         mmu_fault_addr  : out std_logic_vector(63 downto 0);
+--         mmu_fault_status: out std_logic_vector(31 downto 0);
+--         
+--         -- NEON Advanced SIMD (if enabled)
+--         neon_enable     : in  std_logic;
+--         neon_exception  : out std_logic;
+--         neon_status     : out std_logic_vector(31 downto 0);
+--         
+--         -- Cryptographic Extensions (if enabled)
+--         crypto_enable   : in  std_logic;
+--         crypto_exception: out std_logic;
+--         crypto_status   : out std_logic_vector(31 downto 0);
+--         
+--         -- Debug interface
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         jtag_trst_n     : in  std_logic;
+--         
+--         -- ETM Trace interface (if enabled)
+--         etm_traceclk    : in  std_logic;
+--         etm_tracedata   : out std_logic_vector(31 downto 0);
+--         etm_tracectl    : out std_logic_vector(7 downto 0);
+--         etm_trigger     : out std_logic;
+--         
+--         -- PTM Trace interface (if enabled)
+--         ptm_traceclk    : in  std_logic;
+--         ptm_tracedata   : out std_logic_vector(31 downto 0);
+--         ptm_tracectl    : out std_logic_vector(7 downto 0);
+--         ptm_trigger     : out std_logic;
+--         
+--         -- Cross Trigger Interface (CTI)
+--         cti_trigin      : in  std_logic_vector(7 downto 0);
+--         cti_trigout     : out std_logic_vector(7 downto 0);
+--         
+--         -- TrustZone Security (if enabled)
+--         trustzone_enable: in  std_logic;
+--         secure_world    : out std_logic;
+--         secure_fault    : out std_logic;
+--         secure_interrupt: in  std_logic;
+--         
+--         -- Pointer Authentication (if enabled)
+--         pauth_enable    : in  std_logic;
+--         pauth_key_a     : in  std_logic_vector(127 downto 0);
+--         pauth_key_b     : in  std_logic_vector(127 downto 0);
+--         pauth_fault     : out std_logic;
+--         
+--         -- DynamIQ Cluster (if enabled)
+--         dsu_enable      : in  std_logic;
+--         dsu_coherency   : out std_logic;
+--         dsu_snoop_req   : out std_logic;
+--         dsu_snoop_resp  : in  std_logic;
+--         
+--         -- Power management
+--         pm_standbywfi   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_standbywfe   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_pmuirq       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_commirq      : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_eventi       : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_evento       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_dvfs_req     : out std_logic_vector(NUM_CORES*8-1 downto 0);
+--         pm_dvfs_ack     : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Thermal management (if enabled)
+--         thermal_sensor  : in  std_logic_vector(11 downto 0);
+--         thermal_alarm   : out std_logic;
+--         thermal_throttle: out std_logic_vector(NUM_CORES-1 downto 0);
+--         thermal_shutdown: out std_logic;
+--         
+--         -- Cache control
+--         cache_l1_enable : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         cache_l2_enable : in  std_logic;
+--         cache_invalidate: in  std_logic;
+--         cache_clean     : in  std_logic;
+--         cache_l2_ecc_err: out std_logic;
+--         
+--         -- Status and control
+--         cpu_state       : out std_logic_vector(NUM_CORES*4-1 downto 0);
+--         exception_entry : out std_logic_vector(NUM_CORES-1 downto 0);
+--         exception_return: out std_logic_vector(NUM_CORES-1 downto 0);
+--         cpu_frequency   : out std_logic_vector(NUM_CORES*32-1 downto 0);
+--         
+--         -- Performance monitoring
+--         pmu_enable      : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         pmu_counters    : out std_logic_vector(NUM_CORES*32*6-1 downto 0);
+--         pmu_overflow    : out std_logic_vector(NUM_CORES*6-1 downto 0);
+--         pmu_cycle_count : out std_logic_vector(NUM_CORES*64-1 downto 0)
+--     );
+-- end entity cortex_a34_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_a34_interface is
+--     -- Component declarations for Cortex-A34 cores
+--     -- Component declarations for GIC, MMU, DSU
+--     -- Component declarations for NEON, Crypto, debug interface
+--     -- Component declarations for TrustZone and power management
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Generate multiple cores if NUM_CORES > 1
+--     -- Instantiate GIC (Generic Interrupt Controller)
+--     -- Instantiate MMU (Memory Management Unit) if enabled
+--     -- Instantiate DSU (Debug and Snoop Unit) if DynamIQ enabled
+--     -- Add NEON Advanced SIMD (if enabled)
+--     -- Add Cryptographic extensions (if enabled)
+--     -- Add debug interface and ETM/PTM trace (if enabled)
+--     -- Implement TrustZone security (if enabled)
+--     -- Add pointer authentication (if enabled)
+--     -- Add power and thermal management logic
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-A34 interface design focuses on ultra-efficient 64-bit 
+-- processing with advanced power management, security features, and 
+-- cryptographic acceleration. Always consult the ARM Cortex-A34 Technical 
+-- Reference Manual and ARMv8-A Architecture Manual for detailed specifications.
+-- ============================================================================

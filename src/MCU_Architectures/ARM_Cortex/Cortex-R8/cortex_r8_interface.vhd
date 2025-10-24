@@ -1,14 +1,824 @@
--- Cortex-R8 Interface VHDL File
--- This file contains the interface definition for ARM Cortex-R8 processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-R8 processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-R8 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-R8 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-R8 processors, providing high-performance real-time 
+--              processor communication, control, and peripheral integration 
+--              for safety-critical automotive, industrial, and aerospace 
+--              applications requiring deterministic response times.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-R8 architecture and ARMv7-R instruction set
+-- 2. Master AXI4 and AHB-Lite protocols for real-time systems
+-- 3. Learn ARM Cortex-R8 dual-issue in-order pipeline design
+-- 4. Implement VIC (Vectored Interrupt Controller) for real-time response
+-- 5. Understand multicore and lockstep operation for safety
+-- 6. Master cache coherency and memory protection (MPU)
+-- 7. Learn NEON and VFPv3 coprocessor integration
+-- 8. Implement CoreSight debug and real-time trace interface
+-- 9. Understand safety mechanisms and error detection
+-- 10. Master real-time power management and thermal control
+--
+-- ARM Cortex-R8 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7-R (32-bit real-time)                         │
+-- │ Pipeline        │ Dual-issue in-order (11-stage)                     │
+-- │ Cores           │ 1-4 cores (lockstep capable)                       │
+-- │ Performance     │ 3.5 DMIPS/MHz                                      │
+-- │ Instructions    │ ARM + Thumb-2 + NEON + VFPv3                       │
+-- │ Registers       │ 15 general purpose + PC + CPSR                     │
+-- │ NEON            │ Advanced SIMD (128-bit vectors)                     │
+-- │ Cache           │ L1: 32-64KB I + 32-64KB D, L2: 512KB-8MB           │
+-- │ Interrupts      │ VIC (Vectored Interrupt Controller)                │
+-- │ Debug           │ CoreSight + ETM + Real-time trace                   │
+-- │ Memory          │ MPU (Memory Protection Unit)                        │
+-- │ Safety          │ ECC, parity, lockstep operation                    │
+-- │ Frequency       │ Up to 1.6 GHz                                       │
+-- │ Process         │ 28nm-16nm                                           │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-R8 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-R8     │    │      VIC        │    │   CoreSight     │
+-- │   Processor     │◀──▶│   (Vectored     │◀──▶│   Debug         │
+-- │   Core(s)       │    │   Interrupt     │    │   Infrastructure│
+-- └─────────────────┘    │   Controller)   │    └─────────────────┘
+--          │              └─────────────────┘             │
+--          ▼                       │                      ▼
+-- ┌─────────────────┐              ▼              ┌─────────────────┐
+-- │   L2 Cache      │    ┌─────────────────┐     │   ETM + RTT     │
+-- │   Controller    │    │   MPU (Memory   │     │   Real-time     │
+-- │   + ECC         │    │   Protection    │     │   Trace         │
+-- └─────────────────┘    │   Unit)         │     └─────────────────┘
+--          │              └─────────────────┘             │
+-- ┌─────────────────┐              │                      ▼
+-- │   AXI4 Bus      │              ▼              ┌─────────────────┐
+-- │   Interface     │    ┌─────────────────┐     │   JTAG + SWD    │
+-- │   + AMBA        │    │   NEON + VFPv3  │     │   Interface     │
+-- └─────────────────┘    │   Coprocessor   │     │                 │
+--          │              └─────────────────┘     └─────────────────┘
+--          ▼                       │                      │
+-- ┌─────────────────┐              ▼                      ▼
+-- │   Safety &      │    ┌─────────────────┐    ┌─────────────────┐
+-- │   Error         │    │   Lockstep      │    │   Power & Clock │
+-- │   Detection     │    │   Operation     │    │   Management    │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- Bus Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Bus Type        │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ AXI4            │ Master→Slave    │ AWADDR, AWVALID, AWREADY        │
+-- │ AXI4            │ Master→Slave    │ WDATA, WVALID, WREADY           │
+-- │ AXI4            │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ AXI4            │ Master→Slave    │ ARADDR, ARVALID, ARREADY        │
+-- │ AXI4            │ Slave→Master    │ RDATA, RRESP, RVALID, RREADY    │
+-- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HSIZE, HBURST    │
+-- │ System          │ Input           │ CLK, nRESET                     │
+-- │ Debug           │ Bidirectional   │ SWCLK, SWDIO, JTAG signals      │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-R8 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 2GB             │ Normal memory region            │
+-- │ 0x8000_0000     │ 1GB             │ Normal memory region            │
+-- │ 0xC000_0000     │ 512MB           │ Device memory region            │
+-- │ 0xE000_0000     │ 256MB           │ Device memory region            │
+-- │ 0xF000_0000     │ 128MB           │ Strongly-ordered memory         │
+-- │ 0xF800_0000     │ 64MB            │ Private memory region           │
+-- │ 0xFC00_0000     │ 32MB            │ Implementation defined          │
+-- │ 0xFE00_0000     │ 32MB            │ Implementation defined          │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv7-R Instruction Set:
+-- 1. **ARM Instructions**:
+--    - 32-bit ARM instruction set
+--    - Conditional execution
+--    - Load/store multiple
+--    - Branch and branch with link
+--    - Arithmetic and logic operations
+--    - Multiply and multiply-accumulate
+--    - Real-time optimized instructions
+--
+-- 2. **Thumb-2 Instructions**:
+--    - 16-bit and 32-bit Thumb instructions
+--    - Improved code density
+--    - Complete instruction set
+--    - IT (If-Then) conditional blocks
+--    - Wide immediate constants
+--    - Real-time deterministic execution
+--
+-- 3. **NEON Instructions**:
+--    - Advanced SIMD operations
+--    - 128-bit vector operations
+--    - Integer and floating-point SIMD
+--    - Load/store multiple vectors
+--    - Vector arithmetic and logic
+--    - Real-time signal processing
+--
+-- Dual-Issue In-Order Pipeline:
+-- 1. **Fetch Stage**:
+--    - Instruction fetch (up to 2 instructions)
+--    - Branch prediction (2-level adaptive)
+--    - Return address stack (8 entries)
+--    - Instruction cache access
+--    - Deterministic fetch timing
+--
+-- 2. **Decode Stage**:
+--    - Instruction decode (dual-issue)
+--    - Register dependency check
+--    - Micro-operation generation
+--    - Issue queue management
+--    - Real-time scheduling
+--
+-- 3. **Issue Stage**:
+--    - In-order issue (up to 2 instructions)
+--    - Resource allocation
+--    - Scoreboard management
+--    - Load/store queue management
+--    - Deterministic issue timing
+--
+-- 4. **Execute Stages**:
+--    - ALU operations (2 units)
+--    - Load/store unit (2 units)
+--    - Branch unit
+--    - NEON/VFP unit
+--    - Multiply-accumulate unit
+--    - Deterministic execution
+--
+-- 5. **Writeback Stage**:
+--    - Register writeback
+--    - Exception handling
+--    - Retirement (in-order)
+--    - Error detection and correction
+--
+-- Cache System:
+-- 1. **L1 Instruction Cache**:
+--    - Size: 32KB to 64KB
+--    - Associativity: 2-way or 4-way
+--    - Line size: 32 or 64 bytes
+--    - Virtual index, physical tag
+--    - Parity protection
+--    - Deterministic access timing
+--
+-- 2. **L1 Data Cache**:
+--    - Size: 32KB to 64KB
+--    - Associativity: 2-way or 4-way
+--    - Line size: 32 or 64 bytes
+--    - Write-back or write-through policy
+--    - PIPT (Physically Indexed, Physically Tagged)
+--    - ECC protection
+--    - Cache locking for real-time
+--
+-- 3. **L2 Unified Cache**:
+--    - Size: 512KB to 8MB
+--    - Associativity: 8-way or 16-way
+--    - Line size: 64 bytes
+--    - Inclusive of L1 caches
+--    - ECC protection
+--    - Configurable replacement policy
+--    - Cache partitioning support
+--
+-- VIC (Vectored Interrupt Controller):
+-- 1. **Interrupt Types**:
+--    - IRQ (Interrupt Request): 0-255
+--    - FIQ (Fast Interrupt Request): 0-255
+--    - NMI (Non-Maskable Interrupt)
+--    - Reset and exception vectors
+--
+-- 2. **Features**:
+--    - Up to 256 interrupt sources
+--    - 32 priority levels
+--    - Vectored interrupt handling
+--    - Fast interrupt response (<10 cycles)
+--    - Nested interrupt support
+--    - Real-time interrupt latency guarantee
+--
+-- 3. **Real-time Features**:
+--    - Deterministic interrupt latency
+--    - Priority-based preemption
+--    - Interrupt tail-chaining
+--    - Late arrival optimization
+--    - Real-time interrupt scheduling
+--
+-- MPU (Memory Protection Unit):
+-- 1. **Protection Regions**:
+--    - Up to 16 protection regions
+--    - Configurable region sizes
+--    - Access permission control
+--    - Memory attribute configuration
+--    - Overlapping region support
+--
+-- 2. **Safety Features**:
+--    - Memory access violation detection
+--    - Privilege level enforcement
+--    - Execute-never (XN) regions
+--    - Cache policy enforcement
+--    - Real-time memory protection
+--
+-- Lockstep Operation:
+-- 1. **Dual-Core Lockstep**:
+--    - Identical instruction execution
+--    - Cycle-by-cycle comparison
+--    - Error detection and reporting
+--    - Automatic error recovery
+--    - Safety-critical operation
+--
+-- 2. **Error Detection**:
+--    - Instruction execution comparison
+--    - Register file comparison
+--    - Cache comparison
+--    - Bus transaction comparison
+--    - Immediate error reporting
+--
+-- NEON Advanced SIMD:
+-- 1. **Register File**:
+--    - 32 x 64-bit D registers
+--    - 16 x 128-bit Q registers
+--    - Shared with VFP registers
+--    - ECC protection
+--
+-- 2. **Data Types**:
+--    - 8, 16, 32, 64-bit integers
+--    - 32-bit single-precision float
+--    - Polynomial arithmetic
+--    - Fixed-point arithmetic
+--
+-- 3. **Operations**:
+--    - Arithmetic (add, subtract, multiply)
+--    - Logic (AND, OR, XOR)
+--    - Shift and rotate
+--    - Load/store multiple
+--    - Vector table lookup
+--    - Real-time signal processing
+--
+-- VFPv3 Floating-Point:
+-- 1. **Features**:
+--    - Single and double precision
+--    - 32 single or 16 double registers
+--    - IEEE 754 compliant
+--    - Hardware divide and square root
+--    - Deterministic execution timing
+--
+-- 2. **Performance**:
+--    - Single-cycle throughput
+--    - Pipelined operations
+--    - Denormal number support
+--    - Exception handling
+--    - Real-time floating-point
+--
+-- Safety and Error Detection:
+-- 1. **ECC Protection**:
+--    - Cache ECC (single-bit correction, double-bit detection)
+--    - Register file parity
+--    - Memory interface ECC
+--    - Error logging and reporting
+--
+-- 2. **Built-in Self-Test (BIST)**:
+--    - Cache BIST
+--    - Logic BIST
+--    - Memory BIST
+--    - Periodic self-test
+--    - Error injection for testing
+--
+-- 3. **Error Handling**:
+--    - Error interrupt generation
+--    - Error status registers
+--    - Error address capture
+--    - Automatic error recovery
+--    - Safety mechanism validation
+--
+-- Debug and Trace:
+-- 1. **CoreSight Debug**:
+--    - Debug Access Port (DAP)
+--    - Cross Trigger Interface (CTI)
+--    - Debug and trace components
+--    - Real-time debug capability
+--    - Non-intrusive debugging
+--
+-- 2. **Embedded Trace Macrocell (ETM)**:
+--    - Instruction trace
+--    - Data trace
+--    - Trace filtering
+--    - Trace compression
+--    - Real-time trace streaming
+--
+-- 3. **Real-time Trace (RTT)**:
+--    - Low-latency trace output
+--    - Minimal system impact
+--    - Continuous trace streaming
+--    - Real-time system monitoring
+--    - Performance analysis
+--
+-- 4. **Debug Features**:
+--    - Hardware breakpoints (8)
+--    - Watchpoints (8)
+--    - Single-step execution
+--    - Performance monitoring
+--    - Real-time system analysis
+--
+-- Power Management:
+-- 1. **Dynamic Scaling**:
+--    - Dynamic Voltage and Frequency Scaling (DVFS)
+--    - Per-core power control
+--    - Clock gating
+--    - Power gating
+--    - Retention modes
+--
+-- 2. **Sleep States**:
+--    - WFI (Wait For Interrupt)
+--    - WFE (Wait For Event)
+--    - Dormant mode
+--    - Shutdown mode
+--    - Fast wake-up (<100ns)
+--
+-- 3. **Real-time Power Management**:
+--    - Deterministic wake-up timing
+--    - Power-aware scheduling
+--    - Thermal management
+--    - Emergency power reduction
+--    - Real-time power monitoring
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ High-performance bus interface                      │
+-- │ AHB-Lite Master │ System bus interface                                │
+-- │ VIC             │ Vectored Interrupt Controller                       │
+-- │ L2 Cache Ctrl   │ L2 cache controller with ECC                       │
+-- │ MPU             │ Memory Protection Unit                              │
+-- │ NEON Unit       │ Advanced SIMD coprocessor                           │
+-- │ VFPv3 Unit      │ Floating-point coprocessor                          │
+-- │ Debug Interface │ CoreSight debug and real-time trace                 │
+-- │ Safety Logic    │ Error detection and lockstep operation             │
+-- │ Power Mgmt      │ Real-time power and thermal management              │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 64-bit or 128-bit
+-- - AHB-Lite Data Width: 32-bit
+-- - Address Width: 32-bit
+-- - Maximum Clock Frequency: 1.6 GHz
+-- - Interrupt Latency: <10 cycles (deterministic)
+-- - Memory Access: Single-cycle for L1 hit
+-- - Pipeline Depth: 11 stages (in-order)
+-- - Cache Sizes: L1 32-64KB, L2 512KB-8MB
+-- - NEON Performance: 128-bit SIMD operations
+-- - Safety: ASIL-D capable with lockstep
+--
+-- Implementation Approaches:
+-- 1. **Safety-Critical Configuration**:
+--    - Dual-core lockstep operation
+--    - Maximum ECC protection
+--    - Full safety mechanisms
+--    - Real-time trace capability
+--    - ASIL-D compliance
+--
+-- 2. **High-Performance Configuration**:
+--    - Single-core high-frequency
+--    - Maximum cache sizes
+--    - Full NEON and VFP support
+--    - Advanced debug and trace
+--    - Performance optimization
+--
+-- 3. **Balanced Configuration**:
+--    - Single-core with safety features
+--    - Medium cache sizes
+--    - Standard NEON support
+--    - Basic debug interface
+--    - Cost-performance balance
+--
+-- 4. **Real-time Configuration**:
+--    - Deterministic execution
+--    - Cache locking support
+--    - Priority-based scheduling
+--    - Real-time trace
+--    - Guaranteed response times
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select core configuration (single/dual/lockstep)
+-- - Define memory map and cache hierarchy
+-- - Specify bus interface requirements
+-- - Choose debug and trace features
+-- - Configure safety mechanisms
+--
+-- Step 2: Implement Bus Interface Logic
+-- - Create AXI4 master interface
+-- - Add AHB-Lite master interface
+-- - Implement bus arbitration
+-- - Add wait state generation
+-- - Configure memory attributes
+--
+-- Step 3: Add Cache System with ECC
+-- - Implement L1 instruction cache
+-- - Add L1 data cache with locking
+-- - Create L2 unified cache controller
+-- - Add ECC protection logic
+-- - Implement cache maintenance operations
+--
+-- Step 4: Add VIC (Vectored Interrupt Controller)
+-- - Connect interrupt inputs (up to 256)
+-- - Implement priority handling
+-- - Add vectored interrupt support
+-- - Create fast interrupt response
+-- - Add real-time interrupt scheduling
+--
+-- Step 5: Implement MPU (Memory Protection Unit)
+-- - Add protection region configuration
+-- - Implement access permission checking
+-- - Add memory attribute enforcement
+-- - Create violation detection logic
+-- - Add real-time protection
+--
+-- Step 6: Integrate NEON Advanced SIMD
+-- - Add NEON register file with ECC
+-- - Implement SIMD execution units
+-- - Connect to main pipeline
+-- - Add NEON instruction decode
+-- - Implement real-time SIMD operations
+--
+-- Step 7: Integrate VFPv3 Floating-Point Unit
+-- - Add VFP register file
+-- - Implement floating-point units
+-- - Add IEEE 754 compliance
+-- - Connect exception handling
+-- - Implement deterministic FP operations
+--
+-- Step 8: Add Debug and Trace Interface
+-- - Implement CoreSight infrastructure
+-- - Add Debug Access Port (DAP)
+-- - Connect ETM trace interface
+-- - Add real-time trace (RTT)
+-- - Implement non-intrusive debugging
+--
+-- Step 9: Implement Safety and Error Detection
+-- - Add ECC logic for caches and registers
+-- - Implement lockstep operation (if dual-core)
+-- - Add built-in self-test (BIST)
+-- - Create error detection and reporting
+-- - Add safety mechanism validation
+--
+-- Step 10: Add Power and Thermal Management
+-- - Implement DVFS control
+-- - Add clock gating logic
+-- - Create power domains
+-- - Add thermal monitoring
+-- - Implement real-time power management
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.vic_pkg: VIC interface definitions
+-- - work.mpu_pkg: MPU interface definitions
+-- - work.cortex_r8_pkg: Cortex-R8 specific constants
+-- - work.neon_pkg: NEON SIMD functions
+-- - work.vfpv3_pkg: VFPv3 floating-point functions
+-- - work.coresight_pkg: CoreSight debug functions
+-- - work.safety_pkg: Safety mechanism functions
+-- - work.cache_pkg: Cache system functions
+-- - work.power_pkg: Power management functions
+-- - work.thermal_pkg: Thermal management functions
+-- - work.lockstep_pkg: Lockstep operation functions
+-- - work.armv7r_pkg: ARMv7-R architecture functions
+--
+-- Advanced Features:
+-- 1. **Dual-Issue Pipeline**: High-performance in-order execution
+-- 2. **Lockstep Operation**: Safety-critical dual-core operation
+-- 3. **Advanced SIMD**: NEON with real-time signal processing
+-- 4. **Memory Protection**: MPU with real-time protection
+-- 5. **Debug and Trace**: Comprehensive real-time debugging
+-- 6. **Safety Mechanisms**: ECC, BIST, and error detection
+-- 7. **Real-time Features**: Deterministic execution and response
+-- 8. **Cache Locking**: Real-time cache management
+-- 9. **Vectored Interrupts**: Fast interrupt response
+-- 10. **Performance Monitoring**: Real-time system analysis
+--
+-- Applications:
+-- - Automotive ECUs (engine, transmission, braking)
+-- - Industrial automation and control systems
+-- - Aerospace and defense systems
+-- - Medical devices and equipment
+-- - Railway signaling and control
+-- - Power generation and distribution
+-- - Robotics and motion control
+-- - Safety-critical embedded systems
+-- - Real-time communication systems
+-- - Process control and monitoring
+--
+-- Performance Considerations:
+-- - Dual-issue execution efficiency
+-- - Cache hit rates and deterministic access
+-- - Branch prediction accuracy (>95%)
+-- - NEON utilization for signal processing
+-- - Interrupt latency and real-time response
+-- - Memory protection overhead
+-- - Safety mechanism impact
+-- - Power consumption and thermal management
+-- - Lockstep operation synchronization
+-- - Real-time determinism vs. performance
+--
+-- Verification Strategy:
+-- 1. **Instruction Testing**: ARMv7-R instruction set validation
+-- 2. **Bus Protocol Testing**: AXI4 and AHB-Lite compliance
+-- 3. **Cache Testing**: Cache functionality and ECC
+-- 4. **NEON Testing**: SIMD operations and real-time performance
+-- 5. **VFP Testing**: Floating-point operations and determinism
+-- 6. **Interrupt Testing**: VIC functionality and latency
+-- 7. **MPU Testing**: Memory protection and violation detection
+-- 8. **Debug Testing**: CoreSight and real-time trace
+-- 9. **Safety Testing**: ECC, BIST, and lockstep operation
+-- 10. **Power Testing**: DVFS and thermal management
+-- 11. **Real-time Testing**: Deterministic execution validation
+--
+-- Common Design Challenges:
+-- - Dual-issue pipeline optimization
+-- - Lockstep synchronization complexity
+-- - Real-time determinism requirements
+-- - Safety mechanism implementation
+-- - Debug interface timing at high frequencies
+-- - NEON and VFP integration
+-- - MPU configuration complexity
+-- - Cache locking for real-time
+-- - Error detection and recovery
+-- - Thermal management in safety systems
+--
+-- Verification Checklist:
+-- □ AXI4 and AHB-Lite interfaces functional
+-- □ Cache system operational with ECC
+-- □ VIC interrupt handling working
+-- □ MPU memory protection functional
+-- □ NEON SIMD operations validated
+-- □ VFPv3 floating-point operations working
+-- □ Debug interface (CoreSight/ETM) operational
+-- □ Safety mechanisms functional
+-- □ Lockstep operation validated (if applicable)
+-- □ Power and thermal management working
+-- □ Real-time performance targets achieved
+-- □ Exception handling validated
+-- □ Memory protection working
+-- □ Branch prediction optimized
+-- □ Pipeline efficiency validated
+-- □ Safety certification requirements met
+-- □ System integration validated
+-- □ Long-term reliability demonstrated
+-- □ Compliance with ARM specifications
+-- □ Safety standards compliance (ISO 26262, etc.)
+-- □ Real-time determinism validated
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.vic_pkg.all;
+-- use work.mpu_pkg.all;
+-- use work.cortex_r8_pkg.all;
+-- use work.neon_pkg.all;
+-- use work.vfpv3_pkg.all;
+-- use work.coresight_pkg.all;
+-- use work.safety_pkg.all;
+-- use work.cache_pkg.all;
+-- use work.power_pkg.all;
+-- use work.thermal_pkg.all;
+-- use work.lockstep_pkg.all;
+-- use work.armv7r_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_r8_interface is
+--     generic (
+--         NUM_CORES       : integer := 1;           -- 1-4 cores
+--         ENABLE_LOCKSTEP : boolean := false;       -- Lockstep operation
+--         ENABLE_NEON     : boolean := true;        -- NEON Advanced SIMD
+--         ENABLE_VFP      : boolean := true;        -- VFPv3 floating-point
+--         ENABLE_MPU      : boolean := true;        -- Memory Protection Unit
+--         L1_ICACHE_SIZE  : integer := 32768;       -- L1 I-Cache size (32KB)
+--         L1_DCACHE_SIZE  : integer := 32768;       -- L1 D-Cache size (32KB)
+--         L2_CACHE_SIZE   : integer := 1048576;     -- L2 Cache size (1MB)
+--         ENABLE_L2_ECC   : boolean := true;        -- L2 ECC protection
+--         ENABLE_CACHE_LOCK: boolean := true;       -- Cache locking support
+--         NUM_INTERRUPTS  : integer := 256;         -- VIC interrupts
+--         ENABLE_DEBUG    : boolean := true;        -- Debug interface
+--         ENABLE_ETM      : boolean := true;        -- ETM trace
+--         ENABLE_RTT      : boolean := true;        -- Real-time trace
+--         AXI_DATA_WIDTH  : integer := 64;          -- 64-bit AXI4
+--         AXI_ADDR_WIDTH  : integer := 32;          -- 32-bit address
+--         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit AHB-Lite
+--         CLOCK_FREQ      : integer := 1600000000;  -- 1.6 GHz
+--         ENABLE_SAFETY   : boolean := true;        -- Safety mechanisms
+--         ENABLE_THERMAL  : boolean := true;        -- Thermal management
+--         MPU_REGIONS     : integer := 16           -- MPU protection regions
+--     );
+--     port (
+--         -- System signals
+--         clk             : in  std_logic;
+--         nreset          : in  std_logic;
+--         
+--         -- AXI4 Master interface
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awqos     : out std_logic_vector(3 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arqos     : out std_logic_vector(3 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- AHB-Lite Master interface
+--         haddr           : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         htrans          : out std_logic_vector(1 downto 0);
+--         hwrite          : out std_logic;
+--         hsize           : out std_logic_vector(2 downto 0);
+--         hburst          : out std_logic_vector(2 downto 0);
+--         hprot           : out std_logic_vector(3 downto 0);
+--         hwdata          : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hrdata          : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hready          : in  std_logic;
+--         hresp           : in  std_logic;
+--         
+--         -- VIC (Vectored Interrupt Controller)
+--         vic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         vic_fiq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         vic_nmi         : in  std_logic;
+--         vic_priority    : in  std_logic_vector(NUM_INTERRUPTS*5-1 downto 0);
+--         vic_vector_addr : out std_logic_vector(31 downto 0);
+--         vic_ack         : out std_logic;
+--         vic_eoi         : out std_logic;
+--         
+--         -- MPU (Memory Protection Unit) (if enabled)
+--         mpu_enable      : in  std_logic;
+--         mpu_region_en   : in  std_logic_vector(MPU_REGIONS-1 downto 0);
+--         mpu_region_base : in  std_logic_vector(MPU_REGIONS*32-1 downto 0);
+--         mpu_region_size : in  std_logic_vector(MPU_REGIONS*6-1 downto 0);
+--         mpu_region_attr : in  std_logic_vector(MPU_REGIONS*16-1 downto 0);
+--         mpu_violation   : out std_logic;
+--         mpu_fault_addr  : out std_logic_vector(31 downto 0);
+--         
+--         -- NEON Advanced SIMD (if enabled)
+--         neon_enable     : in  std_logic;
+--         neon_exception  : out std_logic;
+--         neon_status     : out std_logic_vector(31 downto 0);
+--         
+--         -- VFPv3 Floating-Point (if enabled)
+--         vfp_enable      : in  std_logic;
+--         vfp_exception   : out std_logic;
+--         vfp_status      : out std_logic_vector(31 downto 0);
+--         
+--         -- Debug interface
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         jtag_trst_n     : in  std_logic;
+--         
+--         -- ETM Trace interface (if enabled)
+--         etm_traceclk    : in  std_logic;
+--         etm_tracedata   : out std_logic_vector(31 downto 0);
+--         etm_tracectl    : out std_logic_vector(7 downto 0);
+--         etm_trigger     : out std_logic;
+--         
+--         -- Real-time Trace (RTT) (if enabled)
+--         rtt_enable      : in  std_logic;
+--         rtt_data        : out std_logic_vector(31 downto 0);
+--         rtt_valid       : out std_logic;
+--         rtt_ready       : in  std_logic;
+--         
+--         -- Cross Trigger Interface (CTI)
+--         cti_trigin      : in  std_logic_vector(7 downto 0);
+--         cti_trigout     : out std_logic_vector(7 downto 0);
+--         
+--         -- Safety and Error Detection (if enabled)
+--         safety_enable   : in  std_logic;
+--         ecc_error       : out std_logic;
+--         ecc_error_addr  : out std_logic_vector(31 downto 0);
+--         parity_error    : out std_logic;
+--         lockstep_error  : out std_logic;
+--         bist_enable     : in  std_logic;
+--         bist_done       : out std_logic;
+--         bist_pass       : out std_logic;
+--         
+--         -- Lockstep Operation (if enabled)
+--         lockstep_enable : in  std_logic;
+--         lockstep_sync   : out std_logic;
+--         lockstep_compare: out std_logic;
+--         lockstep_fault  : out std_logic;
+--         
+--         -- Power management
+--         pm_standbywfi   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_standbywfe   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_pmuirq       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_commirq      : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_eventi       : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_evento       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         pm_dvfs_req     : out std_logic_vector(NUM_CORES*8-1 downto 0);
+--         pm_dvfs_ack     : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Thermal management (if enabled)
+--         thermal_sensor  : in  std_logic_vector(11 downto 0);
+--         thermal_alarm   : out std_logic;
+--         thermal_throttle: out std_logic_vector(NUM_CORES-1 downto 0);
+--         thermal_shutdown: out std_logic;
+--         
+--         -- Cache control
+--         cache_l1_enable : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         cache_l2_enable : in  std_logic;
+--         cache_invalidate: in  std_logic;
+--         cache_clean     : in  std_logic;
+--         cache_lock_en   : in  std_logic;
+--         cache_lock_addr : in  std_logic_vector(31 downto 0);
+--         cache_lock_size : in  std_logic_vector(15 downto 0);
+--         cache_l2_ecc_err: out std_logic;
+--         
+--         -- Status and control
+--         cpu_state       : out std_logic_vector(NUM_CORES*4-1 downto 0);
+--         exception_entry : out std_logic_vector(NUM_CORES-1 downto 0);
+--         exception_return: out std_logic_vector(NUM_CORES-1 downto 0);
+--         cpu_frequency   : out std_logic_vector(NUM_CORES*32-1 downto 0);
+--         real_time_mode  : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Performance monitoring
+--         pmu_enable      : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         pmu_counters    : out std_logic_vector(NUM_CORES*32*6-1 downto 0);
+--         pmu_overflow    : out std_logic_vector(NUM_CORES*6-1 downto 0);
+--         pmu_cycle_count : out std_logic_vector(NUM_CORES*64-1 downto 0);
+--         pmu_rt_latency  : out std_logic_vector(NUM_CORES*32-1 downto 0)
+--     );
+-- end entity cortex_r8_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_r8_interface is
+--     -- Component declarations for Cortex-R8 cores
+--     -- Component declarations for VIC, MPU, L2 cache
+--     -- Component declarations for NEON, VFP, debug interface
+--     -- Component declarations for safety and lockstep logic
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Generate multiple cores if NUM_CORES > 1
+--     -- Instantiate VIC (Vectored Interrupt Controller)
+--     -- Instantiate MPU (Memory Protection Unit) if enabled
+--     -- Instantiate L2 cache controller with ECC
+--     -- Add NEON Advanced SIMD (if enabled)
+--     -- Add VFPv3 floating-point unit (if enabled)
+--     -- Add debug interface and ETM/RTT trace (if enabled)
+--     -- Implement safety mechanisms and error detection (if enabled)
+--     -- Add lockstep operation logic (if enabled)
+--     -- Add power and thermal management logic
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-R8 interface design focuses on real-time and safety-critical 
+-- applications with advanced features like lockstep operation, deterministic 
+-- execution, memory protection, and comprehensive error detection. Always 
+-- consult the ARM Cortex-R8 Technical Reference Manual and ARMv7-R 
+-- Architecture Manual for detailed specifications.
+-- ============================================================================

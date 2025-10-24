@@ -1,0 +1,740 @@
+-- ============================================================================
+-- JK Flip-Flop Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a JK flip-flop, a versatile sequential logic element
+-- that combines the functionality of SR flip-flops with additional toggle
+-- capability. The JK flip-flop eliminates the undefined state of SR flip-flops
+-- and provides toggle operation when both inputs are high, making it ideal
+-- for counters, frequency dividers, and state machines requiring toggle
+-- functionality.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand JK flip-flop operation and truth table
+-- 2. Learn toggle functionality and its applications
+-- 3. Practice master-slave and edge-triggered implementations
+-- 4. Explore race condition prevention techniques
+-- 5. Understand frequency division and counter applications
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - std_logic_unsigned package for arithmetic operations (if needed)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Consider use IEEE.std_logic_unsigned.all; (if arithmetic needed)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the JK flip-flop
+--
+-- Entity Requirements:
+-- - Name: jk_flipflop (maintain current naming convention)
+-- - Inputs: J, K, clock, reset, set, enable
+-- - Outputs: Q (normal output), Q_n (inverted output)
+-- - Support for various control signal combinations
+--
+-- Port Specifications:
+-- - J : in std_logic (J input - set when high)
+-- - K : in std_logic (K input - reset when high)
+-- - clk : in std_logic (Clock input for synchronous operation)
+-- - reset : in std_logic (Reset signal - active high)
+-- - set : in std_logic (Set signal - active high, optional)
+-- - enable : in std_logic (Clock enable signal, optional)
+-- - Q : out std_logic (Normal output)
+-- - Q_n : out std_logic (Inverted output, optional)
+--
+-- Design Considerations:
+-- - J and K input combinations
+-- - Toggle operation implementation
+-- - Reset and set priority handling
+-- - Enable signal functionality
+-- - Race condition prevention
+--
+-- TODO: Declare entity with appropriate ports
+-- TODO: Add comprehensive port comments
+-- TODO: Consider optional signals based on requirements
+-- TODO: Plan for timing constraint specifications
+--
+-- ============================================================================
+-- STEP 3: JK FLIP-FLOP OPERATION DEFINITIONS
+-- ============================================================================
+--
+-- JK FLIP-FLOP PRINCIPLES:
+-- - Combines SR flip-flop functionality with toggle capability
+-- - Eliminates undefined state of SR flip-flops
+-- - Provides toggle operation when J=K=1
+-- - Edge-triggered operation prevents race conditions
+-- - Forms basis for counters and frequency dividers
+--
+-- TRUTH TABLE (Basic JK Flip-Flop):
+-- Clock | J | K | Q(next) | Operation
+-- ------|---|---|---------|----------
+--   ↑   | 0 | 0 | Q(prev) | Hold
+--   ↑   | 0 | 1 |    0    | Reset
+--   ↑   | 1 | 0 |    1    | Set
+--   ↑   | 1 | 1 | ~Q(prev)| Toggle
+--   ↓   | X | X | Q(prev) | No change
+--   0   | X | X | Q(prev) | No change
+--   1   | X | X | Q(prev) | No change
+--
+-- TRUTH TABLE (With Asynchronous Reset):
+-- Reset | Clock | J | K | Q(next) | Operation
+-- ------|-------|---|---|---------|----------
+--   1   |   X   | X | X |    0    | Reset (dominates)
+--   0   |   ↑   | 0 | 0 | Q(prev) | Hold
+--   0   |   ↑   | 0 | 1 |    0    | Reset
+--   0   |   ↑   | 1 | 0 |    1    | Set
+--   0   |   ↑   | 1 | 1 | ~Q(prev)| Toggle
+--   0   |   ↓   | X | X | Q(prev) | No change
+--
+-- TRUTH TABLE (With Asynchronous Reset and Set):
+-- Reset | Set | Clock | J | K | Q(next) | Operation
+-- ------|-----|-------|---|---|---------|----------
+--   1   |  0  |   X   | X | X |    0    | Reset (highest priority)
+--   0   |  1  |   X   | X | X |    1    | Set (when no reset)
+--   1   |  1  |   X   | X | X |    ?    | Undefined (avoid)
+--   0   |  0  |   ↑   | 0 | 0 | Q(prev) | Hold
+--   0   |  0  |   ↑   | 0 | 1 |    0    | Reset
+--   0   |  0  |   ↑   | 1 | 0 |    1    | Set
+--   0   |  0  |   ↑   | 1 | 1 | ~Q(prev)| Toggle
+--   0   |  0  |   ↓   | X | X | Q(prev) | No change
+--
+-- JK FLIP-FLOP CHARACTERISTIC EQUATION:
+-- Q(next) = J·~Q + ~K·Q
+-- This equation describes the next state based on current inputs and state
+--
+-- TIMING REQUIREMENTS:
+-- - Setup time: J and K must be stable before clock edge
+-- - Hold time: J and K must remain stable after clock edge
+-- - Clock-to-Q delay: Propagation delay from clock to output
+-- - Reset/Set response time: Asynchronous signal response
+-- - Toggle frequency: Maximum frequency for reliable toggle operation
+--
+-- TODO: Define complete truth table for chosen configuration
+-- TODO: Specify timing requirements and constraints
+-- TODO: Plan for race condition prevention
+-- TODO: Consider toggle frequency limitations
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC EDGE-TRIGGERED JK FLIP-FLOP
+-- ----------------------------------------------------------------------------
+-- Simple JK flip-flop with edge-triggered operation
+--
+-- Implementation Approach:
+-- - Single clocked process
+-- - Direct implementation of JK truth table
+-- - Edge-triggered to prevent race conditions
+-- - Standard sequential design pattern
+--
+-- Example Structure:
+-- architecture behavioral of jk_flipflop is
+--     signal q_reg : std_logic := '0'; -- Internal register
+-- begin
+--     -- Edge-triggered JK flip-flop process
+--     jk_proc: process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             if J = '0' and K = '0' then
+--                 q_reg <= q_reg; -- Hold (no change)
+--             elsif J = '0' and K = '1' then
+--                 q_reg <= '0'; -- Reset
+--             elsif J = '1' and K = '0' then
+--                 q_reg <= '1'; -- Set
+--             elsif J = '1' and K = '1' then
+--                 q_reg <= not q_reg; -- Toggle
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     Q <= q_reg;
+--     Q_n <= not q_reg;
+-- end behavioral;
+--
+-- Alternative Implementation (Using Characteristic Equation):
+-- jk_proc: process(clk)
+-- begin
+--     if rising_edge(clk) then
+--         q_reg <= (J and not q_reg) or (not K and q_reg);
+--     end if;
+-- end process;
+--
+-- Advantages:
+-- - Simple and reliable
+-- - Race condition free
+-- - Easy to understand
+-- - Predictable timing
+--
+-- Disadvantages:
+-- - No reset capability
+-- - Limited control options
+-- - May need additional features
+--
+-- TODO: Implement basic edge-triggered JK flip-flop
+-- TODO: Choose between explicit or equation-based implementation
+-- TODO: Verify toggle operation
+-- TODO: Test all input combinations
+--
+-- OPTION 2: JK FLIP-FLOP WITH ASYNCHRONOUS RESET
+-- ----------------------------------------------------------------------------
+-- JK flip-flop with asynchronous reset capability
+--
+-- Implementation Approach:
+-- - Asynchronous reset in sensitivity list
+-- - Reset takes immediate effect
+-- - Standard for most applications
+-- - Reliable system initialization
+--
+-- Example Structure:
+-- architecture async_reset of jk_flipflop is
+--     signal q_reg : std_logic := '0';
+-- begin
+--     -- JK flip-flop with asynchronous reset
+--     jk_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             q_reg <= '0'; -- Immediate reset
+--         elsif rising_edge(clk) then
+--             -- JK flip-flop logic
+--             case (J & K) is
+--                 when "00" => q_reg <= q_reg;     -- Hold
+--                 when "01" => q_reg <= '0';       -- Reset
+--                 when "10" => q_reg <= '1';       -- Set
+--                 when "11" => q_reg <= not q_reg; -- Toggle
+--                 when others => q_reg <= q_reg;   -- Default hold
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     Q <= q_reg;
+--     Q_n <= not q_reg;
+-- end async_reset;
+--
+-- Advantages:
+-- - Immediate reset response
+-- - Reliable system initialization
+-- - Independent of clock
+-- - Standard industry practice
+--
+-- Disadvantages:
+-- - Reset release timing critical
+-- - Potential metastability issues
+-- - More complex timing analysis
+--
+-- TODO: Implement asynchronous reset version
+-- TODO: Consider reset release synchronization
+-- TODO: Plan for metastability prevention
+-- TODO: Verify timing constraints
+--
+-- OPTION 3: FULL-FEATURED JK FLIP-FLOP
+-- ----------------------------------------------------------------------------
+-- Complete JK flip-flop with reset, set, and enable
+--
+-- Implementation Approach:
+-- - Multiple control signals
+-- - Priority handling for conflicting signals
+-- - Enable functionality for conditional updates
+-- - Comprehensive control capability
+--
+-- Example Structure:
+-- architecture full_featured of jk_flipflop is
+--     signal q_reg : std_logic := '0';
+-- begin
+--     -- Full-featured JK flip-flop
+--     jk_proc: process(clk, reset, set)
+--     begin
+--         if reset = '1' then
+--             q_reg <= '0'; -- Reset has highest priority
+--         elsif set = '1' then
+--             q_reg <= '1'; -- Set when no reset
+--         elsif rising_edge(clk) then
+--             if enable = '1' then
+--                 -- JK flip-flop operation when enabled
+--                 if J = '0' and K = '0' then
+--                     q_reg <= q_reg;     -- Hold
+--                 elsif J = '0' and K = '1' then
+--                     q_reg <= '0';       -- Reset
+--                 elsif J = '1' and K = '0' then
+--                     q_reg <= '1';       -- Set
+--                 else -- J = '1' and K = '1'
+--                     q_reg <= not q_reg; -- Toggle
+--                 end if;
+--             end if;
+--             -- Hold current value when enable = '0'
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     Q <= q_reg;
+--     Q_n <= not q_reg;
+-- end full_featured;
+--
+-- Priority Order (highest to lowest):
+-- 1. Asynchronous Reset
+-- 2. Asynchronous Set
+-- 3. Clock Enable + JK Logic
+-- 4. Hold current state
+--
+-- Advantages:
+-- - Maximum flexibility
+-- - Complete control capability
+-- - Suitable for complex systems
+-- - Standard library compatibility
+--
+-- Disadvantages:
+-- - More complex logic
+-- - Additional timing constraints
+-- - Potential for design errors
+-- - Higher resource usage
+--
+-- TODO: Implement full-featured version
+-- TODO: Define clear priority handling
+-- TODO: Add comprehensive testing
+-- TODO: Document control signal interactions
+--
+-- OPTION 4: MASTER-SLAVE JK FLIP-FLOP
+-- ----------------------------------------------------------------------------
+-- Traditional master-slave implementation for race-free operation
+--
+-- Implementation Approach:
+-- - Two-stage latch implementation
+-- - Master stage on clock high
+-- - Slave stage on clock low
+-- - Eliminates race conditions
+--
+-- Example Structure:
+-- architecture master_slave of jk_flipflop is
+--     signal master_q, slave_q : std_logic := '0';
+-- begin
+--     -- Master stage (transparent when clock high)
+--     master_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             master_q <= '0';
+--         elsif clk = '1' then -- Level sensitive
+--             -- Master follows JK inputs when clock high
+--             master_q <= (J and not slave_q) or (not K and slave_q);
+--         end if;
+--     end process;
+--     
+--     -- Slave stage (transparent when clock low)
+--     slave_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             slave_q <= '0';
+--         elsif falling_edge(clk) then -- Edge triggered
+--             slave_q <= master_q; -- Transfer from master
+--         end if;
+--     end process;
+--     
+--     -- Output assignments
+--     Q <= slave_q;
+--     Q_n <= not slave_q;
+-- end master_slave;
+--
+-- Advantages:
+-- - Race condition free
+-- - Traditional implementation
+-- - Well understood behavior
+-- - Reliable operation
+--
+-- Disadvantages:
+-- - More complex than edge-triggered
+-- - Higher resource usage
+-- - Potential timing issues
+-- - Less common in modern designs
+--
+-- TODO: Implement master-slave version
+-- TODO: Verify race-free operation
+-- TODO: Test timing relationships
+-- TODO: Compare with edge-triggered version
+--
+-- ============================================================================
+-- STEP 5: ADVANCED JK FLIP-FLOP FEATURES
+-- ============================================================================
+--
+-- TOGGLE FREQUENCY OPTIMIZATION:
+-- - Maximum toggle frequency analysis
+-- - Clock-to-Q delay optimization
+-- - Setup/hold time minimization
+-- - High-speed toggle capability
+--
+-- SYNCHRONOUS PRESET/CLEAR:
+-- - Synchronous set/reset functionality
+-- - Priority handling with JK inputs
+-- - Predictable timing behavior
+-- - System synchronization
+--
+-- SCAN CHAIN SUPPORT:
+-- - Test mode input/output
+-- - Scan enable control
+-- - Design for testability
+-- - Manufacturing test support
+--
+-- POWER OPTIMIZATION:
+-- - Clock gating integration
+-- - Low-power design techniques
+-- - Dynamic power reduction
+-- - Toggle activity monitoring
+--
+-- FAULT TOLERANCE:
+-- - Error detection capability
+-- - Redundant storage elements
+-- - Soft error recovery
+-- - Reliability enhancement
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Document special requirements
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- TIMING ANALYSIS:
+-- - Setup and hold time requirements for J and K
+-- - Clock-to-Q propagation delay
+-- - Reset/set response times
+-- - Toggle frequency limitations
+-- - Clock skew tolerance
+--
+-- RACE CONDITION PREVENTION:
+-- - Edge-triggered vs level-sensitive design
+-- - Master-slave implementation considerations
+-- - Feedback path timing analysis
+-- - Glitch immunity requirements
+--
+-- TOGGLE OPERATION OPTIMIZATION:
+-- - Maximum toggle frequency
+-- - Duty cycle considerations
+-- - Jitter and phase noise
+-- - Power consumption during toggle
+--
+-- SYNTHESIS OPTIMIZATION:
+-- - Resource utilization efficiency
+-- - Timing closure strategies
+-- - Power optimization techniques
+-- - Area minimization approaches
+-- - Technology mapping considerations
+--
+-- TESTABILITY FEATURES:
+-- - Scan chain integration
+-- - Observability enhancement
+-- - Controllability improvement
+-- - Built-in self-test support
+-- - Manufacturing test coverage
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. FREQUENCY DIVIDERS:
+--    - Binary frequency division
+--    - Clock generation circuits
+--    - Timing reference systems
+--    - Prescaler implementations
+--
+-- 2. COUNTERS:
+--    - Binary counter building blocks
+--    - Ripple counter stages
+--    - Synchronous counter elements
+--    - Modulo-N counter design
+--
+-- 3. STATE MACHINES:
+--    - State variable storage
+--    - Toggle-based state transitions
+--    - Control signal generation
+--    - Sequence control logic
+--
+-- 4. SHIFT REGISTERS:
+--    - Serial data shifting
+--    - Parallel-to-serial conversion
+--    - Ring counter implementation
+--    - Linear feedback shift registers
+--
+-- 5. TOGGLE SWITCHES:
+--    - Push-button toggle circuits
+--    - Mode selection logic
+--    - Enable/disable controls
+--    - Binary state toggles
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Basic JK flip-flop operation
+-- - All input combinations (00, 01, 10, 11)
+-- - Toggle operation verification
+-- - Hold state maintenance
+-- - Reset/set functionality
+--
+-- TIMING TESTING:
+-- - Setup time verification for J and K
+-- - Hold time validation
+-- - Clock-to-Q delay measurement
+-- - Toggle frequency testing
+-- - Reset response timing
+--
+-- EDGE CASE TESTING:
+-- - Simultaneous J and K transitions
+-- - Clock edge coincidence with inputs
+-- - Reset/set during toggle operation
+-- - Enable signal interactions
+-- - Power-on behavior
+--
+-- TOGGLE TESTING:
+-- - Continuous toggle operation
+-- - Toggle frequency limits
+-- - Duty cycle verification
+-- - Jitter measurement
+-- - Long-term stability
+--
+-- INTEGRATION TESTING:
+-- - Counter chain operation
+-- - Frequency divider functionality
+-- - State machine integration
+-- - System-level performance
+-- - Multi-flip-flop synchronization
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with basic edge-triggered JK flip-flop
+-- 2. Implement explicit truth table logic
+-- 3. Test all four input combinations
+-- 4. Verify toggle operation
+-- 5. Study timing requirements
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement asynchronous reset version
+-- 2. Add enable functionality
+-- 3. Create comprehensive testbench
+-- 4. Analyze toggle frequency limits
+-- 5. Optimize for target technology
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement full-featured version
+-- 2. Add advanced timing optimization
+-- 3. Include scan chain support
+-- 4. Create production-ready design
+-- 5. Implement comprehensive verification
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. JK FLIP-FLOP COUNTER:
+--    - Multi-bit JK counter design
+--    - Ripple vs synchronous implementation
+--    - Modulo-N counter capability
+--    - Up/down counting functionality
+--
+-- 2. FREQUENCY DIVIDER CHAIN:
+--    - Cascaded JK flip-flops
+--    - Programmable division ratios
+--    - Duty cycle control
+--    - Jitter optimization
+--
+-- 3. TOGGLE RATE MULTIPLIER:
+--    - Variable toggle frequency
+--    - Digital frequency synthesis
+--    - Phase accumulator design
+--    - Spurious signal reduction
+--
+-- 4. JK-BASED STATE MACHINE:
+--    - Multi-state toggle sequences
+--    - Conditional toggle logic
+--    - State encoding optimization
+--    - Transition timing control
+--
+-- 5. SCAN-ENABLED JK FLIP-FLOP:
+--    - Test mode integration
+--    - Scan chain connectivity
+--    - Manufacturing testability
+--    - Design for test features
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. RACE CONDITION ISSUES:
+--    - Level-sensitive implementations
+--    - Feedback timing problems
+--    - Glitch susceptibility
+--    - Improper edge detection
+--
+-- 2. TOGGLE FREQUENCY LIMITATIONS:
+--    - Exceeding maximum toggle rate
+--    - Insufficient setup/hold margins
+--    - Clock-to-Q delay accumulation
+--    - Timing closure failures
+--
+-- 3. RESET/SET CONFLICTS:
+--    - Simultaneous reset and set
+--    - Priority handling errors
+--    - Incomplete reset coverage
+--    - Reset distribution problems
+--
+-- 4. SYNTHESIS PROBLEMS:
+--    - Unintended latch inference
+--    - Resource optimization issues
+--    - Timing constraint violations
+--    - Technology mapping problems
+--
+-- 5. TESTBENCH LIMITATIONS:
+--    - Inadequate toggle testing
+--    - Missing timing verification
+--    - Insufficient edge case coverage
+--    - Poor frequency analysis
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration complete and correct
+-- □ JK truth table properly implemented
+-- □ Toggle operation verified
+-- □ Clock edge detection working
+-- □ Reset functionality tested (if implemented)
+-- □ Set functionality validated (if implemented)
+-- □ Enable functionality working (if implemented)
+-- □ Output assignments correct (Q and Q_n)
+-- □ Timing constraints properly specified
+-- □ Setup/hold requirements met
+-- □ Toggle frequency limits characterized
+-- □ Race conditions eliminated
+-- □ Synthesis results acceptable
+-- □ Testbench covers all functionality
+-- □ Edge cases thoroughly tested
+-- □ Documentation complete and accurate
+-- □ Code follows design standards
+-- □ Performance requirements met
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- SEQUENTIAL LOGIC HIERARCHY:
+-- JK Flip-Flop → Counter → Frequency Divider → Clock Generator
+-- JK Flip-Flop → Toggle Circuit → State Machine → Control System
+-- JK Flip-Flop → Shift Register → Serial Interface → Communication
+--
+-- DESIGN METHODOLOGY:
+-- - Bottom-up component design
+-- - Hierarchical system construction
+-- - Reusable component library
+-- - Systematic verification approach
+--
+-- INDUSTRY STANDARDS:
+-- - IEEE 1364 (Verilog) compatibility
+-- - IEEE 1076 (VHDL) compliance
+-- - Synthesis tool compatibility
+-- - FPGA vendor guidelines
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - Dedicated flip-flop resources
+-- - LUT-based toggle logic
+-- - Optimized routing structures
+-- - Clock distribution networks
+-- - Reset/set signal routing
+--
+-- ASIC IMPLEMENTATION:
+-- - Standard cell library usage
+-- - Custom cell optimization
+-- - Clock tree synthesis
+-- - Power grid design
+-- - Manufacturing test insertion
+--
+-- PERFORMANCE CHARACTERISTICS:
+-- - Typical toggle frequencies: 50MHz - 500MHz+
+-- - Setup times: 50ps - 500ps
+-- - Hold times: 0ps - 200ps
+-- - Clock-to-Q delays: 100ps - 1ns
+-- - Power consumption: nW - μW range
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- TOGGLE FREQUENCY ANALYSIS:
+-- - Maximum toggle rate calculation
+-- - Duty cycle distortion effects
+-- - Jitter accumulation in chains
+-- - Phase noise considerations
+--
+-- RACE CONDITION THEORY:
+-- - Feedback loop timing analysis
+-- - Critical path identification
+-- - Glitch propagation effects
+-- - Timing margin requirements
+--
+-- FREQUENCY DIVISION TECHNIQUES:
+-- - Integer division ratios
+-- - Fractional division methods
+-- - Phase-locked loop integration
+-- - Spurious signal suppression
+--
+-- COUNTER DESIGN PRINCIPLES:
+-- - Ripple vs synchronous counters
+-- - Gray code counting
+-- - Johnson counter implementation
+-- - Linear feedback shift registers
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- SIMULATION REQUIREMENTS:
+-- - Accurate timing models
+-- - Setup/hold checking
+-- - Clock edge detection
+-- - Toggle operation verification
+-- - Race condition detection
+--
+-- VERIFICATION METHODOLOGY:
+-- - Directed testing approach
+-- - Constrained random testing
+-- - Assertion-based verification
+-- - Coverage-driven verification
+-- - Formal verification methods
+--
+-- TIMING VERIFICATION:
+-- - Static timing analysis
+-- - Dynamic timing simulation
+-- - Corner case analysis
+-- - Process variation effects
+-- - Temperature/voltage impacts
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

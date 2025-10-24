@@ -1,14 +1,517 @@
--- Cortex-A15 Interface VHDL File
--- This file contains the interface definition for ARM Cortex-A15 processor
--- 
--- Author: [To be filled]
--- Date: [To be filled]
--- Description: Interface module for Cortex-A15 processor integration
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
--- Entity declaration will be added here
--- Interface signals and ports will be defined here
--- Implementation to be completed
+-- ============================================================================
+-- ARM CORTEX-A15 INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-A15 Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-A15 processors, providing FPGA-based communication, 
+--              control, and peripheral integration for high-performance ARM 
+--              applications and multi-core embedded systems.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-A15 architecture and ARMv7-A instruction set
+-- 2. Master AXI4 and ACE protocols for cache coherent systems
+-- 3. Learn ARM Cortex-A15 out-of-order superscalar pipeline
+-- 4. Implement interrupt handling and GIC-400 integration
+-- 5. Understand virtualization and hypervisor support
+-- 6. Master cache coherency and CCI-400 integration
+-- 7. Learn advanced power management and big.LITTLE support
+-- 8. Implement debug interface and CoreSight v2.0 integration
+--
+-- ARM Cortex-A15 Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv7-A (32-bit ARM, 16-bit Thumb-2)               │
+-- │ Pipeline        │ 15-24 stage out-of-order superscalar               │
+-- │ Cores           │ 1-4 cores per cluster                              │
+-- │ Issue Width     │ 3-way superscalar (out-of-order)                   │
+-- │ Cache           │ 32KB I-cache, 32KB D-cache per core                │
+-- │ L2 Cache        │ 512KB-4MB shared per cluster                       │
+-- │ MMU             │ Stage 1&2 translation, virtualization              │
+-- │ NEON            │ Advanced SIMD (128-bit vector processing)          │
+-- │ VFP             │ Vector Floating Point v4 (VFPv4)                   │
+-- │ Debug           │ CoreSight debug and trace v2.0                     │
+-- │ Interrupts      │ GIC-400 Generic Interrupt Controller               │
+-- │ Virtualization  │ Hardware virtualization extensions                 │
+-- │ Frequency       │ Up to 2.5 GHz (implementation dependent)           │
+-- │ Process         │ 28nm to 20nm                                       │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-A15 System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-A15    │◀──▶│   CCI-400       │◀──▶│   DDR3/DDR4     │
+-- │   Cluster       │    │   Cache         │    │   Memory        │
+-- │   (1-4 cores)   │    │   Coherent      │    │   Controller    │
+-- └─────────────────┘    │   Interconnect  │    └─────────────────┘
+--          │              └─────────────────┘             │
+--          ▼                       │                      ▼
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   GIC-400       │    │   L2 Cache      │    │   CoreSight     │
+-- │   (Interrupt    │    │   Controller    │    │   Debug & Trace │
+-- │   Controller)   │    │   (512KB-4MB)   │    │   (ETM v3.5)    │
+-- └─────────────────┘    └─────────────────┘    └─────────────────┘
+--
+-- AXI4/ACE Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Channel         │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ Global          │ Input           │ ACLK, ARESETn                   │
+-- │ Write Address   │ Master→Slave    │ AWADDR, AWLEN, AWSIZE, AWBURST  │
+-- │ Write Data      │ Master→Slave    │ WDATA, WSTRB, WLAST, WVALID     │
+-- │ Write Response  │ Slave→Master    │ BRESP, BVALID, BREADY           │
+-- │ Read Address    │ Master→Slave    │ ARADDR, ARLEN, ARSIZE, ARBURST  │
+-- │ Read Data       │ Slave→Master    │ RDATA, RRESP, RLAST, RVALID     │
+-- │ ACE Coherency   │ Bidirectional   │ ACADDR, ACSNOOP, CRRESP         │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-A15 Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 2GB             │ Secure memory region            │
+-- │ 0x8000_0000     │ 1GB             │ Non-secure memory region        │
+-- │ 0xC000_0000     │ 512MB           │ Peripheral region               │
+-- │ 0xE000_0000     │ 256MB           │ Private peripheral region       │
+-- │ 0xF000_0000     │ 128MB           │ System peripheral region        │
+-- │ 0xF800_0000     │ 128MB           │ Implementation defined region   │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Cache and Memory Hierarchy:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Memory Type     │ Size/Config     │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ L1 I-Cache      │ 32KB            │ Instruction cache with parity   │
+-- │ L1 D-Cache      │ 32KB            │ Data cache with ECC             │
+-- │ L2 Cache        │ 512KB-4MB       │ Shared L2 cache per cluster     │
+-- │ Main Memory     │ Up to 1TB       │ DDR3/DDR4 via memory controller │
+-- │ TCM             │ Optional        │ Tightly Coupled Memory          │
+-- │ TLB             │ 32+512 entries  │ L1 and L2 translation buffers   │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Out-of-Order Pipeline:
+-- 1. **Pipeline Stages**:
+--    - Fetch: 3 stages (F0, F1, F2)
+--    - Decode: 2 stages (D0, D1)
+--    - Rename: 2 stages (R0, R1)
+--    - Issue: 1 stage (I0)
+--    - Execute: 1-15 stages (depending on operation)
+--    - Writeback: 1 stage (W0)
+--
+-- 2. **Execution Units**:
+--    - 2x Integer ALU pipelines
+--    - 1x Integer multiply pipeline
+--    - 1x Load/Store pipeline
+--    - 1x Branch pipeline
+--    - 1x NEON/VFP pipeline
+--
+-- GIC-400 Interrupt Controller:
+-- 1. **Interrupt Types**:
+--    - SGI: Software Generated Interrupts (0-15)
+--    - PPI: Private Peripheral Interrupts (16-31)
+--    - SPI: Shared Peripheral Interrupts (32-1019)
+--    - Priority levels: 0-255 (0 = highest priority)
+--
+-- 2. **GIC-400 Features**:
+--    - Up to 8 CPU interfaces
+--    - Virtualization support
+--    - Security extensions
+--    - Power management
+--
+-- Virtualization Support:
+-- 1. **Hardware Features**:
+--    - Stage 2 address translation
+--    - Virtual GIC interface
+--    - Hypervisor mode support
+--    - Virtual timer and counter
+--
+-- 2. **Virtualization Benefits**:
+--    - Multiple OS support
+--    - Security isolation
+--    - Resource partitioning
+--    - Real-time guarantees
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AXI4 Master     │ Memory and peripheral access interface              │
+-- │ ACE Interface   │ Cache coherent interconnect interface               │
+-- │ CCI Interface   │ Cache Coherent Interconnect integration             │
+-- │ GIC Interface   │ Advanced interrupt controller integration           │
+-- │ Debug Interface │ CoreSight v2.0 debug and trace interface           │
+-- │ Cache Control   │ Advanced cache maintenance and coherency            │
+-- │ MMU Interface   │ Two-stage memory management and virtualization      │
+-- │ NEON Interface  │ Advanced SIMD processing unit                       │
+-- │ VFP Interface   │ Vector floating point v4 coprocessor               │
+-- │ Power Mgmt      │ Advanced power management and big.LITTLE            │
+-- │ Virtualization  │ Hardware virtualization and hypervisor support     │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AXI4 Data Width: 64/128-bit (configurable)
+-- - AXI4 Address Width: 40-bit (1TB address space)
+-- - Maximum Clock Frequency: 2.5 GHz (typical)
+-- - Interrupt Latency: 9-12 cycles (depending on configuration)
+-- - Cache Line Size: 64 bytes (16 words)
+-- - Memory Bandwidth: Up to 25.6 GB/s (128-bit @ 2.0 GHz)
+-- - Virtual Address Space: 32-bit (4GB)
+-- - Physical Address Space: 40-bit (1TB)
+-- - NEON Performance: 128-bit SIMD operations
+--
+-- Implementation Approaches:
+-- 1. **High-Performance Configuration**:
+--    - Maximum L2 cache size (4MB)
+--    - AXI4 128-bit interface
+--    - Full out-of-order execution
+--    - CCI-400 cache coherency
+--
+-- 2. **Power-Optimized Configuration**:
+--    - Advanced power management
+--    - big.LITTLE cluster support
+--    - Dynamic voltage/frequency scaling
+--    - Intelligent cache management
+--
+-- 3. **Virtualization Configuration**:
+--    - Hardware virtualization support
+--    - Stage 2 address translation
+--    - Virtual GIC interface
+--    - Hypervisor mode support
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select Cortex-A15 cluster configuration
+-- - Define L2 cache and CCI requirements
+-- - Specify AXI4/ACE interface requirements
+-- - Choose virtualization features
+--
+-- Step 2: Implement AXI4/ACE Interface Logic
+-- - Create AXI4 master interface for CPU access
+-- - Add ACE coherency interface
+-- - Implement CCI-400 integration
+-- - Add address decoding and routing
+--
+-- Step 3: Add Cache Coherency Support
+-- - Integrate CCI-400 cache coherent interconnect
+-- - Configure L2 cache controller
+-- - Add cache maintenance operations
+-- - Implement snoop control unit
+--
+-- Step 4: Integrate GIC-400 Controller
+-- - Connect to GIC distributor
+-- - Implement CPU interface
+-- - Add virtualization interface
+-- - Create security extensions
+--
+-- Step 5: Add Memory Management
+-- - Implement two-stage MMU
+-- - Add virtualization support
+-- - Create memory protection regions
+-- - Add hypervisor mode support
+--
+-- Step 6: Integrate Debug Interface
+-- - Implement CoreSight v2.0 debug interface
+-- - Add ETM v3.5 (Embedded Trace Macrocell)
+-- - Create JTAG and SWD support
+-- - Add performance monitoring v2
+--
+-- Step 7: Add NEON/VFP Support
+-- - Implement NEON SIMD interface
+-- - Add VFPv4 floating point support
+-- - Create advanced coprocessor interface
+-- - Add crypto acceleration support
+--
+-- Step 8: Create Advanced Power Management
+-- - Add big.LITTLE cluster support
+-- - Implement DVFS control
+-- - Create intelligent power gating
+-- - Add thermal management
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.axi4_pkg: AXI4 protocol definitions
+-- - work.ace_pkg: ACE protocol definitions
+-- - work.cci400_pkg: CCI-400 interface definitions
+-- - work.gic400_pkg: GIC-400 interface definitions
+-- - work.cortex_a_pkg: Cortex-A specific constants
+-- - work.l2_cache_pkg: L2 cache controller functions
+-- - work.mmu_pkg: Memory management functions
+-- - work.virt_pkg: Virtualization functions
+-- - work.neon_pkg: NEON SIMD functions
+-- - work.vfp_pkg: Vector floating point functions
+--
+-- Advanced Features:
+-- 1. **Out-of-Order Execution**: 3-way superscalar pipeline
+-- 2. **Hardware Virtualization**: Stage 2 translation
+-- 3. **Cache Coherency**: CCI-400 integration
+-- 4. **Advanced NEON**: 128-bit SIMD with crypto
+-- 5. **VFPv4**: Advanced floating point
+-- 6. **big.LITTLE**: Heterogeneous processing
+-- 7. **Power Management**: Advanced DVFS
+-- 8. **Debug Support**: CoreSight v2.0
+--
+-- Applications:
+-- - High-performance mobile processors
+-- - Server and networking applications
+-- - Automotive ADAS systems
+-- - Industrial automation
+-- - High-end embedded systems
+-- - Virtualized environments
+-- - Real-time processing systems
+-- - Machine learning inference
+--
+-- Performance Considerations:
+-- - Out-of-order execution optimization
+-- - Cache coherency overhead
+-- - Memory bandwidth utilization
+-- - Interrupt latency minimization
+-- - Power consumption optimization
+-- - Thermal management
+-- - big.LITTLE scheduling
+-- - Virtualization overhead
+--
+-- Verification Strategy:
+-- 1. **Protocol Compliance**: AXI4 and ACE protocol verification
+-- 2. **Cache Coherency**: CCI-400 and snoop testing
+-- 3. **Out-of-Order**: Pipeline and hazard testing
+-- 4. **Virtualization**: Stage 2 translation testing
+-- 5. **Performance Testing**: Bandwidth and latency measurement
+-- 6. **Power Testing**: DVFS and power gating
+-- 7. **Security Testing**: Virtualization and security
+-- 8. **Compliance Testing**: ARMv7-A architecture compliance
+--
+-- Common Design Challenges:
+-- - Out-of-order pipeline complexity
+-- - Cache coherency protocol implementation
+-- - Virtualization support complexity
+-- - Power management coordination
+-- - CCI-400 integration timing
+-- - GIC-400 virtualization interface
+-- - Memory bandwidth optimization
+-- - Thermal management implementation
+--
+-- Verification Checklist:
+-- □ AXI4 master interface functional and compliant
+-- □ ACE coherency interface working correctly
+-- □ CCI-400 cache coherent interconnect operational
+-- □ L2 cache controller and coherency working
+-- □ GIC-400 interrupt controller functional
+-- □ Virtualization support operational
+-- □ Two-stage MMU working correctly
+-- □ Debug interface (CoreSight v2.0) functional
+-- □ NEON/VFP coprocessors working
+-- □ Out-of-order pipeline operational
+-- □ Power management working correctly
+-- □ big.LITTLE support validated
+-- □ Performance targets achieved
+-- □ Thermal constraints met
+-- □ Long-term reliability demonstrated
+-- □ Virtualization compliance verified
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.axi4_pkg.all;
+-- use work.ace_pkg.all;
+-- use work.cci400_pkg.all;
+-- use work.gic400_pkg.all;
+-- use work.cortex_a_pkg.all;
+-- use work.l2_cache_pkg.all;
+-- use work.mmu_pkg.all;
+-- use work.virt_pkg.all;
+-- use work.neon_pkg.all;
+-- use work.vfp_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_a15_interface is
+--     generic (
+--         NUM_CORES       : integer := 4;         -- 1-4 cores
+--         ENABLE_NEON     : boolean := true;
+--         ENABLE_VFP      : boolean := true;
+--         ENABLE_VIRT     : boolean := true;
+--         ENABLE_CCI      : boolean := true;
+--         L2_CACHE_SIZE   : integer := 2097152;   -- 2MB
+--         AXI_DATA_WIDTH  : integer := 128;       -- 128-bit
+--         AXI_ADDR_WIDTH  : integer := 40;        -- 40-bit
+--         NUM_INTERRUPTS  : integer := 256;
+--         ENABLE_BIGLITTLE: boolean := false;
+--         ENABLE_DEBUG    : boolean := true;
+--         ENABLE_CRYPTO   : boolean := true
+--     );
+--     port (
+--         -- System signals
+--         aclk            : in  std_logic;
+--         aresetn         : in  std_logic;
+--         
+--         -- AXI4 Master interface (CPU to system)
+--         -- Write Address Channel
+--         m_axi_awaddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_awlen     : out std_logic_vector(7 downto 0);
+--         m_axi_awsize    : out std_logic_vector(2 downto 0);
+--         m_axi_awburst   : out std_logic_vector(1 downto 0);
+--         m_axi_awlock    : out std_logic;
+--         m_axi_awcache   : out std_logic_vector(3 downto 0);
+--         m_axi_awprot    : out std_logic_vector(2 downto 0);
+--         m_axi_awqos     : out std_logic_vector(3 downto 0);
+--         m_axi_awvalid   : out std_logic;
+--         m_axi_awready   : in  std_logic;
+--         
+--         -- Write Data Channel
+--         m_axi_wdata     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_wstrb     : out std_logic_vector(AXI_DATA_WIDTH/8-1 downto 0);
+--         m_axi_wlast     : out std_logic;
+--         m_axi_wvalid    : out std_logic;
+--         m_axi_wready    : in  std_logic;
+--         
+--         -- Write Response Channel
+--         m_axi_bresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_bvalid    : in  std_logic;
+--         m_axi_bready    : out std_logic;
+--         
+--         -- Read Address Channel
+--         m_axi_araddr    : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         m_axi_arlen     : out std_logic_vector(7 downto 0);
+--         m_axi_arsize    : out std_logic_vector(2 downto 0);
+--         m_axi_arburst   : out std_logic_vector(1 downto 0);
+--         m_axi_arlock    : out std_logic;
+--         m_axi_arcache   : out std_logic_vector(3 downto 0);
+--         m_axi_arprot    : out std_logic_vector(2 downto 0);
+--         m_axi_arqos     : out std_logic_vector(3 downto 0);
+--         m_axi_arvalid   : out std_logic;
+--         m_axi_arready   : in  std_logic;
+--         
+--         -- Read Data Channel
+--         m_axi_rdata     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+--         m_axi_rresp     : in  std_logic_vector(1 downto 0);
+--         m_axi_rlast     : in  std_logic;
+--         m_axi_rvalid    : in  std_logic;
+--         m_axi_rready    : out std_logic;
+--         
+--         -- ACE Coherency interface
+--         ace_acaddr      : out std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         ace_acsnoop     : out std_logic_vector(3 downto 0);
+--         ace_acvalid     : out std_logic;
+--         ace_acready     : in  std_logic;
+--         ace_crresp      : in  std_logic_vector(4 downto 0);
+--         ace_crvalid     : in  std_logic;
+--         ace_crready     : out std_logic;
+--         
+--         -- CCI-400 Cache Coherent Interconnect
+--         cci_snoop_addr  : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+--         cci_snoop_req   : in  std_logic;
+--         cci_snoop_ack   : out std_logic;
+--         cci_snoop_resp  : out std_logic_vector(4 downto 0);
+--         cci_barrier_req : in  std_logic;
+--         cci_barrier_ack : out std_logic;
+--         
+--         -- GIC-400 Interrupt interface
+--         gic_irq         : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         gic_fiq         : in  std_logic;
+--         gic_virq        : in  std_logic;
+--         gic_vfiq        : in  std_logic;
+--         gic_priority    : out std_logic_vector(7 downto 0);
+--         gic_cpu_if      : out std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Virtualization interface
+--         virt_stage2_en  : in  std_logic;
+--         virt_vmid       : in  std_logic_vector(7 downto 0);
+--         virt_hyp_mode   : out std_logic;
+--         virt_secure     : out std_logic;
+--         virt_timer_irq  : out std_logic;
+--         virt_timer_fiq  : out std_logic;
+--         
+--         -- Debug interface (CoreSight v2.0)
+--         debug_req       : in  std_logic;
+--         debug_ack       : out std_logic;
+--         etm_trace       : out std_logic_vector(31 downto 0);
+--         etm_traceclk    : out std_logic;
+--         etm_atready     : in  std_logic;
+--         etm_atvalid     : out std_logic;
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         
+--         -- Performance monitoring v2
+--         pmu_events      : out std_logic_vector(31 downto 0);
+--         pmu_overflow    : out std_logic;
+--         pmu_cycle_cnt   : out std_logic_vector(63 downto 0);
+--         pmu_inst_cnt    : out std_logic_vector(63 downto 0);
+--         pmu_cache_miss  : out std_logic_vector(31 downto 0);
+--         pmu_branch_miss : out std_logic_vector(31 downto 0);
+--         
+--         -- Advanced power management
+--         cluster_pwrdn   : in  std_logic;
+--         core_pwrdn      : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         dvfs_req        : in  std_logic_vector(7 downto 0);
+--         dvfs_ack        : out std_logic;
+--         thermal_alert   : out std_logic;
+--         biglittle_ctrl  : in  std_logic_vector(7 downto 0);
+--         
+--         -- Status and control
+--         cluster_halted  : out std_logic;
+--         core_halted     : out std_logic_vector(NUM_CORES-1 downto 0);
+--         lockup          : out std_logic_vector(NUM_CORES-1 downto 0);
+--         reset_req       : out std_logic;
+--         
+--         -- Cache and memory management
+--         cache_maint     : in  std_logic_vector(7 downto 0);
+--         tlb_inv         : in  std_logic;
+--         mmu_fault       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         l2_cache_hit    : out std_logic;
+--         l2_cache_miss   : out std_logic;
+--         
+--         -- NEON/SIMD interface (per core)
+--         neon_data_in    : in  std_logic_vector(128*NUM_CORES-1 downto 0);
+--         neon_data_out   : out std_logic_vector(128*NUM_CORES-1 downto 0);
+--         neon_valid      : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         neon_ready      : out std_logic_vector(NUM_CORES-1 downto 0);
+--         neon_op         : in  std_logic_vector(8*NUM_CORES-1 downto 0);
+--         
+--         -- VFPv4 interface (per core)
+--         vfp_data_in     : in  std_logic_vector(64*NUM_CORES-1 downto 0);
+--         vfp_data_out    : out std_logic_vector(64*NUM_CORES-1 downto 0);
+--         vfp_valid       : in  std_logic_vector(NUM_CORES-1 downto 0);
+--         vfp_ready       : out std_logic_vector(NUM_CORES-1 downto 0);
+--         vfp_exception   : out std_logic_vector(NUM_CORES-1 downto 0);
+--         
+--         -- Crypto acceleration interface
+--         crypto_data_in  : in  std_logic_vector(127 downto 0);
+--         crypto_data_out : out std_logic_vector(127 downto 0);
+--         crypto_key      : in  std_logic_vector(255 downto 0);
+--         crypto_op       : in  std_logic_vector(7 downto 0);
+--         crypto_valid    : in  std_logic;
+--         crypto_ready    : out std_logic
+--     );
+-- end entity cortex_a15_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_a15_interface is
+--     -- Component declarations for Cortex-A15 cluster
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-A15 cluster
+--     -- Add AXI4/ACE interface logic
+--     -- Connect CCI-400 cache coherent interconnect
+--     -- Connect GIC-400 interrupt controller
+--     -- Add virtualization support
+--     -- Implement two-stage MMU
+--     -- Connect debug interface
+--     -- Add advanced power management
+--     -- Connect NEON, VFP, and crypto
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-A15 interface design focuses on high-performance computing,
+-- cache coherency, virtualization, and advanced power management. Always 
+-- consult the ARM Cortex-A15 Technical Reference Manual and ARMv7-A 
+-- Architecture Manual with Virtualization Extensions.
+-- ============================================================================

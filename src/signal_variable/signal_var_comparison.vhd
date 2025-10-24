@@ -1,0 +1,828 @@
+-- ============================================================================
+-- PROJECT: VHDL Signal vs Variable Comparison Guide
+-- ============================================================================
+-- DESCRIPTION:
+-- This project provides comprehensive comparison and educational content for
+-- understanding the differences between VHDL signals and variables. This guide
+-- covers the fundamental differences, usage scenarios, timing behavior,
+-- synthesis implications, and best practices for choosing between signals
+-- and variables in VHDL design.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand fundamental differences between signals and variables
+-- - Learn when to use signals vs variables in different scenarios
+-- - Master timing and scheduling differences
+-- - Practice proper usage patterns for both constructs
+-- - Understand synthesis implications and hardware mapping
+-- - Learn debugging techniques for signal/variable issues
+-- - Implement best practices for mixed signal/variable designs
+--
+-- ============================================================================
+-- FUNDAMENTAL DIFFERENCES OVERVIEW:
+-- ============================================================================
+-- SIGNALS vs VARIABLES COMPARISON TABLE:
+-- ┌─────────────────────┬─────────────────────┬─────────────────────────────┐
+-- │ Characteristic      │ Signal              │ Variable                    │
+-- ├─────────────────────┼─────────────────────┼─────────────────────────────┤
+-- │ Assignment Operator │ <= (signal assign) │ := (variable assign)        │
+-- │ Assignment Timing   │ Scheduled (delta)   │ Immediate                   │
+-- │ Scope               │ Architecture-wide   │ Process/Subprogram local    │
+-- │ Visibility          │ Global in arch      │ Local only                  │
+-- │ Multiple Drivers    │ Allowed (resolved)  │ Not allowed                 │
+-- │ Hardware Model      │ Wires/Registers     │ Temporary storage           │
+-- │ Synthesis Result    │ Physical hardware   │ Optimization/registers      │
+-- │ Simulation Behavior │ Event-driven        │ Immediate update            │
+-- │ Memory Usage        │ Event queue         │ Local memory                │
+-- │ Debugging           │ Waveform visible    │ Not directly visible        │
+-- │ Concurrent Access   │ Yes                 │ No                          │
+-- │ Resolution Function │ Supported           │ Not supported               │
+-- │ Attributes          │ Many available      │ Limited                     │
+-- │ Initialization      │ Default/explicit    │ Explicit only               │
+-- │ Usage Context       │ Concurrent/Sequential│ Sequential only            │
+-- └─────────────────────┴─────────────────────┴─────────────────────────────┘
+--
+-- ============================================================================
+-- TIMING AND SCHEDULING DIFFERENCES:
+-- ============================================================================
+-- SIGNAL TIMING BEHAVIOR:
+-- Signals use delta delay scheduling:
+-- 1. Assignment is scheduled for future execution
+-- 2. Multiple assignments in same process create transaction queue
+-- 3. Final value determined at end of process execution
+-- 4. Updates occur after delta delay (simulation time)
+-- 5. Event-driven simulation model
+--
+-- EXAMPLE - Signal Timing:
+-- process(clk)
+-- begin
+--     if rising_edge(clk) then
+--         temp_signal <= input_data;      -- Scheduled for delta delay
+--         output_data <= temp_signal;     -- Uses OLD value of temp_signal
+--         
+--         -- Multiple assignments (last wins)
+--         result <= "00000000";           -- First assignment
+--         result <= "11111111";           -- This value will be used
+--     end if;
+-- end process;
+--
+-- VARIABLE TIMING BEHAVIOR:
+-- Variables use immediate assignment:
+-- 1. Assignment takes effect immediately
+-- 2. No scheduling or delay
+-- 3. Subsequent reads see updated value immediately
+-- 4. No event queue or transaction management
+-- 5. Procedural execution model
+--
+-- EXAMPLE - Variable Timing:
+-- process(clk)
+--     variable temp_var : std_logic_vector(7 downto 0);
+-- begin
+--     if rising_edge(clk) then
+--         temp_var := input_data;         -- Immediate assignment
+--         output_data <= temp_var;        -- Uses NEW value of temp_var
+--         
+--         -- Multiple assignments (last wins immediately)
+--         temp_var := "00000000";         -- First assignment
+--         temp_var := "11111111";         -- Overwrites immediately
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- SCOPE AND VISIBILITY COMPARISON:
+-- ============================================================================
+-- SIGNAL SCOPE:
+-- Signals declared in architecture are visible to:
+-- - All concurrent statements in architecture
+-- - All processes in architecture
+-- - All subprograms called from architecture
+-- - Component instantiations (through port maps)
+--
+-- architecture rtl of example is
+--     signal global_signal : std_logic_vector(7 downto 0);  -- Architecture scope
+-- begin
+--     
+--     -- Concurrent assignment (always active)
+--     global_signal <= input_data when enable = '1' else (others => '0');
+--     
+--     -- Process 1 can access global_signal
+--     process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             output1 <= global_signal;   -- Read global signal
+--         end if;
+--     end process;
+--     
+--     -- Process 2 can also access global_signal
+--     process(global_signal)
+--     begin
+--         output2 <= not global_signal;   -- Read global signal
+--     end process;
+--     
+-- end architecture;
+--
+-- VARIABLE SCOPE:
+-- Variables are local to the construct where declared:
+-- - Process variables: local to that process only
+-- - Function variables: local to that function only
+-- - Procedure variables: local to that procedure only
+-- - Cannot be accessed from outside their scope
+--
+-- architecture rtl of example is
+-- begin
+--     
+--     -- Process 1 with local variables
+--     process(clk)
+--         variable local_var1 : std_logic_vector(7 downto 0);  -- Local to this process
+--         variable counter1   : integer := 0;                  -- Local to this process
+--     begin
+--         if rising_edge(clk) then
+--             local_var1 := input_data;   -- Only accessible here
+--             counter1 := counter1 + 1;   -- Only accessible here
+--         end if;
+--     end process;
+--     
+--     -- Process 2 with different local variables
+--     process(other_clk)
+--         variable local_var2 : std_logic_vector(7 downto 0);  -- Different scope
+--         variable counter2   : integer := 0;                  -- Different scope
+--     begin
+--         if rising_edge(other_clk) then
+--             -- local_var1 := input_data;  -- ERROR: Not accessible here
+--             local_var2 := input_data;     -- OK: Local to this process
+--         end if;
+--     end process;
+--     
+-- end architecture;
+--
+-- ============================================================================
+-- HARDWARE SYNTHESIS IMPLICATIONS:
+-- ============================================================================
+-- SIGNAL SYNTHESIS:
+-- Signals typically synthesize to:
+-- - Wires for combinational logic
+-- - Registers for clocked assignments
+-- - Multiplexers for conditional assignments
+-- - Tri-state buffers for resolved signals
+-- - Physical interconnect in FPGA/ASIC
+--
+-- SIGNAL SYNTHESIS EXAMPLES:
+-- -- Combinational logic (wire)
+-- output_signal <= input_a and input_b;
+--
+-- -- Register inference
+-- process(clk, reset)
+-- begin
+--     if reset = '1' then
+--         reg_signal <= '0';
+--     elsif rising_edge(clk) then
+--         reg_signal <= input_signal;     -- Synthesizes to D flip-flop
+--     end if;
+-- end process;
+--
+-- -- Multiplexer inference
+-- mux_signal <= input_a when select_sig = '0' else input_b;
+--
+-- VARIABLE SYNTHESIS:
+-- Variables may synthesize to:
+-- - Temporary storage (optimized away)
+-- - Registers if value persists across clock cycles
+-- - Combinational logic for intermediate calculations
+-- - Memory elements for arrays
+-- - No hardware if used only for calculations
+--
+-- VARIABLE SYNTHESIS EXAMPLES:
+-- process(clk, reset)
+--     variable temp_calc : unsigned(15 downto 0);     -- May be optimized away
+--     variable persistent_var : integer := 0;         -- May become register
+-- begin
+--     if reset = '1' then
+--         output_reg <= (others => '0');
+--         persistent_var := 0;
+--     elsif rising_edge(clk) then
+--         -- Temporary calculation (likely optimized away)
+--         temp_calc := unsigned(input_a) + unsigned(input_b);
+--         output_reg <= std_logic_vector(temp_calc(7 downto 0));
+--         
+--         -- Persistent variable (likely becomes register)
+--         persistent_var := persistent_var + 1;
+--         counter_output <= persistent_var;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- USAGE SCENARIOS AND BEST PRACTICES:
+-- ============================================================================
+-- WHEN TO USE SIGNALS:
+-- 1. Inter-process communication
+-- 2. Architecture-level connections
+-- 3. Port mappings and component interfaces
+-- 4. Clocked register implementations
+-- 5. Combinational logic outputs
+-- 6. Testbench stimulus and monitoring
+-- 7. Resolved signal requirements (multiple drivers)
+-- 8. Event-driven behavior modeling
+--
+-- SIGNAL USAGE EXAMPLES:
+-- architecture rtl of processor is
+--     -- Inter-module communication signals
+--     signal instruction_bus : std_logic_vector(31 downto 0);
+--     signal data_bus       : std_logic_vector(31 downto 0);
+--     signal control_signals : control_type;
+--     
+--     -- Register signals
+--     signal program_counter : unsigned(31 downto 0);
+--     signal accumulator     : signed(31 downto 0);
+--     
+-- begin
+--     
+--     -- Component interconnections
+--     cpu_inst: cpu_core
+--         port map (
+--             clk => clk,
+--             instruction_bus => instruction_bus,  -- Signal connection
+--             data_bus => data_bus,               -- Signal connection
+--             control => control_signals          -- Signal connection
+--         );
+--     
+--     -- Clocked register process
+--     process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             program_counter <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if pc_enable = '1' then
+--                 program_counter <= program_counter + 4;  -- Signal assignment
+--             end if;
+--         end if;
+--     end process;
+--     
+-- end architecture;
+--
+-- WHEN TO USE VARIABLES:
+-- 1. Intermediate calculations within processes
+-- 2. Loop counters and indices
+-- 3. Temporary storage for algorithms
+-- 4. Complex mathematical operations
+-- 5. State machine next-state calculations
+-- 6. Array processing and manipulation
+-- 7. Function and procedure local storage
+-- 8. Performance-critical computations
+--
+-- VARIABLE USAGE EXAMPLES:
+-- process(clk, reset)
+--     -- Algorithm variables
+--     variable sum_accumulator : unsigned(31 downto 0);
+--     variable loop_index      : integer;
+--     variable temp_result     : std_logic_vector(15 downto 0);
+--     
+--     -- State machine variables
+--     variable next_state      : state_type;
+--     variable state_counter   : integer range 0 to 15;
+--     
+-- begin
+--     if reset = '1' then
+--         output_result <= (others => '0');
+--         current_state <= IDLE;
+--         sum_accumulator := (others => '0');
+--         state_counter := 0;
+--         
+--     elsif rising_edge(clk) then
+--         -- Complex algorithm using variables
+--         sum_accumulator := (others => '0');
+--         for loop_index in 0 to 7 loop
+--             sum_accumulator := sum_accumulator + unsigned(input_array(loop_index));
+--         end loop;
+--         
+--         -- Intermediate calculation
+--         temp_result := std_logic_vector(sum_accumulator(15 downto 0));
+--         
+--         -- State machine logic
+--         case current_state is
+--             when IDLE =>
+--                 if start_signal = '1' then
+--                     next_state := PROCESSING;
+--                     state_counter := 0;
+--                 else
+--                     next_state := IDLE;
+--                 end if;
+--                 
+--             when PROCESSING =>
+--                 state_counter := state_counter + 1;
+--                 if state_counter = 10 then
+--                     next_state := DONE;
+--                 else
+--                     next_state := PROCESSING;
+--                 end if;
+--                 
+--             when DONE =>
+--                 next_state := IDLE;
+--         end case;
+--         
+--         -- Assign results to signals
+--         current_state <= next_state;
+--         output_result <= temp_result;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- MIXED SIGNAL/VARIABLE PATTERNS:
+-- ============================================================================
+-- PATTERN 1: VARIABLE CALCULATION, SIGNAL OUTPUT
+-- This is the most common and recommended pattern:
+-- - Use variables for intermediate calculations
+-- - Assign final results to signals for output
+--
+-- process(clk, reset)
+--     variable temp_sum    : unsigned(15 downto 0);
+--     variable temp_product: unsigned(31 downto 0);
+--     variable result_var  : std_logic_vector(15 downto 0);
+-- begin
+--     if reset = '1' then
+--         output_signal <= (others => '0');
+--     elsif rising_edge(clk) then
+--         -- Variable calculations (immediate)
+--         temp_sum := unsigned(input_a) + unsigned(input_b);
+--         temp_product := temp_sum * unsigned(multiplier);
+--         result_var := std_logic_vector(temp_product(15 downto 0));
+--         
+--         -- Signal assignment (scheduled)
+--         output_signal <= result_var;
+--     end if;
+-- end process;
+--
+-- PATTERN 2: SIGNAL INPUT, VARIABLE PROCESSING
+-- Read signals into variables for processing:
+--
+-- process(clk, reset)
+--     variable input_copy  : std_logic_vector(7 downto 0);
+--     variable processed   : std_logic_vector(7 downto 0);
+--     variable i           : integer;
+-- begin
+--     if reset = '1' then
+--         output_data <= (others => '0');
+--     elsif rising_edge(clk) then
+--         -- Copy signal to variable for processing
+--         input_copy := input_signal;
+--         
+--         -- Process using variable (allows immediate updates)
+--         for i in 0 to 7 loop
+--             processed(i) := input_copy(i) xor key_signal(i);
+--         end loop;
+--         
+--         -- Output result
+--         output_data <= processed;
+--     end if;
+-- end process;
+--
+-- PATTERN 3: PIPELINE WITH MIXED CONSTRUCTS
+-- Combine signals for pipeline registers and variables for stage processing:
+--
+-- architecture pipeline of processor is
+--     -- Pipeline stage signals
+--     signal stage1_data : std_logic_vector(31 downto 0);
+--     signal stage2_data : std_logic_vector(31 downto 0);
+--     signal stage3_data : std_logic_vector(31 downto 0);
+-- begin
+--     
+--     -- Stage 1: Input processing
+--     process(clk, reset)
+--         variable temp_decode : instruction_type;
+--         variable temp_operands : operand_array;
+--     begin
+--         if reset = '1' then
+--             stage1_data <= (others => '0');
+--         elsif rising_edge(clk) then
+--             -- Variable processing
+--             temp_decode := decode_instruction(instruction_input);
+--             temp_operands := extract_operands(temp_decode);
+--             
+--             -- Signal output to next stage
+--             stage1_data <= encode_stage_data(temp_decode, temp_operands);
+--         end if;
+--     end process;
+--     
+--     -- Stage 2: Execution
+--     process(clk, reset)
+--         variable alu_result : std_logic_vector(31 downto 0);
+--         variable flags      : flag_type;
+--     begin
+--         if reset = '1' then
+--             stage2_data <= (others => '0');
+--         elsif rising_edge(clk) then
+--             -- Variable processing
+--             alu_result := execute_alu(stage1_data);
+--             flags := calculate_flags(alu_result);
+--             
+--             -- Signal output to next stage
+--             stage2_data <= combine_result_flags(alu_result, flags);
+--         end if;
+--     end process;
+--     
+-- end architecture;
+--
+-- ============================================================================
+-- COMMON MISTAKES AND PITFALLS:
+-- ============================================================================
+-- MISTAKE 1: WRONG ASSIGNMENT OPERATOR
+-- -- BAD: Using wrong assignment operator
+-- process(clk)
+--     variable temp_var : std_logic_vector(7 downto 0);
+-- begin
+--     temp_var <= input_data;     -- ERROR: Signal assignment to variable
+--     output_signal := temp_var;  -- ERROR: Variable assignment to signal
+-- end process;
+--
+-- -- GOOD: Using correct assignment operators
+-- process(clk)
+--     variable temp_var : std_logic_vector(7 downto 0);
+-- begin
+--     temp_var := input_data;     -- CORRECT: Variable assignment
+--     output_signal <= temp_var;  -- CORRECT: Signal assignment
+-- end process;
+--
+-- MISTAKE 2: EXPECTING IMMEDIATE SIGNAL UPDATE
+-- -- BAD: Expecting immediate signal update
+-- process(clk)
+-- begin
+--     if rising_edge(clk) then
+--         temp_signal <= input_data;
+--         output_data <= temp_signal;     -- Uses OLD value, not new!
+--     end if;
+-- end process;
+--
+-- -- GOOD: Using variable for immediate update
+-- process(clk)
+--     variable temp_var : std_logic_vector(7 downto 0);
+-- begin
+--     if rising_edge(clk) then
+--         temp_var := input_data;
+--         output_data <= temp_var;        -- Uses NEW value
+--     end if;
+-- end process;
+--
+-- MISTAKE 3: VARIABLE SCOPE VIOLATION
+-- -- BAD: Trying to access variable outside scope
+-- process(clk_a)
+--     variable local_var : integer := 0;
+-- begin
+--     -- Process A implementation
+-- end process;
+--
+-- process(clk_b)
+-- begin
+--     local_var := 5;                     -- ERROR: Variable not in scope
+-- end process;
+--
+-- -- GOOD: Using signals for inter-process communication
+-- signal shared_signal : integer := 0;
+--
+-- process(clk_a)
+-- begin
+--     shared_signal <= 5;                 -- CORRECT: Signal assignment
+-- end process;
+--
+-- process(clk_b)
+-- begin
+--     output_value <= shared_signal;      -- CORRECT: Signal access
+-- end process;
+--
+-- MISTAKE 4: MULTIPLE DRIVERS ON VARIABLES
+-- -- BAD: Multiple assignments to same variable (compilation error)
+-- architecture bad_arch of example is
+--     variable global_var : integer;      -- ERROR: Variables can't be global
+-- begin
+--     process(clk_a)
+--     begin
+--         global_var := 1;                -- ERROR: Multiple drivers
+--     end process;
+--     
+--     process(clk_b)
+--     begin
+--         global_var := 2;                -- ERROR: Multiple drivers
+--     end process;
+-- end architecture;
+--
+-- -- GOOD: Using resolved signals for multiple drivers
+-- architecture good_arch of example is
+--     signal resolved_signal : std_logic;  -- Can have multiple drivers
+-- begin
+--     process(clk_a)
+--     begin
+--         resolved_signal <= '1';         -- Driver 1
+--     end process;
+--     
+--     process(clk_b)
+--     begin
+--         resolved_signal <= '0';         -- Driver 2 (resolved function handles)
+--     end process;
+-- end architecture;
+--
+-- ============================================================================
+-- DEBUGGING TECHNIQUES:
+-- ============================================================================
+-- SIGNAL DEBUGGING:
+-- Signals are visible in simulation waveforms and can be easily debugged:
+--
+-- architecture debug_signals of testbench is
+--     signal debug_counter : integer := 0;
+--     signal debug_state   : state_type := IDLE;
+--     signal debug_data    : std_logic_vector(7 downto 0);
+-- begin
+--     
+--     -- Signals appear in waveform viewer
+--     process(clk)
+--     begin
+--         if rising_edge(clk) then
+--             debug_counter <= debug_counter + 1;  -- Visible in waveform
+--             debug_data <= input_data;            -- Visible in waveform
+--         end if;
+--     end process;
+--     
+--     -- Assert statements for signal checking
+--     assert debug_counter < 1000
+--         report "Counter overflow in simulation"
+--         severity error;
+--         
+-- end architecture;
+--
+-- VARIABLE DEBUGGING:
+-- Variables require special techniques for debugging:
+--
+-- process(clk, reset)
+--     variable debug_var : integer := 0;
+--     variable temp_calc : unsigned(15 downto 0);
+--     
+--     -- Debug signals to make variables visible
+--     signal debug_var_signal : integer;
+--     signal temp_calc_signal : unsigned(15 downto 0);
+-- begin
+--     if reset = '1' then
+--         debug_var := 0;
+--         temp_calc := (others => '0');
+--     elsif rising_edge(clk) then
+--         -- Variable operations
+--         debug_var := debug_var + 1;
+--         temp_calc := unsigned(input_a) + unsigned(input_b);
+--         
+--         -- Make variables visible through signals
+--         debug_var_signal <= debug_var;
+--         temp_calc_signal <= temp_calc;
+--         
+--         -- Report statements for variable values
+--         report "Debug variable value: " & integer'image(debug_var);
+--         report "Temp calculation: " & integer'image(to_integer(temp_calc));
+--         
+--         -- Assert statements for variable checking
+--         assert debug_var < 100
+--             report "Variable counter exceeded limit"
+--             severity warning;
+--     end if;
+-- end process;
+--
+-- ============================================================================
+-- PERFORMANCE CONSIDERATIONS:
+-- ============================================================================
+-- SIMULATION PERFORMANCE:
+-- - Signals: Event-driven simulation, may be slower for complex designs
+-- - Variables: Immediate assignment, faster for algorithmic code
+-- - Mixed approach: Use variables for calculations, signals for communication
+--
+-- SYNTHESIS PERFORMANCE:
+-- - Signals: Direct hardware mapping, predictable resource usage
+-- - Variables: May be optimized away or become registers
+-- - Resource usage: Variables can reduce intermediate signal count
+--
+-- MEMORY USAGE:
+-- - Signals: Event queue overhead in simulation
+-- - Variables: Local storage, minimal overhead
+-- - Large arrays: Consider memory implications for both
+--
+-- TIMING PERFORMANCE:
+-- - Signals: May introduce additional delay paths
+-- - Variables: No timing overhead for intermediate calculations
+-- - Critical paths: Use variables to minimize logic levels
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- RESOLVED SIGNALS:
+-- Only signals can have resolution functions for multiple drivers:
+--
+-- function resolve_logic(drivers : std_logic_vector) return std_logic is
+-- begin
+--     for i in drivers'range loop
+--         if drivers(i) = '1' then
+--             return '1';  -- OR resolution
+--         end if;
+--     end loop;
+--     return '0';
+-- end function;
+--
+-- subtype resolved_logic is resolve_logic std_logic;
+-- signal bus_signal : resolved_logic;  -- Can have multiple drivers
+--
+-- SHARED VARIABLES:
+-- Special variables that can be accessed by multiple processes:
+--
+-- shared variable shared_memory : memory_array := (others => (others => '0'));
+--
+-- process(clk_a)
+-- begin
+--     if rising_edge(clk_a) then
+--         shared_memory(address_a) := data_a;  -- Write to shared variable
+--     end if;
+-- end process;
+--
+-- process(clk_b)
+-- begin
+--     if rising_edge(clk_b) then
+--         data_b <= shared_memory(address_b);  -- Read from shared variable
+--     end if;
+-- end process;
+--
+-- SIGNAL ATTRIBUTES:
+-- Signals have many useful attributes that variables don't:
+--
+-- signal data_bus : std_logic_vector(7 downto 0);
+--
+-- -- Signal attributes
+-- constant bus_length : integer := data_bus'length;     -- Length attribute
+-- signal bus_event    : boolean := data_bus'event;      -- Event attribute
+-- signal bus_stable   : boolean := data_bus'stable(10 ns); -- Stable attribute
+-- signal bus_last     : std_logic_vector(7 downto 0) := data_bus'last_value;
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- DESIGN VERIFICATION:
+-- □ Correct assignment operators used (:= for variables, <= for signals)
+-- □ Variable scope is appropriate for intended use
+-- □ Signal visibility matches design requirements
+-- □ No unintended multiple drivers on variables
+-- □ Proper initialization of both signals and variables
+-- □ Timing behavior matches design intent
+-- □ Synthesis results match expected hardware
+-- □ Performance requirements are met
+--
+-- CODING STANDARDS:
+-- □ Consistent naming conventions for signals and variables
+-- □ Appropriate use of signals for inter-process communication
+-- □ Variables used for intermediate calculations
+-- □ Proper documentation of signal/variable usage
+-- □ No unnecessary signal declarations
+-- □ Efficient variable usage in algorithms
+-- □ Proper reset handling for both constructs
+-- □ Testbench includes both signal and variable testing
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+--
+-- [Add your entity declaration here]
+-- entity signal_var_comparison is
+--     generic (
+--         DATA_WIDTH : integer := 8;
+--         ADDR_WIDTH : integer := 4
+--     );
+--     port (
+--         -- Clock and Reset
+--         clk        : in  std_logic;
+--         reset_n    : in  std_logic;
+--         
+--         -- Data Interface
+--         data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         address    : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         write_en   : in  std_logic;
+--         read_en    : in  std_logic;
+--         
+--         -- Output Interface
+--         data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         valid      : out std_logic;
+--         ready      : out std_logic
+--     );
+-- end entity signal_var_comparison;
+--
+-- [Add your architecture implementation here]
+-- architecture mixed_example of signal_var_comparison is
+--     
+--     -- Architecture-level signals (global scope)
+--     type memory_array is array(0 to 2**ADDR_WIDTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal memory_bank    : memory_array := (others => (others => '0'));
+--     signal internal_valid : std_logic := '0';
+--     signal internal_ready : std_logic := '1';
+--     
+--     -- State machine signals
+--     type state_type is (IDLE, WRITE_STATE, READ_STATE, DONE);
+--     signal current_state : state_type := IDLE;
+--     
+-- begin
+--     
+--     -- Concurrent signal assignments (always active)
+--     valid <= internal_valid;
+--     ready <= internal_ready;
+--     
+--     -- Main process with mixed signal/variable usage
+--     process(clk, reset_n)
+--         -- Process-local variables
+--         variable next_state     : state_type;
+--         variable temp_data      : std_logic_vector(DATA_WIDTH-1 downto 0);
+--         variable addr_int       : integer;
+--         variable operation_done : boolean;
+--         
+--     begin
+--         if reset_n = '0' then
+--             -- Reset signals
+--             current_state <= IDLE;
+--             internal_valid <= '0';
+--             internal_ready <= '1';
+--             data_out <= (others => '0');
+--             
+--             -- Reset variables (local initialization)
+--             next_state := IDLE;
+--             temp_data := (others => '0');
+--             addr_int := 0;
+--             operation_done := false;
+--             
+--         elsif rising_edge(clk) then
+--             -- Default variable values
+--             operation_done := false;
+--             next_state := current_state;
+--             
+--             -- Convert address to integer (variable for immediate use)
+--             addr_int := to_integer(unsigned(address));
+--             
+--             -- State machine logic using variables for next state calculation
+--             case current_state is
+--                 when IDLE =>
+--                     internal_ready <= '1';
+--                     internal_valid <= '0';
+--                     
+--                     if write_en = '1' then
+--                         next_state := WRITE_STATE;
+--                         temp_data := data_in;  -- Store input in variable
+--                     elsif read_en = '1' then
+--                         next_state := READ_STATE;
+--                     else
+--                         next_state := IDLE;
+--                     end if;
+--                     
+--                 when WRITE_STATE =>
+--                     internal_ready <= '0';
+--                     
+--                     -- Write to memory (signal assignment)
+--                     memory_bank(addr_int) <= temp_data;
+--                     
+--                     next_state := DONE;
+--                     operation_done := true;
+--                     
+--                 when READ_STATE =>
+--                     internal_ready <= '0';
+--                     
+--                     -- Read from memory and store in variable for processing
+--                     temp_data := memory_bank(addr_int);
+--                     
+--                     -- Process data using variable (immediate operations)
+--                     for i in 0 to DATA_WIDTH-1 loop
+--                         temp_data(i) := temp_data(i) xor '1';  -- Invert bits
+--                     end loop;
+--                     
+--                     -- Output processed data (signal assignment)
+--                     data_out <= temp_data;
+--                     
+--                     next_state := DONE;
+--                     operation_done := true;
+--                     
+--                 when DONE =>
+--                     if operation_done then
+--                         internal_valid <= '1';
+--                     end if;
+--                     
+--                     -- Return to idle after one cycle
+--                     next_state := IDLE;
+--                     
+--             end case;
+--             
+--             -- Update state signal with calculated next state
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Separate process demonstrating signal-only operations
+--     process(clk, reset_n)
+--     begin
+--         if reset_n = '0' then
+--             -- Signal-based counter example
+--         elsif rising_edge(clk) then
+--             -- This process uses only signals for demonstration
+--             -- All assignments are scheduled (delta delay)
+--         end if;
+--     end process;
+--     
+-- end architecture mixed_example;
+--
+-- ============================================================================

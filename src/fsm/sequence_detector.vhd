@@ -1,0 +1,844 @@
+-- ============================================================================
+-- Sequence Detector FSM Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a sequence detector using finite state machine principles.
+-- Sequence detectors are fundamental digital circuits that recognize specific
+-- patterns in serial data streams. They are widely used in communication systems,
+-- protocol decoders, pattern matching, and control applications.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand sequence detection principles and applications
+-- 2. Learn pattern recognition using FSM techniques
+-- 3. Practice overlapping vs non-overlapping sequence detection
+-- 4. Explore Moore vs Mealy implementations for sequence detection
+-- 5. Understand timing and synchronization in pattern matching
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and std_logic_vector
+-- - numeric_std package for arithmetic operations (if needed)
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all; (if arithmetic operations needed)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the sequence detector
+--
+-- Entity Requirements:
+-- - Name: sequence_detector (maintain current naming convention)
+-- - Clock and reset inputs for synchronous operation
+-- - Serial data input for pattern detection
+-- - Output signal indicating sequence detection
+--
+-- Port Specifications:
+-- - clk : in std_logic (Clock input)
+-- - rst : in std_logic (Reset input - active high or low)
+-- - data_in : in std_logic (Serial data input)
+-- - sequence_found : out std_logic (Sequence detection output)
+--
+-- Optional Ports (depending on application):
+-- - enable : in std_logic (Enable signal)
+-- - reset_detection : in std_logic (Reset detection on match)
+-- - sequence_count : out integer (Number of sequences detected)
+-- - state_debug : out std_logic_vector (Current state for debugging)
+--
+-- Design Considerations:
+-- - Target sequence to detect (e.g., "1011", "101", "1001")
+-- - Overlapping vs non-overlapping detection
+-- - Reset behavior and initialization
+-- - Output pulse vs level behavior
+-- - Timing requirements and constraints
+--
+-- TODO: Declare entity with appropriate ports
+-- TODO: Add comprehensive port comments
+-- TODO: Define target sequence pattern
+-- TODO: Choose detection type (overlapping/non-overlapping)
+--
+-- ============================================================================
+-- STEP 3: SEQUENCE DETECTION PRINCIPLES
+-- ============================================================================
+--
+-- SEQUENCE DETECTION FUNDAMENTALS:
+-- - Pattern recognition in serial data streams
+-- - State-based approach to track partial matches
+-- - Transition logic based on current state and input
+-- - Output generation upon complete pattern match
+--
+-- DETECTION TYPES:
+-- 1. NON-OVERLAPPING DETECTION:
+--    - Reset to initial state after each detection
+--    - Sequences cannot share bits
+--    - Simpler implementation
+--    - Lower detection rate for overlapping patterns
+--
+-- 2. OVERLAPPING DETECTION:
+--    - Continue from appropriate state after detection
+--    - Sequences can share bits
+--    - More complex state transitions
+--    - Higher detection rate for overlapping patterns
+--
+-- EXAMPLE: Detecting sequence "1011"
+--
+-- NON-OVERLAPPING STATE DIAGRAM:
+-- States: IDLE, S1, S10, S101, FOUND
+-- 
+-- IDLE --1--> S1
+-- IDLE --0--> IDLE
+-- S1 --0--> S10
+-- S1 --1--> S1
+-- S10 --1--> S101
+-- S10 --0--> IDLE
+-- S101 --1--> FOUND (output=1, next=IDLE)
+-- S101 --0--> S10
+-- FOUND --> IDLE
+--
+-- OVERLAPPING STATE DIAGRAM:
+-- States: IDLE, S1, S10, S101, FOUND
+-- 
+-- IDLE --1--> S1
+-- IDLE --0--> IDLE
+-- S1 --0--> S10
+-- S1 --1--> S1
+-- S10 --1--> S101
+-- S10 --0--> IDLE
+-- S101 --1--> FOUND (output=1, next=S1)  -- Key difference!
+-- S101 --0--> S10
+-- FOUND --> S1  -- Continue from S1 for overlapping
+--
+-- TIMING CONSIDERATIONS:
+-- - Input setup and hold times
+-- - Clock-to-output delays
+-- - Sequence detection latency
+-- - Output pulse width and timing
+--
+-- TODO: Choose target sequence pattern
+-- TODO: Decide on overlapping vs non-overlapping
+-- TODO: Create state transition diagram
+-- TODO: Define timing requirements
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE IMPLEMENTATION OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: BASIC SEQUENCE DETECTOR (Moore FSM)
+-- ----------------------------------------------------------------------------
+-- Moore machine implementation where output depends only on state
+--
+-- Implementation Approach:
+-- - Enumerated type for states
+-- - State register process
+-- - Next state logic process
+-- - Output logic process (Moore style)
+-- - Clear state separation
+--
+-- Example Structure (detecting "101"):
+-- architecture moore_detector of sequence_detector is
+--     type state_type is (IDLE, S1, S10, FOUND);
+--     signal current_state, next_state : state_type := IDLE;
+-- begin
+--     -- State register process
+--     state_register: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Next state logic
+--     next_state_logic: process(current_state, data_in)
+--     begin
+--         case current_state is
+--             when IDLE =>
+--                 if data_in = '1' then
+--                     next_state <= S1;
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--             
+--             when S1 =>
+--                 if data_in = '0' then
+--                     next_state <= S10;
+--                 else
+--                     next_state <= S1;  -- Stay in S1 for consecutive 1s
+--                 end if;
+--             
+--             when S10 =>
+--                 if data_in = '1' then
+--                     next_state <= FOUND;  -- Sequence "101" detected
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--             
+--             when FOUND =>
+--                 -- For overlapping: next_state <= S1 if data_in = '1'
+--                 -- For non-overlapping: next_state <= IDLE
+--                 if data_in = '1' then
+--                     next_state <= S1;  -- Overlapping detection
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--         end case;
+--     end process;
+--     
+--     -- Output logic (Moore - depends only on state)
+--     output_logic: process(current_state)
+--     begin
+--         case current_state is
+--             when FOUND =>
+--                 sequence_found <= '1';
+--             when others =>
+--                 sequence_found <= '0';
+--         end case;
+--     end process;
+-- end moore_detector;
+--
+-- Moore Advantages:
+-- - Stable outputs (no glitches)
+-- - Easier timing analysis
+-- - Output changes only on clock edges
+-- - Predictable behavior
+--
+-- Moore Disadvantages:
+-- - One clock cycle delay for output
+-- - May require additional states
+-- - Slightly more complex for some patterns
+--
+-- TODO: Implement Moore sequence detector
+-- TODO: Define all required states
+-- TODO: Implement complete state transitions
+-- TODO: Verify output timing
+--
+-- OPTION 2: MEALY SEQUENCE DETECTOR
+-- ----------------------------------------------------------------------------
+-- Mealy machine implementation where output depends on state and input
+--
+-- Implementation Approach:
+-- - Enumerated type for states
+-- - State register process
+-- - Combined next state and output logic
+-- - Faster response time
+-- - More compact state space
+--
+-- Example Structure (detecting "101"):
+-- architecture mealy_detector of sequence_detector is
+--     type state_type is (IDLE, S1, S10);
+--     signal current_state, next_state : state_type := IDLE;
+-- begin
+--     -- State register process
+--     state_register: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             current_state <= IDLE;
+--         elsif rising_edge(clk) then
+--             current_state <= next_state;
+--         end if;
+--     end process;
+--     
+--     -- Combined next state and output logic
+--     mealy_logic: process(current_state, data_in)
+--     begin
+--         -- Default assignments
+--         next_state <= current_state;
+--         sequence_found <= '0';
+--         
+--         case current_state is
+--             when IDLE =>
+--                 if data_in = '1' then
+--                     next_state <= S1;
+--                 end if;
+--             
+--             when S1 =>
+--                 if data_in = '0' then
+--                     next_state <= S10;
+--                 else
+--                     next_state <= S1;  -- Stay for consecutive 1s
+--                 end if;
+--             
+--             when S10 =>
+--                 if data_in = '1' then
+--                     sequence_found <= '1';  -- Output immediately
+--                     next_state <= S1;       -- For overlapping detection
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--         end case;
+--     end process;
+-- end mealy_detector;
+--
+-- Mealy Advantages:
+-- - Immediate output response
+-- - Fewer states typically needed
+-- - More compact implementation
+-- - Faster detection response
+--
+-- Mealy Disadvantages:
+-- - Potential output glitches
+-- - More complex timing analysis
+-- - Input-dependent output changes
+-- - Requires careful design
+--
+-- TODO: Implement Mealy sequence detector
+-- TODO: Minimize number of states
+-- TODO: Verify output timing and glitches
+-- TODO: Test input transition scenarios
+--
+-- OPTION 3: PARAMETERIZED SEQUENCE DETECTOR
+-- ----------------------------------------------------------------------------
+-- Configurable detector for different sequence patterns
+--
+-- Implementation Approach:
+-- - Generic parameters for sequence definition
+-- - Configurable sequence length
+-- - Flexible detection modes
+-- - Reusable component design
+--
+-- Example Structure:
+-- entity sequence_detector_param is
+--     generic (
+--         SEQUENCE_LENGTH : positive := 4;
+--         TARGET_SEQUENCE : std_logic_vector := "1011";
+--         OVERLAPPING : boolean := true;
+--         OUTPUT_PULSE : boolean := false
+--     );
+--     port (
+--         clk : in std_logic;
+--         rst : in std_logic;
+--         data_in : in std_logic;
+--         sequence_found : out std_logic;
+--         match_count : out integer range 0 to 255
+--     );
+-- end sequence_detector_param;
+--
+-- architecture parameterized of sequence_detector_param is
+--     signal shift_reg : std_logic_vector(SEQUENCE_LENGTH-1 downto 0);
+--     signal match_counter : integer range 0 to 255 := 0;
+--     signal detection_pulse : std_logic := '0';
+-- begin
+--     -- Shift register for sequence tracking
+--     shift_process: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             shift_reg <= (others => '0');
+--             match_counter <= 0;
+--             detection_pulse <= '0';
+--         elsif rising_edge(clk) then
+--             -- Shift in new data
+--             shift_reg <= shift_reg(SEQUENCE_LENGTH-2 downto 0) & data_in;
+--             
+--             -- Check for sequence match
+--             if shift_reg = TARGET_SEQUENCE then
+--                 match_counter <= match_counter + 1;
+--                 detection_pulse <= '1';
+--             else
+--                 detection_pulse <= '0';
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- Output assignment
+--     sequence_found <= detection_pulse when OUTPUT_PULSE else
+--                      '1' when shift_reg = TARGET_SEQUENCE else '0';
+--     match_count <= match_counter;
+-- end parameterized;
+--
+-- Parameterized Advantages:
+-- - Highly configurable and reusable
+-- - Easy to change target sequences
+-- - Supports different detection modes
+-- - Good for library components
+--
+-- Parameterized Disadvantages:
+-- - More complex implementation
+-- - Generic validation needed
+-- - Potential synthesis limitations
+-- - Resource usage may vary
+--
+-- TODO: Implement parameterized detector
+-- TODO: Add sequence validation
+-- TODO: Test with different patterns
+-- TODO: Verify resource utilization
+--
+-- OPTION 4: MULTI-SEQUENCE DETECTOR
+-- ----------------------------------------------------------------------------
+-- Detector capable of recognizing multiple sequences simultaneously
+--
+-- Implementation Approach:
+-- - Multiple parallel detection paths
+-- - Shared state optimization
+-- - Priority encoding for outputs
+-- - Resource-efficient design
+--
+-- Example Structure:
+-- architecture multi_sequence of sequence_detector is
+--     -- States for different sequences
+--     type seq1_state_type is (IDLE1, S1_1, S1_10, S1_101);  -- For "1011"
+--     type seq2_state_type is (IDLE2, S2_1, S2_10);          -- For "101"
+--     
+--     signal seq1_state : seq1_state_type := IDLE1;
+--     signal seq2_state : seq2_state_type := IDLE2;
+--     signal seq1_found, seq2_found : std_logic;
+-- begin
+--     -- Sequence 1 detector ("1011")
+--     seq1_process: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             seq1_state <= IDLE1;
+--             seq1_found <= '0';
+--         elsif rising_edge(clk) then
+--             seq1_found <= '0';  -- Default
+--             
+--             case seq1_state is
+--                 when IDLE1 =>
+--                     if data_in = '1' then
+--                         seq1_state <= S1_1;
+--                     end if;
+--                 
+--                 when S1_1 =>
+--                     if data_in = '0' then
+--                         seq1_state <= S1_10;
+--                     elsif data_in = '1' then
+--                         seq1_state <= S1_1;
+--                     end if;
+--                 
+--                 when S1_10 =>
+--                     if data_in = '1' then
+--                         seq1_state <= S1_101;
+--                     else
+--                         seq1_state <= IDLE1;
+--                     end if;
+--                 
+--                 when S1_101 =>
+--                     if data_in = '1' then
+--                         seq1_found <= '1';
+--                         seq1_state <= S1_1;  -- Overlapping
+--                     else
+--                         seq1_state <= S1_10;
+--                     end if;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Sequence 2 detector ("101")
+--     seq2_process: process(clk, rst)
+--     begin
+--         if rst = '1' then
+--             seq2_state <= IDLE2;
+--             seq2_found <= '0';
+--         elsif rising_edge(clk) then
+--             seq2_found <= '0';  -- Default
+--             
+--             case seq2_state is
+--                 when IDLE2 =>
+--                     if data_in = '1' then
+--                         seq2_state <= S2_1;
+--                     end if;
+--                 
+--                 when S2_1 =>
+--                     if data_in = '0' then
+--                         seq2_state <= S2_10;
+--                     elsif data_in = '1' then
+--                         seq2_state <= S2_1;
+--                     end if;
+--                 
+--                 when S2_10 =>
+--                     if data_in = '1' then
+--                         seq2_found <= '1';
+--                         seq2_state <= S2_1;  -- Overlapping
+--                     else
+--                         seq2_state <= IDLE2;
+--                     end if;
+--             end case;
+--         end if;
+--     end process;
+--     
+--     -- Output priority encoding
+--     sequence_found <= seq1_found or seq2_found;  -- Any sequence found
+-- end multi_sequence;
+--
+-- Multi-Sequence Advantages:
+-- - Simultaneous pattern detection
+-- - Resource sharing opportunities
+-- - Flexible output encoding
+-- - Comprehensive pattern matching
+--
+-- Multi-Sequence Disadvantages:
+-- - Increased complexity
+-- - Higher resource usage
+-- - More complex verification
+-- - Potential timing challenges
+--
+-- TODO: Implement multi-sequence detector
+-- TODO: Define target sequences
+-- TODO: Optimize shared resources
+-- TODO: Verify all detection paths
+--
+-- ============================================================================
+-- STEP 5: ADVANCED FEATURES
+-- ============================================================================
+--
+-- SEQUENCE COUNTING:
+-- - Count number of detected sequences
+-- - Overflow handling
+-- - Reset capabilities
+-- - Statistical analysis
+--
+-- ERROR DETECTION:
+-- - Invalid sequence handling
+-- - Noise immunity
+-- - Error correction
+-- - Fault tolerance
+--
+-- VARIABLE LENGTH SEQUENCES:
+-- - Dynamic pattern length
+-- - Configurable detection
+-- - Adaptive algorithms
+-- - Flexible matching
+--
+-- PATTERN MATCHING ALGORITHMS:
+-- - Boyer-Moore algorithm
+-- - Knuth-Morris-Pratt algorithm
+-- - Finite automaton approach
+-- - Regular expression matching
+--
+-- TODO: Select appropriate advanced features
+-- TODO: Implement chosen enhancements
+-- TODO: Verify advanced functionality
+-- TODO: Test performance improvements
+--
+-- ============================================================================
+-- IMPLEMENTATION CONSIDERATIONS:
+-- ============================================================================
+--
+-- TIMING ANALYSIS:
+-- - Input setup and hold times
+-- - Clock-to-output delays
+-- - Critical path identification
+-- - Timing margin analysis
+--
+-- RESOURCE OPTIMIZATION:
+-- - State encoding efficiency
+-- - Logic minimization
+-- - Memory usage optimization
+-- - Power consumption
+--
+-- SYNTHESIS CONSIDERATIONS:
+-- - FSM inference guidelines
+-- - Technology mapping
+-- - Optimization directives
+-- - Resource constraints
+--
+-- VERIFICATION STRATEGY:
+-- - Functional verification
+-- - Timing verification
+-- - Coverage analysis
+-- - Stress testing
+--
+-- ERROR HANDLING:
+-- - Invalid input handling
+-- - State corruption recovery
+-- - Timeout mechanisms
+-- - Graceful degradation
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+--
+-- 1. COMMUNICATION PROTOCOLS:
+--    - Frame synchronization
+--    - Header detection
+--    - Protocol parsing
+--    - Error pattern recognition
+--
+-- 2. DATA PROCESSING:
+--    - Pattern matching in data streams
+--    - Signal processing
+--    - Digital filtering
+--    - Feature extraction
+--
+-- 3. SECURITY SYSTEMS:
+--    - Intrusion detection
+--    - Pattern-based authentication
+--    - Anomaly detection
+--    - Signature matching
+--
+-- 4. CONTROL SYSTEMS:
+--    - Command recognition
+--    - Event detection
+--    - State monitoring
+--    - Trigger generation
+--
+-- 5. TEST EQUIPMENT:
+--    - Test pattern generation
+--    - Response verification
+--    - Fault injection
+--    - Coverage analysis
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+--
+-- FUNCTIONAL TESTING:
+-- - Target sequence detection verification
+-- - Non-target sequence rejection
+-- - Overlapping sequence handling
+-- - Reset and initialization testing
+-- - Edge case scenarios
+--
+-- PERFORMANCE TESTING:
+-- - Maximum frequency operation
+-- - Latency measurement
+-- - Throughput analysis
+-- - Resource utilization
+-- - Power consumption
+--
+-- STRESS TESTING:
+-- - Random input patterns
+-- - Continuous operation
+-- - Boundary conditions
+-- - Error injection
+-- - Recovery testing
+--
+-- COVERAGE ANALYSIS:
+-- - State coverage
+-- - Transition coverage
+-- - Input pattern coverage
+-- - Output verification
+-- - Timing coverage
+--
+-- REGRESSION TESTING:
+-- - Design change verification
+-- - Performance regression
+-- - Functionality preservation
+-- - Compatibility testing
+-- - Integration testing
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+--
+-- FOR BEGINNERS:
+-- 1. Start with simple 3-4 bit sequence
+-- 2. Use Moore FSM for stable outputs
+-- 3. Implement non-overlapping detection first
+-- 4. Create comprehensive testbench
+-- 5. Verify timing and functionality
+--
+-- FOR INTERMEDIATE USERS:
+-- 1. Implement overlapping detection
+-- 2. Use Mealy FSM for faster response
+-- 3. Add sequence counting features
+-- 4. Optimize for target technology
+-- 5. Create thorough verification suite
+--
+-- FOR ADVANCED USERS:
+-- 1. Implement parameterized design
+-- 2. Add multi-sequence capability
+-- 3. Optimize for performance and resources
+-- 4. Create library-quality component
+-- 5. Develop formal verification
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+--
+-- 1. UART START BIT DETECTOR:
+--    - Detect UART start bit pattern
+--    - Handle baud rate variations
+--    - Add noise filtering
+--    - Implement frame detection
+--
+-- 2. MANCHESTER DECODER:
+--    - Detect Manchester encoding patterns
+--    - Handle clock recovery
+--    - Add error detection
+--    - Implement data extraction
+--
+-- 3. BARKER CODE DETECTOR:
+--    - Implement Barker sequence detection
+--    - Add correlation analysis
+--    - Handle noise immunity
+--    - Optimize for radar applications
+--
+-- 4. DNA SEQUENCE MATCHER:
+--    - Detect specific DNA patterns
+--    - Handle multiple sequences
+--    - Add mismatch tolerance
+--    - Implement statistical analysis
+--
+-- 5. NETWORK PACKET PARSER:
+--    - Detect packet headers
+--    - Parse protocol fields
+--    - Handle variable lengths
+--    - Add error checking
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+--
+-- 1. INCOMPLETE STATE COVERAGE:
+--    - Missing state transitions
+--    - Unhandled input combinations
+--    - Incomplete case statements
+--    - Default state assignments
+--
+-- 2. TIMING VIOLATIONS:
+--    - Setup/hold violations
+--    - Clock domain issues
+--    - Metastability problems
+--    - Race conditions
+--
+-- 3. OUTPUT GLITCHES:
+--    - Combinational output paths
+--    - Asynchronous state changes
+--    - Input-dependent outputs
+--    - Timing hazards
+--
+-- 4. RESET ISSUES:
+--    - Improper reset handling
+--    - Reset synchronization
+--    - Power-on initialization
+--    - Reset recovery
+--
+-- 5. VERIFICATION GAPS:
+--    - Incomplete test coverage
+--    - Missing edge cases
+--    - Inadequate timing verification
+--    - Insufficient stress testing
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration with proper ports
+-- □ Target sequence clearly defined
+-- □ State machine type selected (Moore/Mealy)
+-- □ All states properly defined
+-- □ Complete state transition coverage
+-- □ Reset behavior correctly implemented
+-- □ Output logic verified
+-- □ Timing requirements met
+-- □ Overlapping detection handled correctly
+-- □ Non-target sequences rejected
+-- □ Edge cases tested
+-- □ Synthesis results acceptable
+-- □ Resource utilization optimized
+-- □ Performance requirements met
+-- □ Error handling implemented
+-- □ Documentation complete
+-- □ Testbench comprehensive
+-- □ Coverage analysis complete
+-- □ Timing verification passed
+-- □ Integration testing successful
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- PATTERN RECOGNITION THEORY:
+-- - Finite automaton theory
+-- - Regular expression matching
+-- - String matching algorithms
+-- - Computational complexity
+--
+-- SYSTEM INTEGRATION:
+-- - Interface with data sources
+-- - Integration with processing units
+-- - System-level timing
+-- - Performance optimization
+--
+-- COMMUNICATION SYSTEMS:
+-- - Protocol stack integration
+-- - Frame synchronization
+-- - Error detection and correction
+-- - Quality of service
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA IMPLEMENTATION:
+-- - LUT utilization for state logic
+-- - Register usage optimization
+-- - Block RAM utilization
+-- - Clock domain management
+--
+-- ASIC IMPLEMENTATION:
+-- - Standard cell optimization
+-- - Custom logic design
+-- - Layout considerations
+-- - Power optimization
+--
+-- TIMING CLOSURE:
+-- - Critical path optimization
+-- - Clock skew management
+-- - Setup/hold margin
+-- - Performance scaling
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+--
+-- ALGORITHMIC APPROACHES:
+-- - Finite state automaton
+-- - Regular expression engines
+-- - Pattern matching algorithms
+-- - Parallel processing
+--
+-- OPTIMIZATION TECHNIQUES:
+-- - State minimization
+-- - Logic optimization
+-- - Resource sharing
+-- - Pipeline optimization
+--
+-- FORMAL METHODS:
+-- - Model checking
+-- - Temporal logic
+-- - Property verification
+-- - Equivalence checking
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH DEVELOPMENT:
+-- - Stimulus generation
+-- - Response checking
+-- - Coverage collection
+-- - Performance monitoring
+--
+-- VERIFICATION METHODOLOGY:
+-- - Directed testing
+-- - Random testing
+-- - Constrained random
+-- - Formal verification
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis
+-- - State machine visualization
+-- - Performance profiling
+-- - Coverage analysis
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

@@ -1,0 +1,306 @@
+-- ============================================================================
+-- PROJECT: Priority Encoder Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a priority encoder using VHDL. A priority encoder
+-- is a combinational logic circuit that encodes the highest priority active
+-- input into a binary code output. Unlike a regular encoder, it can handle
+-- multiple simultaneous inputs by giving precedence to the highest priority
+-- input. It also provides a valid output to indicate when at least one input
+-- is active.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand priority encoding concepts and applications
+-- - Learn to handle multiple simultaneous inputs with precedence
+-- - Practice with conditional logic and case statements
+-- - Implement efficient priority resolution algorithms
+-- - Master valid signal generation and output encoding
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - data_in: Input vector (e.g., 8-bit for 8-to-3 priority encoder)
+-- - enable: Enable signal (optional, active high)
+-- 
+-- OUTPUTS:
+-- - encoded_out: Binary encoded output (log2(N) bits for N inputs)
+-- - valid_out: Valid output signal (high when any input is active)
+-- - group_select: Group select output (for cascaded encoders)
+--
+-- FUNCTIONALITY:
+-- - Encodes highest priority active input to binary output
+-- - Priority: MSB has highest priority, LSB has lowest priority
+-- - Valid output indicates presence of at least one active input
+-- - Enable input controls encoder operation
+-- - Supports cascading for larger input widths
+--
+-- ============================================================================
+-- TRUTH TABLE (8-to-3 Priority Encoder Example):
+-- ============================================================================
+-- D7|D6|D5|D4|D3|D2|D1|D0| EN | Y2|Y1|Y0| V | GS
+-- --|--|--|--|--|--|--|--|----|---|---|---|---|---
+--  0| 0| 0| 0| 0| 0| 0| 0|  1 | X | X | X | 0 | 0
+--  0| 0| 0| 0| 0| 0| 0| 1|  1 | 0 | 0 | 0 | 1 | 1
+--  0| 0| 0| 0| 0| 0| 1| X|  1 | 0 | 0 | 1 | 1 | 1
+--  0| 0| 0| 0| 0| 1| X| X|  1 | 0 | 1 | 0 | 1 | 1
+--  0| 0| 0| 0| 1| X| X| X|  1 | 0 | 1 | 1 | 1 | 1
+--  0| 0| 0| 1| X| X| X| X|  1 | 1 | 0 | 0 | 1 | 1
+--  0| 0| 1| X| X| X| X| X|  1 | 1 | 0 | 1 | 1 | 1
+--  0| 1| X| X| X| X| X| X|  1 | 1 | 1 | 0 | 1 | 1
+--  1| X| X| X| X| X| X| X|  1 | 1 | 1 | 1 | 1 | 1
+--  X| X| X| X| X| X| X| X|  0 | 0 | 0 | 0 | 0 | 0
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. IF-ELSIF CHAIN:
+--    - Sequential priority checking from MSB to LSB
+--    - Clear priority hierarchy
+--    - Easy to understand and modify
+--    - May result in long combinational paths
+--    - Good for small to medium input widths
+--
+-- 2. CASE STATEMENT WITH PRIORITY:
+--    - Use case statement with priority encoding
+--    - Efficient synthesis results
+--    - Clear code structure
+--    - Good for fixed input widths
+--    - Explicit priority handling
+--
+-- 3. LOOP-BASED APPROACH:
+--    - Use for-loop for scalable implementation
+--    - Generic design for any input width
+--    - Efficient for large input vectors
+--    - Parameterizable design
+--    - Good synthesis optimization
+--
+-- 4. TREE STRUCTURE:
+--    - Hierarchical priority resolution
+--    - Balanced delay paths
+--    - Optimal for very large input widths
+--    - Complex implementation
+--    - Best performance for speed-critical applications
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- PRIORITY SCHEME:
+-- - Define clear priority hierarchy (MSB-first or LSB-first)
+-- - Consider application-specific priority requirements
+-- - Plan for priority inversion if needed
+-- - Document priority scheme clearly
+--
+-- SCALABILITY:
+-- - Design for parameterizable input width
+-- - Use generics for flexible implementation
+-- - Consider synthesis implications for large widths
+-- - Plan for optimal resource utilization
+--
+-- TIMING OPTIMIZATION:
+-- - Minimize combinational delay paths
+-- - Consider pipeline stages for large encoders
+-- - Balance logic depth vs. resource usage
+-- - Plan for timing closure
+--
+-- POWER CONSIDERATIONS:
+-- - Minimize switching activity in unused paths
+-- - Consider clock gating for enable functionality
+-- - Optimize for low-power applications
+-- - Use efficient coding styles
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ENTITY DECLARATION
+-- □ Define input vector width using generics
+-- □ Calculate output width (log2 of input width)
+-- □ Define enable and valid output signals
+-- □ Add group select for cascading if needed
+-- □ Include comprehensive port descriptions
+--
+-- STEP 2: ARCHITECTURE PLANNING
+-- □ Choose implementation approach based on requirements
+-- □ Plan for generic/parameterizable design
+-- □ Consider synthesis optimization strategies
+-- □ Define internal signal requirements
+--
+-- STEP 3: PRIORITY LOGIC IMPLEMENTATION
+-- □ Implement priority resolution algorithm
+-- □ Handle all input combinations correctly
+-- □ Ensure highest priority input takes precedence
+-- □ Generate appropriate binary output code
+--
+-- STEP 4: VALID SIGNAL GENERATION
+-- □ Generate valid output when any input is active
+-- □ Consider enable signal in valid generation
+-- □ Ensure proper timing relationship
+-- □ Handle edge cases appropriately
+--
+-- STEP 5: ENABLE FUNCTIONALITY
+-- □ Implement enable signal control
+-- □ Define behavior when disabled
+-- □ Ensure proper output states
+-- □ Consider power implications
+--
+-- STEP 6: VERIFICATION PLANNING
+-- □ Create comprehensive test vectors
+-- □ Test all priority scenarios
+-- □ Verify enable functionality
+-- □ Check edge cases and boundary conditions
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Provides std_logic and std_logic_vector types
+-- - Essential for digital logic design
+-- - Supports multi-valued logic
+--
+-- IEEE.numeric_std.all:
+-- - Provides unsigned and signed types
+-- - Includes arithmetic and comparison operations
+-- - Useful for index calculations
+-- - Supports type conversions
+--
+-- IEEE.math_real.all:
+-- - Provides mathematical functions (log2, ceil)
+-- - Useful for calculating output width
+-- - Supports generic parameter calculations
+-- - Available for synthesis in modern tools
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- CASCADING SUPPORT:
+-- - Add group select outputs for cascading
+-- - Implement enable input chaining
+-- - Support for larger encoder systems
+-- - Hierarchical priority resolution
+--
+-- CONFIGURABLE PRIORITY:
+-- - Add generic for priority direction
+-- - Support MSB-first or LSB-first priority
+-- - Runtime priority configuration
+-- - Application-specific priority schemes
+--
+-- PIPELINE STAGES:
+-- - Add pipeline registers for large encoders
+-- - Improve timing performance
+-- - Support high-frequency operation
+-- - Balance latency vs. throughput
+--
+-- ERROR DETECTION:
+-- - Add parity checking for input validation
+-- - Implement error flags for invalid states
+-- - Support for fault-tolerant operation
+-- - Built-in diagnostic capabilities
+--
+-- ============================================================================
+-- APPLICATIONS AND USE CASES:
+-- ============================================================================
+-- INTERRUPT CONTROLLERS:
+-- - Priority-based interrupt handling
+-- - Nested interrupt support
+-- - Real-time system control
+-- - Processor interface design
+--
+-- ARBITRATION CIRCUITS:
+-- - Bus arbitration systems
+-- - Resource allocation control
+-- - Multi-master system design
+-- - Fair access control
+--
+-- DATA COMPRESSION:
+-- - Huffman coding implementations
+-- - Variable-length encoding
+-- - Compression algorithm support
+-- - Entropy encoding systems
+--
+-- COMMUNICATION PROTOCOLS:
+-- - Priority-based message handling
+-- - Quality of Service (QoS) implementation
+-- - Network packet processing
+-- - Protocol stack optimization
+--
+-- ============================================================================
+-- PERFORMANCE CONSIDERATIONS:
+-- ============================================================================
+-- PROPAGATION DELAY:
+-- - Minimize logic levels in critical path
+-- - Consider input-to-output delay requirements
+-- - Balance speed vs. resource usage
+-- - Plan for timing constraints
+--
+-- RESOURCE UTILIZATION:
+-- - Optimize LUT usage for FPGA implementation
+-- - Consider memory vs. logic trade-offs
+-- - Minimize routing complexity
+-- - Plan for area-efficient implementation
+--
+-- POWER CONSUMPTION:
+-- - Minimize switching activity
+-- - Use clock gating where appropriate
+-- - Consider static power implications
+-- - Optimize for battery-powered applications
+--
+-- SCALABILITY:
+-- - Design for easy width expansion
+-- - Consider synthesis implications
+-- - Plan for modular implementation
+-- - Support for hierarchical design
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test priority encoding for all input combinations
+-- □ Verify highest priority input always wins
+-- □ Test valid signal generation
+-- □ Verify enable functionality
+-- □ Check output encoding correctness
+--
+-- EDGE CASE TESTING:
+-- □ Test with all inputs inactive
+-- □ Test with all inputs active
+-- □ Verify single input activation
+-- □ Test enable/disable transitions
+--
+-- TIMING VERIFICATION:
+-- □ Measure propagation delays
+-- □ Check setup and hold times
+-- □ Verify timing closure
+-- □ Test at maximum operating frequency
+--
+-- SYNTHESIS VERIFICATION:
+-- □ Verify synthesized logic matches specification
+-- □ Check resource utilization
+-- □ Analyze critical path timing
+-- □ Validate optimization results
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for basic logic types
+-- - IEEE.numeric_std.all for arithmetic operations
+-- - IEEE.math_real.all for mathematical functions (if needed)
+--
+-- [Add your entity declaration here]
+-- - Define generic parameters for input width
+-- - Define input vector port (data_in)
+-- - Define enable input port (optional)
+-- - Define encoded output port (calculated width)
+-- - Define valid output port
+-- - Add group select output for cascading (optional)
+--
+-- [Add your architecture implementation here]
+-- - Choose implementation approach (if-elsif, case, loop, or tree)
+-- - Implement priority resolution logic
+-- - Generate valid output signal
+-- - Handle enable functionality
+-- - Ensure proper output encoding
+-- - Add appropriate comments for clarity
+--
+-- ============================================================================

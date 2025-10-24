@@ -1,0 +1,618 @@
+-- ============================================================================
+-- ARM CORTEX-M0+ INTERFACE IMPLEMENTATION
+-- ============================================================================
+-- Project: ARM Cortex-M0+ Processor Interface Design
+-- Description: This project implements a comprehensive interface for ARM 
+--              Cortex-M0+ processors, providing enhanced ultra-low-power 
+--              microcontroller communication, control, and peripheral 
+--              integration for energy-efficient embedded systems.
+--
+-- Learning Objectives:
+-- 1. Understand ARM Cortex-M0+ architecture and ARMv6-M instruction set
+-- 2. Master AHB-Lite protocol for microcontroller systems
+-- 3. Learn ARM Cortex-M0+ 2-stage pipeline design
+-- 4. Implement NVIC (Nested Vectored Interrupt Controller)
+-- 5. Understand ultra-low-power design principles
+-- 6. Master bit-banding and memory protection
+-- 7. Learn debug interface (SWD/JTAG) integration
+-- 8. Implement power management and sleep modes
+-- 9. Understand system control and configuration
+-- 10. Master clock gating and power optimization
+--
+-- ARM Cortex-M0+ Overview:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Feature         │ Specification                                       │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ Architecture    │ ARMv6-M (32-bit)                                   │
+-- │ Pipeline        │ 2-stage (Fetch, Execute)                           │
+-- │ Cores           │ Single core                                        │
+-- │ Performance     │ 0.93 DMIPS/MHz                                     │
+-- │ Instructions    │ 56 instructions (Thumb subset)                     │
+-- │ Registers       │ 13 general purpose + SP + LR + PC                  │
+-- │ Stack Pointer   │ Main and Process stack pointers                    │
+-- │ Interrupts      │ NVIC with up to 32 external interrupts             │
+-- │ Debug           │ Serial Wire Debug (SWD) or JTAG                    │
+-- │ Memory          │ 4GB linear address space                           │
+-- │ Power           │ Ultra-low power (2.5 µA/MHz)                       │
+-- │ Frequency       │ Up to 50 MHz                                       │
+-- │ Process         │ 90nm-28nm                                           │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Cortex-M0+ System Architecture:
+-- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+-- │   Cortex-M0+    │    │      NVIC       │    │   Debug Access  │
+-- │   Processor     │◀──▶│   (Nested       │◀──▶│   Port (DAP)    │
+-- │   Core          │    │   Vectored      │    │                 │
+-- └─────────────────┘    │   Interrupt     │    └─────────────────┘
+--          │              │   Controller)   │             │
+--          ▼              └─────────────────┘             ▼
+-- ┌─────────────────┐              │              ┌─────────────────┐
+-- │   AHB-Lite      │              ▼              │   SWD/JTAG      │
+-- │   Bus Matrix    │    ┌─────────────────┐     │   Interface     │
+-- │                 │    │   System        │     │                 │
+-- └─────────────────┘    │   Control       │     └─────────────────┘
+--          │              │   Block         │             │
+--          ▼              └─────────────────┘             ▼
+-- ┌─────────────────┐              │              ┌─────────────────┐
+-- │   Memory        │              ▼              │   Micro Trace   │
+-- │   Protection    │    ┌─────────────────┐     │   Buffer (MTB)  │
+-- │   Unit (MPU)    │    │   Power         │     │   (Optional)    │
+-- │   (Optional)    │    │   Management    │     │                 │
+-- └─────────────────┘    └─────────────────┘     └─────────────────┘
+--
+-- AHB-Lite Interface Signals:
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Bus Type        │ Direction       │ Key Signals                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HSIZE, HBURST    │
+-- │ AHB-Lite        │ Slave→Master    │ HRDATA, HREADY, HRESP           │
+-- │ AHB-Lite        │ Master→Slave    │ HWDATA, HTRANS, HPROT           │
+-- │ System          │ Input           │ HCLK, HRESETn                   │
+-- │ Debug           │ Bidirectional   │ SWCLK, SWDIO                    │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- Memory Map (Cortex-M0+ Standard):
+-- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
+-- │ Address Range   │ Size            │ Description                     │
+-- ├─────────────────┼─────────────────┼─────────────────────────────────┤
+-- │ 0x0000_0000     │ 512MB           │ Code region (Flash/ROM)         │
+-- │ 0x2000_0000     │ 512MB           │ SRAM region                     │
+-- │ 0x4000_0000     │ 1GB             │ Peripheral region               │
+-- │ 0x8000_0000     │ 1GB             │ External RAM region             │
+-- │ 0xC000_0000     │ 512MB           │ External device region          │
+-- │ 0xE000_0000     │ 512MB           │ Private peripheral bus (PPB)    │
+-- └─────────────────┴─────────────────┴─────────────────────────────────┘
+--
+-- ARMv6-M Instruction Set:
+-- 1. **Thumb Instructions**:
+--    - 16-bit Thumb instruction set only
+--    - 56 instructions total
+--    - Load/store multiple
+--    - Branch and conditional branch
+--    - Arithmetic and logic operations
+--
+-- 2. **Memory Access**:
+--    - Unaligned memory access support
+--    - Little-endian memory system
+--    - Bit-banding support
+--    - Memory protection (optional MPU)
+--
+-- 3. **Exception Handling**:
+--    - Automatic state saving/restoring
+--    - Tail-chaining optimization
+--    - Late-arriving interrupt handling
+--    - Exception return mechanisms
+--
+-- 2-Stage Pipeline (Enhanced from M0):
+-- 1. **Fetch Stage**:
+--    - Instruction fetch from memory
+--    - Program counter management
+--    - Branch prediction (improved)
+--    - Instruction buffer
+--
+-- 2. **Execute Stage**:
+--    - Instruction decode
+--    - ALU operations
+--    - Memory access
+--    - Register writeback
+--    - Exception handling
+--
+-- NVIC (Nested Vectored Interrupt Controller):
+-- 1. **Interrupt Features**:
+--    - Up to 32 external interrupts
+--    - 4 priority levels (2 bits)
+--    - Automatic vectoring
+--    - Nested interrupt support
+--    - Tail-chaining optimization
+--    - Late-arriving interrupt handling
+--
+-- 2. **System Exceptions**:
+--    - Reset, NMI, Hard Fault
+--    - SVCall (Supervisor Call)
+--    - PendSV (Pendable Service)
+--    - SysTick timer interrupt
+--
+-- Power Management (Enhanced):
+-- 1. **Sleep Modes**:
+--    - Sleep mode (CPU clock stopped)
+--    - Deep sleep mode (system clock stopped)
+--    - Standby mode (minimal power)
+--    - Wake-up interrupt support
+--    - Fast wake-up capability
+--
+-- 2. **Power Optimization**:
+--    - Clock gating
+--    - Dynamic voltage scaling
+--    - Retention modes
+--    - Ultra-low leakage design
+--    - Power domain isolation
+--
+-- Debug Interface:
+-- 1. **Serial Wire Debug (SWD)**:
+--    - 2-pin debug interface
+--    - SWCLK and SWDIO signals
+--    - Debug access port (DAP)
+--    - Flash programming support
+--
+-- 2. **JTAG Interface**:
+--    - 4-pin JTAG interface
+--    - IEEE 1149.1 compliant
+--    - Boundary scan support
+--    - Debug and test access
+--
+-- 3. **Debug Features**:
+--    - 4 breakpoints
+--    - 2 watchpoints
+--    - Single-step execution
+--    - Register and memory access
+--
+-- 4. **Micro Trace Buffer (MTB)**:
+--    - Instruction trace capability
+--    - Circular buffer storage
+--    - Real-time trace data
+--    - Low-overhead tracing
+--
+-- System Control Block:
+-- 1. **Configuration**:
+--    - System control registers
+--    - Clock configuration
+--    - Reset and power management
+--    - Exception configuration
+--
+-- 2. **Status Monitoring**:
+--    - System status registers
+--    - Fault status and address
+--    - Debug status
+--    - Performance monitoring
+--
+-- Memory Protection Unit (MPU):
+-- 1. **Protection Features** (Optional):
+--    - Up to 8 memory regions
+--    - Access permission control
+--    - Memory attribute configuration
+--    - Fault detection and reporting
+--
+-- 2. **Configuration**:
+--    - Region base address
+--    - Region size and attributes
+--    - Access permissions
+--    - Enable/disable control
+--
+-- Key Interface Components:
+-- ┌─────────────────┬─────────────────────────────────────────────────────┐
+-- │ Component       │ Description                                         │
+-- ├─────────────────┼─────────────────────────────────────────────────────┤
+-- │ AHB-Lite Master │ System bus interface for memory and peripherals    │
+-- │ NVIC            │ Nested Vectored Interrupt Controller               │
+-- │ Debug Interface │ SWD/JTAG debug and programming interface           │
+-- │ System Control  │ Configuration and status registers                 │
+-- │ Power Management│ Ultra-low power control and sleep modes            │
+-- │ Clock Control   │ Clock gating and frequency management              │
+-- │ MPU (Optional)  │ Memory Protection Unit                             │
+-- │ Bit-banding     │ Atomic bit manipulation                            │
+-- │ MTB (Optional)  │ Micro Trace Buffer for instruction tracing        │
+-- └─────────────────┴─────────────────────────────────────────────────────┘
+--
+-- Design Specifications:
+-- - AHB-Lite Data Width: 32-bit
+-- - AHB-Lite Address Width: 32-bit (4GB address space)
+-- - Maximum Clock Frequency: 50 MHz
+-- - Interrupt Latency: 6 cycles
+-- - Memory Access: Single-cycle for zero-wait-state
+-- - Pipeline Depth: 2 stages (improved from M0)
+-- - Power Consumption: 2.5 µA/MHz (improved from M0)
+-- - Wake-up Time: 10 cycles from sleep
+-- - Code Density: High (Thumb-only)
+--
+-- Implementation Approaches:
+-- 1. **Minimal Configuration**:
+--    - Basic Cortex-M0+ core
+--    - Standard NVIC
+--    - SWD debug interface
+--    - Basic power management
+--
+-- 2. **Low-Power Configuration**:
+--    - Enhanced power management
+--    - Multiple sleep modes
+--    - Clock gating optimization
+--    - Retention memory support
+--
+-- 3. **Debug Configuration**:
+--    - Micro Trace Buffer (MTB)
+--    - Enhanced debug features
+--    - Real-time trace capability
+--    - Advanced breakpoints
+--
+-- 4. **Secure Configuration**:
+--    - Memory Protection Unit (MPU)
+--    - Secure boot support
+--    - Debug authentication
+--    - Tamper detection
+--
+-- Step-by-Step Implementation Guide:
+--
+-- Step 1: Define System Architecture
+-- - Select core configuration (standard/low-power/debug)
+-- - Define memory map and sizes
+-- - Specify AHB-Lite interface requirements
+-- - Choose debug interface (SWD/JTAG)
+-- - Configure power management features
+--
+-- Step 2: Implement AHB-Lite Interface Logic
+-- - Create AHB-Lite master interface
+-- - Add address decoding logic
+-- - Implement bus arbitration (if multiple masters)
+-- - Add wait state generation
+-- - Configure memory timing
+--
+-- Step 3: Add NVIC (Nested Vectored Interrupt Controller)
+-- - Connect external interrupt inputs
+-- - Implement priority handling
+-- - Add interrupt vectoring logic
+-- - Create system exception handling
+-- - Add interrupt masking and control
+--
+-- Step 4: Integrate Debug Interface
+-- - Add SWD or JTAG interface
+-- - Implement Debug Access Port (DAP)
+-- - Connect breakpoint and watchpoint logic
+-- - Add flash programming support
+-- - Implement debug authentication
+--
+-- Step 5: Add Micro Trace Buffer (Optional)
+-- - Implement instruction trace logic
+-- - Create circular buffer storage
+-- - Add trace data formatting
+-- - Implement trace control registers
+-- - Add trace output interface
+--
+-- Step 6: Add System Control Block
+-- - Create system control registers
+-- - Add clock configuration logic
+-- - Implement reset management
+-- - Add system status monitoring
+-- - Create exception configuration
+--
+-- Step 7: Implement Power Management
+-- - Add sleep mode control
+-- - Implement clock gating
+-- - Create wake-up logic
+-- - Add power domain control
+-- - Implement retention modes
+--
+-- Step 8: Add Memory Protection (Optional)
+-- - Implement MPU regions
+-- - Add access permission checking
+-- - Create fault detection logic
+-- - Add configuration registers
+-- - Implement protection violation handling
+--
+-- Step 9: Add Bit-banding Support
+-- - Implement bit-band alias regions
+-- - Add atomic bit manipulation
+-- - Create address translation logic
+-- - Add bit-band access control
+-- - Implement read-modify-write operations
+--
+-- Step 10: Add System Integration
+-- - Connect system tick timer
+-- - Add reset and clock management
+-- - Create system control registers
+-- - Add performance monitoring
+-- - Implement system exceptions
+--
+-- Required Libraries:
+-- - IEEE.std_logic_1164: Standard logic types
+-- - IEEE.numeric_std: Arithmetic operations
+-- - work.ahb_lite_pkg: AHB-Lite protocol definitions
+-- - work.nvic_pkg: NVIC interface definitions
+-- - work.cortex_m0plus_pkg: Cortex-M0+ specific constants
+-- - work.debug_pkg: Debug interface functions
+-- - work.power_pkg: Power management functions
+-- - work.mpu_pkg: Memory Protection Unit functions
+-- - work.system_pkg: System control functions
+-- - work.armv6m_pkg: ARMv6-M architecture functions
+-- - work.mtb_pkg: Micro Trace Buffer functions
+--
+-- Advanced Features:
+-- 1. **Ultra-Low Power**: Enhanced power management and sleep modes
+-- 2. **Debug Support**: Comprehensive debug and trace capabilities
+-- 3. **Memory Protection**: Optional MPU for security
+-- 4. **Bit-banding**: Atomic bit manipulation support
+-- 5. **Fast Interrupts**: Low-latency interrupt handling
+-- 6. **Clock Gating**: Dynamic power optimization
+-- 7. **Retention Modes**: State preservation in low power
+-- 8. **Micro Trace**: Instruction trace capability
+-- 9. **Fast Wake-up**: Improved wake-up performance
+-- 10. **Enhanced Pipeline**: 2-stage pipeline for better efficiency
+--
+-- Applications:
+-- - IoT sensor nodes
+-- - Wearable devices
+-- - Battery-powered systems
+-- - Home automation
+-- - Industrial sensors
+-- - Medical devices
+-- - Smart meters
+-- - Wireless sensor networks
+-- - Microcontroller applications
+-- - Ultra-low-power systems
+-- - Debug-intensive applications
+--
+-- Performance Considerations:
+-- - Code density and memory efficiency
+-- - Interrupt latency and response time
+-- - Power consumption optimization
+-- - Clock frequency vs. power trade-offs
+-- - Memory access patterns
+-- - Sleep/wake-up timing
+-- - Debug interface overhead
+-- - Trace buffer utilization
+-- - Pipeline efficiency
+--
+-- Verification Strategy:
+-- 1. **Instruction Testing**: ARMv6-M instruction set validation
+-- 2. **Bus Protocol Testing**: AHB-Lite protocol compliance
+-- 3. **Interrupt Testing**: NVIC functionality verification
+-- 4. **Debug Testing**: SWD/JTAG interface validation
+-- 5. **Power Testing**: Sleep modes and power consumption
+-- 6. **Memory Testing**: Memory access and protection
+-- 7. **Exception Testing**: Exception handling validation
+-- 8. **Trace Testing**: MTB functionality verification
+-- 9. **Integration Testing**: System-level validation
+-- 10. **Performance Testing**: Timing and throughput
+-- 11. **Compliance Testing**: ARM specification compliance
+--
+-- Common Design Challenges:
+-- - Ultra-low power design constraints
+-- - Clock domain crossing issues
+-- - Debug interface timing
+-- - Interrupt latency optimization
+-- - Memory protection complexity
+-- - Power management state machines
+-- - Reset and initialization sequences
+-- - Trace buffer management
+-- - Pipeline optimization
+-- - Real-time response requirements
+--
+-- Verification Checklist:
+-- □ AHB-Lite master interface functional and compliant
+-- □ NVIC interrupt handling working correctly
+-- □ Debug interface (SWD/JTAG) operational
+-- □ System control registers accessible
+-- □ Power management and sleep modes functional
+-- □ Clock gating and power optimization working
+-- □ Memory protection (MPU) functional (if enabled)
+-- □ Bit-banding operations working correctly
+-- □ Exception handling validated
+-- □ Interrupt latency meets requirements
+-- □ Power consumption within specifications
+-- □ Wake-up timing validated
+-- □ Debug and programming functional
+-- □ Trace functionality operational (if enabled)
+-- □ Pipeline efficiency validated
+-- □ System integration validated
+-- □ Performance targets achieved
+-- □ Long-term reliability demonstrated
+-- □ Compliance with ARM specifications verified
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- Step 1: Add library declarations
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.ahb_lite_pkg.all;
+-- use work.nvic_pkg.all;
+-- use work.cortex_m0plus_pkg.all;
+-- use work.debug_pkg.all;
+-- use work.power_pkg.all;
+-- use work.mpu_pkg.all;
+-- use work.system_pkg.all;
+-- use work.armv6m_pkg.all;
+-- use work.mtb_pkg.all;
+--
+-- Step 2: Define your entity with appropriate generics and ports
+-- entity cortex_m0plus_interface is
+--     generic (
+--         ENABLE_MPU      : boolean := false;       -- Memory Protection Unit
+--         ENABLE_DEBUG    : boolean := true;        -- Debug interface
+--         DEBUG_TYPE      : string  := "SWD";       -- "SWD" or "JTAG"
+--         ENABLE_MTB      : boolean := false;       -- Micro Trace Buffer
+--         MTB_SIZE        : integer := 1024;        -- MTB size in bytes
+--         NUM_INTERRUPTS  : integer := 32;          -- External interrupts
+--         PRIORITY_BITS   : integer := 2;           -- Priority levels (4)
+--         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit AHB-Lite
+--         AHB_ADDR_WIDTH  : integer := 32;          -- 32-bit address
+--         ENABLE_BITBAND  : boolean := true;        -- Bit-banding support
+--         CLOCK_FREQ      : integer := 50000000;    -- 50 MHz max
+--         LOW_POWER_MODE  : boolean := true;        -- Enhanced power mgmt
+--         RETENTION_REGS  : integer := 16;          -- Retention registers
+--         FAST_WAKEUP     : boolean := true         -- Fast wake-up feature
+--     );
+--     port (
+--         -- System signals
+--         hclk            : in  std_logic;
+--         hresetn         : in  std_logic;
+--         
+--         -- AHB-Lite Master interface
+--         haddr           : out std_logic_vector(AHB_ADDR_WIDTH-1 downto 0);
+--         htrans          : out std_logic_vector(1 downto 0);
+--         hwrite          : out std_logic;
+--         hsize           : out std_logic_vector(2 downto 0);
+--         hburst          : out std_logic_vector(2 downto 0);
+--         hprot           : out std_logic_vector(3 downto 0);
+--         hwdata          : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hrdata          : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
+--         hready          : in  std_logic;
+--         hresp           : in  std_logic;
+--         
+--         -- NVIC (Nested Vectored Interrupt Controller)
+--         nvic_irq        : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_nmi        : in  std_logic;
+--         nvic_priority   : in  std_logic_vector(PRIORITY_BITS*NUM_INTERRUPTS-1 downto 0);
+--         nvic_enable     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_pending    : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         nvic_active     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         
+--         -- System exceptions
+--         sys_reset       : in  std_logic;
+--         sys_nmi         : in  std_logic;
+--         sys_hardfault   : out std_logic;
+--         sys_svcall      : out std_logic;
+--         sys_pendsv      : out std_logic;
+--         sys_systick     : out std_logic;
+--         
+--         -- Debug interface (SWD)
+--         swclk           : in  std_logic;
+--         swdio           : inout std_logic;
+--         swo             : out std_logic;
+--         
+--         -- Debug interface (JTAG) - alternative to SWD
+--         jtag_tck        : in  std_logic;
+--         jtag_tms        : in  std_logic;
+--         jtag_tdi        : in  std_logic;
+--         jtag_tdo        : out std_logic;
+--         jtag_trst_n     : in  std_logic;
+--         
+--         -- Debug control and status
+--         debug_req       : in  std_logic;
+--         debug_ack       : out std_logic;
+--         halt_req        : in  std_logic;
+--         halt_ack        : out std_logic;
+--         step_req        : in  std_logic;
+--         step_ack        : out std_logic;
+--         
+--         -- Breakpoints and watchpoints
+--         bp_addr         : in  std_logic_vector(4*32-1 downto 0);  -- 4 breakpoints
+--         bp_enable       : in  std_logic_vector(3 downto 0);
+--         bp_hit          : out std_logic_vector(3 downto 0);
+--         wp_addr         : in  std_logic_vector(2*32-1 downto 0);  -- 2 watchpoints
+--         wp_enable       : in  std_logic_vector(1 downto 0);
+--         wp_hit          : out std_logic_vector(1 downto 0);
+--         
+--         -- Micro Trace Buffer (MTB) - optional
+--         mtb_enable      : in  std_logic;
+--         mtb_master      : out std_logic_vector(31 downto 0);
+--         mtb_base        : in  std_logic_vector(31 downto 0);
+--         mtb_flow        : out std_logic_vector(31 downto 0);
+--         mtb_position    : out std_logic_vector(31 downto 0);
+--         
+--         -- Memory Protection Unit (MPU) - optional
+--         mpu_enable      : in  std_logic;
+--         mpu_region_base : in  std_logic_vector(8*32-1 downto 0);  -- 8 regions
+--         mpu_region_attr : in  std_logic_vector(8*16-1 downto 0);
+--         mpu_region_en   : in  std_logic_vector(7 downto 0);
+--         mpu_fault       : out std_logic;
+--         mpu_fault_addr  : out std_logic_vector(31 downto 0);
+--         
+--         -- Power management (enhanced)
+--         pm_sleep_req    : in  std_logic;
+--         pm_sleep_ack    : out std_logic;
+--         pm_deepsleep_req: in  std_logic;
+--         pm_deepsleep_ack: out std_logic;
+--         pm_standby_req  : in  std_logic;
+--         pm_standby_ack  : out std_logic;
+--         pm_wakeup       : in  std_logic;
+--         pm_wakeup_ack   : out std_logic;
+--         pm_fast_wakeup  : in  std_logic;
+--         pm_fast_wakeup_ack : out std_logic;
+--         
+--         -- Clock gating and control
+--         clk_gate_en     : in  std_logic;
+--         clk_gate_ack    : out std_logic;
+--         cpu_clk_en      : out std_logic;
+--         sys_clk_en      : out std_logic;
+--         dbg_clk_en      : out std_logic;
+--         trace_clk_en    : out std_logic;
+--         
+--         -- System control
+--         sys_ctrl_addr   : in  std_logic_vector(11 downto 0);
+--         sys_ctrl_wdata  : in  std_logic_vector(31 downto 0);
+--         sys_ctrl_rdata  : out std_logic_vector(31 downto 0);
+--         sys_ctrl_wen    : in  std_logic;
+--         sys_ctrl_ren    : in  std_logic;
+--         sys_ctrl_ready  : out std_logic;
+--         
+--         -- Status and monitoring
+--         cpu_state       : out std_logic_vector(3 downto 0);
+--         cpu_halted      : out std_logic;
+--         cpu_sleeping    : out std_logic;
+--         cpu_lockup      : out std_logic;
+--         exception_num   : out std_logic_vector(7 downto 0);
+--         exception_active: out std_logic;
+--         
+--         -- Bit-banding interface
+--         bitband_addr    : in  std_logic_vector(31 downto 0);
+--         bitband_bit     : in  std_logic_vector(4 downto 0);
+--         bitband_write   : in  std_logic;
+--         bitband_wdata   : in  std_logic;
+--         bitband_rdata   : out std_logic;
+--         bitband_ready   : out std_logic;
+--         
+--         -- Performance monitoring
+--         perf_cycle_count: out std_logic_vector(31 downto 0);
+--         perf_inst_count : out std_logic_vector(31 downto 0);
+--         perf_sleep_count: out std_logic_vector(31 downto 0);
+--         perf_int_count  : out std_logic_vector(15 downto 0);
+--         perf_trace_count: out std_logic_vector(15 downto 0);
+--         
+--         -- Temperature and voltage monitoring
+--         temp_sensor     : in  std_logic_vector(11 downto 0);
+--         volt_sensor     : in  std_logic_vector(11 downto 0);
+--         temp_alarm      : out std_logic;
+--         volt_alarm      : out std_logic;
+--         
+--         -- Retention registers for low-power modes
+--         retention_data  : inout std_logic_vector(RETENTION_REGS*32-1 downto 0);
+--         retention_valid : out std_logic_vector(RETENTION_REGS-1 downto 0)
+--     );
+-- end entity cortex_m0plus_interface;
+--
+-- Step 3: Create your architecture
+-- architecture rtl of cortex_m0plus_interface is
+--     -- Component declarations for Cortex-M0+ core
+--     -- Component declarations for NVIC, debug interface, MTB
+--     -- Signal declarations for internal connections
+--     -- Constants for memory mapping and configuration
+-- begin
+--     -- Instantiate Cortex-M0+ processor core
+--     -- Instantiate NVIC (Nested Vectored Interrupt Controller)
+--     -- Add debug interface (SWD or JTAG)
+--     -- Implement Micro Trace Buffer (if enabled)
+--     -- Implement system control block
+--     -- Add power management logic
+--     -- Connect memory protection unit (if enabled)
+--     -- Implement bit-banding support
+--     -- Add performance monitoring
+-- end architecture rtl;
+--
+-- ============================================================================
+-- Remember: Cortex-M0+ interface design focuses on enhanced ultra-low-power 
+-- applications with improved efficiency and debug capabilities. Always consult 
+-- the ARM Cortex-M0+ Technical Reference Manual and ARMv6-M Architecture Manual 
+-- for detailed specifications.
+-- ============================================================================

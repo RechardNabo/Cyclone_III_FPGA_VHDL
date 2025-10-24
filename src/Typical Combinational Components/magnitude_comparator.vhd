@@ -1,0 +1,313 @@
+-- ============================================================================
+-- PROJECT: Magnitude Comparator Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements a magnitude comparator using VHDL. A magnitude
+-- comparator is a combinational logic circuit that compares two binary numbers
+-- and determines their relative magnitudes. It produces outputs indicating
+-- whether the first number is greater than, less than, or equal to the second
+-- number. This component is essential for arithmetic operations, sorting
+-- algorithms, and control systems.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand binary number comparison techniques
+-- - Learn bit-by-bit comparison algorithms
+-- - Practice with cascading and expandable designs
+-- - Implement efficient comparison logic
+-- - Master signed and unsigned number handling
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - a: First input number (N-bit vector)
+-- - b: Second input number (N-bit vector)
+-- - a_gt_b_in: Cascade input for A > B (for expandable design)
+-- - a_eq_b_in: Cascade input for A = B (for expandable design)
+-- - a_lt_b_in: Cascade input for A < B (for expandable design)
+-- - signed_mode: Mode select (0=unsigned, 1=signed comparison)
+-- 
+-- OUTPUTS:
+-- - a_gt_b: Output indicating A > B
+-- - a_eq_b: Output indicating A = B
+-- - a_lt_b: Output indicating A < B
+-- - a_gt_b_out: Cascade output for A > B (for expandable design)
+-- - a_eq_b_out: Cascade output for A = B (for expandable design)
+-- - a_lt_b_out: Cascade output for A < B (for expandable design)
+--
+-- FUNCTIONALITY:
+-- - Compares two N-bit binary numbers
+-- - Supports both signed and unsigned comparison
+-- - Provides cascading capability for wider comparisons
+-- - Generates mutually exclusive outputs
+-- - Single clock cycle operation
+--
+-- ============================================================================
+-- TRUTH TABLE (4-bit Example):
+-- ============================================================================
+-- A3|A2|A1|A0| B3|B2|B1|B0| A>B | A=B | A<B
+-- --|--|--|--| --|--|--|--| --- | --- | ---
+--  0| 0| 0| 0|  0| 0| 0| 0|  0  |  1  |  0
+--  0| 0| 0| 1|  0| 0| 0| 0|  1  |  0  |  0
+--  0| 0| 0| 0|  0| 0| 0| 1|  0  |  0  |  1
+--  1| 0| 1| 1|  1| 0| 1| 0|  1  |  0  |  0
+--  1| 0| 1| 0|  1| 0| 1| 1|  0  |  0  |  1
+--  1| 1| 1| 1|  1| 1| 1| 1|  0  |  1  |  0
+--
+-- Note: Only one output is active at any time (mutually exclusive)
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. BIT-BY-BIT COMPARISON:
+--    - Compare bits starting from MSB
+--    - Stop at first unequal bit pair
+--    - Simple and intuitive approach
+--    - Good for educational purposes
+--    - May have longer propagation delay
+--
+-- 2. PARALLEL COMPARISON:
+--    - Generate all bit comparisons simultaneously
+--    - Use priority encoding for final result
+--    - Faster operation
+--    - More complex logic
+--    - Better for high-speed applications
+--
+-- 3. ARITHMETIC SUBTRACTION:
+--    - Perform A - B and check result
+--    - Use sign and zero flags
+--    - Leverages existing arithmetic units
+--    - May require additional hardware
+--    - Good for processor implementations
+--
+-- 4. CASCADED DESIGN:
+--    - Build from smaller comparator blocks
+--    - Supports arbitrary word widths
+--    - Modular and scalable approach
+--    - Enables hierarchical design
+--    - Good for FPGA implementations
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- SIGNED VS UNSIGNED:
+-- - Understand two's complement representation
+-- - Handle sign bit comparison correctly
+-- - Consider overflow conditions
+-- - Plan for mode selection
+--
+-- PROPAGATION DELAY:
+-- - Minimize critical path length
+-- - Consider bit-width impact on delay
+-- - Plan for timing optimization
+-- - Balance speed vs. resources
+--
+-- CASCADING CAPABILITY:
+-- - Design for expandable word widths
+-- - Implement proper cascade logic
+-- - Consider cascade delay accumulation
+-- - Plan for modular construction
+--
+-- RESOURCE OPTIMIZATION:
+-- - Minimize logic gate count
+-- - Share common sub-expressions
+-- - Consider LUT utilization in FPGAs
+-- - Optimize for target technology
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ENTITY DECLARATION
+-- □ Define input word width using generics
+-- □ Define input ports for numbers A and B
+-- □ Define cascade input ports (optional)
+-- □ Define comparison output ports
+-- □ Add mode selection for signed/unsigned
+-- □ Include comprehensive port descriptions
+--
+-- STEP 2: ARCHITECTURE PLANNING
+-- □ Choose implementation approach
+-- □ Plan for signed/unsigned handling
+-- □ Design cascade logic structure
+-- □ Consider timing requirements
+--
+-- STEP 3: COMPARISON LOGIC
+-- □ Implement bit-by-bit comparison
+-- □ Handle MSB-to-LSB priority
+-- □ Generate intermediate comparison results
+-- □ Ensure mutually exclusive outputs
+--
+-- STEP 4: SIGNED NUMBER HANDLING
+-- □ Implement sign bit comparison
+-- □ Handle two's complement representation
+-- □ Add mode selection logic
+-- □ Ensure correct signed comparison
+--
+-- STEP 5: CASCADE IMPLEMENTATION
+-- □ Add cascade input processing
+-- □ Implement cascade output generation
+-- □ Ensure proper cascade priority
+-- □ Test cascade functionality
+--
+-- STEP 6: VERIFICATION PLANNING
+-- □ Create comprehensive test vectors
+-- □ Test all comparison scenarios
+-- □ Verify cascade functionality
+-- □ Check signed/unsigned modes
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Provides std_logic and std_logic_vector types
+-- - Essential for digital logic design
+-- - Supports multi-valued logic
+--
+-- IEEE.numeric_std.all:
+-- - Provides unsigned and signed types
+-- - Includes comparison operators
+-- - Supports arithmetic operations
+-- - Enables type conversions
+--
+-- IEEE.std_logic_unsigned.all (alternative):
+-- - Provides unsigned arithmetic for std_logic_vector
+-- - Simpler syntax for unsigned operations
+-- - May be deprecated in newer standards
+-- - Consider numeric_std instead
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- MULTI-INPUT COMPARISON:
+-- - Compare more than two numbers simultaneously
+-- - Find minimum or maximum of multiple inputs
+-- - Implement tournament-style comparison
+-- - Support for sorting applications
+--
+-- THRESHOLD COMPARISON:
+-- - Compare against fixed threshold values
+-- - Implement range checking (within bounds)
+-- - Support for window comparators
+-- - Useful for control applications
+--
+-- PIPELINE STAGES:
+-- - Add pipeline registers for high-speed operation
+-- - Support for multi-cycle comparison
+-- - Improved timing closure
+-- - Higher throughput capability
+--
+-- BUILT-IN ARITHMETIC:
+-- - Integrate with adder/subtractor units
+-- - Provide difference output
+-- - Support for magnitude calculation
+-- - Enhanced arithmetic capabilities
+--
+-- ============================================================================
+-- APPLICATIONS AND USE CASES:
+-- ============================================================================
+-- ARITHMETIC UNITS:
+-- - Part of ALU implementations
+-- - Branch condition evaluation
+-- - Conditional execution control
+-- - Overflow detection systems
+--
+-- SORTING ALGORITHMS:
+-- - Bubble sort implementations
+-- - Quick sort partitioning
+-- - Merge sort operations
+-- - Priority queue management
+--
+-- CONTROL SYSTEMS:
+-- - Threshold detection
+-- - Limit checking
+-- - Safety interlock systems
+-- - Process control applications
+--
+-- DATA PROCESSING:
+-- - Min/max finding algorithms
+-- - Statistical analysis
+-- - Signal processing applications
+-- - Database operations
+--
+-- ============================================================================
+-- PERFORMANCE CONSIDERATIONS:
+-- ============================================================================
+-- PROPAGATION DELAY:
+-- - Bit-by-bit: O(N) delay where N is bit width
+-- - Parallel: O(log N) delay with tree structure
+-- - Consider critical path optimization
+-- - Plan for timing requirements
+--
+-- RESOURCE UTILIZATION:
+-- - Gate count increases with bit width
+-- - Consider LUT utilization in FPGAs
+-- - Balance resources vs. performance
+-- - Optimize for target technology
+--
+-- POWER CONSUMPTION:
+-- - Minimize switching activity
+-- - Use enable signals effectively
+-- - Consider clock gating
+-- - Optimize for low-power operation
+--
+-- SCALABILITY:
+-- - Design for easy width expansion
+-- - Consider synthesis implications
+-- - Plan for modular implementation
+-- - Support hierarchical design
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test A > B condition for various inputs
+-- □ Test A = B condition (including all zeros, all ones)
+-- □ Test A < B condition for various inputs
+-- □ Verify mutually exclusive outputs
+-- □ Test signed number comparison
+-- □ Test unsigned number comparison
+--
+-- BOUNDARY TESTING:
+-- □ Test with maximum positive values
+-- □ Test with maximum negative values (signed mode)
+-- □ Test with zero values
+-- □ Test with alternating bit patterns
+-- □ Test cascade functionality
+--
+-- TIMING VERIFICATION:
+-- □ Measure propagation delays
+-- □ Check setup and hold times
+-- □ Verify timing closure
+-- □ Test at maximum operating frequency
+--
+-- SYNTHESIS VERIFICATION:
+-- □ Verify synthesized logic matches specification
+-- □ Check resource utilization
+-- □ Analyze critical path timing
+-- □ Validate optimization results
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for basic logic types
+-- - IEEE.numeric_std.all for arithmetic and comparison operations
+--
+-- [Add your entity declaration here]
+-- - Define generic parameters for data width
+-- - Define input ports for numbers A and B
+-- - Define cascade input ports (optional)
+-- - Define signed/unsigned mode selection
+-- - Define comparison output ports (A>B, A=B, A<B)
+-- - Add cascade output ports (optional)
+--
+-- [Add your architecture implementation here]
+-- - Choose implementation approach (bit-by-bit or parallel)
+-- - Implement comparison logic for all cases
+-- - Handle signed/unsigned mode selection
+-- - Add cascade input/output processing
+-- - Ensure mutually exclusive outputs
+-- - Add appropriate comments for clarity
+--
+-- ============================================================================

@@ -1,0 +1,240 @@
+-- ============================================================================
+-- PROJECT: SR Latch Design
+-- ============================================================================
+-- DESCRIPTION:
+-- This project implements an SR (Set-Reset) latch using VHDL. An SR latch is
+-- a fundamental sequential logic circuit that can store one bit of information.
+-- It has two inputs (Set and Reset) and two complementary outputs (Q and Q_N).
+-- The latch is level-sensitive and changes state immediately when inputs change,
+-- making it an asynchronous sequential circuit.
+--
+-- LEARNING OBJECTIVES:
+-- - Understand basic sequential logic and bistable circuits
+-- - Learn the difference between latches and flip-flops
+-- - Practice with feedback loops and cross-coupled gates
+-- - Implement asynchronous sequential logic in VHDL
+-- - Understand race conditions and hazards in sequential circuits
+--
+-- ============================================================================
+-- DESIGN SPECIFICATIONS:
+-- ============================================================================
+-- INPUTS:
+-- - s: Set input signal (active high)
+-- - r: Reset input signal (active high)
+-- 
+-- OUTPUTS:
+-- - q: Primary output signal
+-- - q_n: Complementary output signal (NOT Q)
+--
+-- FUNCTIONALITY:
+-- - When S = '1', R = '0': Q = '1', Q_N = '0' (Set state)
+-- - When S = '0', R = '1': Q = '0', Q_N = '1' (Reset state)
+-- - When S = '0', R = '0': Q and Q_N maintain previous state (Hold state)
+-- - When S = '1', R = '1': Forbidden state (undefined behavior)
+--
+-- ============================================================================
+-- TRUTH TABLE:
+-- ============================================================================
+-- S | R | Q(next) | Q_N(next) | State
+-- --|---|---------|-----------|--------
+-- 0 | 0 |   Q     |    Q_N    | Hold
+-- 0 | 1 |   0     |     1     | Reset
+-- 1 | 0 |   1     |     0     | Set
+-- 1 | 1 |   X     |     X     | Forbidden
+--
+-- ============================================================================
+-- IMPLEMENTATION APPROACHES:
+-- ============================================================================
+-- 1. CROSS-COUPLED NOR GATES:
+--    - Traditional implementation using NOR gates
+--    - Q = NOT(R OR Q_N), Q_N = NOT(S OR Q)
+--    - Clear hardware mapping
+--    - Easy to understand feedback mechanism
+--
+-- 2. CROSS-COUPLED NAND GATES:
+--    - Alternative implementation using NAND gates
+--    - Requires inverted inputs (active-low S and R)
+--    - Common in integrated circuits
+--    - Different forbidden state behavior
+--
+-- 3. BEHAVIORAL MODELING:
+--    - High-level description using case statements
+--    - Process-based implementation
+--    - Easier to handle forbidden states
+--    - More abstract representation
+--
+-- ============================================================================
+-- DESIGN CONSIDERATIONS:
+-- ============================================================================
+-- RACE CONDITIONS:
+-- - Understand potential race conditions in feedback loops
+-- - Consider simultaneous input changes
+-- - Analyze propagation delays in feedback path
+-- - Plan for glitch-free operation
+--
+-- FORBIDDEN STATE HANDLING:
+-- - Define behavior when both S and R are active
+-- - Consider priority encoding (S over R or vice versa)
+-- - Implement error detection for forbidden states
+-- - Document expected behavior clearly
+--
+-- TIMING ANALYSIS:
+-- - Calculate propagation delays through feedback loop
+-- - Consider setup and hold times for inputs
+-- - Analyze minimum pulse width requirements
+-- - Plan for timing closure
+--
+-- METASTABILITY:
+-- - Understand metastability risks with simultaneous inputs
+-- - Consider input synchronization if needed
+-- - Plan for recovery time requirements
+-- - Implement proper timing constraints
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+-- STEP 1: ENTITY DECLARATION
+-- □ Define Set and Reset input ports
+-- □ Define Q and Q_N output ports
+-- □ Consider adding enable signal if needed
+-- □ Add comprehensive port descriptions
+--
+-- STEP 2: ARCHITECTURE SELECTION
+-- □ Choose between structural and behavioral approaches
+-- □ Plan for forbidden state handling
+-- □ Consider timing requirements
+-- □ Select appropriate modeling style
+--
+-- STEP 3: LOGIC IMPLEMENTATION
+-- □ Implement cross-coupled gate logic or behavioral model
+-- □ Handle all input combinations including forbidden state
+-- □ Ensure complementary outputs are truly complementary
+-- □ Add appropriate signal assignments
+--
+-- STEP 4: FORBIDDEN STATE HANDLING
+-- □ Define behavior for S = R = '1' condition
+-- □ Consider priority schemes or error indication
+-- □ Document chosen approach clearly
+-- □ Test forbidden state recovery
+--
+-- STEP 5: VERIFICATION PLANNING
+-- □ Create comprehensive test vectors
+-- □ Test all valid state transitions
+-- □ Verify forbidden state behavior
+-- □ Check timing relationships
+--
+-- ============================================================================
+-- REQUIRED LIBRARIES:
+-- ============================================================================
+-- IEEE.std_logic_1164.all:
+-- - Provides std_logic and std_logic_vector types
+-- - Essential for digital logic design
+-- - Includes resolution functions for feedback
+--
+-- IEEE.numeric_std.all:
+-- - Provides unsigned and signed types (if needed)
+-- - Useful for timing calculations
+-- - Includes conversion functions
+--
+-- ============================================================================
+-- ADVANCED FEATURES TO CONSIDER:
+-- ============================================================================
+-- GATED SR LATCH:
+-- - Add enable (gate) signal for controlled operation
+-- - Implement transparent latch functionality
+-- - Support for clock-like control signals
+-- - Enable synchronous operation modes
+--
+-- PRIORITY ENCODING:
+-- - Implement Set-priority or Reset-priority schemes
+-- - Handle forbidden state gracefully
+-- - Provide predictable behavior
+-- - Add status outputs for conflict detection
+--
+-- MULTIPLE LATCHES:
+-- - Create arrays of SR latches
+-- - Implement parallel latch banks
+-- - Support for register-like functionality
+-- - Enable efficient resource utilization
+--
+-- BUILT-IN TESTING:
+-- - Add test modes for manufacturing test
+-- - Implement scan chain capability
+-- - Include built-in self-test features
+-- - Support design-for-test methodologies
+--
+-- ============================================================================
+-- APPLICATIONS AND USE CASES:
+-- ============================================================================
+-- MEMORY ELEMENTS:
+-- - Basic storage element in memory systems
+-- - Building block for more complex sequential circuits
+-- - State storage in control systems
+-- - Temporary data holding
+--
+-- CONTROL SYSTEMS:
+-- - Start/stop control in industrial systems
+-- - Alarm and status indication
+-- - Interlock systems for safety
+-- - Mode selection and control
+--
+-- DEBOUNCING CIRCUITS:
+-- - Switch debouncing applications
+-- - Contact bounce elimination
+-- - Clean digital signal generation
+-- - Interface conditioning
+--
+-- OSCILLATORS:
+-- - Building block for ring oscillators
+-- - Relaxation oscillator circuits
+-- - Clock generation systems
+-- - Timing reference circuits
+--
+-- ============================================================================
+-- VERIFICATION CHECKLIST:
+-- ============================================================================
+-- FUNCTIONAL VERIFICATION:
+-- □ Test Set operation (S=1, R=0)
+-- □ Test Reset operation (S=0, R=1)
+-- □ Test Hold operation (S=0, R=0)
+-- □ Test forbidden state behavior (S=1, R=1)
+-- □ Verify complementary outputs are truly complementary
+--
+-- TIMING VERIFICATION:
+-- □ Measure propagation delays for all transitions
+-- □ Check minimum pulse width requirements
+-- □ Verify setup and hold times
+-- □ Test recovery from forbidden state
+--
+-- STABILITY VERIFICATION:
+-- □ Check for oscillations in feedback loop
+-- □ Verify stable operation under all conditions
+-- □ Test with varying supply voltages
+-- □ Check temperature stability
+--
+-- SYNTHESIS VERIFICATION:
+-- □ Verify synthesized logic matches specification
+-- □ Check for unwanted latches or flip-flops
+-- □ Analyze resource utilization
+-- □ Validate timing closure
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+-- - IEEE.std_logic_1164.all for basic logic types
+-- - IEEE.numeric_std.all if needed for calculations
+--
+-- [Add your entity declaration here]
+-- - Define input ports: s, r
+-- - Define output ports: q, q_n
+-- - Add enable signal if implementing gated latch
+--
+-- [Add your architecture implementation here]
+-- - Choose structural (cross-coupled gates) or behavioral approach
+-- - Implement SR latch logic with forbidden state handling
+-- - Ensure complementary outputs
+-- - Add appropriate comments for clarity
+--
+-- ============================================================================

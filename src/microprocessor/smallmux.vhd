@@ -1,0 +1,715 @@
+-- ============================================================================
+-- Microprocessor Small Multiplexer Implementation - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file implements a Small Multiplexer for a microprocessor that provides
+-- efficient data path selection and routing for smaller data widths or fewer
+-- input sources. The small multiplexer serves as a fundamental building block
+-- in the processor's datapath, enabling selection between different data sources
+-- such as immediate values, register outputs, or control signals. This implementation
+-- focuses on low-latency operation, minimal area overhead, and integration with
+-- the processor's control and timing systems.
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand small multiplexer design and optimization techniques
+-- 2. Learn efficient data path selection for constrained resources
+-- 3. Practice low-latency multiplexer implementation
+-- 4. Understand area-optimized multiplexer architectures
+-- 5. Learn integration with processor control signals
+-- 6. Practice timing-critical path optimization
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations and type conversions
+-- - Consider additional packages for multiplexer utilities and optimization
+-- 
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_std.all;
+-- TODO: Consider adding work.mux_pkg.all for multiplexer utilities
+-- TODO: Consider adding work.microprocessor_pkg.all for system definitions
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the microprocessor small multiplexer
+--
+-- Entity Requirements:
+-- - Name: smallmux (maintain current naming convention)
+-- - System control inputs (clock, reset, enable)
+-- - Multiple data input ports
+-- - Selection control interface
+-- - Single data output port
+--
+-- Port Specifications:
+-- System Interface:
+-- - clk : in std_logic (System clock)
+-- - reset : in std_logic (System reset, active high)
+-- - enable : in std_logic (Multiplexer enable)
+-- - select_enable : in std_logic (Selection enable)
+--
+-- Data Input Interface:
+-- - data_in_0 : in std_logic_vector(DATA_WIDTH-1 downto 0) (Input 0)
+-- - data_in_1 : in std_logic_vector(DATA_WIDTH-1 downto 0) (Input 1)
+-- - data_in_2 : in std_logic_vector(DATA_WIDTH-1 downto 0) (Input 2)
+-- - data_in_3 : in std_logic_vector(DATA_WIDTH-1 downto 0) (Input 3)
+-- - data_valid_0 : in std_logic (Input 0 valid)
+-- - data_valid_1 : in std_logic (Input 1 valid)
+-- - data_valid_2 : in std_logic (Input 2 valid)
+-- - data_valid_3 : in std_logic (Input 3 valid)
+--
+-- Selection Interface:
+-- - select_in : in std_logic_vector(SELECT_WIDTH-1 downto 0) (Selection input)
+-- - select_valid : in std_logic (Selection valid)
+-- - select_priority : in std_logic_vector(1 downto 0) (Selection priority)
+-- - select_mode : in std_logic_vector(1 downto 0) (Selection mode)
+--
+-- Data Output Interface:
+-- - data_out : out std_logic_vector(DATA_WIDTH-1 downto 0) (Output data)
+-- - data_valid_out : out std_logic (Output valid)
+-- - output_ready : out std_logic (Output ready)
+-- - output_error : out std_logic (Output error)
+--
+-- Control Interface:
+-- - bypass_enable : in std_logic (Bypass enable)
+-- - bypass_select : in std_logic_vector(SELECT_WIDTH-1 downto 0) (Bypass selection)
+-- - default_select : in std_logic_vector(SELECT_WIDTH-1 downto 0) (Default selection)
+-- - force_output : in std_logic (Force output)
+-- - output_disable : in std_logic (Output disable)
+--
+-- Pipeline Interface:
+-- - pipeline_enable : in std_logic (Pipeline enable)
+-- - pipeline_flush : in std_logic (Pipeline flush)
+-- - pipeline_stall : in std_logic (Pipeline stall)
+-- - stage_valid : out std_logic (Stage valid)
+-- - stage_ready : out std_logic (Stage ready)
+--
+-- Debug Interface:
+-- - debug_enable : in std_logic (Debug enable)
+-- - debug_select : in std_logic_vector(SELECT_WIDTH-1 downto 0) (Debug selection)
+-- - debug_data : out std_logic_vector(DATA_WIDTH-1 downto 0) (Debug data)
+-- - debug_valid : out std_logic (Debug valid)
+-- - mux_state : out std_logic_vector(3 downto 0) (Multiplexer state)
+--
+-- Status Interface:
+-- - mux_ready : out std_logic (Multiplexer ready)
+-- - select_error : out std_logic (Selection error)
+-- - input_conflict : out std_logic (Input conflict)
+-- - timing_violation : out std_logic (Timing violation)
+-- - utilization : out std_logic_vector(7 downto 0) (Utilization)
+--
+-- Test Interface:
+-- - test_mode : in std_logic (Test mode enable)
+-- - scan_enable : in std_logic (Scan enable)
+-- - scan_in : in std_logic (Scan input)
+-- - scan_out : out std_logic (Scan output)
+-- - bist_enable : in std_logic (Built-in self test enable)
+-- - bist_done : out std_logic (BIST done)
+-- - bist_pass : out std_logic (BIST pass)
+--
+-- Performance Interface:
+-- - select_count : out std_logic_vector(31 downto 0) (Selection count)
+-- - switch_count : out std_logic_vector(31 downto 0) (Switch count)
+-- - error_count : out std_logic_vector(31 downto 0) (Error count)
+-- - latency_measure : out std_logic_vector(15 downto 0) (Latency measurement)
+--
+-- ============================================================================
+-- STEP 3: SMALL MULTIPLEXER PRINCIPLES
+-- ============================================================================
+--
+-- Small Multiplexer Fundamentals:
+-- 1. Data Path Selection
+--    - Efficient routing of data signals
+--    - Low-latency switching operations
+--    - Minimal propagation delay
+--    - Area-optimized implementation
+--
+-- 2. Selection Logic
+--    - Binary selection encoding
+--    - Priority-based selection
+--    - Default and bypass modes
+--    - Error detection and handling
+--
+-- 3. Timing Optimization
+--    - Critical path minimization
+--    - Setup and hold time optimization
+--    - Clock skew considerations
+--    - Pipeline integration
+--
+-- 4. Resource Efficiency
+--    - Minimal logic utilization
+--    - Power consumption optimization
+--    - Area-efficient implementation
+--    - Scalable architecture
+--
+-- Multiplexer Types:
+-- 1. 2:1 Multiplexer
+--    - Basic two-input selection
+--    - Single select bit
+--    - Minimal delay and area
+--    - Building block for larger muxes
+--
+-- 2. 4:1 Multiplexer
+--    - Four-input selection
+--    - Two select bits
+--    - Balanced tree structure
+--    - Common processor application
+--
+-- 3. 8:1 Multiplexer
+--    - Eight-input selection
+--    - Three select bits
+--    - Hierarchical implementation
+--    - Extended functionality
+--
+-- 4. Parameterized Multiplexer
+--    - Configurable input count
+--    - Generic select width
+--    - Scalable implementation
+--    - Flexible architecture
+--
+-- ============================================================================
+-- STEP 4: ARCHITECTURE OPTIONS
+-- ============================================================================
+--
+-- OPTION 1: Simple Small Multiplexer (Recommended for beginners)
+-- - Basic 2:1 or 4:1 multiplexer
+-- - Simple selection logic
+-- - Minimal control features
+-- - Suitable for basic applications
+--
+-- OPTION 2: Enhanced Small Multiplexer (Intermediate)
+-- - Extended input count (up to 8:1)
+-- - Priority and bypass modes
+-- - Basic error detection
+-- - Standard processor features
+--
+-- OPTION 3: Advanced Small Multiplexer (Advanced)
+-- - Parameterized input count
+-- - Advanced selection modes
+-- - Pipeline integration
+-- - Performance optimization
+--
+-- OPTION 4: High-Performance Small Multiplexer (Expert)
+-- - Ultra-low latency design
+-- - Advanced timing optimization
+-- - Comprehensive error handling
+-- - Enterprise processor capabilities
+--
+-- ============================================================================
+-- STEP 5: IMPLEMENTATION CONSIDERATIONS
+-- ============================================================================
+--
+-- Selection Logic:
+-- - Binary encoding vs. one-hot encoding
+-- - Priority resolution mechanisms
+-- - Default value handling
+-- - Error condition management
+--
+-- Timing Optimization:
+-- - Critical path analysis
+-- - Propagation delay minimization
+-- - Setup and hold time margins
+-- - Clock domain considerations
+--
+-- Resource Utilization:
+-- - Logic element efficiency
+-- - Routing resource optimization
+-- - Power consumption minimization
+-- - Area constraint satisfaction
+--
+-- Integration Aspects:
+-- - Control signal interfacing
+-- - Pipeline stage integration
+-- - Debug and test accessibility
+-- - Performance monitoring
+--
+-- ============================================================================
+-- STEP 6: ADVANCED FEATURES
+-- ============================================================================
+--
+-- Advanced Selection:
+-- - Multi-level priority schemes
+-- - Conditional selection logic
+-- - Dynamic selection updates
+-- - Speculative selection
+--
+-- Performance Features:
+-- - Predictive selection
+-- - Selection caching
+-- - Parallel selection paths
+-- - Adaptive timing optimization
+--
+-- Error Handling:
+-- - Selection conflict detection
+-- - Invalid input handling
+-- - Timeout detection
+-- - Recovery mechanisms
+--
+-- Debug and Test:
+-- - Selection trace capability
+-- - Built-in self-test features
+-- - Performance profiling
+-- - Fault injection support
+--
+-- ============================================================================
+-- APPLICATIONS:
+-- ============================================================================
+-- 1. Microprocessor Design: Data path multiplexing and selection
+-- 2. Control Unit Implementation: Control signal routing
+-- 3. ALU Input Selection: Operand source selection
+-- 4. Register File Access: Register selection and routing
+-- 5. Memory Interface: Address and data multiplexing
+-- 6. Pipeline Stages: Inter-stage data routing
+-- 7. Debug Systems: Signal observation and selection
+--
+-- ============================================================================
+-- TESTING STRATEGY:
+-- ============================================================================
+-- 1. Basic Selection Testing: All input combinations
+-- 2. Timing Testing: Setup and hold time verification
+-- 3. Priority Testing: Priority resolution scenarios
+-- 4. Error Testing: Invalid selection handling
+-- 5. Performance Testing: Latency and throughput
+-- 6. Power Testing: Power consumption analysis
+-- 7. Integration Testing: System-level functionality
+--
+-- ============================================================================
+-- RECOMMENDED IMPLEMENTATION APPROACH:
+-- ============================================================================
+-- 1. Start with basic 2:1 or 4:1 multiplexer
+-- 2. Implement simple selection logic
+-- 3. Add basic error detection
+-- 4. Implement priority and bypass modes
+-- 5. Add pipeline integration features
+-- 6. Optimize for timing and area
+-- 7. Add debug and test capabilities
+-- 8. Validate performance requirements
+--
+-- ============================================================================
+-- EXTENSION EXERCISES:
+-- ============================================================================
+-- 1. Implement parameterized multiplexer with generic input count
+-- 2. Add advanced selection modes and priority schemes
+-- 3. Implement predictive and speculative selection
+-- 4. Add comprehensive error detection and recovery
+-- 5. Implement performance monitoring and profiling
+-- 6. Add support for different data types and widths
+-- 7. Implement fault tolerance and redundancy
+-- 8. Add support for dynamic reconfiguration
+--
+-- ============================================================================
+-- COMMON MISTAKES TO AVOID:
+-- ============================================================================
+-- 1. Poor selection logic causing glitches or hazards
+-- 2. Inadequate timing analysis and optimization
+-- 3. Missing error detection and handling
+-- 4. Poor integration with control and pipeline systems
+-- 5. Inadequate resource utilization optimization
+-- 6. Missing test and debug capabilities
+-- 7. Poor documentation and maintainability
+-- 8. Inadequate validation and verification
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+-- □ Basic selection functionality working correctly
+-- □ All input combinations tested and verified
+-- □ Timing requirements met for all paths
+-- □ Error detection and handling implemented
+-- □ Priority and bypass modes functioning
+-- □ Pipeline integration working correctly
+-- □ Performance requirements satisfied
+-- □ Power consumption within limits
+-- □ Test and debug features functional
+-- □ Documentation complete and accurate
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+-- This small multiplexer implementation demonstrates several key concepts:
+-- - Efficient data path design and optimization
+-- - Low-latency selection logic implementation
+-- - Resource-constrained design techniques
+-- - Integration with processor control systems
+-- - Performance-critical path optimization
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+-- - Consider logic synthesis optimization settings
+-- - Plan for proper signal routing and placement
+-- - Account for process variation effects
+-- - Consider temperature and voltage variations
+-- - Plan for testability and debug access
+--
+-- ============================================================================
+-- ADVANCED CONCEPTS:
+-- ============================================================================
+-- - Multi-level multiplexer hierarchies
+-- - Adaptive and intelligent selection algorithms
+-- - Power-aware multiplexer design
+-- - Fault-tolerant multiplexer architectures
+-- - High-speed differential multiplexers
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+-- - Test all selection combinations thoroughly
+-- - Verify timing under all operating conditions
+-- - Test error conditions and recovery mechanisms
+-- - Validate integration with system components
+-- - Check power consumption and thermal effects
+-- - Verify reset and initialization behavior
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+-- Use this template as a starting point for your implementation:
+--
+-- library IEEE;
+-- use IEEE.std_logic_1164.all;
+-- use IEEE.numeric_std.all;
+-- use work.mux_pkg.all;
+-- use work.microprocessor_pkg.all;
+--
+-- entity smallmux is
+--     generic (
+--         DATA_WIDTH      : integer := 16;                   -- Data width
+--         SELECT_WIDTH    : integer := 2;                    -- Selection width
+--         NUM_INPUTS      : integer := 4;                    -- Number of inputs
+--         ENABLE_PIPELINE : boolean := false;                -- Enable pipeline
+--         ENABLE_PRIORITY : boolean := true;                 -- Enable priority
+--         ENABLE_BYPASS   : boolean := true;                 -- Enable bypass
+--         ENABLE_DEBUG    : boolean := true;                 -- Enable debug
+--         DEFAULT_VALUE   : integer := 0;                    -- Default output value
+--         TIMING_OPTIMIZE : boolean := true                  -- Enable timing optimization
+--     );
+--     port (
+--         -- System Interface
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         enable          : in  std_logic;
+--         select_enable   : in  std_logic;
+--         
+--         -- Data Input Interface
+--         data_in_0       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_in_1       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_in_2       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_in_3       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_valid_0    : in  std_logic;
+--         data_valid_1    : in  std_logic;
+--         data_valid_2    : in  std_logic;
+--         data_valid_3    : in  std_logic;
+--         
+--         -- Selection Interface
+--         select_in       : in  std_logic_vector(SELECT_WIDTH-1 downto 0);
+--         select_valid    : in  std_logic;
+--         select_priority : in  std_logic_vector(1 downto 0);
+--         select_mode     : in  std_logic_vector(1 downto 0);
+--         
+--         -- Data Output Interface
+--         data_out        : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         data_valid_out  : out std_logic;
+--         output_ready    : out std_logic;
+--         output_error    : out std_logic;
+--         
+--         -- Control Interface
+--         bypass_enable   : in  std_logic;
+--         bypass_select   : in  std_logic_vector(SELECT_WIDTH-1 downto 0);
+--         default_select  : in  std_logic_vector(SELECT_WIDTH-1 downto 0);
+--         force_output    : in  std_logic;
+--         output_disable  : in  std_logic;
+--         
+--         -- Pipeline Interface
+--         pipeline_enable : in  std_logic;
+--         pipeline_flush  : in  std_logic;
+--         pipeline_stall  : in  std_logic;
+--         stage_valid     : out std_logic;
+--         stage_ready     : out std_logic;
+--         
+--         -- Debug Interface
+--         debug_enable    : in  std_logic;
+--         debug_select    : in  std_logic_vector(SELECT_WIDTH-1 downto 0);
+--         debug_data      : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         debug_valid     : out std_logic;
+--         mux_state       : out std_logic_vector(3 downto 0);
+--         
+--         -- Status Interface
+--         mux_ready       : out std_logic;
+--         select_error    : out std_logic;
+--         input_conflict  : out std_logic;
+--         timing_violation: out std_logic;
+--         utilization     : out std_logic_vector(7 downto 0);
+--         
+--         -- Test Interface
+--         test_mode       : in  std_logic;
+--         scan_enable     : in  std_logic;
+--         scan_in         : in  std_logic;
+--         scan_out        : out std_logic;
+--         bist_enable     : in  std_logic;
+--         bist_done       : out std_logic;
+--         bist_pass       : out std_logic;
+--         
+--         -- Performance Interface
+--         select_count    : out std_logic_vector(31 downto 0);
+--         switch_count    : out std_logic_vector(31 downto 0);
+--         error_count     : out std_logic_vector(31 downto 0);
+--         latency_measure : out std_logic_vector(15 downto 0)
+--     );
+-- end entity smallmux;
+--
+-- architecture behavioral of smallmux is
+--     -- Input data array
+--     type data_array_t is array (0 to NUM_INPUTS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal data_inputs : data_array_t;
+--     signal data_valid_inputs : std_logic_vector(NUM_INPUTS-1 downto 0);
+--     
+--     -- Selection signals
+--     signal select_internal : std_logic_vector(SELECT_WIDTH-1 downto 0);
+--     signal select_valid_internal : std_logic;
+--     signal effective_select : std_logic_vector(SELECT_WIDTH-1 downto 0);
+--     
+--     -- Output signals
+--     signal data_out_internal : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal data_valid_out_internal : std_logic;
+--     signal output_ready_internal : std_logic;
+--     
+--     -- Control signals
+--     signal enable_internal : std_logic;
+--     signal bypass_active : std_logic;
+--     signal force_active : std_logic;
+--     signal disable_active : std_logic;
+--     
+--     -- Pipeline signals
+--     signal pipeline_reg : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal pipeline_valid : std_logic;
+--     signal pipeline_ready : std_logic;
+--     
+--     -- Error detection signals
+--     signal select_error_internal : std_logic;
+--     signal input_conflict_internal : std_logic;
+--     signal timing_violation_internal : std_logic;
+--     
+--     -- Performance counters
+--     signal select_counter : unsigned(31 downto 0);
+--     signal switch_counter : unsigned(31 downto 0);
+--     signal error_counter : unsigned(31 downto 0);
+--     signal last_select : std_logic_vector(SELECT_WIDTH-1 downto 0);
+--     
+--     -- State machine
+--     type mux_state_t is (IDLE, SELECTING, SWITCHING, ERROR, BYPASS);
+--     signal current_state : mux_state_t;
+--     signal next_state : mux_state_t;
+--     
+-- begin
+--     -- Input data assignment
+--     data_inputs(0) <= data_in_0;
+--     data_inputs(1) <= data_in_1;
+--     data_inputs(2) <= data_in_2;
+--     data_inputs(3) <= data_in_3;
+--     data_valid_inputs <= data_valid_3 & data_valid_2 & data_valid_1 & data_valid_0;
+--     
+--     -- Control signal processing
+--     enable_internal <= enable and select_enable and not output_disable;
+--     bypass_active <= bypass_enable and enable_internal;
+--     force_active <= force_output and enable_internal;
+--     disable_active <= output_disable or not enable;
+--     
+--     -- Selection logic
+--     effective_select <= bypass_select when bypass_active = '1' else
+--                        default_select when select_valid = '0' else
+--                        select_in;
+--     
+--     select_internal <= effective_select when enable_internal = '1' else
+--                       default_select;
+--     select_valid_internal <= select_valid or bypass_active or force_active;
+--     
+--     -- Error detection
+--     select_error_internal <= '1' when (unsigned(select_internal) >= NUM_INPUTS and 
+--                                       select_valid_internal = '1') else '0';
+--     input_conflict_internal <= '1' when (data_valid_inputs /= "0000" and 
+--                                         data_valid_inputs /= "0001" and 
+--                                         data_valid_inputs /= "0010" and 
+--                                         data_valid_inputs /= "0100" and 
+--                                         data_valid_inputs /= "1000") else '0';
+--     
+--     -- Main multiplexer logic
+--     mux_proc: process(clk, reset)
+--     begin
+--         if reset = '1' then
+--             data_out_internal <= std_logic_vector(to_unsigned(DEFAULT_VALUE, DATA_WIDTH));
+--             data_valid_out_internal <= '0';
+--             output_ready_internal <= '0';
+--             pipeline_reg <= (others => '0');
+--             pipeline_valid <= '0';
+--             current_state <= IDLE;
+--             select_counter <= (others => '0');
+--             switch_counter <= (others => '0');
+--             error_counter <= (others => '0');
+--             last_select <= (others => '0');
+--         elsif rising_edge(clk) then
+--             if pipeline_flush = '1' then
+--                 pipeline_reg <= (others => '0');
+--                 pipeline_valid <= '0';
+--                 current_state <= IDLE;
+--             elsif pipeline_stall = '0' then
+--                 current_state <= next_state;
+--                 
+--                 -- Main selection logic
+--                 if enable_internal = '1' and select_error_internal = '0' then
+--                     if unsigned(select_internal) < NUM_INPUTS then
+--                         if ENABLE_PIPELINE then
+--                             pipeline_reg <= data_inputs(to_integer(unsigned(select_internal)));
+--                             pipeline_valid <= data_valid_inputs(to_integer(unsigned(select_internal)));
+--                             data_out_internal <= pipeline_reg;
+--                             data_valid_out_internal <= pipeline_valid;
+--                         else
+--                             data_out_internal <= data_inputs(to_integer(unsigned(select_internal)));
+--                             data_valid_out_internal <= data_valid_inputs(to_integer(unsigned(select_internal)));
+--                         end if;
+--                         output_ready_internal <= '1';
+--                     else
+--                         data_out_internal <= std_logic_vector(to_unsigned(DEFAULT_VALUE, DATA_WIDTH));
+--                         data_valid_out_internal <= '0';
+--                         output_ready_internal <= '0';
+--                     end if;
+--                 elsif force_active = '1' then
+--                     data_out_internal <= data_inputs(to_integer(unsigned(select_internal)));
+--                     data_valid_out_internal <= '1';
+--                     output_ready_internal <= '1';
+--                 else
+--                     data_out_internal <= std_logic_vector(to_unsigned(DEFAULT_VALUE, DATA_WIDTH));
+--                     data_valid_out_internal <= '0';
+--                     output_ready_internal <= '0';
+--                 end if;
+--                 
+--                 -- Performance counters
+--                 if select_valid_internal = '1' then
+--                     select_counter <= select_counter + 1;
+--                 end if;
+--                 if select_internal /= last_select and select_valid_internal = '1' then
+--                     switch_counter <= switch_counter + 1;
+--                     last_select <= select_internal;
+--                 end if;
+--                 if select_error_internal = '1' or input_conflict_internal = '1' then
+--                     error_counter <= error_counter + 1;
+--                 end if;
+--             end if;
+--         end if;
+--     end process;
+--     
+--     -- State machine
+--     state_proc: process(current_state, enable_internal, select_valid_internal, 
+--                        select_error_internal, bypass_active)
+--     begin
+--         case current_state is
+--             when IDLE =>
+--                 if enable_internal = '1' then
+--                     if bypass_active = '1' then
+--                         next_state <= BYPASS;
+--                     elsif select_error_internal = '1' then
+--                         next_state <= ERROR;
+--                     elsif select_valid_internal = '1' then
+--                         next_state <= SELECTING;
+--                     else
+--                         next_state <= IDLE;
+--                     end if;
+--                 else
+--                     next_state <= IDLE;
+--                 end if;
+--                 
+--             when SELECTING =>
+--                 if select_error_internal = '1' then
+--                     next_state <= ERROR;
+--                 elsif bypass_active = '1' then
+--                     next_state <= BYPASS;
+--                 elsif enable_internal = '0' then
+--                     next_state <= IDLE;
+--                 else
+--                     next_state <= SWITCHING;
+--                 end if;
+--                 
+--             when SWITCHING =>
+--                 if enable_internal = '0' then
+--                     next_state <= IDLE;
+--                 elsif select_error_internal = '1' then
+--                     next_state <= ERROR;
+--                 else
+--                     next_state <= SELECTING;
+--                 end if;
+--                 
+--             when ERROR =>
+--                 if enable_internal = '0' then
+--                     next_state <= IDLE;
+--                 elsif select_error_internal = '0' then
+--                     next_state <= SELECTING;
+--                 else
+--                     next_state <= ERROR;
+--                 end if;
+--                 
+--             when BYPASS =>
+--                 if bypass_active = '0' then
+--                     next_state <= SELECTING;
+--                 elsif enable_internal = '0' then
+--                     next_state <= IDLE;
+--                 else
+--                     next_state <= BYPASS;
+--                 end if;
+--                 
+--             when others =>
+--                 next_state <= IDLE;
+--         end case;
+--     end process;
+--     
+--     -- Output assignments
+--     data_out <= data_out_internal when disable_active = '0' else (others => '0');
+--     data_valid_out <= data_valid_out_internal and not disable_active;
+--     output_ready <= output_ready_internal and not disable_active;
+--     output_error <= select_error_internal or input_conflict_internal or timing_violation_internal;
+--     
+--     -- Pipeline interface
+--     stage_valid <= pipeline_valid when ENABLE_PIPELINE else data_valid_out_internal;
+--     stage_ready <= pipeline_ready when ENABLE_PIPELINE else output_ready_internal;
+--     pipeline_ready <= not pipeline_stall;
+--     
+--     -- Debug interface
+--     debug_data <= data_inputs(to_integer(unsigned(debug_select))) when 
+--                  (debug_enable = '1' and unsigned(debug_select) < NUM_INPUTS) else (others => '0');
+--     debug_valid <= debug_enable;
+--     mux_state <= std_logic_vector(to_unsigned(mux_state_t'pos(current_state), 4));
+--     
+--     -- Status interface
+--     mux_ready <= enable_internal and not select_error_internal;
+--     select_error <= select_error_internal;
+--     input_conflict <= input_conflict_internal;
+--     timing_violation <= timing_violation_internal;
+--     utilization <= std_logic_vector(to_unsigned(
+--         (to_integer(select_counter) * 100) / 256, 8));
+--     
+--     -- Performance interface
+--     select_count <= std_logic_vector(select_counter);
+--     switch_count <= std_logic_vector(switch_counter);
+--     error_count <= std_logic_vector(error_counter);
+--     latency_measure <= std_logic_vector(to_unsigned(1, 16)); -- Simplified
+--     
+--     -- Test interface (simplified)
+--     scan_out <= scan_in when scan_enable = '1' else '0';
+--     bist_done <= bist_enable;
+--     bist_pass <= bist_enable;
+--     
+-- end architecture behavioral;
+--
+-- ============================================================================
+-- Remember: This small multiplexer implementation provides efficient data
+-- path selection with low latency and minimal resource utilization. Ensure
+-- proper timing analysis and consider the specific requirements for your
+-- target processor architecture and performance constraints.
+-- ============================================================================
