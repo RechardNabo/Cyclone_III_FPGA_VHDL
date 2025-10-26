@@ -1,5 +1,5 @@
 Assembler report for EP3C16F484C6N_Cyclone_3
-Fri Jun 27 21:51:41 2025
+Sat Oct 25 18:21:33 2025
 Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
 
 
@@ -10,7 +10,7 @@ Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
   2. Assembler Summary
   3. Assembler Settings
   4. Assembler Generated Files
-  5. Assembler Device Options: C:/Users/Mtlantla/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.sof
+  5. Assembler Device Options: C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.sof
   6. Assembler Messages
 
 
@@ -37,9 +37,9 @@ applicable agreement for further details.
 +---------------------------------------------------------------+
 ; Assembler Summary                                             ;
 +-----------------------+---------------------------------------+
-; Assembler Status      ; Successful - Fri Jun 27 21:51:41 2025 ;
+; Assembler Status      ; Successful - Sat Oct 25 18:21:33 2025 ;
 ; Revision Name         ; EP3C16F484C6N_Cyclone_3               ;
-; Top-level Entity Name ; Basic_Logic_Top                       ;
+; Top-level Entity Name ; AND_gate                              ;
 ; Family                ; Cyclone III                           ;
 ; Device                ; EP3C16F484C6                          ;
 +-----------------------+---------------------------------------+
@@ -77,24 +77,24 @@ applicable agreement for further details.
 +-----------------------------------------------------------------------------+----------+---------------+
 
 
-+----------------------------------------------------------------------------------------------------+
-; Assembler Generated Files                                                                          ;
-+----------------------------------------------------------------------------------------------------+
-; File Name                                                                                          ;
-+----------------------------------------------------------------------------------------------------+
-; C:/Users/Mtlantla/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.sof ;
-+----------------------------------------------------------------------------------------------------+
++-------------------------------------------------------------------------------------------------+
+; Assembler Generated Files                                                                       ;
++-------------------------------------------------------------------------------------------------+
+; File Name                                                                                       ;
++-------------------------------------------------------------------------------------------------+
+; C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.sof ;
++-------------------------------------------------------------------------------------------------+
 
 
-+------------------------------------------------------------------------------------------------------------------------------+
-; Assembler Device Options: C:/Users/Mtlantla/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.sof ;
-+----------------+-------------------------------------------------------------------------------------------------------------+
-; Option         ; Setting                                                                                                     ;
-+----------------+-------------------------------------------------------------------------------------------------------------+
-; Device         ; EP3C16F484C6                                                                                                ;
-; JTAG usercode  ; 0x000C88F5                                                                                                  ;
-; Checksum       ; 0x000C88F5                                                                                                  ;
-+----------------+-------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------------------+
+; Assembler Device Options: C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.sof ;
++----------------+----------------------------------------------------------------------------------------------------------+
+; Option         ; Setting                                                                                                  ;
++----------------+----------------------------------------------------------------------------------------------------------+
+; Device         ; EP3C16F484C6                                                                                             ;
+; JTAG usercode  ; 0x000C7CA6                                                                                               ;
+; Checksum       ; 0x000C7CA6                                                                                               ;
++----------------+----------------------------------------------------------------------------------------------------------+
 
 
 +--------------------+
@@ -103,14 +103,14 @@ applicable agreement for further details.
 Info: *******************************************************************
 Info: Running Quartus II 64-Bit Assembler
     Info: Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
-    Info: Processing started: Fri Jun 27 21:51:39 2025
+    Info: Processing started: Sat Oct 25 18:21:31 2025
 Info: Command: quartus_asm --read_settings_files=off --write_settings_files=off EP3C16F484C6N_Cyclone_3 -c EP3C16F484C6N_Cyclone_3
 Info (115031): Writing out detailed assembly data for power analysis
 Info (115030): Assembler is generating device programming files
 Info: Quartus II 64-Bit Assembler was successful. 0 errors, 0 warnings
-    Info: Peak virtual memory: 4590 megabytes
-    Info: Processing ended: Fri Jun 27 21:51:41 2025
+    Info: Peak virtual memory: 4591 megabytes
+    Info: Processing ended: Sat Oct 25 18:21:33 2025
     Info: Elapsed time: 00:00:02
-    Info: Total CPU time (on all processors): 00:00:00
+    Info: Total CPU time (on all processors): 00:00:01
 
 

@@ -1,0 +1,97 @@
+-- ============================================================================
+-- Programming Guidance: Serial Adder FSMD (Integrated Control + Datapath)
+-- ----------------------------------------------------------------------------
+-- Project Overview
+-- - Single-process or two-process FSMD integrating state machine and datapath
+--   for a serial N-bit adder. Useful for compact designs or didactic examples.
+--
+-- Learning Objectives
+-- - Combine control sequencing and datapath operations in one coherent block.
+-- - Maintain clarity between STATE (control) and ACTIONS (datapath updates).
+-- - Parameterize width and keep resets / handshakes robust.
+--
+-- Implementation Guide (FSMD)
+-- 1) Libraries (TODO)
+--    -- library ieee;
+--    -- use ieee.std_logic_1164.all;
+--    -- use ieee.numeric_std.all;
+--
+-- 2) Entity Interface (suggested)
+--    - generics: G_WIDTH: positive := 16
+--    - ports:
+--      clk, rst_n           : in  std_logic
+--      start_i              : in  std_logic
+--      a_in_i, b_in_i       : in  std_logic_vector(G_WIDTH-1 downto 0)
+--      sum_out_o            : out std_logic_vector(G_WIDTH-1 downto 0)
+--      carry_out_o          : out std_logic
+--      busy_o, done_o       : out std_logic
+--
+-- 3) State Flow and Actions (example)
+--    type state_t is (S_IDLE, S_LOAD, S_RUN, S_DONE);
+--    - S_IDLE: clear/hold registers; wait start_i
+--    - S_LOAD: A_reg<=a_in_i; B_reg<=b_in_i; SUM_reg<=0; carry_reg<=0; bit_cnt<=0
+--    - S_RUN :
+--        sum_bit   <= A_reg(0) xor B_reg(0) xor carry_reg
+--        carry_next<= (A_reg(0) and B_reg(0)) or (A_reg(0) and carry_reg) or
+--                    (B_reg(0) and carry_reg)
+--        shift A_reg/B_reg; shift SUM_reg with sum_bit; carry_reg<=carry_next
+--        bit_cnt  <= bit_cnt + 1; if bit_cnt==G_WIDTH-1 -> S_DONE
+--    - S_DONE: sum_out_o<=SUM_reg; carry_out_o<=carry_reg; assert done_o
+--              deassert busy_o; return to S_IDLE on ack or auto
+--
+-- 4) Datapath Blocks (internal signals)
+--    - A_reg, B_reg: std_logic_vector(G_WIDTH-1 downto 0)
+--    - SUM_reg     : std_logic_vector(G_WIDTH-1 downto 0)
+--    - carry_reg   : std_logic
+--    - bit_cnt     : unsigned(
+--        integer(ceil(log2(real(G_WIDTH))))-1 downto 0)  -- choose practical width
+--
+-- 5) Coding Style
+--    - Prefer two-process FSMD: one clocked state/data register process, one
+--      combinational next-state and outputs process.
+--    - Keep default assignments to avoid inferred latches.
+--    - Use numeric_std with explicit casting between unsigned and std_logic_vector.
+--
+-- 6) Testing Notes
+--    - Compare FSMD outputs against a behavioral add (unsigned(a_in)+unsigned(b_in)).
+--    - Sweep G_WIDTH and randomize operands; include overflow detection cases.
+--    - Confirm busy_o/done_o protocol meets top-level timing requirements.
+--
+-- TODOs for You
+--    - Define exact generics/ports to match your top-level system.
+--    - Implement state register and next-state/action logic per above recipe.
+--    - Confirm shift direction and sum bit placement per your convention.
+-- ----------------------------------------------------------------------------
+-- Recommended Starting Skeleton (commented)
+-- ----------------------------------------------------------------------------
+-- entity serial_adder_fsmd is
+--   generic (
+--     G_WIDTH : positive := 16
+--   );
+--   port (
+--     clk         : in  std_logic;
+--     rst_n       : in  std_logic;
+--     start_i     : in  std_logic;
+--     a_in_i      : in  std_logic_vector(G_WIDTH-1 downto 0);
+--     b_in_i      : in  std_logic_vector(G_WIDTH-1 downto 0);
+--     sum_out_o   : out std_logic_vector(G_WIDTH-1 downto 0);
+--     carry_out_o : out std_logic;
+--     busy_o      : out std_logic;
+--     done_o      : out std_logic
+--   );
+-- end entity;
+--
+-- architecture rtl of serial_adder_fsmd is
+--   -- signals: A_reg, B_reg, SUM_reg, carry_reg, bit_cnt
+--   -- type state_t is (S_IDLE, S_LOAD, S_RUN, S_DONE);
+--   -- signal state, next : state_t;
+-- begin
+--   -- process(clk)
+--   --   if rising_edge(clk) then
+--   --     -- state/data registers update
+--   --   end if;
+--   -- end process;
+--
+--   -- combinational next-state and output decode process
+-- end architecture;
+-- ============================================================================

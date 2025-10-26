@@ -1,0 +1,65 @@
+-- ============================================================================
+-- ISA Controller Datapath Implementation - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This file documents the datapath for an ISA bus controller. The datapath
+-- moves and stores information required by the control FSM: address, data,
+-- command strobes, and status. Typical elements include input synchronizers,
+-- address/data registers, multiplexers, bus transceivers, and simple
+-- arithmetic/compare units for address decoding and timing.
+--
+-- LEARNING OBJECTIVES:
+-- - Identify core datapath blocks for bus controllers
+-- - Practice structural VHDL and clean signal routing
+-- - Understand register enable and load timing for bus cycles
+-- - Prepare clear interfaces for the controller FSM
+--
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- 1) LIBRARY DECLARATIONS
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY DECLARATION (INTERFACE)
+--    Recommended ports:
+--    - clk, reset : in std_logic
+--    - enable     : in std_logic
+--    - addr_in    : in unsigned(ADDR_WIDTH-1 downto 0)
+--    - data_in    : in unsigned(DATA_WIDTH-1 downto 0)
+--    - wr_en, rd_en : in std_logic (cycle intent from FSM)
+--    - addr_out   : out unsigned(ADDR_WIDTH-1 downto 0)
+--    - data_out   : out unsigned(DATA_WIDTH-1 downto 0)
+--    - ready, wait_n : out std_logic (status to FSM)
+--    Generics:
+--    - ADDR_WIDTH : integer := 16
+--    - DATA_WIDTH : integer := 8
+--
+-- 3) DATAPATH PRINCIPLES
+--    - Input Synchronizers: resynchronize external bus pins to clk
+--    - Address/Data Registers: capture phase information (ALE, address, data)
+--    - MUX Network: select sources for bus drive vs. internal storage
+--    - Transceiver Interface: model tri-state drive using enable signals
+--    - Compare/Decode: simple address ranges and I/O space mapping
+--    - Status Generation: ready/wait based on timing counters
+--
+-- 4) SIGNAL FLOW (TYPICAL ISA CYCLE)
+--    - IDLE → ADDRESS PHASE (latch addr) → DATA PHASE (latch or drive data)
+--    - Status/ready asserted when cycle resources are valid
+--    - Drive enables controlled exclusively by FSM
+--
+-- 5) IMPLEMENTATION NOTES
+--    - All registers synchronous to clk; async reset sets safe bus defaults
+--    - Separate internal buses: addr_bus, data_bus, ctrl_bus
+--    - Avoid inferred latches: provide default assignments
+--    - Keep tri-state modeling at top-level using enables, not 'Z' in RTL
+--
+-- 6) TESTING CHECKLIST
+--    - Address latch timing meets ISA requirements
+--    - Data direction switches without bus contention
+--    - Ready/wait generation aligns with programmed delays
+--    - Decode ranges verified across boundaries
+--
+-- This header provides structure and guidance; fill the entity and architecture
+-- per your controller requirements and connect with the companion FSM.
+-- ============================================================================

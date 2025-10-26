@@ -1,0 +1,53 @@
+-- ============================================================================
+-- PCI Bridge Datapath Implementation - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This header documents the datapath for a PCI(-like) bridge. The datapath
+-- captures and routes address/data phases, manages FIFOs or registers for
+-- posted writes/reads, and provides status back to the control FSM. Typical
+-- elements include phase registers, multiplexers, FIFOs, comparators, and
+-- counter/timer blocks for protocol timing.
+--
+-- LEARNING OBJECTIVES:
+-- - Structure bus datapaths with clear phase separation
+-- - Design register/FIFO interfaces for posted transactions
+-- - Generate simple status flags for control (empty/full/ready)
+--
+-- IMPLEMENTATION GUIDE:
+-- 1) LIBRARIES
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY (INTERFACE)
+--    Suggested ports:
+--    - clk, reset : in std_logic
+--    - enable     : in std_logic
+--    - addr_in    : in unsigned(ADDR_WIDTH-1 downto 0)
+--    - wdata_in   : in unsigned(DATA_WIDTH-1 downto 0)
+--    - rdata_out  : out unsigned(DATA_WIDTH-1 downto 0)
+--    - push, pop  : in std_logic (FIFO operations from FSM)
+--    - empty, full, ready : out std_logic
+--    Generics: ADDR_WIDTH := 32, DATA_WIDTH := 32
+--
+-- 3) DATAPATH BLOCKS
+--    - Phase registers: address, command, data
+--    - FIFOs or buffers for posted writes/reads
+--    - MUX network for bus vs. internal sources
+--    - Flag generation: empty/full/ready
+--    - Timing counters for turnaround/latency
+--
+-- 4) NOTES
+--    - Keep bus tri-states modeled via enables
+--    - Provide default assignments to prevent latches
+--    - Separate control from datapath; FSM drives enables
+--
+-- 5) TESTING
+--    - FIFO boundary conditions (empty/full transitions)
+--    - Address/data phase capture correctness
+--    - Ready flag timing with protocol counters
+--
+-- Use this guide to implement the entity and architecture, aligning ports and
+-- signals with your PCI bridging requirements.
+-- ============================================================================
