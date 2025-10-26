@@ -1,0 +1,59 @@
+-- ============================================================================
+-- ISA Controller FSMD (FSM + Datapath) - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This file documents an FSMD approach that integrates the control FSM with
+-- the datapath for an ISA bus controller. The FSMD model places state-driven
+-- operations and register transfers in one architecture, making the flow of
+-- bus cycles explicit while preserving modular signal organization.
+--
+-- LEARNING OBJECTIVES:
+-- - Combine control and datapath responsibilities coherently
+-- - Map state actions to register transfers and enables
+-- - Keep interfaces clean while sharing a single architecture
+--
+-- IMPLEMENTATION GUIDE:
+-- 1) LIBRARIES
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY (FSMD INTERFACE)
+--    Typical ports:
+--    - clk, reset : in std_logic
+--    - start      : in std_logic
+--    - rw         : in std_logic
+--    - addr_in    : in unsigned(ADDR_WIDTH-1 downto 0)
+--    - data_in    : in unsigned(DATA_WIDTH-1 downto 0)
+--    - data_out   : out unsigned(DATA_WIDTH-1 downto 0)
+--    - done, error: out std_logic
+--    Generics: ADDR_WIDTH := 16, DATA_WIDTH := 8
+--
+-- 3) STATE FLOW AND ACTIONS
+--    - IDLE: defaults, clear enables
+--    - ADDR: latch addr_in → addr_reg
+--    - TURNAROUND: prepare bus direction
+--    - DATA_RD: sample bus → data_reg
+--    - DATA_WR: drive bus from data_reg
+--    - DONE: present status, return to IDLE
+--
+-- 4) DATAPATH BLOCKS
+--    - addr_reg, data_reg, status_reg
+--    - muxes for source selection (internal vs. external)
+--    - enable signals gated by current state
+--
+-- 5) CODING STYLE
+--    - One clocked process for state register
+--    - One combinational process for next-state and control
+--    - Separate section for datapath transfers based on state
+--    - Provide defaults to avoid inferred latches
+--
+-- 6) TESTING NOTES
+--    - Verify transitions and outputs per state
+--    - Assert exclusivity of drive/sense during turnaround
+--    - Exercise back-to-back cycles and wait states
+--
+-- Use this header as a blueprint; add concrete signals and transfers to suit
+-- your ISA interface requirements and timing.
+-- ============================================================================

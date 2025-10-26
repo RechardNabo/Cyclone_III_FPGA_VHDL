@@ -1,0 +1,53 @@
+-- ============================================================================
+-- ISA Controller Finite State Machine (FSM) - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This header documents the control FSM for an ISA bus controller. The FSM
+-- sequences address and data phases, generates bus strobes, and arbitrates
+-- datapath enables to avoid contention. It encapsulates timing, handshakes,
+-- and error handling, while keeping datapath purely structural.
+--
+-- LEARNING OBJECTIVES:
+-- - Design clear, timing-correct bus control state machines
+-- - Separate control responsibilities from datapath movement
+-- - Encode states and transitions for address/data phases
+-- - Implement ready/wait handshakes and error capture
+--
+-- IMPLEMENTATION GUIDE:
+-- 1) LIBRARIES
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY (CONTROL INTERFACE)
+--    Suggested ports:
+--    - clk, reset : in std_logic
+--    - start      : in std_logic
+--    - rw         : in std_logic (0=read, 1=write)
+--    - addr_valid : in std_logic
+--    - data_valid : in std_logic
+--    - ready_in   : in std_logic (from datapath)
+--    - wait_n_in  : in std_logic (from bus timing)
+--    - wr_en, rd_en, drive_en : out std_logic (to datapath)
+--    - done, error : out std_logic (status)
+--
+-- 3) STATE SET (EXAMPLE)
+--    IDLE → ADDR → TURNAROUND → DATA → DONE → IDLE
+--    ERROR reachable from any state on invalid timing/handshake
+--
+-- 4) DESIGN NOTES
+--    - Use one-hot or binary encoding based on synthesis goals
+--    - Register all control outputs to avoid glitches
+--    - Gate drive_en to prevent bus contention across phases
+--    - Model wait states using counters or input wait_n_in
+--
+-- 5) VERIFICATION
+--    - Assert mutual exclusivity of rd_en and wr_en
+--    - Check that drive_en deasserts before direction changes
+--    - Cover all transitions under back-to-back cycles
+--    - Tie-off undefined inputs and provide defaults
+--
+-- Implement the architecture with a clocked state register and separate
+-- next-state/output processes. Connect to the datapath documented separately.
+-- ============================================================================

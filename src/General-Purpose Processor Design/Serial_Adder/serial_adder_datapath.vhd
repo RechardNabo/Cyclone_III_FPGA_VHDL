@@ -1,0 +1,49 @@
+-- ============================================================================
+-- Serial Adder Datapath Implementation - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This header documents the datapath for a serial adder. The datapath
+-- includes operand shift registers, a single-bit full adder, carry storage,
+-- and multiplexers for input selection. It exposes status (done/valid) and
+-- operand/result interfaces for a companion controller.
+--
+-- LEARNING OBJECTIVES:
+-- - Build minimal arithmetic datapaths (shift/add/carry)
+-- - Manage register enables and bit-serial flow
+-- - Provide clean status and handshakes for control
+--
+-- IMPLEMENTATION GUIDE:
+-- 1) LIBRARIES
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY (INTERFACE)
+--    Ports (suggested):
+--    - clk, reset       : in std_logic
+--    - enable           : in std_logic
+--    - a_in, b_in       : in unsigned(WIDTH-1 downto 0)
+--    - result_out       : out unsigned(WIDTH-1 downto 0)
+--    - carry_out        : out std_logic
+--    - bit_index_out    : out unsigned(INDEX_WIDTH-1 downto 0)
+--    Generics: WIDTH := 32, INDEX_WIDTH := 6
+--
+-- 3) DATAPATH BLOCKS
+--    - Shift registers: reg_a, reg_b
+--    - Single-bit full adder: sum_bit, carry
+--    - Result register with serial load/shift
+--    - Bit counter for termination
+--
+-- 4) NOTES
+--    - Use synchronous reset to clear carry and counters
+--    - Provide default enables low to avoid latches
+--    - Keep arithmetic in numeric_std (unsigned/signed)
+--
+-- 5) TESTING
+--    - Edge cases: all zeros, all ones, carry propagation
+--    - Bit-index termination correctness
+--
+-- Implement entity and architecture following this guide and coordinate
+-- enables with the companion FSM.
+-- ============================================================================

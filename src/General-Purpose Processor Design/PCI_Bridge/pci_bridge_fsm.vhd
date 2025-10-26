@@ -1,0 +1,46 @@
+-- ============================================================================
+-- PCI Bridge Control FSM - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This header documents the control FSM for a PCI(-like) bridge. The FSM
+-- sequences transaction phases, arbitrates buffer/FIFO operations, and
+-- generates datapath enables. It enforces protocol timing and performs
+-- error/timeout handling.
+--
+-- LEARNING OBJECTIVES:
+-- - Define protocol phases as clear states and transitions
+-- - Implement handshakes and flow control with FIFOs
+-- - Keep control outputs glitch-free and registered
+--
+-- IMPLEMENTATION GUIDE:
+-- 1) LIBRARIES
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY (CONTROL INTERFACE)
+--    Ports (suggested):
+--    - clk, reset : in std_logic
+--    - start, rw  : in std_logic
+--    - empty, full, ready : in std_logic (from datapath/FIFOs)
+--    - push, pop, drive_en : out std_logic
+--    - done, error : out std_logic
+--
+-- 3) STATE SET (EXAMPLE)
+--    IDLE → ARBITRATE → ADDRESS → DATA → COMPLETE → IDLE
+--    ERROR reachable on timeout or illegal condition
+--
+-- 4) DESIGN NOTES
+--    - Register control outputs; avoid combinational hazards
+--    - Use counters/timers for protocol windows
+--    - Cover back-to-back transactions; support posted writes
+--
+-- 5) VERIFICATION
+--    - FIFO flow control under stress
+--    - Mutual exclusivity of push/pop when full/empty
+--    - Timing of drive_en around turnaround phases
+--
+-- Provide a clocked state register and combinational next-state/control logic
+-- and connect to the datapath documented in the companion file.
+-- ============================================================================

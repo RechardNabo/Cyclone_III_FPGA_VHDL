@@ -1,0 +1,103 @@
+-- ============================================================================
+-- Programming Guidance: Serial Adder Datapath (Cyclone III / VHDL)
+-- ----------------------------------------------------------------------------
+-- Project Overview
+-- - Implements the datapath of a classic serial N-bit adder using shift
+--   registers and a 1-bit full adder with carry storage.
+-- - Pairs with a control FSM that sequences LOAD, RUN (bit-wise add), and DONE.
+-- - Good exercise for: shift-register design, synchronous control handshakes,
+--   resource sharing, and timing closure on FPGAs.
+--
+-- Learning Objectives
+-- - Model shift registers and a single-bit full adder in VHDL.
+-- - Maintain carry state across bit additions.
+-- - Use generics for parameterizable operand width.
+-- - Cleanly decouple datapath from control logic using enables and status flags.
+--
+-- Implementation Guide (Datapath)
+-- 1) Libraries (TODO)
+--    - Uncomment and adjust according to your coding standards.
+--    -- library ieee;
+--    -- use ieee.std_logic_1164.all;
+--    -- use ieee.numeric_std.all;  -- preferred for arithmetic
+--
+-- 2) Entity Interface (suggested)
+--    - generics: G_WIDTH (positive integer; default 8/16)
+--    - ports:
+--      clk, rst_n           : std_logic
+--      load_i               : std_logic  -- loads inputs into shift regs
+--      shift_en_i           : std_logic  -- advances one bit per cycle
+--      a_in_i, b_in_i       : std_logic_vector(G_WIDTH-1 downto 0) -- operands
+--      sum_out_o            : std_logic_vector(G_WIDTH-1 downto 0) -- result
+--      carry_out_o          : std_logic  -- final carry after last bit
+--      busy_o               : std_logic  -- optional: asserted during RUN
+--      done_o               : std_logic  -- optional: asserted when complete
+--
+-- 3) Datapath Blocks
+--    - A_reg, B_reg: shift-right registers holding operands (LSB first add).
+--    - SUM_reg: shift-right register capturing each computed sum bit.
+--    - carry_reg: single flip-flop holding carry between bit additions.
+--    - bit_counter: optional up-counter to detect completion (0..G_WIDTH-1).
+--
+-- 4) Signal Flow (LSB-first)
+--    sum_bit <= A_reg(0) xor B_reg(0) xor carry_reg
+--    carry_next <= (A_reg(0) and B_reg(0)) or (A_reg(0) and carry_reg) or
+--                  (B_reg(0) and carry_reg)
+--    On shift_en_i:
+--      - shift A_reg and B_reg right
+--      - shift SUM_reg right, loading sum_bit at MSB or LSB per convention
+--      - update carry_reg <= carry_next
+--
+-- 5) Implementation Notes
+--    - Synchronous, active-low reset (rst_n) preferred; adjust as needed.
+--    - Keep arithmetic with std_logic/std_logic_vector minimal; use numeric_std
+--      and cast to unsigned when appropriate.
+--    - Ensure load_i is mutually exclusive with shift_en_i to avoid hazards.
+--    - Expose a simple completion flag: done_o asserted when bit_counter == G_WIDTH.
+--
+-- 6) Testing Checklist
+--    - Randomized operands across widths; compare with behavioral unsigned add.
+--    - Verify carry_out_o correctness for overflow cases.
+--    - Confirm correct operation when operands are 0x000..0 and when maximum.
+--    - Check that load_i captures inputs correctly and RUN sequences bits.
+--    - Add corner tests: alternating bits (e.g., 0xAAAA + 0x5555), all-ones.
+--
+-- Extension Ideas
+--    - Add selectable shift direction (LSB-first vs MSB-first) via a generic.
+--    - Add optional saturation mode instead of wrap-around (for specific use-cases).
+--    - Integrate optional pipeline register on sum_bit for timing closure.
+--
+-- TODOs for You
+--    - Define entity/generics/ports per your top-level needs.
+--    - Implement A_reg/B_reg/SUM_reg/carry_reg/bit_counter with clean resets.
+--    - Wire status flags (busy_o/done_o) for your FSM handshakes.
+--    - Document timing assumptions and any device-specific pragmas.
+-- ----------------------------------------------------------------------------
+-- Recommended Starting Skeleton (commented)
+-- ----------------------------------------------------------------------------
+-- entity serial_adder_datapath is
+--   generic (
+--     G_WIDTH : positive := 16
+--   );
+--   port (
+--     clk          : in  std_logic;
+--     rst_n        : in  std_logic;
+--     load_i       : in  std_logic;
+--     shift_en_i   : in  std_logic;
+--     a_in_i       : in  std_logic_vector(G_WIDTH-1 downto 0);
+--     b_in_i       : in  std_logic_vector(G_WIDTH-1 downto 0);
+--     sum_out_o    : out std_logic_vector(G_WIDTH-1 downto 0);
+--     carry_out_o  : out std_logic;
+--     busy_o       : out std_logic;
+--     done_o       : out std_logic
+--   );
+-- end entity;
+--
+-- architecture rtl of serial_adder_datapath is
+--   -- signal declarations: a_reg, b_reg, sum_reg, carry_reg, bit_cnt
+-- begin
+--   -- synchronous load/shift processes
+--   -- full-adder combinational logic for sum_bit/carry_next
+--   -- bit counter and done flag
+-- end architecture;
+-- ============================================================================

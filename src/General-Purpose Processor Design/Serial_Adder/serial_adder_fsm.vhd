@@ -1,0 +1,43 @@
+-- ============================================================================
+-- Serial Adder Control FSM - Programming Guidance
+-- ============================================================================
+--
+-- PROJECT OVERVIEW:
+-- This header documents the control FSM for a serial adder. The FSM sequences
+-- load/shift operations, manages bit counting, and gates datapath enables.
+-- It handles initialization, iterative addition, and completion.
+--
+-- LEARNING OBJECTIVES:
+-- - Build simple iterative control for arithmetic datapaths
+-- - Use counters and flags to terminate operations cleanly
+-- - Keep outputs registered to avoid glitches
+--
+-- IMPLEMENTATION GUIDE:
+-- 1) LIBRARIES
+--    TODO: library IEEE;
+--    TODO: use IEEE.std_logic_1164.all;
+--    TODO: use IEEE.numeric_std.all;
+--
+-- 2) ENTITY (CONTROL INTERFACE)
+--    Suggested ports:
+--    - clk, reset : in std_logic
+--    - start      : in std_logic
+--    - width      : in unsigned(INDEX_WIDTH-1 downto 0)
+--    - shift_en, load_en, add_en : out std_logic
+--    - done, valid : out std_logic
+--
+-- 3) STATE SET (EXAMPLE)
+--    IDLE → LOAD → ADD_SHIFT(loop) → DONE → IDLE
+--
+-- 4) DESIGN NOTES
+--    - Gate enables with current state and counter
+--    - Use synchronous reset to clear all registers
+--    - Provide default assignments in combinational logic
+--
+-- 5) VERIFICATION
+--    - Counter limits: width coverage and off-by-one checks
+--    - Start/Done handshakes under repeated operations
+--
+-- Implement state register and next-state/output logic, then connect to the
+-- datapath described in the companion file.
+-- ============================================================================
