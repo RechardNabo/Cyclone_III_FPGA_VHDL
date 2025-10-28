@@ -148,9 +148,23 @@
 -- ============================================================================
 --
 -- [Add your library declarations here]
+library IEEE;
+use IEEE.std_logic_1164.all;
 --
 -- [Add your entity declaration here]
+entity AND_gate is
+    port (
+        a : in std_logic;  -- Input A
+        b : in std_logic;  -- Input B
+        y : out std_logic  -- Output Y = A AND B
+    );
+end entity AND_gate;
 --
 -- [Add your architecture implementation here]
+architecture dataflow of AND_gate is
+begin
+    -- Concurrent assignment implements 2-input AND
+    y <= a and b;
+end architecture dataflow;
 --
 -- ============================================================================

@@ -1,0 +1,50 @@
+-- ============================================================================
+-- Peripheral: 4-Digit Seven-Segment Display (Multiplexed) — Documentation-Only
+-- Target: Altera/Intel Cyclone III FPGA
+-- Purpose:
+--   This file documents how to drive a multiplexed 4-digit seven-segment
+--   display. No VHDL code is implemented here by request.
+--
+-- Overview:
+-- - Verify display type: common-anode (segments active-low) or common-cathode
+--   (segments active-high). Digit enable polarity also depends on type.
+-- - Multiplexing: scan digits rapidly to leverage persistence of vision.
+--   Typical per-digit refresh >1 kHz (overall ~4 kHz for 4 digits).
+-- - Provide optional decimal point (DP) control as needed.
+--
+-- Pin Assignments (example; adjust to your board):
+--   set_location_assignment PIN_<N> -to seg[0]  -- a
+--   set_location_assignment PIN_<N> -to seg[1]  -- b
+--   set_location_assignment PIN_<N> -to seg[2]  -- c
+--   set_location_assignment PIN_<N> -to seg[3]  -- d
+--   set_location_assignment PIN_<N> -to seg[4]  -- e
+--   set_location_assignment PIN_<N> -to seg[5]  -- f
+--   set_location_assignment PIN_<N> -to seg[6]  -- g
+--   set_location_assignment PIN_<N> -to dp      -- decimal point
+--   set_location_assignment PIN_<N> -to dig_en[0..3] -- digit enables
+--
+-- Recommended HDL Structure (not implemented):
+-- - Generics: CLK_FREQ_HZ, REFRESH_HZ, COMMON_ANODE
+-- - Ports:    clk, reset_n, digits(15..0), seg(6..0), dp, dig_en(3..0)
+-- - Blocks:   refresh timer, digit scan, hex-to-seg decoder, polarity handler
+--
+-- Decoder Notes (hex-to-seg):
+-- - Map 0..9, A..F to segment patterns. Adapt for your font preference.
+-- - For COMMON_ANODE, invert segment outputs.
+--
+-- Usage Notes:
+-- - Pack 4 nibbles into a 16-bit vector: [D3][D2][D1][D0].
+-- - Choose REFRESH_HZ to avoid flicker; ensure timing fits CLK_FREQ_HZ.
+-- - Confirm digit enable polarity for your display type.
+--
+-- Bring-Up Checklist:
+-- □ Pins assigned for segments, DP, and digit enables
+-- □ Display type verified (COMMON_ANODE vs common-cathode)
+-- □ Refresh timing computed from CLK_FREQ_HZ and REFRESH_HZ
+-- □ Hex-to-seg mapping validated
+--
+-- TODOs:
+-- - Create your own seven-segment driver entity/architecture.
+-- - Finalize decoder patterns and DP behavior.
+-- - Validate brightness/uniformity and adjust duty cycle if needed.
+-- ============================================================================

@@ -1,0 +1,58 @@
+-- ============================================================================
+-- Peripheral: LCD 16x2 Character Display (HD44780-compatible) — Documentation-Only
+-- Target: Altera/Intel Cyclone III FPGA
+-- Purpose:
+--   This file documents interfacing a 16x2 character LCD (HD44780 or compatible)
+--   in 4-bit or 8-bit mode. No VHDL code is implemented here by request.
+--
+-- Overview:
+-- - Control pins: RS (register select), RW (read/write), E (enable strobe).
+-- - Data bus: 4-bit (D7..D4) or 8-bit (D7..D0).
+-- - Timing: Respect setup/hold around E, and command execution delays.
+-- - Initialization: Required sequence after power-up or reset.
+--
+-- Pin Assignments (example; adjust to your board):
+--   set_location_assignment PIN_<N> -to lcd_rs
+--   set_location_assignment PIN_<N> -to lcd_rw
+--   set_location_assignment PIN_<N> -to lcd_e
+--   set_location_assignment PIN_<N> -to lcd_data[7..0]
+--
+-- Recommended HDL Structure (not implemented):
+-- - Generics: CLK_FREQ_HZ, USE_4BIT
+-- - Ports:    clk, reset_n, lcd_rs, lcd_rw, lcd_e, lcd_data[7..0]
+-- - Interface: data_in (char), cmd_in (command), start (strobe), busy (status)
+-- - Blocks:   initialization sequencer, write engine (nibble/byte), timing
+--
+-- Initialization Sequence (typical HD44780):
+-- 1) Power-on wait (~15 ms)
+-- 2) Function Set (DL=8 or 4-bit; N=2 lines; F=font)
+-- 3) Display ON/OFF Control (D=ON, C/B as needed)
+-- 4) Display Clear (execution ~1.5–2 ms)
+-- 5) Entry Mode Set (I/D=increment, S=shift off)
+--
+-- Write Operation:
+-- - For 8-bit: present data, RS=1 for data or 0 for command, RW=0, pulse E.
+-- - For 4-bit: present high nibble first, pulse E; then low nibble, pulse E.
+-- - If RW=1 (read), you may poll busy flag (D7). Many designs tie RW=0.
+--
+-- Timing Placeholders (adapt to your clock):
+-- - E high pulse width: ~450 ns (check datasheet)
+-- - Command exec: ~37–40 µs (varies by instruction)
+-- - Clear/Home exec: ~1.5–2 ms
+--
+-- Usage Notes:
+-- - Constrain pins properly; ensure voltage levels match LCD requirements.
+-- - Consider write-only interface (RW=0) for simplicity.
+-- - For custom characters, write to CGRAM and manage addresses.
+--
+-- Bring-Up Checklist:
+-- □ Pins assigned for RS/RW/E and data bus
+-- □ 4-bit vs 8-bit mode chosen; wiring verified
+-- □ Initialization sequence implemented with proper delays
+-- □ Write timing validated on hardware
+--
+-- TODOs:
+-- - Create your own LCD controller entity/architecture.
+-- - Flesh out state machines for init and writes per datasheet.
+-- - Add utilities for cursor positioning and custom characters as needed.
+-- ============================================================================

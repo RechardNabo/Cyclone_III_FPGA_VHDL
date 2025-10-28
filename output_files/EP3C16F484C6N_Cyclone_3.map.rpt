@@ -1,5 +1,5 @@
 Analysis & Synthesis report for EP3C16F484C6N_Cyclone_3
-Sat Oct 25 20:42:35 2025
+Mon Oct 27 21:35:04 2025
 Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
 
 
@@ -10,7 +10,13 @@ Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
   2. Analysis & Synthesis Summary
   3. Analysis & Synthesis Settings
   4. Parallel Compilation
-  5. Analysis & Synthesis Messages
+  5. Analysis & Synthesis Source Files Read
+  6. Analysis & Synthesis Resource Usage Summary
+  7. Analysis & Synthesis Resource Utilization by Entity
+  8. General Register Statistics
+  9. Parameter Settings for User Entity Instance: Top-level Entity: |leds
+ 10. Elapsed Time Per Partition
+ 11. Analysis & Synthesis Messages
 
 
 
@@ -36,20 +42,20 @@ applicable agreement for further details.
 +---------------------------------------------------------------------------------+
 ; Analysis & Synthesis Summary                                                    ;
 +------------------------------------+--------------------------------------------+
-; Analysis & Synthesis Status        ; Failed - Sat Oct 25 20:42:35 2025          ;
+; Analysis & Synthesis Status        ; Successful - Mon Oct 27 21:35:04 2025      ;
 ; Quartus II 64-Bit Version          ; 13.1.0 Build 162 10/23/2013 SJ Web Edition ;
 ; Revision Name                      ; EP3C16F484C6N_Cyclone_3                    ;
-; Top-level Entity Name              ; AND_gate                                   ;
+; Top-level Entity Name              ; leds                                       ;
 ; Family                             ; Cyclone III                                ;
-; Total logic elements               ; N/A until Partition Merge                  ;
-;     Total combinational functions  ; N/A until Partition Merge                  ;
-;     Dedicated logic registers      ; N/A until Partition Merge                  ;
-; Total registers                    ; N/A until Partition Merge                  ;
-; Total pins                         ; N/A until Partition Merge                  ;
-; Total virtual pins                 ; N/A until Partition Merge                  ;
-; Total memory bits                  ; N/A until Partition Merge                  ;
-; Embedded Multiplier 9-bit elements ; N/A until Partition Merge                  ;
-; Total PLLs                         ; N/A until Partition Merge                  ;
+; Total logic elements               ; 48                                         ;
+;     Total combinational functions  ; 48                                         ;
+;     Dedicated logic registers      ; 27                                         ;
+; Total registers                    ; 27                                         ;
+; Total pins                         ; 3                                          ;
+; Total virtual pins                 ; 0                                          ;
+; Total memory bits                  ; 0                                          ;
+; Embedded Multiplier 9-bit elements ; 0                                          ;
+; Total PLLs                         ; 0                                          ;
 +------------------------------------+--------------------------------------------+
 
 
@@ -59,7 +65,7 @@ applicable agreement for further details.
 ; Option                                                                     ; Setting            ; Default Value           ;
 +----------------------------------------------------------------------------+--------------------+-------------------------+
 ; Device                                                                     ; EP3C16F484C6       ;                         ;
-; Top-level entity name                                                      ; AND_gate           ; EP3C16F484C6N_Cyclone_3 ;
+; Top-level entity name                                                      ; leds               ; EP3C16F484C6N_Cyclone_3 ;
 ; Family name                                                                ; Cyclone III        ; Cyclone IV GX           ;
 ; Use smart compilation                                                      ; Off                ; Off                     ;
 ; Enable parallel Assembler and TimeQuest Timing Analyzer during compilation ; On                 ; On                      ;
@@ -151,15 +157,107 @@ Parallel compilation was disabled, but you have multiple processors available. E
 +----------------------------+--------+
 
 
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Source Files Read                                                                                                                                                   ;
++------------------------------------------+-----------------+-----------------+-------------------------------------------------------------------------------------------------+---------+
+; File Name with User-Entered Path         ; Used in Netlist ; File Type       ; File Name with Absolute Path                                                                    ; Library ;
++------------------------------------------+-----------------+-----------------+-------------------------------------------------------------------------------------------------+---------+
+; src/Hardware_Alter_Board_Basics/leds.vhd ; yes             ; User VHDL File  ; C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/src/Hardware_Alter_Board_Basics/leds.vhd ;         ;
++------------------------------------------+-----------------+-----------------+-------------------------------------------------------------------------------------------------+---------+
+
+
++---------------------------------------------------------+
+; Analysis & Synthesis Resource Usage Summary             ;
++---------------------------------------------+-----------+
+; Resource                                    ; Usage     ;
++---------------------------------------------+-----------+
+; Estimated Total logic elements              ; 48        ;
+;                                             ;           ;
+; Total combinational functions               ; 48        ;
+; Logic element usage by number of LUT inputs ;           ;
+;     -- 4 input functions                    ; 8         ;
+;     -- 3 input functions                    ; 0         ;
+;     -- <=2 input functions                  ; 40        ;
+;                                             ;           ;
+; Logic elements by mode                      ;           ;
+;     -- normal mode                          ; 23        ;
+;     -- arithmetic mode                      ; 25        ;
+;                                             ;           ;
+; Total registers                             ; 27        ;
+;     -- Dedicated logic registers            ; 27        ;
+;     -- I/O registers                        ; 0         ;
+;                                             ;           ;
+; I/O pins                                    ; 3         ;
+; Embedded Multiplier 9-bit elements          ; 0         ;
+; Maximum fan-out node                        ; clk~input ;
+; Maximum fan-out                             ; 27        ;
+; Total fan-out                               ; 196       ;
+; Average fan-out                             ; 2.42      ;
++---------------------------------------------+-----------+
+
+
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Analysis & Synthesis Resource Utilization by Entity                                                                                                                         ;
++----------------------------+-------------------+--------------+-------------+--------------+---------+-----------+------+--------------+---------------------+--------------+
+; Compilation Hierarchy Node ; LC Combinationals ; LC Registers ; Memory Bits ; DSP Elements ; DSP 9x9 ; DSP 18x18 ; Pins ; Virtual Pins ; Full Hierarchy Name ; Library Name ;
++----------------------------+-------------------+--------------+-------------+--------------+---------+-----------+------+--------------+---------------------+--------------+
+; |leds                      ; 48 (48)           ; 27 (27)      ; 0           ; 0            ; 0       ; 0         ; 3    ; 0            ; |leds               ; work         ;
++----------------------------+-------------------+--------------+-------------+--------------+---------+-----------+------+--------------+---------------------+--------------+
+Note: For table entries with two numbers listed, the numbers in parentheses indicate the number of resources of the given type used by the specific entity alone. The numbers listed outside of parentheses indicate the total resources of the given type used by the specific entity and all of its sub-entities in the hierarchy.
+
+
++------------------------------------------------------+
+; General Register Statistics                          ;
++----------------------------------------------+-------+
+; Statistic                                    ; Value ;
++----------------------------------------------+-------+
+; Total registers                              ; 27    ;
+; Number of registers using Synchronous Clear  ; 0     ;
+; Number of registers using Synchronous Load   ; 0     ;
+; Number of registers using Asynchronous Clear ; 27    ;
+; Number of registers using Asynchronous Load  ; 0     ;
+; Number of registers using Clock Enable       ; 0     ;
+; Number of registers using Preset             ; 0     ;
++----------------------------------------------+-------+
+
+
++----------------------------------------------------------------------+
+; Parameter Settings for User Entity Instance: Top-level Entity: |leds ;
++----------------+----------+------------------------------------------+
+; Parameter Name ; Value    ; Type                                     ;
++----------------+----------+------------------------------------------+
+; CLK_FREQ_HZ    ; 50000000 ; Signed Integer                           ;
++----------------+----------+------------------------------------------+
+Note: In order to hide this table in the UI and the text report file, please set the "Show Parameter Settings in Synthesis Report" option in "Analysis and Synthesis Settings -> More Settings" to "Off".
+
+
++-------------------------------+
+; Elapsed Time Per Partition    ;
++----------------+--------------+
+; Partition Name ; Elapsed Time ;
++----------------+--------------+
+; Top            ; 00:00:00     ;
++----------------+--------------+
+
+
 +-------------------------------+
 ; Analysis & Synthesis Messages ;
 +-------------------------------+
 Info: *******************************************************************
 Info: Running Quartus II 64-Bit Analysis & Synthesis
     Info: Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
-    Info: Processing started: Sat Oct 25 20:42:33 2025
+    Info: Processing started: Mon Oct 27 21:35:01 2025
 Info: Command: quartus_map --read_settings_files=on --write_settings_files=off EP3C16F484C6N_Cyclone_3 -c EP3C16F484C6N_Cyclone_3
 Warning (20028): Parallel compilation is not licensed and has been disabled
+Info (12021): Found 0 design units, including 0 entities, in source file src/hardware_alter_board_basics/switches.vhd
+Info (12021): Found 0 design units, including 0 entities, in source file src/hardware_alter_board_basics/seven_segment_4digit.vhd
+Info (12021): Found 2 design units, including 1 entities, in source file src/hardware_alter_board_basics/push_button.vhd
+    Info (12022): Found design unit 1: push_button-Behavioral
+    Info (12023): Found entity 1: push_button
+Info (12021): Found 2 design units, including 1 entities, in source file src/hardware_alter_board_basics/leds.vhd
+    Info (12022): Found design unit 1: leds-behavioral
+    Info (12023): Found entity 1: leds
+Info (12021): Found 0 design units, including 0 entities, in source file src/hardware_alter_board_basics/lcd_16x2.vhd
 Info (12021): Found 0 design units, including 0 entities, in source file src/uart/uart_transmitter.vhd
 Info (12021): Found 0 design units, including 0 entities, in source file src/uart/uart_receiver.vhd
 Info (12021): Found 0 design units, including 0 entities, in source file src/uart/hd6402.vhd
@@ -259,12 +357,21 @@ Info (12021): Found 0 design units, including 0 entities, in source file src/bas
 Info (12021): Found 0 design units, including 0 entities, in source file src/basic_logic/driver.vhd
 Info (12021): Found 0 design units, including 0 entities, in source file src/basic_logic/decoder_2to4.vhd
 Info (12021): Found 0 design units, including 0 entities, in source file src/basic_logic/basic_logic_top.vhd
-Info (12021): Found 0 design units, including 0 entities, in source file src/basic_logic/and_gate.vhd
-Error (12007): Top-level design entity "AND_gate" is undefined
-Error: Quartus II 64-Bit Analysis & Synthesis was unsuccessful. 1 error, 1 warning
-    Error: Peak virtual memory: 4652 megabytes
-    Error: Processing ended: Sat Oct 25 20:42:35 2025
-    Error: Elapsed time: 00:00:02
-    Error: Total CPU time (on all processors): 00:00:02
+Info (12021): Found 2 design units, including 1 entities, in source file src/basic_logic/and_gate.vhd
+    Info (12022): Found design unit 1: AND_gate-dataflow
+    Info (12023): Found entity 1: AND_gate
+Info (12127): Elaborating entity "leds" for the top level hierarchy
+Info (286030): Timing-Driven Synthesis is running
+Info (16010): Generating hard_block partition "hard_block:auto_generated_inst"
+    Info (16011): Adding 0 node(s), including 0 DDIO, 0 PLL, 0 transceiver and 0 LCELL
+Info (21057): Implemented 51 device resources after synthesis - the final resource count might be different
+    Info (21058): Implemented 2 input pins
+    Info (21059): Implemented 1 output pins
+    Info (21061): Implemented 48 logic cells
+Info: Quartus II 64-Bit Analysis & Synthesis was successful. 0 errors, 1 warning
+    Info: Peak virtual memory: 4658 megabytes
+    Info: Processing ended: Mon Oct 27 21:35:04 2025
+    Info: Elapsed time: 00:00:03
+    Info: Total CPU time (on all processors): 00:00:02
 
 
