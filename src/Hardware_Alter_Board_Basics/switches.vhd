@@ -1,0 +1,41 @@
+-- ============================================================================
+-- Peripheral: Switches (Board Basics) — Documentation-Only
+-- Target: Altera/Intel Cyclone III FPGA
+-- Purpose:
+--   This file documents how to interface on-board slide/toggle switches.
+--   No VHDL code is implemented here by request.
+--
+-- Overview:
+-- - Switches present static ON/OFF states but are asynchronous to clock.
+-- - Polarity depends on wiring (active-high vs active-low).
+-- - Mechanical noise is usually negligible for static reads; debounce
+--   is commonly unnecessary compared to push-buttons.
+--
+-- Pin Assignments (example; adjust to your board):
+--   set_location_assignment PIN_<N> -to sw_in[0]
+--   set_location_assignment PIN_<N> -to sw_in[1]
+--   ... (match switch count)
+--
+-- Recommended HDL Structure (not implemented):
+-- - Generic: SW_COUNT, ACTIVE_HIGH
+-- - Ports:  clk, sw_in (board pins), sw (synchronized outputs)
+-- - Logic:  two-flop synchronizer; polarity correction
+--           sw_raw <= sw_in when ACTIVE_HIGH else not sw_in;
+--           sync1 <= sw_raw; sync2 <= sync1; sw <= sync2;
+--
+-- Usage Notes:
+-- - Always synchronize raw switch signals to your system clock before use.
+-- - Confirm polarity; avoid inverted logic causing unexpected behavior.
+-- - If crossing domains, add CDC constraints or synchronizers per domain.
+--
+-- Bring-Up Checklist:
+-- □ Pin mapping complete in .qsf or Pin Planner
+-- □ Polarity verified against schematic
+-- □ Synchronization to clock domain implemented in your design
+-- □ Width (SW_COUNT) matches physical switches
+--
+-- TODOs:
+-- - Create your own switch interface entity/architecture.
+-- - Update constraints to exact pinout and I/O standards.
+-- - Integrate signals into configuration or mode-select logic.
+-- ============================================================================
