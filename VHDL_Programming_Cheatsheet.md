@@ -85,7 +85,7 @@
 ---
 
 ## 📚 Table of Contents
-1. [🚀 30-Day FPGA  Challenge](#-30-day-fpga-challenge)
+1. [🚀 Expert-Level VHDL Mastery Guide](#-expert-level-vhdl-mastery-guide)
 2. [Basic Structure & Syntax](#basic-structure--syntax)
 3. [Data Types & Objects](#data-types--objects)
 4. [Operators & Expressions](#operators--expressions)
@@ -289,7 +289,4055 @@ begin
 end process;
 ```
 
-### 📡 **Communication Systems**
+### 📡 **Communication Systems & Protocol Implementations**
+
+## 🔌 **I2C Protocol Implementation**
+```vhdl
+-- I2C Master Controller with Multi-Device Support
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity i2c_master is
+    generic (
+        CLK_FREQ    : integer := 50_000_000;  -- System clock frequency
+        I2C_FREQ    : integer := 400_000      -- I2C clock frequency (400kHz)
+    );
+    port (
+        clk         : in  std_logic;
+        reset_n     : in  std_logic;
+        -- Control interface
+        start       : in  std_logic;
+        stop        : in  std_logic;
+        read_write  : in  std_logic;  -- '1' for read, '0' for write
+        slave_addr  : in  std_logic_vector(6 downto 0);
+        data_in     : in  std_logic_vector(7 downto 0);
+        data_out    : out std_logic_vector(7 downto 0);
+        busy        : out std_logic;
+        ack_error   : out std_logic;
+        -- I2C bus
+        scl         : inout std_logic;
+        sda         : inout std_logic
+    );
+end entity i2c_master;
+
+architecture rtl of i2c_master is
+    -- I2C timing constants
+    constant CLK_DIVIDER : integer := CLK_FREQ / (4 * I2C_FREQ);
+    
+    -- State machine
+    type i2c_state_type is (IDLE, START_COND, ADDR_BYTE, ADDR_ACK, 
+                           DATA_BYTE, DATA_ACK, STOP_COND, ERROR);
+    signal state : i2c_state_type;
+    
+    -- Internal signals
+    signal scl_clk      : std_logic;
+    signal scl_enable   : std_logic;
+    signal sda_int      : std_logic;
+    signal sda_enable   : std_logic;
+    signal bit_counter  : integer range 0 to 7;
+    signal byte_buffer  : std_logic_vector(7 downto 0);
+    signal ack_bit      : std_logic;
+    
+    -- Clock divider for I2C timing
+    signal clk_div_counter : integer range 0 to CLK_DIVIDER-1;
+    signal clk_div_pulse   : std_logic;
+    
+begin
+    -- Clock divider process
+    clock_divider: process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            clk_div_counter <= 0;
+            clk_div_pulse <= '0';
+        elsif rising_edge(clk) then
+            if clk_div_counter = CLK_DIVIDER-1 then
+                clk_div_counter <= 0;
+                clk_div_pulse <= '1';
+            else
+                clk_div_counter <= clk_div_counter + 1;
+                clk_div_pulse <= '0';
+            end if;
+        end if;
+    end process;
+    
+    -- I2C state machine
+    i2c_fsm: process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            state <= IDLE;
+            bit_counter <= 0;
+            byte_buffer <= (others => '0');
+            busy <= '0';
+            ack_error <= '0';
+            scl_enable <= '1';
+            sda_enable <= '1';
+            sda_int <= '1';
+        elsif rising_edge(clk) then
+            if clk_div_pulse = '1' then
+                case state is
+                    when IDLE =>
+                        busy <= '0';
+                        scl_enable <= '1';
+                        sda_enable <= '1';
+                        sda_int <= '1';
+                        if start = '1' then
+                            state <= START_COND;
+                            busy <= '1';
+                        end if;
+                    
+                    when START_COND =>
+                        sda_int <= '0';  -- Start condition: SDA low while SCL high
+                        byte_buffer <= slave_addr & read_write;
+                        bit_counter <= 7;
+                        state <= ADDR_BYTE;
+                    
+                    when ADDR_BYTE =>
+                        sda_int <= byte_buffer(bit_counter);
+                        if bit_counter = 0 then
+                            state <= ADDR_ACK;
+                        else
+                            bit_counter <= bit_counter - 1;
+                        end if;
+                    
+                    when ADDR_ACK =>
+                        sda_enable <= '0';  -- Release SDA for ACK
+                        if sda = '0' then   -- ACK received
+                            if read_write = '1' then
+                                state <= DATA_BYTE;
+                                bit_counter <= 7;
+                            else
+                                byte_buffer <= data_in;
+                                state <= DATA_BYTE;
+                                bit_counter <= 7;
+                            end if;
+                        else
+                            ack_error <= '1';
+                            state <= ERROR;
+                        end if;
+                    
+                    when DATA_BYTE =>
+                        if read_write = '1' then
+                            -- Read operation
+                            byte_buffer(bit_counter) <= sda;
+                        else
+                            -- Write operation
+                            sda_int <= byte_buffer(bit_counter);
+                        end if;
+                        
+                        if bit_counter = 0 then
+                            state <= DATA_ACK;
+                        else
+                            bit_counter <= bit_counter - 1;
+                        end if;
+                    
+                    when DATA_ACK =>
+                        if read_write = '1' then
+                            sda_int <= '1';  -- NACK for read completion
+                            data_out <= byte_buffer;
+                        else
+                            sda_enable <= '0';  -- Release for ACK check
+                        end if;
+                        state <= STOP_COND;
+                    
+                    when STOP_COND =>
+                        sda_int <= '0';
+                        -- Generate stop condition in next cycle
+                        sda_int <= '1';  -- Stop condition: SDA high while SCL high
+                        state <= IDLE;
+                    
+                    when ERROR =>
+                        if stop = '1' then
+                            state <= STOP_COND;
+                            ack_error <= '0';
+                        end if;
+                end case;
+            end if;
+        end if;
+    end process;
+    
+    -- I2C bus control
+    scl <= '0' when scl_enable = '0' else 'Z';
+    sda <= sda_int when sda_enable = '1' else 'Z';
+    
+end architecture rtl;
+```
+
+---
+
+# 🏭 **Manufacturer-Specific IP Processor Implementations**
+
+## 🔵 **Intel/Altera IP Processors**
+
+### **Nios II Soft Processor Integration**
+```vhdl
+-- Nios II System Integration with Custom Peripherals
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity nios_ii_system is
+    port (
+        clk_50          : in  std_logic;
+        reset_n         : in  std_logic;
+        -- SDRAM Interface
+        sdram_addr      : out std_logic_vector(12 downto 0);
+        sdram_ba        : out std_logic_vector(1 downto 0);
+        sdram_cas_n     : out std_logic;
+        sdram_cke       : out std_logic;
+        sdram_clk       : out std_logic;
+        sdram_cs_n      : out std_logic;
+        sdram_dq        : inout std_logic_vector(15 downto 0);
+        sdram_dqm       : out std_logic_vector(1 downto 0);
+        sdram_ras_n     : out std_logic;
+        sdram_we_n      : out std_logic;
+        -- UART Interface
+        uart_rxd        : in  std_logic;
+        uart_txd        : out std_logic;
+        -- GPIO
+        gpio_export     : inout std_logic_vector(31 downto 0);
+        -- Custom Avalon-MM Slave
+        custom_address  : in  std_logic_vector(7 downto 0);
+        custom_read     : in  std_logic;
+        custom_write    : in  std_logic;
+        custom_writedata: in  std_logic_vector(31 downto 0);
+        custom_readdata : out std_logic_vector(31 downto 0);
+        custom_waitrequest : out std_logic
+    );
+end entity nios_ii_system;
+
+architecture rtl of nios_ii_system is
+    -- Nios II System Component
+    component nios_ii_gen2_0 is
+        port (
+            clk_clk                    : in  std_logic;
+            reset_reset_n              : in  std_logic;
+            sdram_controller_addr      : out std_logic_vector(12 downto 0);
+            sdram_controller_ba        : out std_logic_vector(1 downto 0);
+            sdram_controller_cas_n     : out std_logic;
+            sdram_controller_cke       : out std_logic;
+            sdram_controller_cs_n      : out std_logic;
+            sdram_controller_dq        : inout std_logic_vector(15 downto 0);
+            sdram_controller_dqm       : out std_logic_vector(1 downto 0);
+            sdram_controller_ras_n     : out std_logic;
+            sdram_controller_we_n      : out std_logic;
+            uart_0_external_connection_rxd : in  std_logic;
+            uart_0_external_connection_txd : out std_logic;
+            pio_0_external_connection_export : inout std_logic_vector(31 downto 0);
+            custom_peripheral_address  : in  std_logic_vector(7 downto 0);
+            custom_peripheral_read     : in  std_logic;
+            custom_peripheral_write    : in  std_logic;
+            custom_peripheral_writedata: in  std_logic_vector(31 downto 0);
+            custom_peripheral_readdata : out std_logic_vector(31 downto 0);
+            custom_peripheral_waitrequest : out std_logic
+        );
+    end component;
+
+    -- PLL Component for Clock Generation
+    component pll_50_to_100 is
+        port (
+            inclk0 : in  std_logic;
+            c0     : out std_logic;  -- 100 MHz for SDRAM
+            c1     : out std_logic;  -- 50 MHz for system
+            locked : out std_logic
+        );
+    end component;
+
+    signal clk_100      : std_logic;
+    signal clk_sys      : std_logic;
+    signal pll_locked   : std_logic;
+    signal system_reset : std_logic;
+
+begin
+    -- PLL Instance
+    pll_inst : pll_50_to_100
+        port map (
+            inclk0 => clk_50,
+            c0     => clk_100,
+            c1     => clk_sys,
+            locked => pll_locked
+        );
+
+    system_reset <= not (reset_n and pll_locked);
+    sdram_clk <= clk_100;
+
+    -- Nios II System Instance
+    nios_system : nios_ii_gen2_0
+        port map (
+            clk_clk                    => clk_sys,
+            reset_reset_n              => not system_reset,
+            sdram_controller_addr      => sdram_addr,
+            sdram_controller_ba        => sdram_ba,
+            sdram_controller_cas_n     => sdram_cas_n,
+            sdram_controller_cke       => sdram_cke,
+            sdram_controller_cs_n      => sdram_cs_n,
+            sdram_controller_dq        => sdram_dq,
+            sdram_controller_dqm       => sdram_dqm,
+            sdram_controller_ras_n     => sdram_ras_n,
+            sdram_controller_we_n      => sdram_we_n,
+            uart_0_external_connection_rxd => uart_rxd,
+            uart_0_external_connection_txd => uart_txd,
+            pio_0_external_connection_export => gpio_export,
+            custom_peripheral_address  => custom_address,
+            custom_peripheral_read     => custom_read,
+            custom_peripheral_write    => custom_write,
+            custom_peripheral_writedata=> custom_writedata,
+            custom_peripheral_readdata => custom_readdata,
+            custom_peripheral_waitrequest => custom_waitrequest
+        );
+
+end architecture rtl;
+```
+
+### **Intel RISC-V Implementation**
+```vhdl
+-- Intel RISC-V Core Integration
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity intel_riscv_system is
+    generic (
+        XLEN : integer := 32  -- 32-bit or 64-bit RISC-V
+    );
+    port (
+        clk             : in  std_logic;
+        reset_n         : in  std_logic;
+        -- Instruction Memory Interface
+        imem_addr       : out std_logic_vector(XLEN-1 downto 0);
+        imem_rdata      : in  std_logic_vector(31 downto 0);
+        imem_req        : out std_logic;
+        imem_gnt        : in  std_logic;
+        imem_rvalid     : in  std_logic;
+        -- Data Memory Interface
+        dmem_addr       : out std_logic_vector(XLEN-1 downto 0);
+        dmem_wdata      : out std_logic_vector(XLEN-1 downto 0);
+        dmem_rdata      : in  std_logic_vector(XLEN-1 downto 0);
+        dmem_we         : out std_logic;
+        dmem_be         : out std_logic_vector((XLEN/8)-1 downto 0);
+        dmem_req        : out std_logic;
+        dmem_gnt        : in  std_logic;
+        dmem_rvalid     : in  std_logic;
+        -- Interrupt Interface
+        irq_external    : in  std_logic;
+        irq_timer       : in  std_logic;
+        irq_software    : in  std_logic;
+        -- Debug Interface
+        debug_req       : in  std_logic;
+        debug_gnt       : out std_logic;
+        debug_rvalid    : out std_logic;
+        debug_addr      : in  std_logic_vector(14 downto 0);
+        debug_we        : in  std_logic;
+        debug_wdata     : in  std_logic_vector(XLEN-1 downto 0);
+        debug_rdata     : out std_logic_vector(XLEN-1 downto 0)
+    );
+end entity intel_riscv_system;
+
+architecture rtl of intel_riscv_system is
+    -- RISC-V Core Component (Intel IP)
+    component riscv_core is
+        generic (
+            RV32E          : integer := 0;
+            RV32M          : integer := 1;
+            RV32C          : integer := 0
+        );
+        port (
+            clk_i          : in  std_logic;
+            rst_ni         : in  std_logic;
+            -- Instruction Memory Interface
+            instr_addr_o   : out std_logic_vector(31 downto 0);
+            instr_rdata_i  : in  std_logic_vector(31 downto 0);
+            instr_req_o    : out std_logic;
+            instr_gnt_i    : in  std_logic;
+            instr_rvalid_i : in  std_logic;
+            -- Data Memory Interface
+            data_addr_o    : out std_logic_vector(31 downto 0);
+            data_wdata_o   : out std_logic_vector(31 downto 0);
+            data_rdata_i   : in  std_logic_vector(31 downto 0);
+            data_we_o      : out std_logic;
+            data_be_o      : out std_logic_vector(3 downto 0);
+            data_req_o     : out std_logic;
+            data_gnt_i     : in  std_logic;
+            data_rvalid_i  : in  std_logic;
+            -- Interrupt Interface
+            irq_i          : in  std_logic_vector(31 downto 0);
+            irq_ack_o      : out std_logic;
+            irq_id_o       : out std_logic_vector(4 downto 0);
+            -- Debug Interface
+            debug_req_i    : in  std_logic;
+            debug_gnt_o    : out std_logic;
+            debug_rvalid_o : out std_logic;
+            debug_addr_i   : in  std_logic_vector(14 downto 0);
+            debug_we_i     : in  std_logic;
+            debug_wdata_i  : in  std_logic_vector(31 downto 0);
+            debug_rdata_o  : out std_logic_vector(31 downto 0)
+        );
+    end component;
+
+    signal irq_vector : std_logic_vector(31 downto 0);
+
+begin
+    -- Interrupt Vector Assembly
+    irq_vector <= (0 => irq_software, 7 => irq_timer, 11 => irq_external, others => '0');
+
+    -- RISC-V Core Instance
+    riscv_inst : riscv_core
+        generic map (
+            RV32E => 0,  -- Full register set
+            RV32M => 1,  -- Multiply/Divide extension
+            RV32C => 0   -- Compressed instructions disabled
+        )
+        port map (
+            clk_i          => clk,
+            rst_ni         => reset_n,
+            instr_addr_o   => imem_addr,
+            instr_rdata_i  => imem_rdata,
+            instr_req_o    => imem_req,
+            instr_gnt_i    => imem_gnt,
+            instr_rvalid_i => imem_rvalid,
+            data_addr_o    => dmem_addr,
+            data_wdata_o   => dmem_wdata,
+            data_rdata_i   => dmem_rdata,
+            data_we_o      => dmem_we,
+            data_be_o      => dmem_be,
+            data_req_o     => dmem_req,
+            data_gnt_i     => dmem_gnt,
+            data_rvalid_i  => dmem_rvalid,
+            irq_i          => irq_vector,
+            irq_ack_o      => open,
+            irq_id_o       => open,
+            debug_req_i    => debug_req,
+            debug_gnt_o    => debug_gnt,
+            debug_rvalid_o => debug_rvalid,
+            debug_addr_i   => debug_addr,
+            debug_we_i     => debug_we,
+            debug_wdata_i  => debug_wdata,
+            debug_rdata_o  => debug_rdata
+        );
+
+end architecture rtl;
+```
+
+## 🟠 **Xilinx IP Processors**
+
+### **MicroBlaze Soft Processor System**
+```vhdl
+-- MicroBlaze System with AXI4-Lite Peripherals
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity microblaze_system is
+    port (
+        sys_clk_p       : in  std_logic;
+        sys_clk_n       : in  std_logic;
+        reset           : in  std_logic;
+        -- DDR3 Interface
+        ddr3_addr       : out std_logic_vector(13 downto 0);
+        ddr3_ba         : out std_logic_vector(2 downto 0);
+        ddr3_cas_n      : out std_logic;
+        ddr3_ck_n       : out std_logic_vector(0 downto 0);
+        ddr3_ck_p       : out std_logic_vector(0 downto 0);
+        ddr3_cke        : out std_logic_vector(0 downto 0);
+        ddr3_cs_n       : out std_logic_vector(0 downto 0);
+        ddr3_dm         : out std_logic_vector(1 downto 0);
+        ddr3_dq         : inout std_logic_vector(15 downto 0);
+        ddr3_dqs_n      : inout std_logic_vector(1 downto 0);
+        ddr3_dqs_p      : inout std_logic_vector(1 downto 0);
+        ddr3_odt        : out std_logic_vector(0 downto 0);
+        ddr3_ras_n      : out std_logic;
+        ddr3_reset_n    : out std_logic;
+        ddr3_we_n       : out std_logic;
+        -- UART Interface
+        uart_rxd        : in  std_logic;
+        uart_txd        : out std_logic;
+        -- GPIO
+        gpio_tri_io     : inout std_logic_vector(31 downto 0);
+        -- Custom AXI4-Lite Interface
+        custom_axi_aclk    : out std_logic;
+        custom_axi_aresetn : out std_logic;
+        custom_axi_awaddr  : out std_logic_vector(31 downto 0);
+        custom_axi_awprot  : out std_logic_vector(2 downto 0);
+        custom_axi_awvalid : out std_logic;
+        custom_axi_awready : in  std_logic;
+        custom_axi_wdata   : out std_logic_vector(31 downto 0);
+        custom_axi_wstrb   : out std_logic_vector(3 downto 0);
+        custom_axi_wvalid  : out std_logic;
+        custom_axi_wready  : in  std_logic;
+        custom_axi_bresp   : in  std_logic_vector(1 downto 0);
+        custom_axi_bvalid  : in  std_logic;
+        custom_axi_bready  : out std_logic;
+        custom_axi_araddr  : out std_logic_vector(31 downto 0);
+        custom_axi_arprot  : out std_logic_vector(2 downto 0);
+        custom_axi_arvalid : out std_logic;
+        custom_axi_arready : in  std_logic;
+        custom_axi_rdata   : in  std_logic_vector(31 downto 0);
+        custom_axi_rresp   : in  std_logic_vector(1 downto 0);
+        custom_axi_rvalid  : in  std_logic;
+        custom_axi_rready  : out std_logic
+    );
+end entity microblaze_system;
+
+architecture rtl of microblaze_system is
+    -- MicroBlaze System Component (Generated from Vivado)
+    component microblaze_mcs_0 is
+        port (
+            Clk             : in  std_logic;
+            Reset           : in  std_logic;
+            -- DDR3 Interface
+            DDR3_addr       : out std_logic_vector(13 downto 0);
+            DDR3_ba         : out std_logic_vector(2 downto 0);
+            DDR3_cas_n      : out std_logic;
+            DDR3_ck_n       : out std_logic_vector(0 downto 0);
+            DDR3_ck_p       : out std_logic_vector(0 downto 0);
+            DDR3_cke        : out std_logic_vector(0 downto 0);
+            DDR3_cs_n       : out std_logic_vector(0 downto 0);
+            DDR3_dm         : out std_logic_vector(1 downto 0);
+            DDR3_dq         : inout std_logic_vector(15 downto 0);
+            DDR3_dqs_n      : inout std_logic_vector(1 downto 0);
+            DDR3_dqs_p      : inout std_logic_vector(1 downto 0);
+            DDR3_odt        : out std_logic_vector(0 downto 0);
+            DDR3_ras_n      : out std_logic;
+            DDR3_reset_n    : out std_logic;
+            DDR3_we_n       : out std_logic;
+            -- UART Interface
+            UART_rxd        : in  std_logic;
+            UART_txd        : out std_logic;
+            -- GPIO Interface
+            GPIO_tri_io     : inout std_logic_vector(31 downto 0);
+            -- AXI4-Lite Master Interface
+            M_AXI_ACLK      : out std_logic;
+            M_AXI_ARESETN   : out std_logic;
+            M_AXI_AWADDR    : out std_logic_vector(31 downto 0);
+            M_AXI_AWPROT    : out std_logic_vector(2 downto 0);
+            M_AXI_AWVALID   : out std_logic;
+            M_AXI_AWREADY   : in  std_logic;
+            M_AXI_WDATA     : out std_logic_vector(31 downto 0);
+            M_AXI_WSTRB     : out std_logic_vector(3 downto 0);
+            M_AXI_WVALID    : out std_logic;
+            M_AXI_WREADY    : in  std_logic;
+            M_AXI_BRESP     : in  std_logic_vector(1 downto 0);
+            M_AXI_BVALID    : in  std_logic;
+            M_AXI_BREADY    : out std_logic;
+            M_AXI_ARADDR    : out std_logic_vector(31 downto 0);
+            M_AXI_ARPROT    : out std_logic_vector(2 downto 0);
+            M_AXI_ARVALID   : out std_logic;
+            M_AXI_ARREADY   : in  std_logic;
+            M_AXI_RDATA     : in  std_logic_vector(31 downto 0);
+            M_AXI_RRESP     : in  std_logic_vector(1 downto 0);
+            M_AXI_RVALID    : in  std_logic;
+            M_AXI_RREADY    : out std_logic
+        );
+    end component;
+
+    -- Clock Management
+    component clk_wiz_0 is
+        port (
+            clk_out1 : out std_logic;
+            reset    : in  std_logic;
+            locked   : out std_logic;
+            clk_in1_p: in  std_logic;
+            clk_in1_n: in  std_logic
+        );
+    end component;
+
+    signal clk_100      : std_logic;
+    signal clk_locked   : std_logic;
+    signal sys_reset    : std_logic;
+
+begin
+    -- Clock Wizard Instance
+    clk_gen : clk_wiz_0
+        port map (
+            clk_out1  => clk_100,
+            reset     => reset,
+            locked    => clk_locked,
+            clk_in1_p => sys_clk_p,
+            clk_in1_n => sys_clk_n
+        );
+
+    sys_reset <= reset or not clk_locked;
+
+    -- MicroBlaze System Instance
+    mb_system : microblaze_mcs_0
+        port map (
+            Clk           => clk_100,
+            Reset         => sys_reset,
+            DDR3_addr     => ddr3_addr,
+            DDR3_ba       => ddr3_ba,
+            DDR3_cas_n    => ddr3_cas_n,
+            DDR3_ck_n     => ddr3_ck_n,
+            DDR3_ck_p     => ddr3_ck_p,
+            DDR3_cke      => ddr3_cke,
+            DDR3_cs_n     => ddr3_cs_n,
+            DDR3_dm       => ddr3_dm,
+            DDR3_dq       => ddr3_dq,
+            DDR3_dqs_n    => ddr3_dqs_n,
+            DDR3_dqs_p    => ddr3_dqs_p,
+            DDR3_odt      => ddr3_odt,
+            DDR3_ras_n    => ddr3_ras_n,
+            DDR3_reset_n  => ddr3_reset_n,
+            DDR3_we_n     => ddr3_we_n,
+            UART_rxd      => uart_rxd,
+            UART_txd      => uart_txd,
+            GPIO_tri_io   => gpio_tri_io,
+            M_AXI_ACLK    => custom_axi_aclk,
+            M_AXI_ARESETN => custom_axi_aresetn,
+            M_AXI_AWADDR  => custom_axi_awaddr,
+            M_AXI_AWPROT  => custom_axi_awprot,
+            M_AXI_AWVALID => custom_axi_awvalid,
+            M_AXI_AWREADY => custom_axi_awready,
+            M_AXI_WDATA   => custom_axi_wdata,
+            M_AXI_WSTRB   => custom_axi_wstrb,
+            M_AXI_WVALID  => custom_axi_wvalid,
+            M_AXI_WREADY  => custom_axi_wready,
+            M_AXI_BRESP   => custom_axi_bresp,
+            M_AXI_BVALID  => custom_axi_bvalid,
+            M_AXI_BREADY  => custom_axi_bready,
+            M_AXI_ARADDR  => custom_axi_araddr,
+            M_AXI_ARPROT  => custom_axi_arprot,
+            M_AXI_ARVALID => custom_axi_arvalid,
+            M_AXI_ARREADY => custom_axi_arready,
+            M_AXI_RDATA   => custom_axi_rdata,
+            M_AXI_RRESP   => custom_axi_rresp,
+            M_AXI_RVALID  => custom_axi_rvalid,
+            M_AXI_RREADY  => custom_axi_rready
+        );
+
+end architecture rtl;
+```
+
+### **Zynq ARM + FPGA Integration**
+```vhdl
+-- Zynq-7000 ARM Cortex-A9 + FPGA Logic Integration
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity zynq_arm_fpga_system is
+    port (
+        -- PS-PL Interface (Zynq Processing System to Programmable Logic)
+        FCLK_CLK0       : out std_logic;
+        FCLK_RESET0_N   : out std_logic;
+        -- AXI4 GP0 Master Interface (PS to PL)
+        M_AXI_GP0_ACLK    : in  std_logic;
+        M_AXI_GP0_ARESETN : in  std_logic;
+        M_AXI_GP0_AWADDR  : out std_logic_vector(31 downto 0);
+        M_AXI_GP0_AWPROT  : out std_logic_vector(2 downto 0);
+        M_AXI_GP0_AWVALID : out std_logic;
+        M_AXI_GP0_AWREADY : in  std_logic;
+        M_AXI_GP0_WDATA   : out std_logic_vector(31 downto 0);
+        M_AXI_GP0_WSTRB   : out std_logic_vector(3 downto 0);
+        M_AXI_GP0_WVALID  : out std_logic;
+        M_AXI_GP0_WREADY  : in  std_logic;
+        M_AXI_GP0_BRESP   : in  std_logic_vector(1 downto 0);
+        M_AXI_GP0_BVALID  : in  std_logic;
+        M_AXI_GP0_BREADY  : out std_logic;
+        M_AXI_GP0_ARADDR  : out std_logic_vector(31 downto 0);
+        M_AXI_GP0_ARPROT  : out std_logic_vector(2 downto 0);
+        M_AXI_GP0_ARVALID : out std_logic;
+        M_AXI_GP0_ARREADY : in  std_logic;
+        M_AXI_GP0_RDATA   : in  std_logic_vector(31 downto 0);
+        M_AXI_GP0_RRESP   : in  std_logic_vector(1 downto 0);
+        M_AXI_GP0_RVALID  : in  std_logic;
+        M_AXI_GP0_RREADY  : out std_logic;
+        -- AXI4 HP0 Slave Interface (PL to PS)
+        S_AXI_HP0_ACLK    : in  std_logic;
+        S_AXI_HP0_ARESETN : in  std_logic;
+        S_AXI_HP0_AWADDR  : in  std_logic_vector(31 downto 0);
+        S_AXI_HP0_AWBURST : in  std_logic_vector(1 downto 0);
+        S_AXI_HP0_AWCACHE : in  std_logic_vector(3 downto 0);
+        S_AXI_HP0_AWID    : in  std_logic_vector(5 downto 0);
+        S_AXI_HP0_AWLEN   : in  std_logic_vector(3 downto 0);
+        S_AXI_HP0_AWLOCK  : in  std_logic_vector(1 downto 0);
+        S_AXI_HP0_AWPROT  : in  std_logic_vector(2 downto 0);
+        S_AXI_HP0_AWQOS   : in  std_logic_vector(3 downto 0);
+        S_AXI_HP0_AWREADY : out std_logic;
+        S_AXI_HP0_AWSIZE  : in  std_logic_vector(2 downto 0);
+        S_AXI_HP0_AWVALID : in  std_logic;
+        S_AXI_HP0_WDATA   : in  std_logic_vector(63 downto 0);
+        S_AXI_HP0_WID     : in  std_logic_vector(5 downto 0);
+        S_AXI_HP0_WLAST   : in  std_logic;
+        S_AXI_HP0_WREADY  : out std_logic;
+        S_AXI_HP0_WSTRB   : in  std_logic_vector(7 downto 0);
+        S_AXI_HP0_WVALID  : in  std_logic;
+        S_AXI_HP0_BRESP   : out std_logic_vector(1 downto 0);
+        S_AXI_HP0_BID     : out std_logic_vector(5 downto 0);
+        S_AXI_HP0_BREADY  : in  std_logic;
+        S_AXI_HP0_BVALID  : out std_logic;
+        -- External Interfaces
+        gpio_tri_io       : inout std_logic_vector(31 downto 0);
+        uart_txd          : out std_logic;
+        uart_rxd          : in  std_logic;
+        -- Custom FPGA Logic Interfaces
+        fpga_data_in      : in  std_logic_vector(31 downto 0);
+        fpga_data_out     : out std_logic_vector(31 downto 0);
+        fpga_valid_in     : in  std_logic;
+        fpga_valid_out    : out std_logic;
+        fpga_ready_in     : out std_logic;
+        fpga_ready_out    : in  std_logic
+    );
+end entity zynq_arm_fpga_system;
+
+architecture rtl of zynq_arm_fpga_system is
+    -- Zynq Processing System Component
+    component processing_system7_0 is
+        port (
+            FCLK_CLK0         : out std_logic;
+            FCLK_RESET0_N     : out std_logic;
+            M_AXI_GP0_ACLK    : in  std_logic;
+            M_AXI_GP0_ARESETN : in  std_logic;
+            M_AXI_GP0_AWADDR  : out std_logic_vector(31 downto 0);
+            M_AXI_GP0_AWPROT  : out std_logic_vector(2 downto 0);
+            M_AXI_GP0_AWVALID : out std_logic;
+            M_AXI_GP0_AWREADY : in  std_logic;
+            M_AXI_GP0_WDATA   : out std_logic_vector(31 downto 0);
+            M_AXI_GP0_WSTRB   : out std_logic_vector(3 downto 0);
+            M_AXI_GP0_WVALID  : out std_logic;
+            M_AXI_GP0_WREADY  : in  std_logic;
+            M_AXI_GP0_BRESP   : in  std_logic_vector(1 downto 0);
+            M_AXI_GP0_BVALID  : in  std_logic;
+            M_AXI_GP0_BREADY  : out std_logic;
+            M_AXI_GP0_ARADDR  : out std_logic_vector(31 downto 0);
+            M_AXI_GP0_ARPROT  : out std_logic_vector(2 downto 0);
+            M_AXI_GP0_ARVALID : out std_logic;
+            M_AXI_GP0_ARREADY : in  std_logic;
+            M_AXI_GP0_RDATA   : in  std_logic_vector(31 downto 0);
+            M_AXI_GP0_RRESP   : in  std_logic_vector(1 downto 0);
+            M_AXI_GP0_RVALID  : in  std_logic;
+            M_AXI_GP0_RREADY  : out std_logic;
+            S_AXI_HP0_ACLK    : in  std_logic;
+            S_AXI_HP0_ARESETN : in  std_logic;
+            S_AXI_HP0_AWADDR  : in  std_logic_vector(31 downto 0);
+            S_AXI_HP0_AWBURST : in  std_logic_vector(1 downto 0);
+            S_AXI_HP0_AWCACHE : in  std_logic_vector(3 downto 0);
+            S_AXI_HP0_AWID    : in  std_logic_vector(5 downto 0);
+            S_AXI_HP0_AWLEN   : in  std_logic_vector(3 downto 0);
+            S_AXI_HP0_AWLOCK  : in  std_logic_vector(1 downto 0);
+            S_AXI_HP0_AWPROT  : in  std_logic_vector(2 downto 0);
+            S_AXI_HP0_AWQOS   : in  std_logic_vector(3 downto 0);
+            S_AXI_HP0_AWREADY : out std_logic;
+            S_AXI_HP0_AWSIZE  : in  std_logic_vector(2 downto 0);
+            S_AXI_HP0_AWVALID : in  std_logic;
+            S_AXI_HP0_WDATA   : in  std_logic_vector(63 downto 0);
+            S_AXI_HP0_WID     : in  std_logic_vector(5 downto 0);
+            S_AXI_HP0_WLAST   : in  std_logic;
+            S_AXI_HP0_WREADY  : out std_logic;
+            S_AXI_HP0_WSTRB   : in  std_logic_vector(7 downto 0);
+            S_AXI_HP0_WVALID  : in  std_logic;
+            S_AXI_HP0_BRESP   : out std_logic_vector(1 downto 0);
+            S_AXI_HP0_BID     : out std_logic_vector(5 downto 0);
+            S_AXI_HP0_BREADY  : in  std_logic;
+            S_AXI_HP0_BVALID  : out std_logic;
+            GPIO_tri_io       : inout std_logic_vector(31 downto 0);
+            UART_txd          : out std_logic;
+            UART_rxd          : in  std_logic
+        );
+    end component;
+
+    -- Custom FPGA Accelerator Component
+    component fpga_accelerator is
+        port (
+            clk           : in  std_logic;
+            reset_n       : in  std_logic;
+            -- AXI4-Lite Slave Interface
+            s_axi_awaddr  : in  std_logic_vector(31 downto 0);
+            s_axi_awprot  : in  std_logic_vector(2 downto 0);
+            s_axi_awvalid : in  std_logic;
+            s_axi_awready : out std_logic;
+            s_axi_wdata   : in  std_logic_vector(31 downto 0);
+            s_axi_wstrb   : in  std_logic_vector(3 downto 0);
+            s_axi_wvalid  : in  std_logic;
+            s_axi_wready  : out std_logic;
+            s_axi_bresp   : out std_logic_vector(1 downto 0);
+            s_axi_bvalid  : out std_logic;
+            s_axi_bready  : in  std_logic;
+            s_axi_araddr  : in  std_logic_vector(31 downto 0);
+            s_axi_arprot  : in  std_logic_vector(2 downto 0);
+            s_axi_arvalid : in  std_logic;
+            s_axi_arready : out std_logic;
+            s_axi_rdata   : out std_logic_vector(31 downto 0);
+            s_axi_rresp   : out std_logic_vector(1 downto 0);
+            s_axi_rvalid  : out std_logic;
+            s_axi_rready  : in  std_logic;
+            -- Data Processing Interface
+            data_in       : in  std_logic_vector(31 downto 0);
+            data_out      : out std_logic_vector(31 downto 0);
+            valid_in      : in  std_logic;
+            valid_out     : out std_logic;
+            ready_in      : out std_logic;
+            ready_out     : in  std_logic
+        );
+    end component;
+
+    signal fclk_clk0_sig   : std_logic;
+    signal fclk_reset0_n_sig : std_logic;
+
+begin
+    -- Connect PS clock and reset to outputs
+    FCLK_CLK0 <= fclk_clk0_sig;
+    FCLK_RESET0_N <= fclk_reset0_n_sig;
+
+    -- Zynq Processing System Instance
+    ps7_inst : processing_system7_0
+        port map (
+            FCLK_CLK0         => fclk_clk0_sig,
+            FCLK_RESET0_N     => fclk_reset0_n_sig,
+            M_AXI_GP0_ACLK    => M_AXI_GP0_ACLK,
+            M_AXI_GP0_ARESETN => M_AXI_GP0_ARESETN,
+            M_AXI_GP0_AWADDR  => M_AXI_GP0_AWADDR,
+            M_AXI_GP0_AWPROT  => M_AXI_GP0_AWPROT,
+            M_AXI_GP0_AWVALID => M_AXI_GP0_AWVALID,
+            M_AXI_GP0_AWREADY => M_AXI_GP0_AWREADY,
+            M_AXI_GP0_WDATA   => M_AXI_GP0_WDATA,
+            M_AXI_GP0_WSTRB   => M_AXI_GP0_WSTRB,
+            M_AXI_GP0_WVALID  => M_AXI_GP0_WVALID,
+            M_AXI_GP0_WREADY  => M_AXI_GP0_WREADY,
+            M_AXI_GP0_BRESP   => M_AXI_GP0_BRESP,
+            M_AXI_GP0_BVALID  => M_AXI_GP0_BVALID,
+            M_AXI_GP0_BREADY  => M_AXI_GP0_BREADY,
+            M_AXI_GP0_ARADDR  => M_AXI_GP0_ARADDR,
+            M_AXI_GP0_ARPROT  => M_AXI_GP0_ARPROT,
+            M_AXI_GP0_ARVALID => M_AXI_GP0_ARVALID,
+            M_AXI_GP0_ARREADY => M_AXI_GP0_ARREADY,
+            M_AXI_GP0_RDATA   => M_AXI_GP0_RDATA,
+            M_AXI_GP0_RRESP   => M_AXI_GP0_RRESP,
+            M_AXI_GP0_RVALID  => M_AXI_GP0_RVALID,
+            M_AXI_GP0_RREADY  => M_AXI_GP0_RREADY,
+            S_AXI_HP0_ACLK    => S_AXI_HP0_ACLK,
+            S_AXI_HP0_ARESETN => S_AXI_HP0_ARESETN,
+            S_AXI_HP0_AWADDR  => S_AXI_HP0_AWADDR,
+            S_AXI_HP0_AWBURST => S_AXI_HP0_AWBURST,
+            S_AXI_HP0_AWCACHE => S_AXI_HP0_AWCACHE,
+            S_AXI_HP0_AWID    => S_AXI_HP0_AWID,
+            S_AXI_HP0_AWLEN   => S_AXI_HP0_AWLEN,
+            S_AXI_HP0_AWLOCK  => S_AXI_HP0_AWLOCK,
+            S_AXI_HP0_AWPROT  => S_AXI_HP0_AWPROT,
+            S_AXI_HP0_AWQOS   => S_AXI_HP0_AWQOS,
+            S_AXI_HP0_AWREADY => S_AXI_HP0_AWREADY,
+            S_AXI_HP0_AWSIZE  => S_AXI_HP0_AWSIZE,
+            S_AXI_HP0_AWVALID => S_AXI_HP0_AWVALID,
+            S_AXI_HP0_WDATA   => S_AXI_HP0_WDATA,
+            S_AXI_HP0_WID     => S_AXI_HP0_WID,
+            S_AXI_HP0_WLAST   => S_AXI_HP0_WLAST,
+            S_AXI_HP0_WREADY  => S_AXI_HP0_WREADY,
+            S_AXI_HP0_WSTRB   => S_AXI_HP0_WSTRB,
+            S_AXI_HP0_WVALID  => S_AXI_HP0_WVALID,
+            S_AXI_HP0_BRESP   => S_AXI_HP0_BRESP,
+            S_AXI_HP0_BID     => S_AXI_HP0_BID,
+            S_AXI_HP0_BREADY  => S_AXI_HP0_BREADY,
+            S_AXI_HP0_BVALID  => S_AXI_HP0_BVALID,
+            GPIO_tri_io       => gpio_tri_io,
+            UART_txd          => uart_txd,
+            UART_rxd          => uart_rxd
+        );
+
+    -- FPGA Accelerator Instance
+    fpga_accel : fpga_accelerator
+        port map (
+            clk           => M_AXI_GP0_ACLK,
+            reset_n       => M_AXI_GP0_ARESETN,
+            s_axi_awaddr  => M_AXI_GP0_AWADDR,
+            s_axi_awprot  => M_AXI_GP0_AWPROT,
+            s_axi_awvalid => M_AXI_GP0_AWVALID,
+            s_axi_awready => M_AXI_GP0_AWREADY,
+            s_axi_wdata   => M_AXI_GP0_WDATA,
+            s_axi_wstrb   => M_AXI_GP0_WSTRB,
+            s_axi_wvalid  => M_AXI_GP0_WVALID,
+            s_axi_wready  => M_AXI_GP0_WREADY,
+            s_axi_bresp   => M_AXI_GP0_BRESP,
+            s_axi_bvalid  => M_AXI_GP0_BVALID,
+            s_axi_bready  => M_AXI_GP0_BREADY,
+            s_axi_araddr  => M_AXI_GP0_ARADDR,
+            s_axi_arprot  => M_AXI_GP0_ARPROT,
+            s_axi_arvalid => M_AXI_GP0_ARVALID,
+            s_axi_arready => M_AXI_GP0_ARREADY,
+            s_axi_rdata   => M_AXI_GP0_RDATA,
+            s_axi_rresp   => M_AXI_GP0_RRESP,
+            s_axi_rvalid  => M_AXI_GP0_RVALID,
+            s_axi_rready  => M_AXI_GP0_RREADY,
+            data_in       => fpga_data_in,
+            data_out      => fpga_data_out,
+            valid_in      => fpga_valid_in,
+            valid_out     => fpga_valid_out,
+            ready_in      => fpga_ready_in,
+            ready_out     => fpga_ready_out
+        );
+
+end architecture rtl;
+```
+
+## 🟢 **Lattice IP Processors**
+
+### **LatticeMico32 (LM32) Soft Processor**
+```vhdl
+-- LatticeMico32 System Integration
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity lm32_system is
+    port (
+        clk_i           : in  std_logic;
+        rst_i           : in  std_logic;
+        -- Wishbone Master Interface (Instruction)
+        I_ADR_O         : out std_logic_vector(31 downto 0);
+        I_DAT_I         : in  std_logic_vector(31 downto 0);
+        I_DAT_O         : out std_logic_vector(31 downto 0);
+        I_SEL_O         : out std_logic_vector(3 downto 0);
+        I_CYC_O         : out std_logic;
+        I_STB_O         : out std_logic;
+        I_ACK_I         : in  std_logic;
+        I_WE_O          : out std_logic;
+        I_CTI_O         : out std_logic_vector(2 downto 0);
+        I_LOCK_O        : out std_logic;
+        I_BTE_O         : out std_logic_vector(1 downto 0);
+        I_ERR_I         : in  std_logic;
+        I_RTY_I         : in  std_logic;
+        -- Wishbone Master Interface (Data)
+        D_ADR_O         : out std_logic_vector(31 downto 0);
+        D_DAT_I         : in  std_logic_vector(31 downto 0);
+        D_DAT_O         : out std_logic_vector(31 downto 0);
+        D_SEL_O         : out std_logic_vector(3 downto 0);
+        D_CYC_O         : out std_logic;
+        D_STB_O         : out std_logic;
+        D_ACK_I         : in  std_logic;
+        D_WE_O          : out std_logic;
+        D_CTI_O         : out std_logic_vector(2 downto 0);
+        D_LOCK_O        : out std_logic;
+        D_BTE_O         : out std_logic_vector(1 downto 0);
+        D_ERR_I         : in  std_logic;
+        D_RTY_I         : in  std_logic;
+        -- Interrupt Interface
+        interrupt       : in  std_logic_vector(31 downto 0);
+        -- JTAG Debug Interface
+        jtag_clk        : in  std_logic;
+        jtag_update     : in  std_logic;
+        jtag_reg_q      : out std_logic_vector(7 downto 0);
+        jtag_reg_addr_q : out std_logic_vector(2 downto 0)
+    );
+end entity lm32_system;
+
+architecture rtl of lm32_system is
+    -- LM32 CPU Core Component
+    component lm32_cpu is
+        generic (
+            eba_reset       : std_logic_vector(31 downto 0) := x"00000000";
+            sdb_address     : std_logic_vector(31 downto 0) := x"00000000";
+            CFG_EBA_RESET   : std_logic_vector(31 downto 0) := x"00000000";
+            CFG_DEBA_RESET  : std_logic_vector(31 downto 0) := x"10000000";
+            CFG_PL_MULTIPLY_ENABLED : boolean := true;
+            CFG_PL_BARREL_SHIFT_ENABLED : boolean := true;
+            CFG_SIGN_EXTEND_ENABLED : boolean := true;
+            CFG_MC_DIVIDE_ENABLED : boolean := true;
+            CFG_EBR_POSEDGE_REGISTER_FILE : boolean := false;
+            CFG_EBR_NEGEDGE_REGISTER_FILE : boolean := false;
+            CFG_EBR_ONE_HOT_REGISTER_FILE : boolean := false;
+            CFG_JTAG_ENABLED : boolean := true;
+            CFG_DEBUG_ENABLED : boolean := true;
+            CFG_HW_DEBUG_ENABLED : boolean := true;
+            CFG_ROM_DEBUG_ENABLED : boolean := true;
+            CFG_BREAKPOINTS : integer := 4;
+            CFG_WATCHPOINTS : integer := 4;
+            CFG_EXTERNAL_BREAK_ENABLED : boolean := false;
+            CFG_GDBSTUB_ENABLED : boolean := false;
+            CFG_ICACHE_ENABLED : boolean := false;
+            CFG_ICACHE_ASSOCIATIVITY : integer := 1;
+            CFG_ICACHE_SETS : integer := 256;
+            CFG_ICACHE_BYTES_PER_LINE : integer := 16;
+            CFG_DCACHE_ENABLED : boolean := false;
+            CFG_DCACHE_ASSOCIATIVITY : integer := 1;
+            CFG_DCACHE_SETS : integer := 256;
+            CFG_DCACHE_BYTES_PER_LINE : integer := 16
+        );
+        port (
+            clk_i           : in  std_logic;
+            rst_i           : in  std_logic;
+            interrupt       : in  std_logic_vector(31 downto 0);
+            -- Wishbone Instruction Interface
+            I_ADR_O         : out std_logic_vector(31 downto 0);
+            I_DAT_I         : in  std_logic_vector(31 downto 0);
+            I_DAT_O         : out std_logic_vector(31 downto 0);
+            I_SEL_O         : out std_logic_vector(3 downto 0);
+            I_CYC_O         : out std_logic;
+            I_STB_O         : out std_logic;
+            I_ACK_I         : in  std_logic;
+            I_WE_O          : out std_logic;
+            I_CTI_O         : out std_logic_vector(2 downto 0);
+            I_LOCK_O        : out std_logic;
+            I_BTE_O         : out std_logic_vector(1 downto 0);
+            I_ERR_I         : in  std_logic;
+            I_RTY_I         : in  std_logic;
+            -- Wishbone Data Interface
+            D_ADR_O         : out std_logic_vector(31 downto 0);
+            D_DAT_I         : in  std_logic_vector(31 downto 0);
+            D_DAT_O         : out std_logic_vector(31 downto 0);
+            D_SEL_O         : out std_logic_vector(3 downto 0);
+            D_CYC_O         : out std_logic;
+            D_STB_O         : out std_logic;
+            D_ACK_I         : in  std_logic;
+            D_WE_O          : out std_logic;
+            D_CTI_O         : out std_logic_vector(2 downto 0);
+            D_LOCK_O        : out std_logic;
+            D_BTE_O         : out std_logic_vector(1 downto 0);
+            D_ERR_I         : in  std_logic;
+            D_RTY_I         : in  std_logic;
+            -- JTAG Interface
+            jtag_clk        : in  std_logic;
+            jtag_update     : in  std_logic;
+            jtag_reg_q      : out std_logic_vector(7 downto 0);
+            jtag_reg_addr_q : out std_logic_vector(2 downto 0)
+        );
+    end component;
+
+begin
+    -- LM32 CPU Instance
+    lm32_inst : lm32_cpu
+        generic map (
+            eba_reset       => x"00000000",
+            sdb_address     => x"00000000",
+            CFG_EBA_RESET   => x"00000000",
+            CFG_DEBA_RESET  => x"10000000",
+            CFG_PL_MULTIPLY_ENABLED => true,
+            CFG_PL_BARREL_SHIFT_ENABLED => true,
+            CFG_SIGN_EXTEND_ENABLED => true,
+            CFG_MC_DIVIDE_ENABLED => true,
+            CFG_EBR_POSEDGE_REGISTER_FILE => false,
+            CFG_EBR_NEGEDGE_REGISTER_FILE => false,
+            CFG_EBR_ONE_HOT_REGISTER_FILE => false,
+            CFG_JTAG_ENABLED => true,
+            CFG_DEBUG_ENABLED => true,
+            CFG_HW_DEBUG_ENABLED => true,
+            CFG_ROM_DEBUG_ENABLED => true,
+            CFG_BREAKPOINTS => 4,
+            CFG_WATCHPOINTS => 4,
+            CFG_EXTERNAL_BREAK_ENABLED => false,
+            CFG_GDBSTUB_ENABLED => false,
+            CFG_ICACHE_ENABLED => false,
+            CFG_ICACHE_ASSOCIATIVITY => 1,
+            CFG_ICACHE_SETS => 256,
+            CFG_ICACHE_BYTES_PER_LINE => 16,
+            CFG_DCACHE_ENABLED => false,
+            CFG_DCACHE_ASSOCIATIVITY => 1,
+            CFG_DCACHE_SETS => 256,
+            CFG_DCACHE_BYTES_PER_LINE => 16
+        )
+        port map (
+            clk_i           => clk_i,
+            rst_i           => rst_i,
+            interrupt       => interrupt,
+            I_ADR_O         => I_ADR_O,
+            I_DAT_I         => I_DAT_I,
+            I_DAT_O         => I_DAT_O,
+            I_SEL_O         => I_SEL_O,
+            I_CYC_O         => I_CYC_O,
+            I_STB_O         => I_STB_O,
+            I_ACK_I         => I_ACK_I,
+            I_WE_O          => I_WE_O,
+            I_CTI_O         => I_CTI_O,
+            I_LOCK_O        => I_LOCK_O,
+            I_BTE_O         => I_BTE_O,
+            I_ERR_I         => I_ERR_I,
+            I_RTY_I         => I_RTY_I,
+            D_ADR_O         => D_ADR_O,
+            D_DAT_I         => D_DAT_I,
+            D_DAT_O         => D_DAT_O,
+            D_SEL_O         => D_SEL_O,
+            D_CYC_O         => D_CYC_O,
+            D_STB_O         => D_STB_O,
+            D_ACK_I         => D_ACK_I,
+            D_WE_O          => D_WE_O,
+            D_CTI_O         => D_CTI_O,
+            D_LOCK_O        => D_LOCK_O,
+            D_BTE_O         => D_BTE_O,
+            D_ERR_I         => D_ERR_I,
+            D_RTY_I         => D_RTY_I,
+            jtag_clk        => jtag_clk,
+            jtag_update     => jtag_update,
+            jtag_reg_q      => jtag_reg_q,
+            jtag_reg_addr_q => jtag_reg_addr_q
+        );
+
+end architecture rtl;
+```
+
+## 🔴 **Microsemi/Microchip IP Processors**
+
+### **CoreRISCV Implementation**
+```vhdl
+-- Microsemi CoreRISCV Integration
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity core_riscv_system is
+    generic (
+        RESET_VECTOR_ADDR : std_logic_vector(31 downto 0) := x"00000000";
+        DEBUG_HALT_ADDR   : std_logic_vector(31 downto 0) := x"00000800";
+        ISA_CONFIG        : integer := 0;  -- RV32I
+        MULTIPLY_TYPE     : integer := 1;  -- Fast multiplier
+        BUS_INTERFACE_TYPE: integer := 0   -- AHB-Lite
+    );
+    port (
+        CLK             : in  std_logic;
+        RESETN          : in  std_logic;
+        -- AHB-Lite Master Interface
+        HADDR           : out std_logic_vector(31 downto 0);
+        HBURST          : out std_logic_vector(2 downto 0);
+        HMASTLOCK       : out std_logic;
+        HPROT           : out std_logic_vector(3 downto 0);
+        HSIZE           : out std_logic_vector(2 downto 0);
+        HTRANS          : out std_logic_vector(1 downto 0);
+        HWDATA          : out std_logic_vector(31 downto 0);
+        HWRITE          : out std_logic;
+        HRDATA          : in  std_logic_vector(31 downto 0);
+        HREADY          : in  std_logic;
+        HRESP           : in  std_logic;
+        -- Interrupt Interface
+        IRQ             : in  std_logic_vector(30 downto 0);
+        NMI             : in  std_logic;
+        EXT_IRQ         : in  std_logic;
+        -- Debug Interface
+        TCK             : in  std_logic;
+        TDI             : in  std_logic;
+        TDO             : out std_logic;
+        TMS             : in  std_logic;
+        TRST            : in  std_logic;
+        -- GPR Interface (for debugging)
+        GPR_DATA        : out std_logic_vector(31 downto 0);
+        GPR_ADDR        : out std_logic_vector(4 downto 0);
+        GPR_WE          : out std_logic;
+        -- Performance Counters
+        RETIRE          : out std_logic;
+        MHARTID         : in  std_logic_vector(31 downto 0)
+    );
+end entity core_riscv_system;
+
+architecture rtl of core_riscv_system is
+    -- CoreRISCV Component
+    component CORERISCV_AXI4 is
+        generic (
+            RESET_VECTOR_ADDR : std_logic_vector(31 downto 0) := x"00000000";
+            DEBUG_HALT_ADDR   : std_logic_vector(31 downto 0) := x"00000800";
+            ISA_CONFIG        : integer := 0;
+            MULTIPLY_TYPE     : integer := 1;
+            BUS_INTERFACE_TYPE: integer := 0;
+            BIT_MANIPULATION_ISA : integer := 0;
+            COMPRESSED_ISA    : integer := 0;
+            FLOATING_POINT_ISA: integer := 0;
+            DEBUG_INTERFACE   : integer := 1;
+            M_EXTENSION       : integer := 1;
+            C_EXTENSION       : integer := 0;
+            BITMANIP_EXTENSION: integer := 0;
+            FP_EXTENSION      : integer := 0
+        );
+        port (
+            CLK             : in  std_logic;
+            RESETN          : in  std_logic;
+            HADDR           : out std_logic_vector(31 downto 0);
+            HBURST          : out std_logic_vector(2 downto 0);
+            HMASTLOCK       : out std_logic;
+            HPROT           : out std_logic_vector(3 downto 0);
+            HSIZE           : out std_logic_vector(2 downto 0);
+            HTRANS          : out std_logic_vector(1 downto 0);
+            HWDATA          : out std_logic_vector(31 downto 0);
+            HWRITE          : out std_logic;
+            HRDATA          : in  std_logic_vector(31 downto 0);
+            HREADY          : in  std_logic;
+            HRESP           : in  std_logic;
+            IRQ             : in  std_logic_vector(30 downto 0);
+            NMI             : in  std_logic;
+            EXT_IRQ         : in  std_logic;
+            TCK             : in  std_logic;
+            TDI             : in  std_logic;
+            TDO             : out std_logic;
+            TMS             : in  std_logic;
+            TRST            : in  std_logic;
+            GPR_DATA        : out std_logic_vector(31 downto 0);
+            GPR_ADDR        : out std_logic_vector(4 downto 0);
+            GPR_WE          : out std_logic;
+            RETIRE          : out std_logic;
+            MHARTID         : in  std_logic_vector(31 downto 0)
+        );
+    end component;
+
+begin
+    -- CoreRISCV Instance
+    core_riscv_inst : CORERISCV_AXI4
+        generic map (
+            RESET_VECTOR_ADDR => RESET_VECTOR_ADDR,
+            DEBUG_HALT_ADDR   => DEBUG_HALT_ADDR,
+            ISA_CONFIG        => ISA_CONFIG,
+            MULTIPLY_TYPE     => MULTIPLY_TYPE,
+            BUS_INTERFACE_TYPE=> BUS_INTERFACE_TYPE,
+            BIT_MANIPULATION_ISA => 0,
+            COMPRESSED_ISA    => 0,
+            FLOATING_POINT_ISA=> 0,
+            DEBUG_INTERFACE   => 1,
+            M_EXTENSION       => 1,
+            C_EXTENSION       => 0,
+            BITMANIP_EXTENSION=> 0,
+            FP_EXTENSION      => 0
+        )
+        port map (
+            CLK             => CLK,
+            RESETN          => RESETN,
+            HADDR           => HADDR,
+            HBURST          => HBURST,
+            HMASTLOCK       => HMASTLOCK,
+            HPROT           => HPROT,
+            HSIZE           => HSIZE,
+            HTRANS          => HTRANS,
+            HWDATA          => HWDATA,
+            HWRITE          => HWRITE,
+            HRDATA          => HRDATA,
+            HREADY          => HREADY,
+            HRESP           => HRESP,
+            IRQ             => IRQ,
+            NMI             => NMI,
+            EXT_IRQ         => EXT_IRQ,
+            TCK             => TCK,
+            TDI             => TDI,
+            TDO             => TDO,
+            TMS             => TMS,
+            TRST            => TRST,
+            GPR_DATA        => GPR_DATA,
+            GPR_ADDR        => GPR_ADDR,
+            GPR_WE          => GPR_WE,
+            RETIRE          => RETIRE,
+            MHARTID         => MHARTID
+        );
+
+end architecture rtl;
+```
+
+## 🟣 **Custom RISC-V Processor Implementation**
+
+### **Custom 5-Stage Pipeline RISC-V Core**
+```vhdl
+-- Custom RISC-V RV32I Implementation with 5-Stage Pipeline
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity custom_riscv_core is
+    generic (
+        XLEN            : integer := 32;
+        RESET_VECTOR    : std_logic_vector(31 downto 0) := x"00000000";
+        ENABLE_M_EXT    : boolean := true;
+        ENABLE_C_EXT    : boolean := false;
+        ENABLE_COUNTERS : boolean := true
+    );
+    port (
+        clk             : in  std_logic;
+        reset_n         : in  std_logic;
+        -- Instruction Memory Interface
+        imem_addr       : out std_logic_vector(31 downto 0);
+        imem_rdata      : in  std_logic_vector(31 downto 0);
+        imem_req        : out std_logic;
+        imem_ack        : in  std_logic;
+        -- Data Memory Interface
+        dmem_addr       : out std_logic_vector(31 downto 0);
+        dmem_wdata      : out std_logic_vector(31 downto 0);
+        dmem_rdata      : in  std_logic_vector(31 downto 0);
+        dmem_we         : out std_logic;
+        dmem_be         : out std_logic_vector(3 downto 0);
+        dmem_req        : out std_logic;
+        dmem_ack        : in  std_logic;
+        -- Interrupt Interface
+        external_irq    : in  std_logic;
+        timer_irq       : in  std_logic;
+        software_irq    : in  std_logic;
+        -- Debug Interface
+        debug_halt      : in  std_logic;
+        debug_resume    : in  std_logic;
+        debug_pc        : out std_logic_vector(31 downto 0);
+        debug_reg_addr  : in  std_logic_vector(4 downto 0);
+        debug_reg_data  : out std_logic_vector(31 downto 0);
+        debug_reg_we    : in  std_logic;
+        debug_reg_wdata : in  std_logic_vector(31 downto 0)
+    );
+end entity custom_riscv_core;
+
+architecture rtl of custom_riscv_core is
+    -- Pipeline Stage Registers
+    type if_id_reg_type is record
+        pc          : std_logic_vector(31 downto 0);
+        instruction : std_logic_vector(31 downto 0);
+        valid       : std_logic;
+    end record;
+
+    type id_ex_reg_type is record
+        pc          : std_logic_vector(31 downto 0);
+        rs1_data    : std_logic_vector(31 downto 0);
+        rs2_data    : std_logic_vector(31 downto 0);
+        immediate   : std_logic_vector(31 downto 0);
+        rd_addr     : std_logic_vector(4 downto 0);
+        alu_op      : std_logic_vector(3 downto 0);
+        mem_read    : std_logic;
+        mem_write   : std_logic;
+        reg_write   : std_logic;
+        branch      : std_logic;
+        jump        : std_logic;
+        valid       : std_logic;
+    end record;
+
+    type ex_mem_reg_type is record
+        pc          : std_logic_vector(31 downto 0);
+        alu_result  : std_logic_vector(31 downto 0);
+        rs2_data    : std_logic_vector(31 downto 0);
+        rd_addr     : std_logic_vector(4 downto 0);
+        mem_read    : std_logic;
+        mem_write   : std_logic;
+        reg_write   : std_logic;
+        valid       : std_logic;
+    end record;
+
+    type mem_wb_reg_type is record
+        alu_result  : std_logic_vector(31 downto 0);
+        mem_data    : std_logic_vector(31 downto 0);
+        rd_addr     : std_logic_vector(4 downto 0);
+        reg_write   : std_logic;
+        mem_to_reg  : std_logic;
+        valid       : std_logic;
+    end record;
+
+    -- Pipeline Registers
+    signal if_id_reg    : if_id_reg_type;
+    signal id_ex_reg    : id_ex_reg_type;
+    signal ex_mem_reg   : ex_mem_reg_type;
+    signal mem_wb_reg   : mem_wb_reg_type;
+
+    -- Program Counter
+    signal pc           : std_logic_vector(31 downto 0);
+    signal pc_next      : std_logic_vector(31 downto 0);
+    signal pc_plus_4    : std_logic_vector(31 downto 0);
+
+    -- Register File
+    type reg_file_type is array (0 to 31) of std_logic_vector(31 downto 0);
+    signal reg_file     : reg_file_type;
+
+    -- Control Signals
+    signal stall        : std_logic;
+    signal flush        : std_logic;
+    signal branch_taken : std_logic;
+    signal jump_taken   : std_logic;
+
+    -- ALU Signals
+    signal alu_a        : std_logic_vector(31 downto 0);
+    signal alu_b        : std_logic_vector(31 downto 0);
+    signal alu_result   : std_logic_vector(31 downto 0);
+    signal alu_zero     : std_logic;
+
+    -- Instruction Decode Signals
+    signal opcode       : std_logic_vector(6 downto 0);
+    signal rd           : std_logic_vector(4 downto 0);
+    signal rs1          : std_logic_vector(4 downto 0);
+    signal rs2          : std_logic_vector(4 downto 0);
+    signal funct3       : std_logic_vector(2 downto 0);
+    signal funct7       : std_logic_vector(6 downto 0);
+    signal immediate    : std_logic_vector(31 downto 0);
+
+    -- CSR Registers
+    signal mstatus      : std_logic_vector(31 downto 0);
+    signal mie          : std_logic_vector(31 downto 0);
+    signal mtvec        : std_logic_vector(31 downto 0);
+    signal mepc         : std_logic_vector(31 downto 0);
+    signal mcause       : std_logic_vector(31 downto 0);
+    signal mtval        : std_logic_vector(31 downto 0);
+    signal mip          : std_logic_vector(31 downto 0);
+
+    -- Performance Counters
+    signal mcycle       : std_logic_vector(63 downto 0);
+    signal minstret     : std_logic_vector(63 downto 0);
+
+begin
+    -- Program Counter Logic
+    pc_plus_4 <= std_logic_vector(unsigned(pc) + 4);
+    
+    pc_next <= RESET_VECTOR when reset_n = '0' else
+               ex_mem_reg.alu_result when (branch_taken = '1' or jump_taken = '1') else
+               pc_plus_4 when stall = '0' else
+               pc;
+
+    -- Instruction Fetch Stage
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset_n = '0' then
+                pc <= RESET_VECTOR;
+                if_id_reg.valid <= '0';
+            elsif stall = '0' then
+                pc <= pc_next;
+                if_id_reg.pc <= pc;
+                if_id_reg.instruction <= imem_rdata;
+                if_id_reg.valid <= imem_ack and not flush;
+            end if;
+        end if;
+    end process;
+
+    imem_addr <= pc;
+    imem_req <= '1';
+
+    -- Instruction Decode
+    opcode <= if_id_reg.instruction(6 downto 0);
+    rd <= if_id_reg.instruction(11 downto 7);
+    rs1 <= if_id_reg.instruction(19 downto 15);
+    rs2 <= if_id_reg.instruction(24 downto 20);
+    funct3 <= if_id_reg.instruction(14 downto 12);
+    funct7 <= if_id_reg.instruction(31 downto 25);
+
+    -- Immediate Generation
+    process(if_id_reg.instruction, opcode)
+    begin
+        case opcode is
+            when "0010011" | "0000011" | "1100111" => -- I-type
+                immediate <= (31 downto 12 => if_id_reg.instruction(31)) & if_id_reg.instruction(31 downto 20);
+            when "0100011" => -- S-type
+                immediate <= (31 downto 12 => if_id_reg.instruction(31)) & if_id_reg.instruction(31 downto 25) & if_id_reg.instruction(11 downto 7);
+            when "1100011" => -- B-type
+                immediate <= (31 downto 13 => if_id_reg.instruction(31)) & if_id_reg.instruction(31) & if_id_reg.instruction(7) & if_id_reg.instruction(30 downto 25) & if_id_reg.instruction(11 downto 8) & '0';
+            when "0110111" | "0010111" => -- U-type
+                immediate <= if_id_reg.instruction(31 downto 12) & x"000";
+            when "1101111" => -- J-type
+                immediate <= (31 downto 21 => if_id_reg.instruction(31)) & if_id_reg.instruction(31) & if_id_reg.instruction(19 downto 12) & if_id_reg.instruction(20) & if_id_reg.instruction(30 downto 21) & '0';
+            when others =>
+                immediate <= (others => '0');
+        end case;
+    end process;
+
+    -- Register File
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset_n = '0' then
+                for i in 0 to 31 loop
+                    reg_file(i) <= (others => '0');
+                end loop;
+            elsif mem_wb_reg.reg_write = '1' and mem_wb_reg.rd_addr /= "00000" then
+                if mem_wb_reg.mem_to_reg = '1' then
+                    reg_file(to_integer(unsigned(mem_wb_reg.rd_addr))) <= mem_wb_reg.mem_data;
+                else
+                    reg_file(to_integer(unsigned(mem_wb_reg.rd_addr))) <= mem_wb_reg.alu_result;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- ID/EX Pipeline Register
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset_n = '0' or flush = '1' then
+                id_ex_reg.valid <= '0';
+            elsif stall = '0' then
+                id_ex_reg.pc <= if_id_reg.pc;
+                id_ex_reg.rs1_data <= reg_file(to_integer(unsigned(rs1)));
+                id_ex_reg.rs2_data <= reg_file(to_integer(unsigned(rs2)));
+                id_ex_reg.immediate <= immediate;
+                id_ex_reg.rd_addr <= rd;
+                id_ex_reg.valid <= if_id_reg.valid;
+                
+                -- Control signal generation based on opcode
+                case opcode is
+                    when "0110011" => -- R-type
+                        id_ex_reg.alu_op <= funct7(5) & funct3;
+                        id_ex_reg.mem_read <= '0';
+                        id_ex_reg.mem_write <= '0';
+                        id_ex_reg.reg_write <= '1';
+                        id_ex_reg.branch <= '0';
+                        id_ex_reg.jump <= '0';
+                    when "0010011" => -- I-type ALU
+                        id_ex_reg.alu_op <= '0' & funct3;
+                        id_ex_reg.mem_read <= '0';
+                        id_ex_reg.mem_write <= '0';
+                        id_ex_reg.reg_write <= '1';
+                        id_ex_reg.branch <= '0';
+                        id_ex_reg.jump <= '0';
+                    when "0000011" => -- Load
+                        id_ex_reg.alu_op <= "0000"; -- ADD
+                        id_ex_reg.mem_read <= '1';
+                        id_ex_reg.mem_write <= '0';
+                        id_ex_reg.reg_write <= '1';
+                        id_ex_reg.branch <= '0';
+                        id_ex_reg.jump <= '0';
+                    when "0100011" => -- Store
+                        id_ex_reg.alu_op <= "0000"; -- ADD
+                        id_ex_reg.mem_read <= '0';
+                        id_ex_reg.mem_write <= '1';
+                        id_ex_reg.reg_write <= '0';
+                        id_ex_reg.branch <= '0';
+                        id_ex_reg.jump <= '0';
+                    when "1100011" => -- Branch
+                        id_ex_reg.alu_op <= '0' & funct3;
+                        id_ex_reg.mem_read <= '0';
+                        id_ex_reg.mem_write <= '0';
+                        id_ex_reg.reg_write <= '0';
+                        id_ex_reg.branch <= '1';
+                        id_ex_reg.jump <= '0';
+                    when "1101111" => -- JAL
+                        id_ex_reg.alu_op <= "0000"; -- ADD
+                        id_ex_reg.mem_read <= '0';
+                        id_ex_reg.mem_write <= '0';
+                        id_ex_reg.reg_write <= '1';
+                        id_ex_reg.branch <= '0';
+                        id_ex_reg.jump <= '1';
+                    when others =>
+                        id_ex_reg.alu_op <= "0000";
+                        id_ex_reg.mem_read <= '0';
+                        id_ex_reg.mem_write <= '0';
+                        id_ex_reg.reg_write <= '0';
+                        id_ex_reg.branch <= '0';
+                        id_ex_reg.jump <= '0';
+                end case;
+            end if;
+        end if;
+    end process;
+
+    -- ALU
+    alu_a <= id_ex_reg.rs1_data;
+    alu_b <= id_ex_reg.rs2_data when id_ex_reg.alu_op(3) = '1' else id_ex_reg.immediate;
+
+    process(alu_a, alu_b, id_ex_reg.alu_op)
+    begin
+        case id_ex_reg.alu_op(2 downto 0) is
+            when "000" => -- ADD/SUB
+                if id_ex_reg.alu_op(3) = '1' then
+                    alu_result <= std_logic_vector(unsigned(alu_a) - unsigned(alu_b));
+                else
+                    alu_result <= std_logic_vector(unsigned(alu_a) + unsigned(alu_b));
+                end if;
+            when "001" => -- SLL
+                alu_result <= std_logic_vector(shift_left(unsigned(alu_a), to_integer(unsigned(alu_b(4 downto 0)))));
+            when "010" => -- SLT
+                if signed(alu_a) < signed(alu_b) then
+                    alu_result <= x"00000001";
+                else
+                    alu_result <= x"00000000";
+                end if;
+            when "011" => -- SLTU
+                if unsigned(alu_a) < unsigned(alu_b) then
+                    alu_result <= x"00000001";
+                else
+                    alu_result <= x"00000000";
+                end if;
+            when "100" => -- XOR
+                alu_result <= alu_a xor alu_b;
+            when "101" => -- SRL/SRA
+                if id_ex_reg.alu_op(3) = '1' then
+                    alu_result <= std_logic_vector(shift_right(signed(alu_a), to_integer(unsigned(alu_b(4 downto 0)))));
+                else
+                    alu_result <= std_logic_vector(shift_right(unsigned(alu_a), to_integer(unsigned(alu_b(4 downto 0)))));
+                end if;
+            when "110" => -- OR
+                alu_result <= alu_a or alu_b;
+            when "111" => -- AND
+                alu_result <= alu_a and alu_b;
+            when others =>
+                alu_result <= (others => '0');
+        end case;
+    end process;
+
+    alu_zero <= '1' when alu_result = x"00000000" else '0';
+
+    -- Branch Logic
+    process(id_ex_reg.alu_op, alu_zero, alu_result)
+    begin
+        branch_taken <= '0';
+        if id_ex_reg.branch = '1' then
+            case id_ex_reg.alu_op(2 downto 0) is
+                when "000" => -- BEQ
+                    branch_taken <= alu_zero;
+                when "001" => -- BNE
+                    branch_taken <= not alu_zero;
+                when "100" => -- BLT
+                    branch_taken <= alu_result(0);
+                when "101" => -- BGE
+                    branch_taken <= not alu_result(0);
+                when "110" => -- BLTU
+                    branch_taken <= alu_result(0);
+                when "111" => -- BGEU
+                    branch_taken <= not alu_result(0);
+                when others =>
+                    branch_taken <= '0';
+            end case;
+        end if;
+    end process;
+
+    jump_taken <= id_ex_reg.jump;
+
+    -- EX/MEM Pipeline Register
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset_n = '0' then
+                ex_mem_reg.valid <= '0';
+            else
+                ex_mem_reg.pc <= id_ex_reg.pc;
+                ex_mem_reg.alu_result <= alu_result;
+                ex_mem_reg.rs2_data <= id_ex_reg.rs2_data;
+                ex_mem_reg.rd_addr <= id_ex_reg.rd_addr;
+                ex_mem_reg.mem_read <= id_ex_reg.mem_read;
+                ex_mem_reg.mem_write <= id_ex_reg.mem_write;
+                ex_mem_reg.reg_write <= id_ex_reg.reg_write;
+                ex_mem_reg.valid <= id_ex_reg.valid;
+            end if;
+        end if;
+    end process;
+
+    -- Data Memory Interface
+    dmem_addr <= ex_mem_reg.alu_result;
+    dmem_wdata <= ex_mem_reg.rs2_data;
+    dmem_we <= ex_mem_reg.mem_write;
+    dmem_be <= "1111"; -- Word access
+    dmem_req <= ex_mem_reg.mem_read or ex_mem_reg.mem_write;
+
+    -- MEM/WB Pipeline Register
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset_n = '0' then
+                mem_wb_reg.valid <= '0';
+            else
+                mem_wb_reg.alu_result <= ex_mem_reg.alu_result;
+                mem_wb_reg.mem_data <= dmem_rdata;
+                mem_wb_reg.rd_addr <= ex_mem_reg.rd_addr;
+                mem_wb_reg.reg_write <= ex_mem_reg.reg_write;
+                mem_wb_reg.mem_to_reg <= ex_mem_reg.mem_read;
+                mem_wb_reg.valid <= ex_mem_reg.valid;
+            end if;
+        end if;
+    end process;
+
+    -- Hazard Detection and Control
+    stall <= '1' when (id_ex_reg.mem_read = '1' and 
+                      (id_ex_reg.rd_addr = rs1 or id_ex_reg.rd_addr = rs2)) else '0';
+    
+    flush <= branch_taken or jump_taken;
+
+    -- Performance Counters
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset_n = '0' then
+                mcycle <= (others => '0');
+                minstret <= (others => '0');
+            else
+                mcycle <= std_logic_vector(unsigned(mcycle) + 1);
+                if mem_wb_reg.valid = '1' then
+                    minstret <= std_logic_vector(unsigned(minstret) + 1);
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- Debug Interface
+    debug_pc <= pc;
+    debug_reg_data <= reg_file(to_integer(unsigned(debug_reg_addr)));
+
+    -- Debug Register Write
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if debug_reg_we = '1' and debug_reg_addr /= "00000" then
+                reg_file(to_integer(unsigned(debug_reg_addr))) <= debug_reg_wdata;
+            end if;
+        end if;
+    end process;
+
+end architecture rtl;
+```
+
+## 🔵 **ARM Cortex-M Integration for FPGA**
+
+### **ARM Cortex-M3 DesignStart Integration**
+```vhdl
+-- ARM Cortex-M3 DesignStart FPGA Integration
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity cortex_m3_fpga_system is
+    port (
+        -- System Clock and Reset
+        HCLK            : in  std_logic;
+        HRESETn         : in  std_logic;
+        -- AHB-Lite Master Interface
+        HADDR           : out std_logic_vector(31 downto 0);
+        HBURST          : out std_logic_vector(2 downto 0);
+        HMASTLOCK       : out std_logic;
+        HPROT           : out std_logic_vector(3 downto 0);
+        HSIZE           : out std_logic_vector(2 downto 0);
+        HTRANS          : out std_logic_vector(1 downto 0);
+        HWDATA          : out std_logic_vector(31 downto 0);
+        HWRITE          : out std_logic;
+        HRDATA          : in  std_logic_vector(31 downto 0);
+        HREADY          : in  std_logic;
+        HRESP           : in  std_logic;
+        -- Interrupt Interface
+        IRQ             : in  std_logic_vector(239 downto 0);
+        NMI             : in  std_logic;
+        -- Debug Interface
+        SWCLKTCK        : in  std_logic;
+        SWDIOTMS        : inout std_logic;
+        nTRST           : in  std_logic;
+        TDI             : in  std_logic;
+        TDO             : out std_logic;
+        nTDOEN          : out std_logic;
+        -- System Control
+        SLEEPING        : out std_logic;
+        SLEEPDEEP       : out std_logic;
+        WAKEUP          : in  std_logic;
+        WICSENSE        : in  std_logic_vector(33 downto 0);
+        -- Code Sequentiality and Speculation
+        CODENSEQ        : out std_logic;
+        CODEHINTDE      : out std_logic_vector(2 downto 0);
+        SPECHTRANS      : out std_logic;
+        -- External Interfaces
+        gpio_in         : in  std_logic_vector(31 downto 0);
+        gpio_out        : out std_logic_vector(31 downto 0);
+        gpio_oe         : out std_logic_vector(31 downto 0);
+        uart_tx         : out std_logic;
+        uart_rx         : in  std_logic;
+        spi_sclk        : out std_logic;
+        spi_mosi        : out std_logic;
+        spi_miso        : in  std_logic;
+        spi_cs          : out std_logic_vector(3 downto 0)
+    );
+end entity cortex_m3_fpga_system;
+
+architecture rtl of cortex_m3_fpga_system is
+    -- ARM Cortex-M3 DesignStart Component
+    component CORTEXM3INTEGRATIONDS is
+        port (
+            -- Clock and Reset
+            HCLK            : in  std_logic;
+            HRESETn         : in  std_logic;
+            -- AHB-Lite Master Interface
+            HADDR           : out std_logic_vector(31 downto 0);
+            HBURST          : out std_logic_vector(2 downto 0);
+            HMASTLOCK       : out std_logic;
+            HPROT           : out std_logic_vector(3 downto 0);
+            HSIZE           : out std_logic_vector(2 downto 0);
+            HTRANS          : out std_logic_vector(1 downto 0);
+            HWDATA          : out std_logic_vector(31 downto 0);
+            HWRITE          : out std_logic;
+            HRDATA          : in  std_logic_vector(31 downto 0);
+            HREADY          : in  std_logic;
+            HRESP           : in  std_logic;
+            -- Interrupt Interface
+            IRQ             : in  std_logic_vector(239 downto 0);
+            NMI             : in  std_logic;
+            -- Debug Interface
+            SWCLKTCK        : in  std_logic;
+            SWDIOTMS        : inout std_logic;
+            nTRST           : in  std_logic;
+            TDI             : in  std_logic;
+            TDO             : out std_logic;
+            nTDOEN          : out std_logic;
+            -- System Control
+            SLEEPING        : out std_logic;
+            SLEEPDEEP       : out std_logic;
+            WAKEUP          : in  std_logic;
+            WICSENSE        : in  std_logic_vector(33 downto 0);
+            -- Code Sequentiality and Speculation
+            CODENSEQ        : out std_logic;
+            CODEHINTDE      : out std_logic_vector(2 downto 0);
+            SPECHTRANS      : out std_logic
+        );
+    end component;
+
+    -- AHB-Lite Decoder Component
+    component ahb_lite_decoder is
+        port (
+            HCLK            : in  std_logic;
+            HRESETn         : in  std_logic;
+            -- Master Interface
+            HADDR_M         : in  std_logic_vector(31 downto 0);
+            HBURST_M        : in  std_logic_vector(2 downto 0);
+            HMASTLOCK_M     : in  std_logic;
+            HPROT_M         : in  std_logic_vector(3 downto 0);
+            HSIZE_M         : in  std_logic_vector(2 downto 0);
+            HTRANS_M        : in  std_logic_vector(1 downto 0);
+            HWDATA_M        : in  std_logic_vector(31 downto 0);
+            HWRITE_M        : in  std_logic;
+            HRDATA_M        : out std_logic_vector(31 downto 0);
+            HREADY_M        : out std_logic;
+            HRESP_M         : out std_logic;
+            -- Slave Interfaces (GPIO, UART, SPI, etc.)
+            HADDR_S         : out std_logic_vector(31 downto 0);
+            HBURST_S        : out std_logic_vector(2 downto 0);
+            HMASTLOCK_S     : out std_logic;
+            HPROT_S         : out std_logic_vector(3 downto 0);
+            HSIZE_S         : out std_logic_vector(2 downto 0);
+            HTRANS_S        : out std_logic_vector(1 downto 0);
+            HWDATA_S        : out std_logic_vector(31 downto 0);
+            HWRITE_S        : out std_logic;
+            HSEL_GPIO       : out std_logic;
+            HSEL_UART       : out std_logic;
+            HSEL_SPI        : out std_logic;
+            HRDATA_GPIO     : in  std_logic_vector(31 downto 0);
+            HREADY_GPIO     : in  std_logic;
+            HRESP_GPIO      : in  std_logic;
+            HRDATA_UART     : in  std_logic_vector(31 downto 0);
+            HREADY_UART     : in  std_logic;
+            HRESP_UART      : in  std_logic;
+            HRDATA_SPI      : in  std_logic_vector(31 downto 0);
+            HREADY_SPI      : in  std_logic;
+            HRESP_SPI       : in  std_logic
+        );
+    end component;
+
+    -- GPIO Controller Component
+    component ahb_gpio is
+        port (
+            HCLK            : in  std_logic;
+            HRESETn         : in  std_logic;
+            HSEL            : in  std_logic;
+            HADDR           : in  std_logic_vector(31 downto 0);
+            HTRANS          : in  std_logic_vector(1 downto 0);
+            HSIZE           : in  std_logic_vector(2 downto 0);
+            HWRITE          : in  std_logic;
+            HWDATA          : in  std_logic_vector(31 downto 0);
+            HRDATA          : out std_logic_vector(31 downto 0);
+            HREADY          : out std_logic;
+            HRESP           : out std_logic;
+            gpio_in         : in  std_logic_vector(31 downto 0);
+            gpio_out        : out std_logic_vector(31 downto 0);
+            gpio_oe         : out std_logic_vector(31 downto 0);
+            gpio_irq        : out std_logic_vector(31 downto 0)
+        );
+    end component;
+
+    -- Internal Signals
+    signal haddr_int        : std_logic_vector(31 downto 0);
+    signal hburst_int       : std_logic_vector(2 downto 0);
+    signal hmastlock_int    : std_logic;
+    signal hprot_int        : std_logic_vector(3 downto 0);
+    signal hsize_int        : std_logic_vector(2 downto 0);
+    signal htrans_int       : std_logic_vector(1 downto 0);
+    signal hwdata_int       : std_logic_vector(31 downto 0);
+    signal hwrite_int       : std_logic;
+    signal hrdata_int       : std_logic_vector(31 downto 0);
+    signal hready_int       : std_logic;
+    signal hresp_int        : std_logic;
+
+    -- Peripheral Signals
+    signal hsel_gpio        : std_logic;
+    signal hsel_uart        : std_logic;
+    signal hsel_spi         : std_logic;
+    signal hrdata_gpio      : std_logic_vector(31 downto 0);
+    signal hready_gpio      : std_logic;
+    signal hresp_gpio       : std_logic;
+    signal hrdata_uart      : std_logic_vector(31 downto 0);
+    signal hready_uart      : std_logic;
+    signal hresp_uart       : std_logic;
+    signal hrdata_spi       : std_logic_vector(31 downto 0);
+    signal hready_spi       : std_logic;
+    signal hresp_spi        : std_logic;
+
+    signal gpio_irq         : std_logic_vector(31 downto 0);
+    signal irq_combined     : std_logic_vector(239 downto 0);
+
+begin
+    -- ARM Cortex-M3 Instance
+    cortex_m3_inst : CORTEXM3INTEGRATIONDS
+        port map (
+            HCLK            => HCLK,
+            HRESETn         => HRESETn,
+            HADDR           => haddr_int,
+            HBURST          => hburst_int,
+            HMASTLOCK       => hmastlock_int,
+            HPROT           => hprot_int,
+            HSIZE           => hsize_int,
+            HTRANS          => htrans_int,
+            HWDATA          => hwdata_int,
+            HWRITE          => hwrite_int,
+            HRDATA          => hrdata_int,
+            HREADY          => hready_int,
+            HRESP           => hresp_int,
+            IRQ             => irq_combined,
+            NMI             => NMI,
+            SWCLKTCK        => SWCLKTCK,
+            SWDIOTMS        => SWDIOTMS,
+            nTRST           => nTRST,
+            TDI             => TDI,
+            TDO             => TDO,
+            nTDOEN          => nTDOEN,
+            SLEEPING        => SLEEPING,
+            SLEEPDEEP       => SLEEPDEEP,
+            WAKEUP          => WAKEUP,
+            WICSENSE        => WICSENSE,
+            CODENSEQ        => CODENSEQ,
+            CODEHINTDE      => CODEHINTDE,
+            SPECHTRANS      => SPECHTRANS
+        );
+
+    -- AHB-Lite Decoder Instance
+    ahb_decoder_inst : ahb_lite_decoder
+        port map (
+            HCLK            => HCLK,
+            HRESETn         => HRESETn,
+            HADDR_M         => haddr_int,
+            HBURST_M        => hburst_int,
+            HMASTLOCK_M     => hmastlock_int,
+            HPROT_M         => hprot_int,
+            HSIZE_M         => hsize_int,
+            HTRANS_M        => htrans_int,
+            HWDATA_M        => hwdata_int,
+            HWRITE_M        => hwrite_int,
+            HRDATA_M        => hrdata_int,
+            HREADY_M        => hready_int,
+            HRESP_M         => hresp_int,
+            HADDR_S         => HADDR,
+            HBURST_S        => HBURST,
+            HMASTLOCK_S     => HMASTLOCK,
+            HPROT_S         => HPROT,
+            HSIZE_S         => HSIZE,
+            HTRANS_S        => HTRANS,
+            HWDATA_S        => HWDATA,
+            HWRITE_S        => HWRITE,
+            HSEL_GPIO       => hsel_gpio,
+            HSEL_UART       => hsel_uart,
+            HSEL_SPI        => hsel_spi,
+            HRDATA_GPIO     => hrdata_gpio,
+            HREADY_GPIO     => hready_gpio,
+            HRESP_GPIO      => hresp_gpio,
+            HRDATA_UART     => hrdata_uart,
+            HREADY_UART     => hready_uart,
+            HRESP_UART      => hresp_uart,
+            HRDATA_SPI      => hrdata_spi,
+            HREADY_SPI      => hready_spi,
+            HRESP_SPI       => hresp_spi
+        );
+
+    -- GPIO Controller Instance
+    gpio_inst : ahb_gpio
+        port map (
+            HCLK            => HCLK,
+            HRESETn         => HRESETn,
+            HSEL            => hsel_gpio,
+            HADDR           => HADDR,
+            HTRANS          => HTRANS,
+            HSIZE           => HSIZE,
+            HWRITE          => HWRITE,
+            HWDATA          => HWDATA,
+            HRDATA          => hrdata_gpio,
+            HREADY          => hready_gpio,
+            HRESP           => hresp_gpio,
+            gpio_in         => gpio_in,
+            gpio_out        => gpio_out,
+            gpio_oe         => gpio_oe,
+            gpio_irq        => gpio_irq
+        );
+
+    -- Interrupt Mapping
+    irq_combined(31 downto 0) <= gpio_irq;
+    irq_combined(239 downto 32) <= IRQ(239 downto 32);
+
+    -- External Interface Connections
+    HRDATA <= hrdata_int;
+    HREADY <= hready_int;
+    HRESP <= hresp_int;
+
+end architecture rtl;
+```
+
+---
+
+# 🖥️ **Microcontroller Architecture Designs**
+
+## 🧠 **Complete CPU Core Implementation**
+```vhdl
+-- 8-bit RISC Microcontroller CPU Core
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity cpu_core is
+    generic (
+        DATA_WIDTH    : integer := 8;
+        ADDR_WIDTH    : integer := 16;
+        REG_COUNT     : integer := 16
+    );
+    port (
+        clk           : in  std_logic;
+        reset_n       : in  std_logic;
+        -- Memory interface
+        mem_addr      : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+        mem_data_in   : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        mem_data_out  : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        mem_read      : out std_logic;
+        mem_write     : out std_logic;
+        mem_ready     : in  std_logic;
+        -- Interrupt interface
+        interrupt_req : in  std_logic;
+        interrupt_ack : out std_logic;
+        -- Debug interface
+        debug_pc      : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+        debug_state   : out std_logic_vector(3 downto 0);
+        debug_flags   : out std_logic_vector(7 downto 0)
+    );
+end entity cpu_core;
+
+architecture behavioral of cpu_core is
+    -- CPU States
+    type cpu_state_type is (RESET, FETCH, DECODE, EXECUTE, WRITEBACK, INTERRUPT);
+    signal cpu_state : cpu_state_type;
+    
+    -- Instruction format (8-bit instructions)
+    -- [7:6] - Instruction type: 00=ALU, 01=Load/Store, 10=Branch, 11=Special
+    -- [5:3] - Operation code
+    -- [2:0] - Register/Immediate field
+    
+    -- Registers
+    type register_file_type is array(0 to REG_COUNT-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal registers : register_file_type;
+    
+    -- Special registers
+    signal pc           : unsigned(ADDR_WIDTH-1 downto 0);  -- Program Counter
+    signal sp           : unsigned(ADDR_WIDTH-1 downto 0);  -- Stack Pointer
+    signal ir           : std_logic_vector(DATA_WIDTH-1 downto 0);  -- Instruction Register
+    signal acc          : std_logic_vector(DATA_WIDTH-1 downto 0);  -- Accumulator
+    
+    -- Status flags
+    signal flag_zero    : std_logic;
+    signal flag_carry   : std_logic;
+    signal flag_negative: std_logic;
+    signal flag_overflow: std_logic;
+    signal flag_interrupt_enable : std_logic;
+    
+    -- Internal signals
+    signal alu_a        : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal alu_b        : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal alu_result   : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal alu_operation: std_logic_vector(3 downto 0);
+    signal alu_flags    : std_logic_vector(3 downto 0);
+    
+    -- Instruction decode signals
+    signal inst_type    : std_logic_vector(1 downto 0);
+    signal inst_opcode  : std_logic_vector(2 downto 0);
+    signal inst_reg     : std_logic_vector(2 downto 0);
+    
+    -- Memory control
+    signal mem_addr_int : unsigned(ADDR_WIDTH-1 downto 0);
+    
+begin
+    -- Instruction decode
+    inst_type   <= ir(7 downto 6);
+    inst_opcode <= ir(5 downto 3);
+    inst_reg    <= ir(2 downto 0);
+    
+    -- ALU instance
+    alu_inst: entity work.alu_8bit
+        port map (
+            a         => alu_a,
+            b         => alu_b,
+            operation => alu_operation,
+            result    => alu_result,
+            flags     => alu_flags
+        );
+    
+    -- Main CPU state machine
+    cpu_fsm: process(clk, reset_n)
+        variable reg_addr : integer;
+        variable branch_target : unsigned(ADDR_WIDTH-1 downto 0);
+    begin
+        if reset_n = '0' then
+            cpu_state <= RESET;
+            pc <= (others => '0');
+            sp <= to_unsigned(2**ADDR_WIDTH - 1, ADDR_WIDTH);  -- Stack grows down
+            ir <= (others => '0');
+            acc <= (others => '0');
+            flag_zero <= '0';
+            flag_carry <= '0';
+            flag_negative <= '0';
+            flag_overflow <= '0';
+            flag_interrupt_enable <= '0';
+            mem_read <= '0';
+            mem_write <= '0';
+            interrupt_ack <= '0';
+            
+            -- Initialize register file
+            for i in 0 to REG_COUNT-1 loop
+                registers(i) <= (others => '0');
+            end loop;
+            
+        elsif rising_edge(clk) then
+            case cpu_state is
+                when RESET =>
+                    cpu_state <= FETCH;
+                    pc <= (others => '0');
+                
+                when FETCH =>
+                    -- Fetch instruction from memory
+                    mem_addr_int <= pc;
+                    mem_read <= '1';
+                    mem_write <= '0';
+                    
+                    if mem_ready = '1' then
+                        ir <= mem_data_in;
+                        pc <= pc + 1;
+                        cpu_state <= DECODE;
+                        mem_read <= '0';
+                    end if;
+                
+                when DECODE =>
+                    -- Decode instruction and prepare operands
+                    cpu_state <= EXECUTE;
+                    
+                    case inst_type is
+                        when "00" =>  -- ALU operations
+                            reg_addr := to_integer(unsigned(inst_reg));
+                            alu_a <= acc;
+                            alu_b <= registers(reg_addr);
+                            alu_operation <= '0' & inst_opcode;
+                        
+                        when "01" =>  -- Load/Store operations
+                            reg_addr := to_integer(unsigned(inst_reg));
+                            mem_addr_int <= unsigned(registers(reg_addr));
+                        
+                        when "10" =>  -- Branch operations
+                            reg_addr := to_integer(unsigned(inst_reg));
+                            branch_target := pc + unsigned(registers(reg_addr));
+                        
+                        when others =>  -- Special operations
+                            null;
+                    end case;
+                
+                when EXECUTE =>
+                    case inst_type is
+                        when "00" =>  -- ALU operations
+                            case inst_opcode is
+                                when "000" =>  -- ADD
+                                    acc <= alu_result;
+                                    flag_zero <= alu_flags(0);
+                                    flag_carry <= alu_flags(1);
+                                    flag_negative <= alu_flags(2);
+                                    flag_overflow <= alu_flags(3);
+                                
+                                when "001" =>  -- SUB
+                                    acc <= alu_result;
+                                    flag_zero <= alu_flags(0);
+                                    flag_carry <= alu_flags(1);
+                                    flag_negative <= alu_flags(2);
+                                    flag_overflow <= alu_flags(3);
+                                
+                                when "010" =>  -- AND
+                                    acc <= alu_result;
+                                    flag_zero <= alu_flags(0);
+                                    flag_negative <= alu_flags(2);
+                                
+                                when "011" =>  -- OR
+                                    acc <= alu_result;
+                                    flag_zero <= alu_flags(0);
+                                    flag_negative <= alu_flags(2);
+                                
+                                when "100" =>  -- XOR
+                                    acc <= alu_result;
+                                    flag_zero <= alu_flags(0);
+                                    flag_negative <= alu_flags(2);
+                                
+                                when "101" =>  -- SHL (Shift Left)
+                                    acc <= alu_result;
+                                    flag_carry <= alu_flags(1);
+                                
+                                when "110" =>  -- SHR (Shift Right)
+                                    acc <= alu_result;
+                                    flag_carry <= alu_flags(1);
+                                
+                                when others =>  -- CMP (Compare)
+                                    -- Don't update accumulator, only flags
+                                    flag_zero <= alu_flags(0);
+                                    flag_carry <= alu_flags(1);
+                                    flag_negative <= alu_flags(2);
+                                    flag_overflow <= alu_flags(3);
+                            end case;
+                            
+                            cpu_state <= FETCH;
+                        
+                        when "01" =>  -- Load/Store operations
+                            case inst_opcode is
+                                when "000" =>  -- LOAD acc, [reg]
+                                    mem_read <= '1';
+                                    if mem_ready = '1' then
+                                        acc <= mem_data_in;
+                                        mem_read <= '0';
+                                        cpu_state <= FETCH;
+                                    end if;
+                                
+                                when "001" =>  -- STORE [reg], acc
+                                    mem_data_out <= acc;
+                                    mem_write <= '1';
+                                    if mem_ready = '1' then
+                                        mem_write <= '0';
+                                        cpu_state <= FETCH;
+                                    end if;
+                                
+                                when "010" =>  -- LOAD reg, immediate
+                                    -- Next byte is immediate value
+                                    mem_addr_int <= pc;
+                                    mem_read <= '1';
+                                    if mem_ready = '1' then
+                                        reg_addr := to_integer(unsigned(inst_reg));
+                                        registers(reg_addr) <= mem_data_in;
+                                        pc <= pc + 1;
+                                        mem_read <= '0';
+                                        cpu_state <= FETCH;
+                                    end if;
+                                
+                                when "011" =>  -- MOVE reg, acc
+                                    reg_addr := to_integer(unsigned(inst_reg));
+                                    registers(reg_addr) <= acc;
+                                    cpu_state <= FETCH;
+                                
+                                when "100" =>  -- MOVE acc, reg
+                                    reg_addr := to_integer(unsigned(inst_reg));
+                                    acc <= registers(reg_addr);
+                                    cpu_state <= FETCH;
+                                
+                                when others =>
+                                    cpu_state <= FETCH;
+                            end case;
+                        
+                        when "10" =>  -- Branch operations
+                            case inst_opcode is
+                                when "000" =>  -- JMP (unconditional)
+                                    pc <= branch_target;
+                                
+                                when "001" =>  -- JZ (jump if zero)
+                                    if flag_zero = '1' then
+                                        pc <= branch_target;
+                                    end if;
+                                
+                                when "010" =>  -- JNZ (jump if not zero)
+                                    if flag_zero = '0' then
+                                        pc <= branch_target;
+                                    end if;
+                                
+                                when "011" =>  -- JC (jump if carry)
+                                    if flag_carry = '1' then
+                                        pc <= branch_target;
+                                    end if;
+                                
+                                when "100" =>  -- JNC (jump if no carry)
+                                    if flag_carry = '0' then
+                                        pc <= branch_target;
+                                    end if;
+                                
+                                when "101" =>  -- CALL (subroutine call)
+                                    -- Push return address to stack
+                                    mem_addr_int <= sp;
+                                    mem_data_out <= std_logic_vector(pc(DATA_WIDTH-1 downto 0));
+                                    mem_write <= '1';
+                                    if mem_ready = '1' then
+                                        sp <= sp - 1;
+                                        pc <= branch_target;
+                                        mem_write <= '0';
+                                    end if;
+                                
+                                when "110" =>  -- RET (return from subroutine)
+                                    sp <= sp + 1;
+                                    mem_addr_int <= sp + 1;
+                                    mem_read <= '1';
+                                    if mem_ready = '1' then
+                                        pc <= unsigned(mem_data_in);
+                                        mem_read <= '0';
+                                    end if;
+                                
+                                when others =>
+                                    null;
+                            end case;
+                            
+                            cpu_state <= FETCH;
+                        
+                        when others =>  -- Special operations
+                            case inst_opcode is
+                                when "000" =>  -- NOP
+                                    null;
+                                
+                                when "001" =>  -- HALT
+                                    cpu_state <= RESET;  -- Stop execution
+                                
+                                when "010" =>  -- EI (Enable Interrupts)
+                                    flag_interrupt_enable <= '1';
+                                
+                                when "011" =>  -- DI (Disable Interrupts)
+                                    flag_interrupt_enable <= '0';
+                                
+                                when others =>
+                                    null;
+                            end case;
+                            
+                            cpu_state <= FETCH;
+                    end case;
+                
+                when INTERRUPT =>
+                    -- Handle interrupt
+                    if interrupt_req = '1' and flag_interrupt_enable = '1' then
+                        -- Save context (simplified - save PC to stack)
+                        mem_addr_int <= sp;
+                        mem_data_out <= std_logic_vector(pc(DATA_WIDTH-1 downto 0));
+                        mem_write <= '1';
+                        
+                        if mem_ready = '1' then
+                            sp <= sp - 1;
+                            pc <= to_unsigned(16#FF#, ADDR_WIDTH);  -- Interrupt vector
+                            interrupt_ack <= '1';
+                            flag_interrupt_enable <= '0';  -- Disable interrupts
+                            cpu_state <= FETCH;
+                            mem_write <= '0';
+                        end if;
+                    else
+                        cpu_state <= FETCH;
+                    end if;
+                
+                when WRITEBACK =>
+                    -- Additional writeback stage if needed
+                    cpu_state <= FETCH;
+            end case;
+            
+            -- Check for interrupts
+            if interrupt_req = '1' and flag_interrupt_enable = '1' and 
+               cpu_state = FETCH then
+                cpu_state <= INTERRUPT;
+            end if;
+        end if;
+    end process;
+    
+    -- Memory address output
+    mem_addr <= std_logic_vector(mem_addr_int);
+    
+    -- Debug outputs
+    debug_pc <= std_logic_vector(pc);
+    debug_state <= "0000" when cpu_state = RESET else
+                   "0001" when cpu_state = FETCH else
+                   "0010" when cpu_state = DECODE else
+                   "0011" when cpu_state = EXECUTE else
+                   "0100" when cpu_state = WRITEBACK else
+                   "0101" when cpu_state = INTERRUPT else
+                   "1111";
+    
+    debug_flags <= flag_interrupt_enable & "000" & 
+                   flag_overflow & flag_negative & flag_carry & flag_zero;
+    
+end architecture behavioral;
+```
+
+## 🧮 **Advanced ALU Implementation**
+```vhdl
+-- 8-bit Arithmetic Logic Unit with Extended Operations
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity alu_8bit is
+    port (
+        a         : in  std_logic_vector(7 downto 0);
+        b         : in  std_logic_vector(7 downto 0);
+        operation : in  std_logic_vector(3 downto 0);
+        result    : out std_logic_vector(7 downto 0);
+        flags     : out std_logic_vector(3 downto 0)  -- [overflow, negative, carry, zero]
+    );
+end entity alu_8bit;
+
+architecture behavioral of alu_8bit is
+    signal temp_result : std_logic_vector(8 downto 0);  -- 9-bit for carry detection
+    signal signed_a    : signed(7 downto 0);
+    signal signed_b    : signed(7 downto 0);
+    signal signed_result : signed(8 downto 0);
+    
+begin
+    signed_a <= signed(a);
+    signed_b <= signed(b);
+    
+    alu_process: process(a, b, operation, signed_a, signed_b)
+        variable mult_result : signed(15 downto 0);
+        variable div_result  : signed(7 downto 0);
+        variable shift_count : integer;
+    begin
+        -- Default values
+        temp_result <= (others => '0');
+        signed_result <= (others => '0');
+        
+        case operation is
+            when "0000" =>  -- ADD
+                temp_result <= std_logic_vector(unsigned('0' & a) + unsigned('0' & b));
+                signed_result <= resize(signed_a + signed_b, 9);
+            
+            when "0001" =>  -- SUB
+                temp_result <= std_logic_vector(unsigned('0' & a) - unsigned('0' & b));
+                signed_result <= resize(signed_a - signed_b, 9);
+            
+            when "0010" =>  -- AND
+                temp_result <= '0' & (a and b);
+            
+            when "0011" =>  -- OR
+                temp_result <= '0' & (a or b);
+            
+            when "0100" =>  -- XOR
+                temp_result <= '0' & (a xor b);
+            
+            when "0101" =>  -- NOT A
+                temp_result <= '0' & (not a);
+            
+            when "0110" =>  -- SHL (Shift Left)
+                shift_count := to_integer(unsigned(b(2 downto 0)));  -- Use lower 3 bits
+                if shift_count = 0 then
+                    temp_result <= '0' & a;
+                else
+                    temp_result <= std_logic_vector(shift_left(unsigned('0' & a), shift_count));
+                end if;
+            
+            when "0111" =>  -- SHR (Shift Right)
+                shift_count := to_integer(unsigned(b(2 downto 0)));
+                if shift_count = 0 then
+                    temp_result <= '0' & a;
+                else
+                    temp_result <= '0' & std_logic_vector(shift_right(unsigned(a), shift_count));
+                end if;
+            
+            when "1000" =>  -- ROL (Rotate Left)
+                shift_count := to_integer(unsigned(b(2 downto 0)));
+                temp_result <= '0' & std_logic_vector(rotate_left(unsigned(a), shift_count));
+            
+            when "1001" =>  -- ROR (Rotate Right)
+                shift_count := to_integer(unsigned(b(2 downto 0)));
+                temp_result <= '0' & std_logic_vector(rotate_right(unsigned(a), shift_count));
+            
+            when "1010" =>  -- MUL (Multiply - lower 8 bits)
+                mult_result := signed_a * signed_b;
+                temp_result <= '0' & std_logic_vector(mult_result(7 downto 0));
+                signed_result <= resize(mult_result(8 downto 0), 9);
+            
+            when "1011" =>  -- DIV (Divide)
+                if signed_b /= 0 then
+                    div_result := signed_a / signed_b;
+                    temp_result <= '0' & std_logic_vector(div_result);
+                    signed_result <= resize(div_result, 9);
+                else
+                    temp_result <= (others => '1');  -- Division by zero
+                    signed_result <= (others => '1');
+                end if;
+            
+            when "1100" =>  -- MOD (Modulo)
+                if signed_b /= 0 then
+                    div_result := signed_a mod signed_b;
+                    temp_result <= '0' & std_logic_vector(div_result);
+                    signed_result <= resize(div_result, 9);
+                else
+                    temp_result <= (others => '0');
+                    signed_result <= (others => '0');
+                end if;
+            
+            when "1101" =>  -- CMP (Compare - A - B, set flags only)
+                temp_result <= std_logic_vector(unsigned('0' & a) - unsigned('0' & b));
+                signed_result <= resize(signed_a - signed_b, 9);
+            
+            when "1110" =>  -- INC (Increment A)
+                temp_result <= std_logic_vector(unsigned('0' & a) + 1);
+                signed_result <= resize(signed_a + 1, 9);
+            
+            when others =>  -- DEC (Decrement A)
+                temp_result <= std_logic_vector(unsigned('0' & a) - 1);
+                signed_result <= resize(signed_a - 1, 9);
+        end case;
+    end process;
+    
+    -- Output result
+    result <= temp_result(7 downto 0);
+    
+    -- Flag generation
+    flags(0) <= '1' when temp_result(7 downto 0) = "00000000" else '0';  -- Zero flag
+    flags(1) <= temp_result(8);  -- Carry flag
+    flags(2) <= temp_result(7);  -- Negative flag (MSB of result)
+    
+    -- Overflow flag (for signed arithmetic)
+    flags(3) <= '1' when (operation = "0000" or operation = "0001" or 
+                         operation = "1010" or operation = "1110" or 
+                         operation = "1111") and
+                        (signed_result(8) /= signed_result(7)) else '0';
+    
+end architecture behavioral;
+```
+
+## 🧠 **Memory Controller with Cache**
+```vhdl
+-- Memory Controller with Simple Cache Implementation
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity memory_controller is
+    generic (
+        ADDR_WIDTH     : integer := 16;
+        DATA_WIDTH     : integer := 8;
+        CACHE_SIZE     : integer := 64;   -- Cache lines
+        CACHE_LINE_SIZE: integer := 4     -- Words per cache line
+    );
+    port (
+        clk            : in  std_logic;
+        reset_n        : in  std_logic;
+        -- CPU interface
+        cpu_addr       : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+        cpu_data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        cpu_data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        cpu_read       : in  std_logic;
+        cpu_write      : in  std_logic;
+        cpu_ready      : out std_logic;
+        -- External memory interface
+        mem_addr       : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+        mem_data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        mem_data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        mem_read       : out std_logic;
+        mem_write      : out std_logic;
+        mem_ready      : in  std_logic;
+        -- Cache statistics
+        cache_hits     : out std_logic_vector(15 downto 0);
+        cache_misses   : out std_logic_vector(15 downto 0)
+    );
+end entity memory_controller;
+
+architecture behavioral of memory_controller is
+    -- Cache structure
+    type cache_line_type is record
+        valid : std_logic;
+        dirty : std_logic;
+        tag   : std_logic_vector(ADDR_WIDTH-6 downto 0);  -- Assuming 6-bit cache index
+        data  : std_logic_vector(DATA_WIDTH*CACHE_LINE_SIZE-1 downto 0);
+    end record;
+    
+    type cache_array_type is array(0 to CACHE_SIZE-1) of cache_line_type;
+    signal cache_array : cache_array_type;
+    
+    -- Cache control signals
+    signal cache_index : integer range 0 to CACHE_SIZE-1;
+    signal cache_tag   : std_logic_vector(ADDR_WIDTH-6 downto 0);
+    signal word_offset : integer range 0 to CACHE_LINE_SIZE-1;
+    signal cache_hit   : std_logic;
+    signal cache_miss  : std_logic;
+    
+    -- State machine
+    type mem_state_type is (IDLE, CACHE_CHECK, CACHE_HIT_STATE, 
+                           CACHE_MISS_READ, CACHE_MISS_WRITE, 
+                           WRITEBACK, FILL_CACHE);
+    signal mem_state : mem_state_type;
+    
+    -- Statistics counters
+    signal hit_counter  : unsigned(15 downto 0);
+    signal miss_counter : unsigned(15 downto 0);
+    
+    -- Internal signals
+    signal fill_counter : integer range 0 to CACHE_LINE_SIZE;
+    signal wb_counter   : integer range 0 to CACHE_LINE_SIZE;
+    signal current_addr : unsigned(ADDR_WIDTH-1 downto 0);
+    
+begin
+    -- Address decoding
+    cache_index <= to_integer(unsigned(cpu_addr(5 downto 0)));  -- 6-bit index
+    cache_tag   <= cpu_addr(ADDR_WIDTH-1 downto 6);
+    word_offset <= to_integer(unsigned(cpu_addr(1 downto 0))) when CACHE_LINE_SIZE = 4 else 0;
+    
+    -- Cache hit detection
+    cache_hit <= '1' when cache_array(cache_index).valid = '1' and 
+                         cache_array(cache_index).tag = cache_tag else '0';
+    cache_miss <= not cache_hit;
+    
+    -- Memory controller state machine
+    mem_controller_fsm: process(clk, reset_n)
+        variable data_word_start : integer;
+        variable data_word_end   : integer;
+    begin
+        if reset_n = '0' then
+            mem_state <= IDLE;
+            cpu_ready <= '0';
+            mem_read <= '0';
+            mem_write <= '0';
+            hit_counter <= (others => '0');
+            miss_counter <= (others => '0');
+            fill_counter <= 0;
+            wb_counter <= 0;
+            current_addr <= (others => '0');
+            
+            -- Initialize cache
+            for i in 0 to CACHE_SIZE-1 loop
+                cache_array(i).valid <= '0';
+                cache_array(i).dirty <= '0';
+                cache_array(i).tag <= (others => '0');
+                cache_array(i).data <= (others => '0');
+            end loop;
+            
+        elsif rising_edge(clk) then
+            case mem_state is
+                when IDLE =>
+                    cpu_ready <= '0';
+                    mem_read <= '0';
+                    mem_write <= '0';
+                    
+                    if cpu_read = '1' or cpu_write = '1' then
+                        mem_state <= CACHE_CHECK;
+                    end if;
+                
+                when CACHE_CHECK =>
+                    if cache_hit = '1' then
+                        mem_state <= CACHE_HIT_STATE;
+                        hit_counter <= hit_counter + 1;
+                    else
+                        miss_counter <= miss_counter + 1;
+                        
+                        -- Check if we need to writeback dirty line
+                        if cache_array(cache_index).valid = '1' and 
+                           cache_array(cache_index).dirty = '1' then
+                            mem_state <= WRITEBACK;
+                            wb_counter <= 0;
+                            current_addr <= unsigned(cache_array(cache_index).tag & 
+                                          std_logic_vector(to_unsigned(cache_index, 6)) & "00");
+                        else
+                            mem_state <= FILL_CACHE;
+                            fill_counter <= 0;
+                            current_addr <= unsigned(cpu_addr(ADDR_WIDTH-1 downto 2) & "00");
+                        end if;
+                    end if;
+                
+                when CACHE_HIT_STATE =>
+                    -- Handle cache hit
+                    if cpu_read = '1' then
+                        -- Read from cache
+                        data_word_start := word_offset * DATA_WIDTH;
+                        data_word_end := data_word_start + DATA_WIDTH - 1;
+                        cpu_data_out <= cache_array(cache_index).data(data_word_end downto data_word_start);
+                        cpu_ready <= '1';
+                        mem_state <= IDLE;
+                        
+                    elsif cpu_write = '1' then
+                        -- Write to cache
+                        data_word_start := word_offset * DATA_WIDTH;
+                        data_word_end := data_word_start + DATA_WIDTH - 1;
+                        cache_array(cache_index).data(data_word_end downto data_word_start) <= cpu_data_in;
+                        cache_array(cache_index).dirty <= '1';
+                        cpu_ready <= '1';
+                        mem_state <= IDLE;
+                    end if;
+                
+                when WRITEBACK =>
+                    -- Write dirty cache line back to memory
+                    mem_addr <= std_logic_vector(current_addr);
+                    data_word_start := wb_counter * DATA_WIDTH;
+                    data_word_end := data_word_start + DATA_WIDTH - 1;
+                    mem_data_out <= cache_array(cache_index).data(data_word_end downto data_word_start);
+                    mem_write <= '1';
+                    
+                    if mem_ready = '1' then
+                        wb_counter <= wb_counter + 1;
+                        current_addr <= current_addr + 1;
+                        
+                        if wb_counter = CACHE_LINE_SIZE - 1 then
+                            mem_write <= '0';
+                            cache_array(cache_index).dirty <= '0';
+                            mem_state <= FILL_CACHE;
+                            fill_counter <= 0;
+                            current_addr <= unsigned(cpu_addr(ADDR_WIDTH-1 downto 2) & "00");
+                        end if;
+                    end if;
+                
+                when FILL_CACHE =>
+                    -- Fill cache line from memory
+                    mem_addr <= std_logic_vector(current_addr);
+                    mem_read <= '1';
+                    
+                    if mem_ready = '1' then
+                        data_word_start := fill_counter * DATA_WIDTH;
+                        data_word_end := data_word_start + DATA_WIDTH - 1;
+                        cache_array(cache_index).data(data_word_end downto data_word_start) <= mem_data_in;
+                        
+                        fill_counter <= fill_counter + 1;
+                        current_addr <= current_addr + 1;
+                        
+                        if fill_counter = CACHE_LINE_SIZE - 1 then
+                            mem_read <= '0';
+                            cache_array(cache_index).valid <= '1';
+                            cache_array(cache_index).dirty <= '0';
+                            cache_array(cache_index).tag <= cache_tag;
+                            mem_state <= CACHE_HIT_STATE;  -- Now handle the original request
+                        end if;
+                    end if;
+                
+                when others =>
+                    mem_state <= IDLE;
+            end case;
+        end if;
+    end process;
+    
+    -- Output statistics
+    cache_hits <= std_logic_vector(hit_counter);
+    cache_misses <= std_logic_vector(miss_counter);
+    
+end architecture behavioral;
+```
+
+## 🔍 **Instruction Decoder & Control Unit**
+```vhdl
+-- Instruction Decoder and Control Unit
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity instruction_decoder is
+    generic (
+        INSTRUCTION_WIDTH : integer := 8;
+        CONTROL_WIDTH     : integer := 16
+    );
+    port (
+        clk               : in  std_logic;
+        reset_n           : in  std_logic;
+        -- Instruction input
+        instruction       : in  std_logic_vector(INSTRUCTION_WIDTH-1 downto 0);
+        instruction_valid : in  std_logic;
+        -- Control outputs
+        alu_operation     : out std_logic_vector(3 downto 0);
+        reg_write_enable  : out std_logic;
+        reg_read_addr1    : out std_logic_vector(2 downto 0);
+        reg_read_addr2    : out std_logic_vector(2 downto 0);
+        reg_write_addr    : out std_logic_vector(2 downto 0);
+        mem_read          : out std_logic;
+        mem_write         : out std_logic;
+        branch_enable     : out std_logic;
+        branch_condition  : out std_logic_vector(2 downto 0);
+        immediate_enable  : out std_logic;
+        immediate_value   : out std_logic_vector(7 downto 0);
+        -- Pipeline control
+        stall_request     : out std_logic;
+        flush_request     : out std_logic;
+        -- Exception handling
+        illegal_instruction : out std_logic;
+        privilege_violation : out std_logic
+    );
+end entity instruction_decoder;
+
+architecture behavioral of instruction_decoder is
+    -- Instruction format fields
+    signal inst_type    : std_logic_vector(1 downto 0);
+    signal inst_opcode  : std_logic_vector(2 downto 0);
+    signal inst_reg     : std_logic_vector(2 downto 0);
+    
+    -- Decoded control signals
+    signal control_word : std_logic_vector(CONTROL_WIDTH-1 downto 0);
+    
+    -- Instruction categories
+    constant INST_ALU     : std_logic_vector(1 downto 0) := "00";
+    constant INST_MEMORY  : std_logic_vector(1 downto 0) := "01";
+    constant INST_BRANCH  : std_logic_vector(1 downto 0) := "10";
+    constant INST_SPECIAL : std_logic_vector(1 downto 0) := "11";
+    
+begin
+    -- Extract instruction fields
+    inst_type   <= instruction(7 downto 6);
+    inst_opcode <= instruction(5 downto 3);
+    inst_reg    <= instruction(2 downto 0);
+    
+    -- Main instruction decoder
+    decoder_process: process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            alu_operation <= (others => '0');
+            reg_write_enable <= '0';
+            reg_read_addr1 <= (others => '0');
+            reg_read_addr2 <= (others => '0');
+            reg_write_addr <= (others => '0');
+            mem_read <= '0';
+            mem_write <= '0';
+            branch_enable <= '0';
+            branch_condition <= (others => '0');
+            immediate_enable <= '0';
+            immediate_value <= (others => '0');
+            stall_request <= '0';
+            flush_request <= '0';
+            illegal_instruction <= '0';
+            privilege_violation <= '0';
+            
+        elsif rising_edge(clk) then
+            if instruction_valid = '1' then
+                -- Default values
+                reg_write_enable <= '0';
+                mem_read <= '0';
+                mem_write <= '0';
+                branch_enable <= '0';
+                immediate_enable <= '0';
+                stall_request <= '0';
+                flush_request <= '0';
+                illegal_instruction <= '0';
+                privilege_violation <= '0';
+                
+                case inst_type is
+                    when INST_ALU =>  -- ALU instructions
+                        alu_operation <= '0' & inst_opcode;
+                        reg_write_enable <= '1';
+                        reg_read_addr1 <= "000";  -- Accumulator
+                        reg_read_addr2 <= inst_reg;
+                        reg_write_addr <= "000";  -- Write back to accumulator
+                        
+                        case inst_opcode is
+                            when "000" =>  -- ADD
+                                null;  -- Default settings apply
+                            when "001" =>  -- SUB
+                                null;
+                            when "010" =>  -- AND
+                                null;
+                            when "011" =>  -- OR
+                                null;
+                            when "100" =>  -- XOR
+                                null;
+                            when "101" =>  -- SHL
+                                null;
+                            when "110" =>  -- SHR
+                                null;
+                            when others =>  -- CMP
+                                reg_write_enable <= '0';  -- Don't write result for compare
+                        end case;
+                    
+                    when INST_MEMORY =>  -- Memory instructions
+                        case inst_opcode is
+                            when "000" =>  -- LOAD acc, [reg]
+                                mem_read <= '1';
+                                reg_write_enable <= '1';
+                                reg_read_addr1 <= inst_reg;  -- Address register
+                                reg_write_addr <= "000";     -- Accumulator
+                            
+                            when "001" =>  -- STORE [reg], acc
+                                mem_write <= '1';
+                                reg_read_addr1 <= inst_reg;  -- Address register
+                                reg_read_addr2 <= "000";     -- Accumulator (data)
+                            
+                            when "010" =>  -- LOAD reg, immediate
+                                immediate_enable <= '1';
+                                reg_write_enable <= '1';
+                                reg_write_addr <= inst_reg;
+                                stall_request <= '1';  -- Need to fetch immediate value
+                            
+                            when "011" =>  -- MOVE reg, acc
+                                reg_write_enable <= '1';
+                                reg_read_addr1 <= "000";     -- Accumulator
+                                reg_write_addr <= inst_reg;
+                            
+                            when "100" =>  -- MOVE acc, reg
+                                reg_write_enable <= '1';
+                                reg_read_addr1 <= inst_reg;
+                                reg_write_addr <= "000";     -- Accumulator
+                            
+                            when others =>
+                                illegal_instruction <= '1';
+                        end case;
+                    
+                    when INST_BRANCH =>  -- Branch instructions
+                        branch_enable <= '1';
+                        branch_condition <= inst_opcode;
+                        reg_read_addr1 <= inst_reg;  -- Branch target register
+                        flush_request <= '1';  -- Flush pipeline on branch
+                        
+                        case inst_opcode is
+                            when "000" =>  -- JMP (unconditional)
+                                null;
+                            when "001" =>  -- JZ (jump if zero)
+                                null;
+                            when "010" =>  -- JNZ (jump if not zero)
+                                null;
+                            when "011" =>  -- JC (jump if carry)
+                                null;
+                            when "100" =>  -- JNC (jump if no carry)
+                                null;
+                            when "101" =>  -- CALL
+                                mem_write <= '1';  -- Push return address
+                            when "110" =>  -- RET
+                                mem_read <= '1';   -- Pop return address
+                            when others =>
+                                illegal_instruction <= '1';
+                        end case;
+                    
+                    when INST_SPECIAL =>  -- Special instructions
+                        case inst_opcode is
+                            when "000" =>  -- NOP
+                                null;  -- No operation
+                            
+                            when "001" =>  -- HALT
+                                stall_request <= '1';  -- Stop pipeline
+                            
+                            when "010" =>  -- EI (Enable Interrupts)
+                                -- Privileged instruction check could go here
+                                null;
+                            
+                            when "011" =>  -- DI (Disable Interrupts)
+                                -- Privileged instruction check could go here
+                                null;
+                            
+                            when "100" =>  -- PUSH acc
+                                mem_write <= '1';
+                                reg_read_addr1 <= "000";  -- Accumulator
+                            
+                            when "101" =>  -- POP acc
+                                mem_read <= '1';
+                                reg_write_enable <= '1';
+                                reg_write_addr <= "000";  -- Accumulator
+                            
+                            when "110" =>  -- IN acc, port
+                                -- I/O instruction
+                                reg_write_enable <= '1';
+                                reg_write_addr <= "000";
+                                immediate_enable <= '1';  -- Port number as immediate
+                            
+                            when "111" =>  -- OUT port, acc
+                                -- I/O instruction
+                                reg_read_addr1 <= "000";  -- Accumulator
+                                immediate_enable <= '1';  -- Port number as immediate
+                            
+                            when others =>
+                                illegal_instruction <= '1';
+                        end case;
+                    
+                    when others =>
+                        illegal_instruction <= '1';
+                end case;
+            end if;
+        end if;
+    end process;
+    
+end architecture behavioral;
+```
+
+## 🏗️ **Complete Microcontroller System Integration**
+```vhdl
+-- Complete 8-bit Microcontroller System
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity microcontroller_system is
+    generic (
+        CLOCK_FREQ     : integer := 50_000_000;  -- 50 MHz
+        BAUD_RATE      : integer := 9600;
+        RAM_SIZE       : integer := 1024;        -- 1KB RAM
+        ROM_SIZE       : integer := 2048         -- 2KB ROM
+    );
+    port (
+        clk            : in  std_logic;
+        reset_n        : in  std_logic;
+        -- External I/O
+        gpio_in        : in  std_logic_vector(7 downto 0);
+        gpio_out       : out std_logic_vector(7 downto 0);
+        gpio_dir       : out std_logic_vector(7 downto 0);  -- 1=output, 0=input
+        -- UART interface
+        uart_tx        : out std_logic;
+        uart_rx        : in  std_logic;
+        -- SPI interface
+        spi_sclk       : out std_logic;
+        spi_mosi       : out std_logic;
+        spi_miso       : in  std_logic;
+        spi_cs         : out std_logic_vector(3 downto 0);
+        -- I2C interface
+        i2c_sda        : inout std_logic;
+        i2c_scl        : inout std_logic;
+        -- Interrupt inputs
+        ext_int        : in  std_logic_vector(3 downto 0);
+        -- Debug interface
+        debug_pc       : out std_logic_vector(15 downto 0);
+        debug_state    : out std_logic_vector(3 downto 0);
+        debug_registers: out std_logic_vector(127 downto 0)  -- 16 x 8-bit registers
+    );
+end entity microcontroller_system;
+
+architecture structural of microcontroller_system is
+    -- Internal bus signals
+    signal cpu_addr        : std_logic_vector(15 downto 0);
+    signal cpu_data_out    : std_logic_vector(7 downto 0);
+    signal cpu_data_in     : std_logic_vector(7 downto 0);
+    signal cpu_read        : std_logic;
+    signal cpu_write       : std_logic;
+    signal cpu_ready       : std_logic;
+    
+    -- Memory interface signals
+    signal mem_addr        : std_logic_vector(15 downto 0);
+    signal mem_data_in     : std_logic_vector(7 downto 0);
+    signal mem_data_out    : std_logic_vector(7 downto 0);
+    signal mem_read        : std_logic;
+    signal mem_write       : std_logic;
+    signal mem_ready       : std_logic;
+    
+    -- Peripheral select signals
+    signal ram_select      : std_logic;
+    signal rom_select      : std_logic;
+    signal uart_select     : std_logic;
+    signal gpio_select     : std_logic;
+    signal spi_select      : std_logic;
+    signal i2c_select      : std_logic;
+    signal timer_select    : std_logic;
+    
+    -- Peripheral data outputs
+    signal ram_data_out    : std_logic_vector(7 downto 0);
+    signal rom_data_out    : std_logic_vector(7 downto 0);
+    signal uart_data_out   : std_logic_vector(7 downto 0);
+    signal gpio_data_out   : std_logic_vector(7 downto 0);
+    signal spi_data_out    : std_logic_vector(7 downto 0);
+    signal i2c_data_out    : std_logic_vector(7 downto 0);
+    signal timer_data_out  : std_logic_vector(7 downto 0);
+    
+    -- Peripheral ready signals
+    signal ram_ready       : std_logic;
+    signal rom_ready       : std_logic;
+    signal uart_ready      : std_logic;
+    signal gpio_ready      : std_logic;
+    signal spi_ready       : std_logic;
+    signal i2c_ready       : std_logic;
+    signal timer_ready     : std_logic;
+    
+    -- Interrupt signals
+    signal interrupt_req   : std_logic;
+    signal interrupt_ack   : std_logic;
+    signal timer_interrupt : std_logic;
+    signal uart_interrupt  : std_logic;
+    
+    -- Clock and reset
+    signal system_clk      : std_logic;
+    signal system_reset_n  : std_logic;
+    
+begin
+    -- Clock and reset management
+    system_clk <= clk;
+    system_reset_n <= reset_n;
+    
+    -- Address decoding
+    -- Memory map:
+    -- 0x0000-0x03FF: RAM (1KB)
+    -- 0x0400-0x0BFF: ROM (2KB)  
+    -- 0xF000-0xF00F: UART
+    -- 0xF010-0xF01F: GPIO
+    -- 0xF020-0xF02F: SPI
+    -- 0xF030-0xF03F: I2C
+    -- 0xF040-0xF04F: Timer
+    
+    ram_select   <= '1' when unsigned(cpu_addr) < RAM_SIZE else '0';
+    rom_select   <= '1' when unsigned(cpu_addr) >= 16#0400# and 
+                            unsigned(cpu_addr) < (16#0400# + ROM_SIZE) else '0';
+    uart_select  <= '1' when cpu_addr(15 downto 4) = x"F00" else '0';
+    gpio_select  <= '1' when cpu_addr(15 downto 4) = x"F01" else '0';
+    spi_select   <= '1' when cpu_addr(15 downto 4) = x"F02" else '0';
+    i2c_select   <= '1' when cpu_addr(15 downto 4) = x"F03" else '0';
+    timer_select <= '1' when cpu_addr(15 downto 4) = x"F04" else '0';
+    
+    -- Data bus multiplexer
+    cpu_data_in <= ram_data_out   when ram_select = '1' else
+                   rom_data_out   when rom_select = '1' else
+                   uart_data_out  when uart_select = '1' else
+                   gpio_data_out  when gpio_select = '1' else
+                   spi_data_out   when spi_select = '1' else
+                   i2c_data_out   when i2c_select = '1' else
+                   timer_data_out when timer_select = '1' else
+                   (others => '0');
+    
+    -- Ready signal OR gate
+    cpu_ready <= ram_ready or rom_ready or uart_ready or gpio_ready or 
+                 spi_ready or i2c_ready or timer_ready;
+    
+    -- Interrupt controller (simple OR gate for this example)
+    interrupt_req <= timer_interrupt or uart_interrupt or 
+                     ext_int(0) or ext_int(1) or ext_int(2) or ext_int(3);
+    
+    -- CPU Core instantiation
+    cpu_inst: entity work.cpu_core
+        generic map (
+            DATA_WIDTH => 8,
+            ADDR_WIDTH => 16,
+            REG_COUNT  => 16
+        )
+        port map (
+            clk           => system_clk,
+            reset_n       => system_reset_n,
+            mem_addr      => cpu_addr,
+            mem_data_in   => cpu_data_in,
+            mem_data_out  => cpu_data_out,
+            mem_read      => cpu_read,
+            mem_write     => cpu_write,
+            mem_ready     => cpu_ready,
+            interrupt_req => interrupt_req,
+            interrupt_ack => interrupt_ack,
+            debug_pc      => debug_pc,
+            debug_state   => debug_state,
+            debug_flags   => open
+        );
+    
+    -- RAM instantiation
+    ram_inst: entity work.ram_module
+        generic map (
+            ADDR_WIDTH => 10,  -- 1KB = 2^10
+            DATA_WIDTH => 8
+        )
+        port map (
+            clk       => system_clk,
+            reset_n   => system_reset_n,
+            addr      => cpu_addr(9 downto 0),
+            data_in   => cpu_data_out,
+            data_out  => ram_data_out,
+            read_en   => cpu_read and ram_select,
+            write_en  => cpu_write and ram_select,
+            ready     => ram_ready
+        );
+    
+    -- ROM instantiation
+    rom_inst: entity work.rom_module
+        generic map (
+            ADDR_WIDTH => 11,  -- 2KB = 2^11
+            DATA_WIDTH => 8
+        )
+        port map (
+            clk       => system_clk,
+            reset_n   => system_reset_n,
+            addr      => cpu_addr(10 downto 0),
+            data_out  => rom_data_out,
+            read_en   => cpu_read and rom_select,
+            ready     => rom_ready
+        );
+    
+    -- UART instantiation
+    uart_inst: entity work.uart_controller
+        generic map (
+            BAUD_RATE => BAUD_RATE,
+            CLK_FREQ  => CLOCK_FREQ
+        )
+        port map (
+            clk         => system_clk,
+            reset_n     => system_reset_n,
+            addr        => cpu_addr(3 downto 0),
+            data_in     => cpu_data_out,
+            data_out    => uart_data_out,
+            read_en     => cpu_read and uart_select,
+            write_en    => cpu_write and uart_select,
+            ready       => uart_ready,
+            uart_tx     => uart_tx,
+            uart_rx     => uart_rx,
+            interrupt   => uart_interrupt
+        );
+    
+    -- GPIO instantiation
+    gpio_inst: entity work.gpio_controller
+        port map (
+            clk         => system_clk,
+            reset_n     => system_reset_n,
+            addr        => cpu_addr(3 downto 0),
+            data_in     => cpu_data_out,
+            data_out    => gpio_data_out,
+            read_en     => cpu_read and gpio_select,
+            write_en    => cpu_write and gpio_select,
+            ready       => gpio_ready,
+            gpio_in     => gpio_in,
+            gpio_out    => gpio_out,
+            gpio_dir    => gpio_dir
+        );
+    
+    -- SPI instantiation
+    spi_inst: entity work.spi_controller
+        port map (
+            clk         => system_clk,
+            reset_n     => system_reset_n,
+            addr        => cpu_addr(3 downto 0),
+            data_in     => cpu_data_out,
+            data_out    => spi_data_out,
+            read_en     => cpu_read and spi_select,
+            write_en    => cpu_write and spi_select,
+            ready       => spi_ready,
+            spi_sclk    => spi_sclk,
+            spi_mosi    => spi_mosi,
+            spi_miso    => spi_miso,
+            spi_cs      => spi_cs
+        );
+    
+    -- I2C instantiation
+    i2c_inst: entity work.i2c_controller
+        port map (
+            clk         => system_clk,
+            reset_n     => system_reset_n,
+            addr        => cpu_addr(3 downto 0),
+            data_in     => cpu_data_out,
+            data_out    => i2c_data_out,
+            read_en     => cpu_read and i2c_select,
+            write_en    => cpu_write and i2c_select,
+            ready       => i2c_ready,
+            i2c_sda     => i2c_sda,
+            i2c_scl     => i2c_scl
+        );
+    
+    -- Timer instantiation
+    timer_inst: entity work.timer_controller
+        generic map (
+            CLK_FREQ => CLOCK_FREQ
+        )
+        port map (
+            clk         => system_clk,
+            reset_n     => system_reset_n,
+            addr        => cpu_addr(3 downto 0),
+            data_in     => cpu_data_out,
+            data_out    => timer_data_out,
+            read_en     => cpu_read and timer_select,
+            write_en    => cpu_write and timer_select,
+            ready       => timer_ready,
+            interrupt   => timer_interrupt
+        );
+    
+    -- Debug register output (simplified - showing first 16 registers)
+    debug_registers <= (others => '0');  -- Would connect to actual register file
+    
+end architecture structural;
+```
+
+## 🏭 **Modbus RTU/TCP Protocol Implementation**
+```vhdl
+-- Modbus RTU Master Controller
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity modbus_rtu_master is
+    generic (
+        BAUD_RATE   : integer := 9600;
+        CLK_FREQ    : integer := 50_000_000
+    );
+    port (
+        clk         : in  std_logic;
+        reset_n     : in  std_logic;
+        -- Control interface
+        start_req   : in  std_logic;
+        slave_addr  : in  std_logic_vector(7 downto 0);
+        func_code   : in  std_logic_vector(7 downto 0);
+        reg_addr    : in  std_logic_vector(15 downto 0);
+        reg_count   : in  std_logic_vector(15 downto 0);
+        write_data  : in  std_logic_vector(255 downto 0);  -- Max 16 registers
+        read_data   : out std_logic_vector(255 downto 0);
+        busy        : out std_logic;
+        done        : out std_logic;
+        error       : out std_logic;
+        -- UART interface
+        uart_tx     : out std_logic;
+        uart_rx     : in  std_logic
+    );
+end entity modbus_rtu_master;
+
+architecture rtl of modbus_rtu_master is
+    -- Modbus function codes
+    constant READ_COILS             : std_logic_vector(7 downto 0) := x"01";
+    constant READ_DISCRETE_INPUTS   : std_logic_vector(7 downto 0) := x"02";
+    constant READ_HOLDING_REGISTERS : std_logic_vector(7 downto 0) := x"03";
+    constant READ_INPUT_REGISTERS   : std_logic_vector(7 downto 0) := x"04";
+    constant WRITE_SINGLE_COIL      : std_logic_vector(7 downto 0) := x"05";
+    constant WRITE_SINGLE_REGISTER  : std_logic_vector(7 downto 0) := x"06";
+    constant WRITE_MULTIPLE_COILS   : std_logic_vector(7 downto 0) := x"0F";
+    constant WRITE_MULTIPLE_REGS    : std_logic_vector(7 downto 0) := x"10";
+    
+    -- State machine
+    type modbus_state_type is (IDLE, BUILD_FRAME, SEND_FRAME, WAIT_RESPONSE, 
+                              RECEIVE_FRAME, VALIDATE_CRC, PARSE_RESPONSE, ERROR_STATE);
+    signal state : modbus_state_type;
+    
+    -- Frame buffers
+    signal tx_frame     : std_logic_vector(255 downto 0);
+    signal rx_frame     : std_logic_vector(255 downto 0);
+    signal tx_length    : integer range 0 to 32;
+    signal rx_length    : integer range 0 to 32;
+    signal frame_index  : integer range 0 to 32;
+    
+    -- CRC calculation
+    signal crc_calc     : std_logic_vector(15 downto 0);
+    signal crc_received : std_logic_vector(15 downto 0);
+    
+    -- Timing
+    constant CHAR_TIME  : integer := CLK_FREQ / BAUD_RATE * 11;  -- 11 bits per char
+    constant T35_TIME   : integer := CHAR_TIME * 4;  -- 3.5 character times
+    signal timeout_counter : integer range 0 to T35_TIME;
+    
+    -- UART interface signals
+    signal uart_tx_data   : std_logic_vector(7 downto 0);
+    signal uart_tx_valid  : std_logic;
+    signal uart_tx_ready  : std_logic;
+    signal uart_rx_data   : std_logic_vector(7 downto 0);
+    signal uart_rx_valid  : std_logic;
+    
+begin
+    -- UART instance (simplified interface)
+    uart_inst: entity work.uart_controller
+        generic map (
+            BAUD_RATE => BAUD_RATE,
+            CLK_FREQ  => CLK_FREQ
+        )
+        port map (
+            clk       => clk,
+            reset_n   => reset_n,
+            tx_data   => uart_tx_data,
+            tx_valid  => uart_tx_valid,
+            tx_ready  => uart_tx_ready,
+            rx_data   => uart_rx_data,
+            rx_valid  => uart_rx_valid,
+            uart_tx   => uart_tx,
+            uart_rx   => uart_rx
+        );
+    
+    -- CRC-16 calculation function
+    function calc_crc16(data : std_logic_vector; length : integer) return std_logic_vector is
+        variable crc : std_logic_vector(15 downto 0) := x"FFFF";
+        variable temp : std_logic_vector(15 downto 0);
+    begin
+        for i in 0 to length-1 loop
+            temp := crc xor ("00000000" & data(i*8+7 downto i*8));
+            for j in 0 to 7 loop
+                if temp(0) = '1' then
+                    temp := ('0' & temp(15 downto 1)) xor x"A001";
+                else
+                    temp := '0' & temp(15 downto 1);
+                end if;
+            end loop;
+            crc := temp;
+        end loop;
+        return crc;
+    end function;
+    
+    -- Main Modbus state machine
+    modbus_fsm: process(clk, reset_n)
+        variable byte_count : integer;
+    begin
+        if reset_n = '0' then
+            state <= IDLE;
+            busy <= '0';
+            done <= '0';
+            error <= '0';
+            tx_length <= 0;
+            rx_length <= 0;
+            frame_index <= 0;
+            timeout_counter <= 0;
+            uart_tx_valid <= '0';
+            
+        elsif rising_edge(clk) then
+            case state is
+                when IDLE =>
+                    done <= '0';
+                    error <= '0';
+                    if start_req = '1' then
+                        state <= BUILD_FRAME;
+                        busy <= '1';
+                        frame_index <= 0;
+                    end if;
+                
+                when BUILD_FRAME =>
+                    -- Build Modbus RTU frame
+                    tx_frame(255 downto 248) <= slave_addr;  -- Slave address
+                    tx_frame(247 downto 240) <= func_code;   -- Function code
+                    tx_frame(239 downto 224) <= reg_addr;    -- Register address
+                    
+                    case func_code is
+                        when READ_HOLDING_REGISTERS | READ_INPUT_REGISTERS =>
+                            tx_frame(223 downto 208) <= reg_count;  -- Register count
+                            tx_length <= 6;  -- 4 bytes + 2 CRC
+                            
+                        when WRITE_SINGLE_REGISTER =>
+                            tx_frame(223 downto 208) <= write_data(15 downto 0);
+                            tx_length <= 6;  -- 4 bytes + 2 CRC
+                            
+                        when WRITE_MULTIPLE_REGS =>
+                            tx_frame(223 downto 208) <= reg_count;  -- Register count
+                            byte_count := to_integer(unsigned(reg_count)) * 2;
+                            tx_frame(207 downto 200) <= std_logic_vector(to_unsigned(byte_count, 8));
+                            
+                            -- Copy write data
+                            for i in 0 to byte_count-1 loop
+                                tx_frame(199-i*8 downto 192-i*8) <= 
+                                    write_data(255-i*8 downto 248-i*8);
+                            end loop;
+                            
+                            tx_length <= 7 + byte_count;
+                            
+                        when others =>
+                            state <= ERROR_STATE;
+                    end case;
+                    
+                    -- Calculate and append CRC
+                    crc_calc <= calc_crc16(tx_frame(255 downto 256-tx_length*8), tx_length-2);
+                    tx_frame(15 downto 0) <= crc_calc;  -- CRC at end of frame
+                    
+                    state <= SEND_FRAME;
+                
+                when SEND_FRAME =>
+                    if uart_tx_ready = '1' and frame_index < tx_length then
+                        uart_tx_data <= tx_frame(255-frame_index*8 downto 248-frame_index*8);
+                        uart_tx_valid <= '1';
+                        frame_index <= frame_index + 1;
+                    elsif frame_index >= tx_length then
+                        uart_tx_valid <= '0';
+                        state <= WAIT_RESPONSE;
+                        timeout_counter <= T35_TIME;
+                        frame_index <= 0;
+                    else
+                        uart_tx_valid <= '0';
+                    end if;
+                
+                when WAIT_RESPONSE =>
+                    if uart_rx_valid = '1' then
+                        state <= RECEIVE_FRAME;
+                        timeout_counter <= T35_TIME;
+                    elsif timeout_counter = 0 then
+                        state <= ERROR_STATE;
+                        error <= '1';
+                    else
+                        timeout_counter <= timeout_counter - 1;
+                    end if;
+                
+                when RECEIVE_FRAME =>
+                    if uart_rx_valid = '1' then
+                        rx_frame(255-frame_index*8 downto 248-frame_index*8) <= uart_rx_data;
+                        frame_index <= frame_index + 1;
+                        timeout_counter <= T35_TIME;  -- Reset timeout
+                    elsif timeout_counter = 0 then
+                        -- End of frame detected
+                        rx_length <= frame_index;
+                        state <= VALIDATE_CRC;
+                    else
+                        timeout_counter <= timeout_counter - 1;
+                    end if;
+                
+                when VALIDATE_CRC =>
+                    -- Extract received CRC
+                    crc_received <= rx_frame(15 downto 0);
+                    -- Calculate CRC of received data
+                    crc_calc <= calc_crc16(rx_frame(255 downto 16), rx_length-2);
+                    
+                    if crc_calc = crc_received then
+                        state <= PARSE_RESPONSE;
+                    else
+                        state <= ERROR_STATE;
+                        error <= '1';
+                    end if;
+                
+                when PARSE_RESPONSE =>
+                    -- Check slave address and function code
+                    if rx_frame(255 downto 248) = slave_addr and 
+                       rx_frame(247 downto 240) = func_code then
+                        -- Extract data based on function code
+                        case func_code is
+                            when READ_HOLDING_REGISTERS | READ_INPUT_REGISTERS =>
+                                byte_count := to_integer(unsigned(rx_frame(239 downto 232)));
+                                for i in 0 to byte_count-1 loop
+                                    read_data(255-i*8 downto 248-i*8) <= 
+                                        rx_frame(231-i*8 downto 224-i*8);
+                                end loop;
+                            
+                            when others =>
+                                null;  -- Other function codes
+                        end case;
+                        
+                        state <= IDLE;
+                        busy <= '0';
+                        done <= '1';
+                    else
+                        state <= ERROR_STATE;
+                        error <= '1';
+                    end if;
+                
+                when ERROR_STATE =>
+                    busy <= '0';
+                    error <= '1';
+                    if start_req = '0' then
+                        state <= IDLE;
+                        error <= '0';
+                    end if;
+            end case;
+        end if;
+    end process;
+    
+end architecture rtl;
+```
+
+## 🌐 **SNMP Protocol Implementation**
+```vhdl
+-- SNMP Agent with Basic MIB Support
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity snmp_agent is
+    generic (
+        UDP_PORT    : integer := 161;
+        COMMUNITY   : string := "public"
+    );
+    port (
+        clk         : in  std_logic;
+        reset_n     : in  std_logic;
+        -- Network interface
+        udp_rx_data : in  std_logic_vector(7 downto 0);
+        udp_rx_valid: in  std_logic;
+        udp_rx_sof  : in  std_logic;
+        udp_rx_eof  : in  std_logic;
+        udp_tx_data : out std_logic_vector(7 downto 0);
+        udp_tx_valid: out std_logic;
+        udp_tx_sof  : out std_logic;
+        udp_tx_eof  : out std_logic;
+        udp_tx_ready: in  std_logic;
+        -- MIB interface
+        mib_oid     : out std_logic_vector(127 downto 0);
+        mib_value   : in  std_logic_vector(31 downto 0);
+        mib_valid   : in  std_logic;
+        mib_error   : in  std_logic;
+        -- Status
+        snmp_requests : out std_logic_vector(31 downto 0);
+        snmp_responses: out std_logic_vector(31 downto 0)
+    );
+end entity snmp_agent;
+
+architecture rtl of snmp_agent is
+    -- SNMP PDU types
+    constant GET_REQUEST    : std_logic_vector(7 downto 0) := x"A0";
+    constant GET_NEXT_REQ   : std_logic_vector(7 downto 0) := x"A1";
+    constant GET_RESPONSE   : std_logic_vector(7 downto 0) := x"A2";
+    constant SET_REQUEST    : std_logic_vector(7 downto 0) := x"A3";
+    constant TRAP           : std_logic_vector(7 downto 0) := x"A4";
+    
+    -- ASN.1 types
+    constant ASN1_INTEGER   : std_logic_vector(7 downto 0) := x"02";
+    constant ASN1_OCTET_STR : std_logic_vector(7 downto 0) := x"04";
+    constant ASN1_NULL      : std_logic_vector(7 downto 0) := x"05";
+    constant ASN1_OID       : std_logic_vector(7 downto 0) := x"06";
+    constant ASN1_SEQUENCE  : std_logic_vector(7 downto 0) := x"30";
+    
+    -- State machine
+    type snmp_state_type is (IDLE, PARSE_HEADER, PARSE_COMMUNITY, 
+                            PARSE_PDU, PARSE_VARBIND, PROCESS_REQUEST,
+                            BUILD_RESPONSE, SEND_RESPONSE);
+    signal state : snmp_state_type;
+    
+    -- Packet buffers
+    signal rx_buffer    : std_logic_vector(1023 downto 0);
+    signal tx_buffer    : std_logic_vector(1023 downto 0);
+    signal rx_index     : integer range 0 to 127;
+    signal tx_index     : integer range 0 to 127;
+    signal packet_length: integer range 0 to 127;
+    
+    -- SNMP message fields
+    signal version      : std_logic_vector(7 downto 0);
+    signal community_str: std_logic_vector(63 downto 0);
+    signal pdu_type     : std_logic_vector(7 downto 0);
+    signal request_id   : std_logic_vector(31 downto 0);
+    signal error_status : std_logic_vector(7 downto 0);
+    signal error_index  : std_logic_vector(7 downto 0);
+    
+    -- Statistics
+    signal req_counter  : unsigned(31 downto 0);
+    signal resp_counter : unsigned(31 downto 0);
+    
+begin
+    -- SNMP packet processing
+    snmp_processor: process(clk, reset_n)
+        variable oid_length : integer;
+        variable value_length : integer;
+    begin
+        if reset_n = '0' then
+            state <= IDLE;
+            rx_index <= 0;
+            tx_index <= 0;
+            packet_length <= 0;
+            version <= (others => '0');
+            pdu_type <= (others => '0');
+            request_id <= (others => '0');
+            error_status <= (others => '0');
+            error_index <= (others => '0');
+            req_counter <= (others => '0');
+            resp_counter <= (others => '0');
+            udp_tx_valid <= '0';
+            udp_tx_sof <= '0';
+            udp_tx_eof <= '0';
+            
+        elsif rising_edge(clk) then
+            case state is
+                when IDLE =>
+                    udp_tx_valid <= '0';
+                    udp_tx_sof <= '0';
+                    udp_tx_eof <= '0';
+                    
+                    if udp_rx_sof = '1' then
+                        state <= PARSE_HEADER;
+                        rx_index <= 0;
+                        packet_length <= 0;
+                    end if;
+                
+                when PARSE_HEADER =>
+                    if udp_rx_valid = '1' then
+                        rx_buffer(1023-rx_index*8 downto 1016-rx_index*8) <= udp_rx_data;
+                        rx_index <= rx_index + 1;
+                        
+                        -- Parse SNMP version (after sequence header)
+                        if rx_index = 4 then  -- Assuming fixed header structure
+                            version <= udp_rx_data;
+                            state <= PARSE_COMMUNITY;
+                        end if;
+                    elsif udp_rx_eof = '1' then
+                        packet_length <= rx_index;
+                        state <= IDLE;  -- Incomplete packet
+                    end if;
+                
+                when PARSE_COMMUNITY =>
+                    if udp_rx_valid = '1' then
+                        rx_buffer(1023-rx_index*8 downto 1016-rx_index*8) <= udp_rx_data;
+                        rx_index <= rx_index + 1;
+                        
+                        -- Simple community string check (first 6 bytes = "public")
+                        if rx_index >= 10 then  -- After community string
+                            state <= PARSE_PDU;
+                        end if;
+                    elsif udp_rx_eof = '1' then
+                        packet_length <= rx_index;
+                        state <= IDLE;
+                    end if;
+                
+                when PARSE_PDU =>
+                    if udp_rx_valid = '1' then
+                        rx_buffer(1023-rx_index*8 downto 1016-rx_index*8) <= udp_rx_data;
+                        
+                        -- Parse PDU type
+                        if rx_index = 12 then  -- PDU type position
+                            pdu_type <= udp_rx_data;
+                        elsif rx_index >= 16 and rx_index <= 19 then
+                            -- Parse request ID (4 bytes)
+                            request_id((19-rx_index)*8+7 downto (19-rx_index)*8) <= udp_rx_data;
+                        end if;
+                        
+                        rx_index <= rx_index + 1;
+                        
+                        if rx_index >= 22 then  -- Start of variable bindings
+                            state <= PARSE_VARBIND;
+                        end if;
+                    elsif udp_rx_eof = '1' then
+                        packet_length <= rx_index;
+                        state <= PROCESS_REQUEST;
+                    end if;
+                
+                when PARSE_VARBIND =>
+                    if udp_rx_valid = '1' then
+                        rx_buffer(1023-rx_index*8 downto 1016-rx_index*8) <= udp_rx_data;
+                        rx_index <= rx_index + 1;
+                    elsif udp_rx_eof = '1' then
+                        packet_length <= rx_index;
+                        state <= PROCESS_REQUEST;
+                    end if;
+                
+                when PROCESS_REQUEST =>
+                    -- Process the SNMP request
+                    req_counter <= req_counter + 1;
+                    
+                    if pdu_type = GET_REQUEST or pdu_type = GET_NEXT_REQ then
+                        -- Extract OID from variable binding
+                        -- Simplified: assume single OID at fixed position
+                        mib_oid <= rx_buffer(511 downto 384);  -- Example OID position
+                        
+                        if mib_valid = '1' then
+                            state <= BUILD_RESPONSE;
+                            error_status <= x"00";  -- No error
+                        elsif mib_error = '1' then
+                            state <= BUILD_RESPONSE;
+                            error_status <= x"02";  -- No such name
+                        end if;
+                    else
+                        -- Unsupported PDU type
+                        error_status <= x"05";  -- Gen error
+                        state <= BUILD_RESPONSE;
+                    end if;
+                
+                when BUILD_RESPONSE =>
+                    -- Build SNMP response packet
+                    tx_index <= 0;
+                    
+                    -- SNMP message header
+                    tx_buffer(1023 downto 1016) <= ASN1_SEQUENCE;  -- Message sequence
+                    tx_buffer(1015 downto 1008) <= x"82";          -- Length (2 bytes)
+                    -- ... (build complete response structure)
+                    
+                    -- Change PDU type to GET_RESPONSE
+                    pdu_type <= GET_RESPONSE;
+                    
+                    state <= SEND_RESPONSE;
+                
+                when SEND_RESPONSE =>
+                    if udp_tx_ready = '1' then
+                        if tx_index = 0 then
+                            udp_tx_sof <= '1';
+                        else
+                            udp_tx_sof <= '0';
+                        end if;
+                        
+                        udp_tx_data <= tx_buffer(1023-tx_index*8 downto 1016-tx_index*8);
+                        udp_tx_valid <= '1';
+                        tx_index <= tx_index + 1;
+                        
+                        if tx_index >= packet_length-1 then
+                            udp_tx_eof <= '1';
+                            resp_counter <= resp_counter + 1;
+                            state <= IDLE;
+                        end if;
+                    end if;
+            end case;
+        end if;
+    end process;
+    
+    -- Output statistics
+    snmp_requests <= std_logic_vector(req_counter);
+    snmp_responses <= std_logic_vector(resp_counter);
+    
+end architecture rtl;
+```
+
+## 🚀 **SPI Protocol Implementation**
+```vhdl
+-- SPI Master with Configurable Parameters
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity spi_master is
+    generic (
+        DATA_WIDTH  : integer := 8;      -- Data width (8, 16, 32)
+        CLK_DIV     : integer := 4;      -- Clock divider
+        CPOL        : std_logic := '0';  -- Clock polarity
+        CPHA        : std_logic := '0'   -- Clock phase
+    );
+    port (
+        clk         : in  std_logic;
+        reset_n     : in  std_logic;
+        -- Control interface
+        start       : in  std_logic;
+        data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        busy        : out std_logic;
+        done        : out std_logic;
+        -- SPI interface
+        sclk        : out std_logic;
+        mosi        : out std_logic;
+        miso        : in  std_logic;
+        cs_n        : out std_logic_vector(7 downto 0)  -- 8 chip selects
+    );
+end entity spi_master;
+
+architecture rtl of spi_master is
+    type spi_state_type is (IDLE, ACTIVE, DONE_STATE);
+    signal state : spi_state_type;
+    
+    signal sclk_int     : std_logic;
+    signal bit_counter  : integer range 0 to DATA_WIDTH-1;
+    signal clk_counter  : integer range 0 to CLK_DIV-1;
+    signal shift_reg    : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal cs_select    : integer range 0 to 7;
+    
+begin
+    spi_process: process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            state <= IDLE;
+            sclk_int <= CPOL;
+            bit_counter <= DATA_WIDTH-1;
+            clk_counter <= 0;
+            shift_reg <= (others => '0');
+            busy <= '0';
+            done <= '0';
+            cs_n <= (others => '1');
+            
+        elsif rising_edge(clk) then
+            case state is
+                when IDLE =>
+                    done <= '0';
+                    if start = '1' then
+                        state <= ACTIVE;
+                        busy <= '1';
+                        shift_reg <= data_in;
+                        bit_counter <= DATA_WIDTH-1;
+                        cs_n(cs_select) <= '0';  -- Select slave
+                    end if;
+                
+                when ACTIVE =>
+                    if clk_counter = CLK_DIV-1 then
+                        clk_counter <= 0;
+                        sclk_int <= not sclk_int;
+                        
+                        -- Data transfer on appropriate clock edge
+                        if (sclk_int = CPOL and CPHA = '0') or 
+                           (sclk_int = not CPOL and CPHA = '1') then
+                            -- Sample MISO
+                            shift_reg <= shift_reg(DATA_WIDTH-2 downto 0) & miso;
+                            
+                            if bit_counter = 0 then
+                                state <= DONE_STATE;
+                                data_out <= shift_reg(DATA_WIDTH-2 downto 0) & miso;
+                            else
+                                bit_counter <= bit_counter - 1;
+                            end if;
+                        end if;
+                    else
+                        clk_counter <= clk_counter + 1;
+                    end if;
+                
+                when DONE_STATE =>
+                    busy <= '0';
+                    done <= '1';
+                    cs_n <= (others => '1');  -- Deselect all slaves
+                    sclk_int <= CPOL;
+                    state <= IDLE;
+            end case;
+        end if;
+    end process;
+    
+    -- Output assignments
+    sclk <= sclk_int;
+    mosi <= shift_reg(DATA_WIDTH-1);
+    
+end architecture rtl;
+```
+
+## 🚗 **CAN Bus Protocol Implementation**
+```vhdl
+-- CAN Bus Controller with Error Handling
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity can_controller is
+    generic (
+        BIT_RATE    : integer := 500_000;  -- 500 kbps
+        CLK_FREQ    : integer := 50_000_000
+    );
+    port (
+        clk         : in  std_logic;
+        reset_n     : in  std_logic;
+        -- Message interface
+        tx_start    : in  std_logic;
+        tx_id       : in  std_logic_vector(10 downto 0);  -- 11-bit ID
+        tx_data     : in  std_logic_vector(63 downto 0);  -- 8 bytes max
+        tx_dlc      : in  std_logic_vector(3 downto 0);   -- Data length
+        tx_busy     : out std_logic;
+        tx_done     : out std_logic;
+        tx_error    : out std_logic;
+        -- Receive interface
+        rx_valid    : out std_logic;
+        rx_id       : out std_logic_vector(10 downto 0);
+        rx_data     : out std_logic_vector(63 downto 0);
+        rx_dlc      : out std_logic_vector(3 downto 0);
+        rx_error    : out std_logic;
+        -- CAN bus
+        can_tx      : out std_logic;
+        can_rx      : in  std_logic
+    );
+end entity can_controller;
+
+architecture rtl of can_controller is
+    -- CAN frame structure
+    type can_tx_state_type is (IDLE, SOF, ARBITRATION, CONTROL, DATA, 
+                              CRC, ACK, EOF, ERROR_FRAME);
+    signal tx_state : can_tx_state_type;
+    
+    type can_rx_state_type is (RX_IDLE, RX_SOF, RX_ARBITRATION, RX_CONTROL, 
+                              RX_DATA, RX_CRC, RX_ACK, RX_EOF);
+    signal rx_state : can_rx_state_type;
+    
+    -- Bit timing
+    constant BIT_TIME : integer := CLK_FREQ / BIT_RATE;
+    signal bit_timer : integer range 0 to BIT_TIME-1;
+    signal bit_sample : std_logic;
+    
+    -- TX signals
+    signal tx_shift_reg : std_logic_vector(127 downto 0);  -- Max frame size
+    signal tx_bit_count : integer range 0 to 127;
+    signal tx_crc       : std_logic_vector(14 downto 0);
+    signal tx_stuff_count : integer range 0 to 5;
+    signal tx_last_bit  : std_logic;
+    
+    -- RX signals
+    signal rx_shift_reg : std_logic_vector(127 downto 0);
+    signal rx_bit_count : integer range 0 to 127;
+    signal rx_crc       : std_logic_vector(14 downto 0);
+    signal rx_stuff_count : integer range 0 to 5;
+    signal rx_last_bit  : std_logic;
+    
+    -- Error detection
+    signal error_count  : integer range 0 to 255;
+    signal stuff_error  : std_logic;
+    signal crc_error    : std_logic;
+    signal ack_error    : std_logic;
+    
+begin
+    -- Bit timing generator
+    bit_timing: process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            bit_timer <= 0;
+            bit_sample <= '0';
+        elsif rising_edge(clk) then
+            if bit_timer = BIT_TIME-1 then
+                bit_timer <= 0;
+                bit_sample <= '1';
+            else
+                bit_timer <= bit_timer + 1;
+                bit_sample <= '0';
+            end if;
+        end if;
+    end process;
+    
+    -- CAN transmitter
+    can_transmitter: process(clk, reset_n)
+        variable frame_bits : integer;
+    begin
+        if reset_n = '0' then
+            tx_state <= IDLE;
+            tx_busy <= '0';
+            tx_done <= '0';
+            tx_error <= '0';
+            can_tx <= '1';  -- Recessive state
+            tx_bit_count <= 0;
+            tx_crc <= (others => '0');
+            tx_stuff_count <= 0;
+            tx_last_bit <= '1';
+            
+        elsif rising_edge(clk) and bit_sample = '1' then
+            case tx_state is
+                when IDLE =>
+                    can_tx <= '1';
+                    tx_done <= '0';
+                    if tx_start = '1' then
+                        -- Build CAN frame
+                        tx_shift_reg(127) <= '0';  -- SOF
+                        tx_shift_reg(126 downto 116) <= tx_id;  -- ID
+                        tx_shift_reg(115) <= '0';  -- RTR
+                        tx_shift_reg(114) <= '0';  -- IDE
+                        tx_shift_reg(113) <= '0';  -- r0
+                        tx_shift_reg(112 downto 109) <= tx_dlc;  -- DLC
+                        
+                        -- Data field
+                        for i in 0 to 7 loop
+                            if i < to_integer(unsigned(tx_dlc)) then
+                                tx_shift_reg(108-i*8 downto 101-i*8) <= 
+                                    tx_data(63-i*8 downto 56-i*8);
+                            end if;
+                        end loop;
+                        
+                        tx_state <= SOF;
+                        tx_busy <= '1';
+                        tx_bit_count <= 0;
+                        frame_bits := 44 + to_integer(unsigned(tx_dlc)) * 8;
+                    end if;
+                
+                when SOF =>
+                    can_tx <= tx_shift_reg(127-tx_bit_count);
+                    tx_bit_count <= tx_bit_count + 1;
+                    if tx_bit_count = 0 then  -- SOF is 1 bit
+                        tx_state <= ARBITRATION;
+                    end if;
+                
+                when ARBITRATION =>
+                    can_tx <= tx_shift_reg(127-tx_bit_count);
+                    -- Check for arbitration loss
+                    if can_tx = '1' and can_rx = '0' then
+                        tx_state <= IDLE;  -- Lost arbitration
+                        tx_busy <= '0';
+                        tx_error <= '1';
+                    else
+                        tx_bit_count <= tx_bit_count + 1;
+                        if tx_bit_count = 11 then  -- 11-bit ID
+                            tx_state <= CONTROL;
+                        end if;
+                    end if;
+                
+                when CONTROL =>
+                    can_tx <= tx_shift_reg(127-tx_bit_count);
+                    tx_bit_count <= tx_bit_count + 1;
+                    if tx_bit_count = 17 then  -- Control field complete
+                        tx_state <= DATA;
+                    end if;
+                
+                when DATA =>
+                    can_tx <= tx_shift_reg(127-tx_bit_count);
+                    tx_bit_count <= tx_bit_count + 1;
+                    if tx_bit_count = 17 + to_integer(unsigned(tx_dlc)) * 8 then
+                        tx_state <= CRC;
+                    end if;
+                
+                when CRC =>
+                    -- Transmit 15-bit CRC + delimiter
+                    if tx_bit_count < frame_bits + 16 then
+                        can_tx <= tx_crc(14-(tx_bit_count-frame_bits));
+                        tx_bit_count <= tx_bit_count + 1;
+                    else
+                        tx_state <= ACK;
+                        can_tx <= '1';  -- ACK delimiter (recessive)
+                    end if;
+                
+                when ACK =>
+                    -- Wait for ACK from receiver
+                    if can_rx = '0' then  -- ACK received
+                        tx_state <= EOF;
+                        tx_bit_count <= 0;
+                    else
+                        ack_error <= '1';
+                        tx_state <= ERROR_FRAME;
+                    end if;
+                
+                when EOF =>
+                    can_tx <= '1';  -- EOF is 7 recessive bits
+                    tx_bit_count <= tx_bit_count + 1;
+                    if tx_bit_count = 6 then
+                        tx_state <= IDLE;
+                        tx_busy <= '0';
+                        tx_done <= '1';
+                    end if;
+                
+                when ERROR_FRAME =>
+                    can_tx <= '0';  -- Error flag (6 dominant bits)
+                    tx_bit_count <= tx_bit_count + 1;
+                    if tx_bit_count = 5 then
+                        tx_state <= IDLE;
+                        tx_busy <= '0';
+                        tx_error <= '1';
+                    end if;
+            end case;
+        end if;
+    end process;
+    
+    -- CAN receiver (simplified)
+    can_receiver: process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            rx_state <= RX_IDLE;
+            rx_valid <= '0';
+            rx_error <= '0';
+            rx_bit_count <= 0;
+            
+        elsif rising_edge(clk) and bit_sample = '1' then
+            case rx_state is
+                when RX_IDLE =>
+                    rx_valid <= '0';
+                    if can_rx = '0' then  -- SOF detected
+                        rx_state <= RX_SOF;
+                        rx_bit_count <= 0;
+                    end if;
+                
+                when RX_SOF =>
+                    rx_state <= RX_ARBITRATION;
+                
+                when RX_ARBITRATION =>
+                    rx_shift_reg(126-rx_bit_count) <= can_rx;
+                    rx_bit_count <= rx_bit_count + 1;
+                    if rx_bit_count = 10 then  -- 11-bit ID received
+                        rx_id <= rx_shift_reg(126 downto 116);
+                        rx_state <= RX_CONTROL;
+                    end if;
+                
+                -- Additional RX states would be implemented similarly...
+                
+                when others =>
+                    rx_state <= RX_IDLE;
+            end case;
+        end if;
+    end process;
+    
+end architecture rtl;
+```
+
+### 📡 **Legacy Communication Systems**
 ```vhdl
 -- High-speed serial transceiver
 signal tx_data_parallel : std_logic_vector(31 downto 0);
