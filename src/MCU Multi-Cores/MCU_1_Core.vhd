@@ -1,0 +1,679 @@
+-- ================================================================================
+-- MCU Single-Core Implementation - Programming Guidance
+-- ================================================================================
+
+-- PROJECT OVERVIEW:
+-- This file implements a Single-Core Microcontroller Unit (MCU) that provides
+-- a complete embedded processing system with integrated peripherals, memory
+-- management, and real-time capabilities. The single-core MCU serves as the
+-- foundation for embedded applications requiring deterministic execution,
+-- low power consumption, and comprehensive peripheral integration.
+
+-- LEARNING OBJECTIVES:
+-- 1. Understand single-core MCU architecture and embedded system design
+-- 2. Learn real-time operating system (RTOS) integration and task scheduling
+-- 3. Practice peripheral integration and hardware abstraction layer (HAL) design
+-- 4. Understand interrupt handling and priority management
+-- 5. Learn power management and low-power mode implementation
+-- 6. Practice memory management and protection mechanisms
+
+-- STEP 1: LIBRARY DECLARATIONS
+-- Include necessary VHDL libraries for MCU implementation
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+-- TODO: Add custom packages for MCU-specific types and functions
+-- use work.mcu_pkg.all;
+-- use work.peripheral_pkg.all;
+-- use work.rtos_pkg.all;
+
+-- STEP 2: ENTITY DECLARATION
+
+-- The entity defines the interface for the single-core MCU
+
+-- Entity Requirements:
+-- - Name: mcu_1_core (maintain current naming convention)
+-- - Generics: Configurable parameters for flexibility
+-- - System control signals (clock, reset, enable)
+-- - Memory interfaces (instruction, data, peripheral)
+-- - Peripheral interfaces (GPIO, UART, SPI, I2C, ADC, PWM)
+-- - Interrupt and exception handling
+-- - Debug and test interfaces
+-- - Power management signals
+
+-- entity mcu_1_core is
+--     generic (
+--         -- Core Configuration
+--         DATA_WIDTH          : integer := 32;                   -- Data bus width
+--         ADDR_WIDTH          : integer := 32;                   -- Address bus width
+--         INSTR_WIDTH         : integer := 32;                   -- Instruction width
+--         
+--         -- Memory Configuration
+--         FLASH_SIZE          : integer := 1024*1024;            -- Flash memory size (1MB)
+--         RAM_SIZE            : integer := 256*1024;             -- RAM size (256KB)
+--         CACHE_SIZE          : integer := 32*1024;              -- Cache size (32KB)
+--         CACHE_LINE_SIZE     : integer := 64;                   -- Cache line size
+--         
+--         -- Peripheral Configuration
+--         NUM_GPIO_PINS       : integer := 32;                   -- Number of GPIO pins
+--         NUM_UART_CHANNELS   : integer := 4;                    -- Number of UART channels
+--         NUM_SPI_CHANNELS    : integer := 3;                    -- Number of SPI channels
+--         NUM_I2C_CHANNELS    : integer := 2;                    -- Number of I2C channels
+--         NUM_ADC_CHANNELS    : integer := 16;                   -- Number of ADC channels
+--         NUM_PWM_CHANNELS    : integer := 8;                    -- Number of PWM channels
+--         NUM_TIMERS          : integer := 8;                    -- Number of timers
+--         
+--         -- Interrupt Configuration
+--         NUM_INTERRUPTS      : integer := 64;                   -- Number of interrupt sources
+--         INTERRUPT_LEVELS    : integer := 8;                    -- Number of priority levels
+--         
+--         -- Performance Configuration
+--         CLOCK_FREQUENCY     : integer := 100_000_000;          -- System clock frequency (100MHz)
+--         PIPELINE_STAGES     : integer := 5;                    -- Pipeline depth
+--         BRANCH_PREDICTOR    : boolean := true;                 -- Enable branch prediction
+--         
+--         -- Power Management
+--         POWER_DOMAINS       : integer := 4;                    -- Number of power domains
+--         SLEEP_MODES         : integer := 4;                    -- Number of sleep modes
+--         
+--         -- Debug and Test
+--         DEBUG_ENABLED       : boolean := true;                 -- Enable debug features
+--         TRACE_BUFFER_SIZE   : integer := 1024;                 -- Trace buffer size
+--         JTAG_ENABLED        : boolean := true                  -- Enable JTAG interface
+--     );
+--     port (
+--         -- System Control
+--         clk                 : in  std_logic;                   -- System clock
+--         reset               : in  std_logic;                   -- System reset
+--         enable              : in  std_logic;                   -- MCU enable
+--         
+--         -- Power Management
+--         power_mode          : in  std_logic_vector(3 downto 0); -- Power mode selection
+--         wake_up             : in  std_logic;                   -- Wake-up signal
+--         sleep_req           : out std_logic;                   -- Sleep request
+--         power_good          : in  std_logic;                   -- Power supply status
+--         
+--         -- External Memory Interface
+--         ext_mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0); -- External memory address
+--         ext_mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- External memory data out
+--         ext_mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- External memory data in
+--         ext_mem_read        : out std_logic;                   -- External memory read enable
+--         ext_mem_write       : out std_logic;                   -- External memory write enable
+--         ext_mem_ready       : in  std_logic;                   -- External memory ready
+--         ext_mem_valid       : in  std_logic;                   -- External memory data valid
+--         
+--         -- GPIO Interface
+--         gpio_in             : in  std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO input pins
+--         gpio_out            : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO output pins
+--         gpio_dir            : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO direction control
+--         gpio_pull           : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO pull-up/down
+--         
+--         -- UART Interface
+--         uart_tx             : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART transmit
+--         uart_rx             : in  std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART receive
+--         uart_rts            : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART RTS
+--         uart_cts            : in  std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART CTS
+--         
+--         -- SPI Interface
+--         spi_sclk            : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI clock
+--         spi_mosi            : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI MOSI
+--         spi_miso            : in  std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI MISO
+--         spi_cs              : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI chip select
+--         
+--         -- I2C Interface
+--         i2c_sda             : inout std_logic_vector(NUM_I2C_CHANNELS-1 downto 0); -- I2C data
+--         i2c_scl             : inout std_logic_vector(NUM_I2C_CHANNELS-1 downto 0); -- I2C clock
+--         
+--         -- ADC Interface
+--         adc_data            : in  std_logic_vector(NUM_ADC_CHANNELS*12-1 downto 0); -- ADC data (12-bit per channel)
+--         adc_valid           : in  std_logic_vector(NUM_ADC_CHANNELS-1 downto 0);    -- ADC data valid
+--         adc_start           : out std_logic_vector(NUM_ADC_CHANNELS-1 downto 0);    -- ADC start conversion
+--         
+--         -- PWM Interface
+--         pwm_out             : out std_logic_vector(NUM_PWM_CHANNELS-1 downto 0);    -- PWM outputs
+--         
+--         -- Timer Interface
+--         timer_out           : out std_logic_vector(NUM_TIMERS-1 downto 0);          -- Timer outputs
+--         
+--         -- Interrupt Interface
+--         ext_interrupts      : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);     -- External interrupts
+--         interrupt_ack       : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);     -- Interrupt acknowledge
+--         
+--         -- Debug Interface
+--         debug_addr          : in  std_logic_vector(ADDR_WIDTH-1 downto 0);         -- Debug address
+--         debug_data_in       : in  std_logic_vector(DATA_WIDTH-1 downto 0);         -- Debug data input
+--         debug_data_out      : out std_logic_vector(DATA_WIDTH-1 downto 0);         -- Debug data output
+--         debug_read          : in  std_logic;                   -- Debug read enable
+--         debug_write         : in  std_logic;                   -- Debug write enable
+--         debug_ready         : out std_logic;                   -- Debug ready
+--         
+--         -- JTAG Interface
+--         jtag_tck            : in  std_logic;                   -- JTAG clock
+--         jtag_tms            : in  std_logic;                   -- JTAG mode select
+--         jtag_tdi            : in  std_logic;                   -- JTAG data input
+--         jtag_tdo            : out std_logic;                   -- JTAG data output
+--         
+--         -- Status and Control
+--         mcu_status          : out std_logic_vector(7 downto 0); -- MCU status
+--         error_flags         : out std_logic_vector(15 downto 0); -- Error flags
+--         performance_counters: out std_logic_vector(63 downto 0)  -- Performance counters
+--     );
+-- end entity mcu_1_core;
+
+-- STEP 3: MCU ARCHITECTURE PRINCIPLES
+
+-- Single-Core MCU Components:
+-- 1. CPU Core
+--    - Instruction fetch, decode, and execution
+--    - Register file and arithmetic logic unit
+--    - Pipeline control and hazard detection
+--    - Branch prediction and control flow
+
+-- 2. Memory Subsystem
+--    - Instruction and data caches
+--    - Memory management unit (MMU)
+--    - Flash and RAM controllers
+--    - DMA controller for high-speed transfers
+
+-- 3. Interrupt Controller
+--    - Priority-based interrupt handling
+--    - Nested interrupt support
+--    - Fast interrupt response
+--    - Interrupt vector table management
+
+-- 4. Peripheral Controllers
+--    - GPIO controller with configurable pins
+--    - UART controllers with FIFO buffers
+--    - SPI controllers with multiple modes
+--    - I2C controllers with multi-master support
+--    - ADC controller with sampling control
+--    - PWM controller with flexible timing
+--    - Timer controllers with multiple modes
+
+-- 5. Power Management Unit
+--    - Clock gating and frequency scaling
+--    - Power domain control
+--    - Sleep mode management
+--    - Wake-up event handling
+
+-- 6. Debug and Test Infrastructure
+--    - JTAG interface for debugging
+--    - Trace buffer for execution monitoring
+--    - Breakpoint and watchpoint support
+--    - Performance monitoring counters
+
+-- STEP 4: ARCHITECTURE OPTIONS
+
+-- OPTION 1: Basic Single-Core MCU (Recommended for beginners)
+-- Features:
+-- - Simple 3-stage pipeline (Fetch, Decode, Execute)
+-- - Basic peripheral set (GPIO, UART, Timer)
+-- - Simple interrupt controller
+-- - No cache, direct memory access
+
+-- OPTION 2: Standard Single-Core MCU (Intermediate)
+-- Features:
+-- - 5-stage pipeline with hazard detection
+-- - Full peripheral set with DMA support
+-- - Priority interrupt controller
+-- - Instruction and data caches
+
+-- OPTION 3: Advanced Single-Core MCU (Advanced)
+-- Features:
+-- - Superscalar execution with multiple ALUs
+-- - Advanced branch prediction
+-- - Memory management unit (MMU)
+-- - Hardware floating-point unit
+-- - Advanced power management
+
+-- OPTION 4: High-Performance Single-Core MCU (Expert)
+-- Features:
+-- - Out-of-order execution
+-- - Advanced cache hierarchy
+-- - Hardware security features
+-- - Real-time guarantees
+-- - Advanced debug capabilities
+
+-- Implementation Considerations:
+-- - Real-time response requirements
+-- - Power consumption constraints
+-- - Peripheral integration complexity
+-- - Memory bandwidth requirements
+-- - Interrupt latency specifications
+
+-- Real-Time Operating System Integration:
+-- - Task scheduling and context switching
+-- - Priority-based preemption
+-- - Inter-task communication
+-- - Synchronization primitives
+-- - Memory protection
+
+-- Peripheral Integration:
+-- - Hardware abstraction layer (HAL)
+-- - Device driver architecture
+-- - Interrupt-driven I/O
+-- - DMA-based transfers
+-- - Power-aware peripheral control
+
+-- APPLICATIONS:
+
+-- 1. Embedded Control Systems: Motor control, sensor monitoring, actuator control
+-- 2. IoT Devices: Smart sensors, wireless communication, edge computing
+-- 3. Automotive Electronics: Engine control, safety systems, infotainment
+-- 4. Industrial Automation: Process control, monitoring systems, HMI interfaces
+-- 5. Medical Devices: Patient monitoring, diagnostic equipment, therapeutic devices
+-- 6. Consumer Electronics: Smart appliances, wearable devices, home automation
+-- 7. Communication Systems: Protocol processing, signal conditioning, data routing
+
+-- TESTING STRATEGIES:
+
+-- 1. Unit Testing: Individual component verification
+-- 2. Integration Testing: Peripheral and system integration
+-- 3. Real-Time Testing: Timing and latency verification
+-- 4. Power Testing: Power consumption and efficiency
+-- 5. Stress Testing: Maximum load and thermal conditions
+-- 6. Compliance Testing: Industry standard compliance
+-- 7. Security Testing: Vulnerability assessment and protection
+
+-- IMPLEMENTATION GUIDELINES:
+
+-- 1. Start with basic MCU architecture and simple peripherals
+-- 2. Implement interrupt controller with priority support
+-- 3. Add memory management and caching capabilities
+-- 4. Integrate peripheral controllers with DMA support
+-- 5. Implement power management and low-power modes
+-- 6. Add debug and trace capabilities
+-- 7. Optimize for performance and power efficiency
+
+-- COMMON PITFALLS:
+
+-- 1. Inadequate interrupt latency for real-time requirements
+-- 2. Insufficient memory bandwidth for peripheral DMA
+-- 3. Poor power management leading to excessive consumption
+-- 4. Inadequate debug capabilities for system troubleshooting
+-- 5. Peripheral conflicts and resource contention
+-- 6. Timing violations in high-speed interfaces
+-- 7. Security vulnerabilities in peripheral access
+
+-- VERIFICATION CHECKLIST:
+
+-- □ All peripherals properly integrated and tested
+-- □ Interrupt controller handles all priority levels correctly
+-- □ Memory management provides proper protection
+-- □ Power management reduces consumption effectively
+-- □ Debug interface provides comprehensive visibility
+-- □ Real-time requirements met under all conditions
+-- □ Peripheral interfaces meet timing specifications
+-- □ Error handling and recovery mechanisms functional
+-- □ Security features protect against unauthorized access
+-- □ Performance meets application requirements
+
+-- ADVANCED TOPICS:
+
+-- This single-core MCU implementation demonstrates several key concepts:
+-- - Embedded system architecture and real-time processing
+-- - Peripheral integration and hardware abstraction
+-- - Interrupt handling and priority management
+-- - Power management and energy efficiency
+-- - Debug and test infrastructure
+
+-- Consider these advanced topics for further development:
+-- - Hardware security modules and cryptographic acceleration
+-- - Advanced power management with dynamic voltage scaling
+-- - Real-time operating system integration
+-- - Functional safety and fault tolerance
+-- - Machine learning acceleration for edge AI
+-- - Wireless communication protocol stacks
+
+-- Performance Optimization:
+-- - Optimize critical interrupt service routines
+-- - Use DMA for high-bandwidth peripheral transfers
+-- - Implement efficient task scheduling algorithms
+-- - Minimize power consumption in idle modes
+-- - Optimize memory access patterns for cache efficiency
+
+-- Design for Test:
+-- - Implement comprehensive built-in self-test (BIST)
+-- - Provide extensive debug and trace capabilities
+-- - Support boundary scan testing (JTAG)
+-- - Include performance monitoring counters
+-- - Implement fault injection for testing
+
+-- IMPLEMENTATION TEMPLATE:
+
+-- Uncomment and modify the following template for your implementation:
+
+-- use work.mcu_pkg.all;
+-- use work.peripheral_pkg.all;
+-- use work.rtos_pkg.all;
+
+-- entity mcu_1_core is
+--     generic (
+--         DATA_WIDTH          : integer := 32;
+--         ADDR_WIDTH          : integer := 32;
+--         FLASH_SIZE          : integer := 1024*1024;
+--         RAM_SIZE            : integer := 256*1024;
+--         NUM_GPIO_PINS       : integer := 32;
+--         NUM_UART_CHANNELS   : integer := 4;
+--         NUM_INTERRUPTS      : integer := 64;
+--         CLOCK_FREQUENCY     : integer := 100_000_000
+--     );
+--     port (
+--         -- System signals
+--         clk                 : in  std_logic;
+--         reset               : in  std_logic;
+--         enable              : in  std_logic;
+--         
+--         -- Memory interface
+--         ext_mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--         ext_mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--         ext_mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--         ext_mem_read        : out std_logic;
+--         ext_mem_write       : out std_logic;
+--         ext_mem_ready       : in  std_logic;
+--         
+--         -- Peripheral interfaces
+--         gpio_in             : in  std_logic_vector(NUM_GPIO_PINS-1 downto 0);
+--         gpio_out            : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);
+--         uart_tx             : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0);
+--         uart_rx             : in  std_logic_vector(NUM_UART_CHANNELS-1 downto 0);
+--         
+--         -- Interrupt interface
+--         ext_interrupts      : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         interrupt_ack       : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--         
+--         -- Status and debug
+--         mcu_status          : out std_logic_vector(7 downto 0);
+--         debug_data_out      : out std_logic_vector(DATA_WIDTH-1 downto 0)
+--     );
+-- end entity mcu_1_core;
+
+-- architecture behavioral of mcu_1_core is
+--     -- Component declarations
+--     component cpu_core is
+--         generic (
+--             DATA_WIDTH      : integer := 32;
+--             ADDR_WIDTH      : integer := 32;
+--             PIPELINE_STAGES : integer := 5
+--         );
+--         port (
+--             clk             : in  std_logic;
+--             reset           : in  std_logic;
+--             enable          : in  std_logic;
+--             -- Memory interface
+--             mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             mem_read        : out std_logic;
+--             mem_write       : out std_logic;
+--             mem_ready       : in  std_logic;
+--             -- Interrupt interface
+--             interrupt_req   : in  std_logic;
+--             interrupt_ack   : out std_logic;
+--             interrupt_vector: in  std_logic_vector(7 downto 0);
+--             -- Status
+--             cpu_status      : out std_logic_vector(7 downto 0)
+--         );
+--     end component;
+--     
+--     component interrupt_controller is
+--         generic (
+--             NUM_INTERRUPTS  : integer := 64;
+--             PRIORITY_LEVELS : integer := 8
+--         );
+--         port (
+--             clk             : in  std_logic;
+--             reset           : in  std_logic;
+--             -- Interrupt inputs
+--             interrupt_in    : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--             interrupt_enable: in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--             interrupt_priority: in std_logic_vector(NUM_INTERRUPTS*3-1 downto 0);
+--             -- CPU interface
+--             interrupt_req   : out std_logic;
+--             interrupt_ack   : in  std_logic;
+--             interrupt_vector: out std_logic_vector(7 downto 0);
+--             -- Status
+--             pending_interrupts: out std_logic_vector(NUM_INTERRUPTS-1 downto 0)
+--         );
+--     end component;
+--     
+--     component memory_controller is
+--         generic (
+--             ADDR_WIDTH      : integer := 32;
+--             DATA_WIDTH      : integer := 32;
+--             CACHE_SIZE      : integer := 32*1024
+--         );
+--         port (
+--             clk             : in  std_logic;
+--             reset           : in  std_logic;
+--             -- CPU interface
+--             cpu_addr        : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             cpu_data_out    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             cpu_data_in     : out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             cpu_read        : in  std_logic;
+--             cpu_write       : in  std_logic;
+--             cpu_ready       : out std_logic;
+--             -- External memory interface
+--             ext_mem_addr    : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+--             ext_mem_data_out: out std_logic_vector(DATA_WIDTH-1 downto 0);
+--             ext_mem_data_in : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+--             ext_mem_read    : out std_logic;
+--             ext_mem_write   : out std_logic;
+--             ext_mem_ready   : in  std_logic
+--         );
+--     end component;
+--     
+--     component peripheral_controller is
+--         generic (
+--             NUM_GPIO_PINS   : integer := 32;
+--             NUM_UART_CHANNELS: integer := 4;
+--             NUM_SPI_CHANNELS: integer := 3;
+--             NUM_I2C_CHANNELS: integer := 2
+--         );
+--         port (
+--             clk             : in  std_logic;
+--             reset           : in  std_logic;
+--             -- CPU interface
+--             cpu_addr        : in  std_logic_vector(15 downto 0);
+--             cpu_data_out    : in  std_logic_vector(31 downto 0);
+--             cpu_data_in     : out std_logic_vector(31 downto 0);
+--             cpu_read        : in  std_logic;
+--             cpu_write       : in  std_logic;
+--             cpu_ready       : out std_logic;
+--             -- GPIO interface
+--             gpio_in         : in  std_logic_vector(NUM_GPIO_PINS-1 downto 0);
+--             gpio_out        : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);
+--             gpio_dir        : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);
+--             -- UART interface
+--             uart_tx         : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0);
+--             uart_rx         : in  std_logic_vector(NUM_UART_CHANNELS-1 downto 0);
+--             -- Interrupt outputs
+--             peripheral_interrupts: out std_logic_vector(15 downto 0)
+--         );
+--     end component;
+--     
+--     component power_management is
+--         generic (
+--             POWER_DOMAINS   : integer := 4;
+--             SLEEP_MODES     : integer := 4
+--         );
+--         port (
+--             clk             : in  std_logic;
+--             reset           : in  std_logic;
+--             -- Control interface
+--             power_mode      : in  std_logic_vector(3 downto 0);
+--             sleep_req       : out std_logic;
+--             wake_up         : in  std_logic;
+--             power_good      : in  std_logic;
+--             -- Clock control
+--             cpu_clk_en      : out std_logic;
+--             peripheral_clk_en: out std_logic;
+--             memory_clk_en   : out std_logic;
+--             -- Power domain control
+--             power_domain_en : out std_logic_vector(POWER_DOMAINS-1 downto 0);
+--             -- Status
+--             power_status    : out std_logic_vector(7 downto 0)
+--         );
+--     end component;
+--     
+--     -- Internal signals
+--     signal cpu_mem_addr         : std_logic_vector(ADDR_WIDTH-1 downto 0);
+--     signal cpu_mem_data_out     : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal cpu_mem_data_in      : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     signal cpu_mem_read         : std_logic;
+--     signal cpu_mem_write        : std_logic;
+--     signal cpu_mem_ready        : std_logic;
+--     
+--     signal interrupt_req_int    : std_logic;
+--     signal interrupt_ack_int    : std_logic;
+--     signal interrupt_vector_int : std_logic_vector(7 downto 0);
+--     
+--     signal peripheral_interrupts_int : std_logic_vector(15 downto 0);
+--     signal combined_interrupts  : std_logic_vector(NUM_INTERRUPTS-1 downto 0);
+--     
+--     signal cpu_clk_en           : std_logic;
+--     signal peripheral_clk_en    : std_logic;
+--     signal memory_clk_en        : std_logic;
+--     signal gated_clk            : std_logic;
+--     
+--     signal cpu_status_int       : std_logic_vector(7 downto 0);
+--     signal power_status_int     : std_logic_vector(7 downto 0);
+--     
+-- begin
+--     -- Clock gating
+--     gated_clk <= clk and cpu_clk_en;
+--     
+--     -- Combine interrupt sources
+--     combined_interrupts(15 downto 0) <= peripheral_interrupts_int;
+--     combined_interrupts(NUM_INTERRUPTS-1 downto 16) <= ext_interrupts(NUM_INTERRUPTS-1 downto 16);
+--     
+--     -- CPU Core instantiation
+--     cpu_inst: cpu_core
+--         generic map (
+--             DATA_WIDTH      => DATA_WIDTH,
+--             ADDR_WIDTH      => ADDR_WIDTH,
+--             PIPELINE_STAGES => PIPELINE_STAGES
+--         )
+--         port map (
+--             clk             => gated_clk,
+--             reset           => reset,
+--             enable          => enable,
+--             mem_addr        => cpu_mem_addr,
+--             mem_data_out    => cpu_mem_data_out,
+--             mem_data_in     => cpu_mem_data_in,
+--             mem_read        => cpu_mem_read,
+--             mem_write       => cpu_mem_write,
+--             mem_ready       => cpu_mem_ready,
+--             interrupt_req   => interrupt_req_int,
+--             interrupt_ack   => interrupt_ack_int,
+--             interrupt_vector=> interrupt_vector_int,
+--             cpu_status      => cpu_status_int
+--         );
+--     
+--     -- Interrupt Controller instantiation
+--     int_ctrl_inst: interrupt_controller
+--         generic map (
+--             NUM_INTERRUPTS  => NUM_INTERRUPTS,
+--             PRIORITY_LEVELS => INTERRUPT_LEVELS
+--         )
+--         port map (
+--             clk             => clk,
+--             reset           => reset,
+--             interrupt_in    => combined_interrupts,
+--             interrupt_enable=> (others => '1'), -- Enable all interrupts for now
+--             interrupt_priority=> (others => '0'), -- Default priority
+--             interrupt_req   => interrupt_req_int,
+--             interrupt_ack   => interrupt_ack_int,
+--             interrupt_vector=> interrupt_vector_int,
+--             pending_interrupts=> open
+--         );
+--     
+--     -- Memory Controller instantiation
+--     mem_ctrl_inst: memory_controller
+--         generic map (
+--             ADDR_WIDTH      => ADDR_WIDTH,
+--             DATA_WIDTH      => DATA_WIDTH,
+--             CACHE_SIZE      => CACHE_SIZE
+--         )
+--         port map (
+--             clk             => clk,
+--             reset           => reset,
+--             cpu_addr        => cpu_mem_addr,
+--             cpu_data_out    => cpu_mem_data_out,
+--             cpu_data_in     => cpu_mem_data_in,
+--             cpu_read        => cpu_mem_read,
+--             cpu_write       => cpu_mem_write,
+--             cpu_ready       => cpu_mem_ready,
+--             ext_mem_addr    => ext_mem_addr,
+--             ext_mem_data_out=> ext_mem_data_out,
+--             ext_mem_data_in => ext_mem_data_in,
+--             ext_mem_read    => ext_mem_read,
+--             ext_mem_write   => ext_mem_write,
+--             ext_mem_ready   => ext_mem_ready
+--         );
+--     
+--     -- Peripheral Controller instantiation
+--     peripheral_inst: peripheral_controller
+--         generic map (
+--             NUM_GPIO_PINS   => NUM_GPIO_PINS,
+--             NUM_UART_CHANNELS=> NUM_UART_CHANNELS,
+--             NUM_SPI_CHANNELS=> NUM_SPI_CHANNELS,
+--             NUM_I2C_CHANNELS=> NUM_I2C_CHANNELS
+--         )
+--         port map (
+--             clk             => clk,
+--             reset           => reset,
+--             cpu_addr        => cpu_mem_addr(15 downto 0),
+--             cpu_data_out    => cpu_mem_data_out,
+--             cpu_data_in     => open, -- Connect to memory controller
+--             cpu_read        => cpu_mem_read,
+--             cpu_write       => cpu_mem_write,
+--             cpu_ready       => open,
+--             gpio_in         => gpio_in,
+--             gpio_out        => gpio_out,
+--             gpio_dir        => gpio_dir,
+--             uart_tx         => uart_tx,
+--             uart_rx         => uart_rx,
+--             peripheral_interrupts => peripheral_interrupts_int
+--         );
+--     
+--     -- Power Management instantiation
+--     power_mgmt_inst: power_management
+--         generic map (
+--             POWER_DOMAINS   => POWER_DOMAINS,
+--             SLEEP_MODES     => SLEEP_MODES
+--         )
+--         port map (
+--             clk             => clk,
+--             reset           => reset,
+--             power_mode      => power_mode,
+--             sleep_req       => sleep_req,
+--             wake_up         => wake_up,
+--             power_good      => power_good,
+--             cpu_clk_en      => cpu_clk_en,
+--             peripheral_clk_en=> peripheral_clk_en,
+--             memory_clk_en   => memory_clk_en,
+--             power_domain_en => open,
+--             power_status    => power_status_int
+--         );
+--     
+--     -- Status output assignments
+--     mcu_status <= cpu_status_int;
+--     error_flags <= (others => '0'); -- Implement error detection logic
+--     performance_counters <= (others => '0'); -- Implement performance counters
+--     
+--     -- Debug interface (simplified)
+--     debug_data_out <= cpu_mem_data_in when debug_read = '1' else (others => '0');
+--     debug_ready <= '1'; -- Always ready for debug access
+--     
+--     -- JTAG interface (placeholder)
+--     jtag_tdo <= jtag_tdi; -- Simple loopback for now
+--     
+-- end architecture behavioral;
+
+-- Remember: This single-core MCU implementation provides a comprehensive
+-- embedded processing platform. Customize the generics and interfaces for your
+-- specific application requirements and target FPGA device capabilities.
