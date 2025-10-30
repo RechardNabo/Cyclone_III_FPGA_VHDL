@@ -1,0 +1,241 @@
+-- ============================================================================
+-- Project: FPGA-Optimized SHA-256 Hasher
+--
+-- Description:
+-- This VHDL module implements a high-performance SHA-256 (Secure Hash Algorithm 256-bit)
+-- hasher, optimized for FPGA synthesis. SHA-256 is a cryptographic hash function
+-- widely used in digital signatures, blockchain technology, and data integrity verification.
+-- This design focuses on achieving high throughput for hashing large data blocks
+-- with efficient resource utilization, making it suitable for secure communication
+-- and cryptographic acceleration applications.
+--
+-- Learning Objectives:
+-- 1. Understand the SHA-256 algorithm, including padding, message parsing, and compression function.
+-- 2. Learn how to translate the SHA-256 algorithm steps into synthesizable VHDL code.
+-- 3. Explore techniques for pipelining the compression function to maximize throughput.
+-- 4. Implement efficient 32-bit arithmetic operations (addition, XOR, rotate) in VHDL.
+-- 5. Develop control logic for managing the message schedule, round constants, and hash updates.
+-- 6. Gain experience in designing a robust and secure cryptographic hardware accelerator.
+--
+-- Implementation Guidance:
+-- 1. **Message Padding**: Implement the SHA-256 padding scheme to ensure the message
+--    length is a multiple of 512 bits (64 bytes). This involves appending a '1', zeros,
+--    and the original message length.
+-- 2. **Message Schedule (W array)**: Design the logic to generate the 64-word message
+--    schedule (W_t) from the 16-word message block, involving right rotations and XORs.
+-- 3. **Compression Function**: Implement the core SHA-256 compression function, which
+--    consists of 64 rounds. Each round involves a series of logical operations (Ch, Maj,
+--    Sigma0, Sigma1) and additions with round constants (K_t) and hash values (H_t).
+-- 4. **Pipelining**: Pipelining the 64 rounds of the compression function is crucial for
+--    high throughput. This can be done by creating a multi-stage pipeline, where each
+--    stage performs one or more rounds.
+-- 5. **Round Constants (K_t)**: Store the 64 SHA-256 round constants in a ROM or hardcode
+--    them as constants.
+-- 6. **Initial Hash Values (H_0)**: Initialize the eight 32-bit hash values (H_0 to H_7)
+--    at the beginning of the hashing process.
+-- 7. **Input/Output Interface**: Design an interface (e.g., AXI Stream) to feed message
+--    blocks into the hasher and retrieve the final 256-bit hash output.
+-- 8. **Testbench Development**: Create a comprehensive testbench to verify the SHA-256
+--    hasher's functionality using known test vectors (e.g., NIST SHA-256 test vectors)
+--    and comparing against software-computed hashes.
+--
+-- Common Design Considerations:
+-- - **Security**: Ensure the implementation is resistant to side-channel attacks and
+--   other cryptographic vulnerabilities. Proper handling of sensitive data is crucial.
+-- - **Throughput vs. Latency**: Optimize for either high throughput (processing many
+--   blocks quickly) or low latency (processing a single block as fast as possible),
+--   depending on the application requirements.
+-- - **Resource Utilization**: Balance the use of FPGA resources (LUTs, FFs, DSP blocks)
+--   with the desired performance. Pipelining and parallelism can increase resource usage.
+-- - **Message Length Handling**: The SHA-256 algorithm specifies how to handle messages
+--   of arbitrary length, including padding and iterative compression.
+-- - **Error Detection**: For critical applications, consider adding error detection
+--   mechanisms to ensure data integrity during hashing.
+--
+-- Design Verification Checklist:
+-- - [ ] Functional correctness for various message lengths and content.
+-- - [ ] Correctness of padding and message schedule generation.
+-- - [ ] Accurate computation of hash values against known test vectors.
+-- - [ ] Performance metrics (throughput, latency) meet specifications.
+-- - [ ] Resource utilization is within acceptable limits.
+-- - [ ] Robustness against potential input errors or malicious data.
+-- - [ ] Integration with system-level interfaces (e.g., AXI).
+--
+-- Digital Design Context:
+-- SHA-256 is a fundamental building block in many secure systems. Its hardware
+-- implementation on FPGAs allows for significant acceleration compared to software
+-- implementations, making it ideal for high-speed cryptographic applications.
+-- The design involves careful management of data flow, arithmetic operations,
+-- and control logic to achieve optimal performance.
+--
+-- Physical Implementation Notes:
+-- - **Clock Frequency**: The maximum achievable clock frequency will depend on the
+--   critical path of the compression function. Deep pipelining can help achieve
+--   higher frequencies.
+-- - **DSP Blocks**: While SHA-256 primarily uses logical operations and additions,
+--   some FPGAs might offer specialized arithmetic units that can be leveraged.
+-- - **Memory Usage**: Storing round constants and intermediate hash values will
+--   require some memory, potentially using block RAMs for larger designs.
+-- - **Routing Congestion**: Complex interconnections for the message schedule and
+--   compression function can lead to routing congestion. Careful layout is important.
+--
+-- Advanced SHA-256 Concepts:
+-- - **Merkle-Damgård Construction**: Understand how SHA-256 uses this construction
+--   to process messages of arbitrary length.
+-- - **Collision Resistance**: Explore the theoretical and practical aspects of
+--   SHA-256's collision resistance and its implications for security.
+-- - **Hardware/Software Co-design**: Consider how the SHA-256 hardware accelerator
+--   can be integrated into a larger system with a software control layer.
+--
+-- Simulation and Verification Notes:
+-- - **Test Vector Generation**: Generate a comprehensive set of test vectors
+--   using a software SHA-256 library (e.g., OpenSSL, Python's `hashlib`)
+--   to verify the hardware implementation.
+-- - **Formal Verification**: For critical security applications, consider formal
+--   verification methods to mathematically prove the correctness of the design.
+-- - **Co-simulation**: Integrate the VHDL model with a software model for
+--   co-simulation to accelerate verification.
+--
+-- Implementation Template:
+-- This section would typically contain the VHDL code for the SHA-256 hasher.
+-- However, as per the current instructions, only commented documentation is provided.
+--
+-- library ieee;
+-- use ieee.std_logic_1164.all;
+-- use ieee.numeric_std.all;
+--
+-- entity sha256_hasher is
+--     generic (
+--         DATA_WIDTH      : natural := 32; -- Internal data width for hash computations
+--         MESSAGE_BLOCK_SIZE_BITS : natural := 512 -- SHA-256 message block size
+--     );
+--     port (
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         start           : in  std_logic; -- Start hashing process
+--         i_message_block : in  std_logic_vector(MESSAGE_BLOCK_SIZE_BITS-1 downto 0); -- 512-bit message block
+--         i_message_valid : in  std_logic;
+--         o_hash_valid    : out std_logic;
+--         o_hash          : out std_logic_vector(255 downto 0); -- 256-bit hash output
+--         ready           : out std_logic  -- Indicates hasher is ready for new block
+--     );
+-- end entity sha256_hasher;
+--
+-- architecture rtl of sha256_hasher is
+--
+--     -- SHA-256 Constants and Initial Hash Values
+--     -- constant K_CONSTANTS : std_logic_vector(63*32-1 downto 0) := (others => '0'); -- Placeholder for 64 32-bit constants
+--     -- constant H_INITIAL   : std_logic_vector(7*32-1 downto 0) := (others => '0'); -- Placeholder for 8 32-bit initial hash values
+--
+--     -- Internal signals for hash computation
+--     -- signal current_hash_values : std_logic_vector(7*32-1 downto 0);
+--     -- signal message_schedule    : std_logic_vector(63*32-1 downto 0);
+--
+--     -- signal busy_internal       : std_logic := '0';
+--     -- signal round_counter       : natural range 0 to 64 := 0;
+--
+--     -- Function for right rotation
+--     -- function rotr (val : std_logic_vector; num_bits : natural) return std_logic_vector is
+--     -- begin
+--     --     return val(num_bits-1 downto 0) & val(val'length-1 downto num_bits);
+--     -- end function rotr;
+--
+--     -- Function for Ch (Choose) operation
+--     -- function Ch (x, y, z : std_logic_vector) return std_logic_vector is
+--     -- begin
+--     --     return (x and y) xor (not x and z);
+--     -- end function Ch;
+--
+--     -- Function for Maj (Majority) operation
+--     -- function Maj (x, y, z : std_logic_vector) return std_logic_vector is
+--     -- begin
+--     --     return (x and y) xor (x and z) xor (y and z);
+--     -- end function Maj;
+--
+--     -- Function for Sigma0
+--     -- function Sigma0 (x : std_logic_vector) return std_logic_vector is
+--     -- begin
+--     --     return rotr(x, 2) xor rotr(x, 13) xor rotr(x, 22);
+--     -- end function Sigma0;
+--
+--     -- Function for Sigma1
+--     -- function Sigma1 (x : std_logic_vector) return std_logic_vector is
+--     -- begin
+--     --     return rotr(x, 6) xor rotr(x, 11) xor rotr(x, 25);
+--     -- end function Sigma1;
+--
+-- begin
+--
+--     -- ready <= not busy_internal;
+--
+--     -- process (clk)
+--     --     variable a, b, c, d, e, f, g, h : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     --     variable T1, T2 : std_logic_vector(DATA_WIDTH-1 downto 0);
+--     -- begin
+--     --     if rising_edge(clk) then
+--     --         if reset = '1' then
+--     --             current_hash_values <= H_INITIAL;
+--     --             o_hash_valid <= '0';
+--     --             busy_internal <= '0';
+--     --             round_counter <= 0;
+--     --         elsif start = '1' and ready = '1' and i_message_valid = '1' then
+--     --             -- Initialize working variables with current hash values
+--     --             a := current_hash_values(7*DATA_WIDTH-1 downto 6*DATA_WIDTH);
+--     --             b := current_hash_values(6*DATA_WIDTH-1 downto 5*DATA_WIDTH);
+--     --             c := current_hash_values(5*DATA_WIDTH-1 downto 4*DATA_WIDTH);
+--     --             d := current_hash_values(4*DATA_WIDTH-1 downto 3*DATA_WIDTH);
+--     --             e := current_hash_values(3*DATA_WIDTH-1 downto 2*DATA_WIDTH);
+--     --             f := current_hash_values(2*DATA_WIDTH-1 downto 1*DATA_WIDTH);
+--     --             g := current_hash_values(1*DATA_WIDTH-1 downto 0*DATA_WIDTH);
+--     --             h := current_hash_values(0*DATA_WIDTH-1 downto 0);
+--
+--     --             -- Placeholder for message schedule generation
+--     --             -- In a full implementation, i_message_block would be parsed
+--     --             -- and the message_schedule would be generated here.
+--     --             -- For now, let's assume message_schedule is pre-filled for demonstration.
+--     --             -- message_schedule <= generate_message_schedule(i_message_block);
+--
+--     --             busy_internal <= '1';
+--     --             round_counter <= 0;
+--     --             o_hash_valid <= '0';
+--
+--     --         elsif busy_internal = '1' then
+--     --             if round_counter < 64 then
+--     --                 -- SHA-256 Round Computation (Pipelined or sequential)
+--     --                 -- This is a single round. For pipelining, this would be spread across stages.
+--
+--     --                 -- T1 = h + Sigma1(e) + Ch(e, f, g) + K_t + W_t
+--     --                 -- T1 := std_logic_vector(unsigned(h) + unsigned(Sigma1(e)) + unsigned(Ch(e, f, g)) + unsigned(K_CONSTANTS(round_counter*DATA_WIDTH+DATA_WIDTH-1 downto round_counter*DATA_WIDTH)) + unsigned(message_schedule(round_counter*DATA_WIDTH+DATA_WIDTH-1 downto round_counter*DATA_WIDTH)));
+--
+--     --                 -- T2 = Sigma0(a) + Maj(a, b, c)
+--     --                 -- T2 := std_logic_vector(unsigned(Sigma0(a)) + unsigned(Maj(a, b, c)));
+--
+--     --                 -- h := g;
+--     --                 -- g := f;
+--     --                 -- f := e;
+--     --                 -- e := std_logic_vector(unsigned(d) + unsigned(T1));
+--     --                 -- d := c;
+--     --                 -- c := b;
+--     --                 -- b := a;
+--     --                 -- a := std_logic_vector(unsigned(T1) + unsigned(T2));
+--
+--     --                 round_counter <= round_counter + 1;
+--     --             else
+--     --                 -- All 64 rounds completed, update hash values
+--     --                 -- current_hash_values(7*DATA_WIDTH-1 downto 6*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(7*DATA_WIDTH-1 downto 6*DATA_WIDTH)) + unsigned(a));
+--     --                 -- current_hash_values(6*DATA_WIDTH-1 downto 5*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(6*DATA_WIDTH-1 downto 5*DATA_WIDTH)) + unsigned(b));
+--     --                 -- current_hash_values(5*DATA_WIDTH-1 downto 4*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(5*DATA_WIDTH-1 downto 4*DATA_WIDTH)) + unsigned(c));
+--     --                 -- current_hash_values(4*DATA_WIDTH-1 downto 3*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(4*DATA_WIDTH-1 downto 3*DATA_WIDTH)) + unsigned(d));
+--     --                 -- current_hash_values(3*DATA_WIDTH-1 downto 2*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(3*DATA_WIDTH-1 downto 2*DATA_WIDTH)) + unsigned(e));
+--     --                 -- current_hash_values(2*DATA_WIDTH-1 downto 1*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(2*DATA_WIDTH-1 downto 1*DATA_WIDTH)) + unsigned(f));
+--     --                 -- current_hash_values(1*DATA_WIDTH-1 downto 0*DATA_WIDTH) <= std_logic_vector(unsigned(current_hash_values(1*DATA_WIDTH-1 downto 0*DATA_WIDTH)) + unsigned(g));
+--     --                 -- current_hash_values(0*DATA_WIDTH-1 downto 0) <= std_logic_vector(unsigned(current_hash_values(0*DATA_WIDTH-1 downto 0)) + unsigned(h));
+--
+--     --                 -- o_hash <= current_hash_values;
+--     --                 o_hash_valid <= '1';
+--     --                 busy_internal <= '0';
+--     --             end if;
+--     --         end if;
+--     --     end process;
+--
+-- end architecture rtl;

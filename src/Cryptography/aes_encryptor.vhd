@@ -1,0 +1,299 @@
+-- ============================================================================
+-- AES Encryptor - Programming Guidance
+-- ============================================================================
+-- 
+-- PROJECT OVERVIEW:
+-- This file outlines the implementation of an Advanced Encryption Standard (AES)
+-- encryptor for FPGA-based systems. AES is a symmetric block cipher widely used
+-- for secure data communication and storage. This design focuses on a hardware-
+-- efficient implementation suitable for FPGA synthesis, supporting 128-bit data
+-- blocks and various key lengths (128, 192, 256 bits).
+--
+-- LEARNING OBJECTIVES:
+-- 1. Understand the fundamental principles of the AES algorithm (Rijndael).
+-- 2. Learn the different transformations: SubBytes, ShiftRows, MixColumns, AddRoundKey.
+-- 3. Explore key expansion for generating round keys.
+-- 4. Practice designing and implementing complex combinational and sequential logic.
+-- 5. Understand techniques for optimizing cryptographic algorithms for hardware.
+--
+-- ============================================================================
+-- STEP-BY-STEP IMPLEMENTATION GUIDE:
+-- ============================================================================
+--
+-- STEP 1: LIBRARY DECLARATIONS
+-- ----------------------------------------------------------------------------
+-- Required Libraries:
+-- - IEEE library for standard logic types
+-- - std_logic_1164 package for std_logic and logical operators
+-- - numeric_std package for arithmetic operations (recommended)
+--
+-- TODO: Add library IEEE;
+-- TODO: Add use IEEE.std_logic_1164.all;
+-- TODO: Add use IEEE.numeric_arith.all; (for unsigned/signed operations)
+-- TODO: Add use work.aes_pkg.all; (if custom package for S-boxes, etc., is used)
+--
+-- ============================================================================
+-- STEP 2: ENTITY DECLARATION
+-- ============================================================================
+-- The entity defines the interface for the AES Encryptor.
+--
+-- Entity Requirements:
+-- - Name: aes_encryptor (maintain current naming convention)
+-- - Inputs: Clock, Reset, Start, Data_In, Key_In, Key_Length_Select
+-- - Outputs: Data_Out, Done
+--
+-- Port Specifications:
+-- - clk : in std_logic (System clock)
+-- - rst : in std_logic (Asynchronous or synchronous reset)
+-- - start : in std_logic (Initiates encryption process)
+-- - data_in : in std_logic_vector(127 downto 0) (128-bit plaintext block)
+-- - key_in : in std_logic_vector(255 downto 0) (Max 256-bit encryption key)
+-- - key_length_sel : in std_logic_vector(1 downto 0) (00:128-bit, 01:192-bit, 10:256-bit key)
+-- - data_out : out std_logic_vector(127 downto 0) (128-bit ciphertext block)
+-- - done : out std_logic (Indicates encryption is complete)
+--
+-- TODO: Declare entity with appropriate port names and bit widths
+-- TODO: Add detailed port comments
+-- TODO: Consider generic parameters for data width or key length if needed
+--
+-- ============================================================================
+-- STEP 3: ARCHITECTURE IMPLEMENTATION - HIGH-LEVEL OVERVIEW
+-- ============================================================================
+-- The AES encryption process involves several rounds, each consisting of four
+-- main transformations: SubBytes, ShiftRows, MixColumns, and AddRoundKey.
+-- The number of rounds depends on the key length (10 for 128-bit, 12 for 192-bit,
+-- 14 for 256-bit).
+--
+-- Main Components:
+-- 1. State Register: Holds the current 128-bit data block being processed.
+-- 2. Key Expansion Unit: Generates all round keys from the initial cipher key.
+-- 3. Round Transformation Unit: Implements SubBytes, ShiftRows, MixColumns, AddRoundKey.
+-- 4. Control FSM: Manages the round sequence, key loading, and data flow.
+--
+-- ============================================================================
+-- STEP 4: KEY EXPANSION UNIT
+-- ============================================================================
+-- Generates the round keys from the initial cipher key.
+--
+-- Implementation Approach:
+-- - Involves a complex schedule of byte substitutions, cyclic shifts, and XORing
+--   with round constants.
+-- - Can be implemented combinatorially (for small key lengths) or sequentially
+--   (to save area, generating one round key per clock cycle).
+--
+-- TODO: Implement the Key Expansion algorithm based on AES specification.
+-- TODO: Store generated round keys in a register file or BRAM.
+-- TODO: Handle different key lengths (128, 192, 256 bits).
+--
+-- ============================================================================
+-- STEP 5: ROUND TRANSFORMATION UNIT
+-- ============================================================================
+-- Implements the four core AES transformations.
+--
+-- 5.1 SubBytes Transformation:
+-- - Non-linear byte substitution using an S-box.
+-- - Each byte in the state is replaced by another byte from a lookup table.
+-- - Can be implemented using a ROM (BRAM) or combinational logic for S-box.
+-- TODO: Implement S-box lookup for SubBytes.
+--
+-- 5.2 ShiftRows Transformation:
+-- - Cyclically shifts rows of the state array.
+-- - Row 0: no shift; Row 1: 1-byte left shift; Row 2: 2-byte left shift; Row 3: 3-byte left shift.
+-- - Purely combinational logic.
+-- TODO: Implement byte shifting for ShiftRows.
+--
+-- 5.3 MixColumns Transformation:
+-- - A linear transformation that mixes the bytes within each column.
+-- - Involves multiplication in the Galois Field GF(2^8).
+-- - Can be implemented using XOR gates and lookups, or dedicated GF multipliers.
+-- - This transformation is skipped in the final round.
+-- TODO: Implement Galois Field multiplication for MixColumns.
+--
+-- 5.4 AddRoundKey Transformation:
+-- - XORs the current state with the round key.
+-- - Purely combinational logic.
+-- TODO: Implement XOR operation for AddRoundKey.
+--
+-- ============================================================================
+-- STEP 6: CONTROL FSM (FINITE STATE MACHINE)
+-- ============================================================================
+-- Manages the overall encryption flow.
+--
+-- States:
+-- - IDLE: Waiting for 'start' signal.
+-- - LOAD_KEY: Loading the initial key and performing key expansion.
+-- - ROUND_0: Initial AddRoundKey with the first round key.
+-- - ROUND_N: Iterating through the main rounds (SubBytes, ShiftRows, MixColumns, AddRoundKey).
+-- - FINAL_ROUND: Last round (SubBytes, ShiftRows, AddRoundKey - no MixColumns).
+-- - DONE: Encryption complete, 'data_out' is valid.
+--
+-- TODO: Design the FSM to control the sequence of operations.
+-- TODO: Manage round counter and select appropriate round keys.
+-- TODO: Assert 'done' signal when encryption is finished.
+--
+-- ============================================================================
+-- COMMON DESIGN CONSIDERATIONS:
+-- ============================================================================
+--
+-- THROUGHPUT VS. AREA:
+-- - Pipelining: For higher throughput, pipeline the rounds or transformations.
+-- - Unrolling: Fully unroll the rounds for maximum speed (large area).
+-- - Iterative: Process one round per clock cycle (smaller area, lower throughput).
+--
+-- S-BOX IMPLEMENTATION:
+-- - Combinational: Logic gates for small S-boxes, fast but large.
+-- - ROM (BRAM): Lookup table using Block RAM, efficient for larger S-boxes.
+--
+-- KEY LENGTH SUPPORT:
+-- - Design for 128, 192, and 256-bit keys.
+-- - Adjust number of rounds and key expansion logic accordingly.
+--
+-- SECURITY CONSIDERATIONS:
+-- - Side-channel attack resistance (e.g., DPA, SPA).
+-- - Constant-time operations to prevent timing attacks.
+-- - Protection against fault injection.
+--
+-- INTERFACE:
+-- - Standard interfaces like AXI Stream for data input/output.
+-- - Simple handshake signals (start, done, valid).
+--
+-- ============================================================================
+-- DESIGN VERIFICATION CHECKLIST:
+-- ============================================================================
+--
+-- □ Entity declaration includes all required ports
+-- □ Key expansion unit correctly generates all round keys
+-- □ SubBytes transformation uses correct S-box values
+-- □ ShiftRows transformation performs correct cyclic shifts
+-- □ MixColumns transformation performs correct Galois Field multiplication
+-- □ AddRoundKey transformation correctly XORs state with round key
+-- □ Control FSM manages round sequence and state transitions correctly
+-- □ Supports 128, 192, and 256-bit key lengths
+-- □ Handles initial key loading and round key selection
+-- □ 'done' signal asserts correctly upon completion
+-- □ Testbench provides comprehensive coverage for all key lengths and data patterns
+-- □ Known answer tests (KATs) pass for all AES modes
+-- □ Performance (throughput, latency) meets requirements
+-- □ Area utilization is within limits
+-- □ Code follows project VHDL style guidelines
+-- □ Documentation clearly explains all operations
+--
+-- ============================================================================
+-- DIGITAL DESIGN CONTEXT:
+-- ============================================================================
+--
+-- CRYPTOGRAPHIC ACCELERATORS:
+-- - Dedicated hardware for encryption/decryption tasks.
+-- - Offloads CPU, improving system performance and security.
+-- - Essential for high-speed secure communication (e.g., network devices).
+--
+-- SECURE BOOT AND FIRMWARE UPDATES:
+-- - Encrypting firmware images to prevent tampering and unauthorized access.
+-- - Verifying authenticity and integrity of bootloaders and applications.
+--
+-- DATA AT REST ENCRYPTION:
+-- - Encrypting data stored in non-volatile memory (e.g., flash, SSDs).
+-- - Protecting sensitive information in embedded systems.
+--
+-- SECURE COMMUNICATION:
+-- - Implementing TLS/SSL, IPsec, and other secure protocols in hardware.
+-- - Ensuring confidentiality and integrity of data transmitted over networks.
+--
+-- SYSTEM-ON-CHIP (SOC) INTEGRATION:
+-- - Integrating AES modules as IP cores within larger SOC designs.
+-- - Providing cryptographic services to various system components.
+--
+-- ============================================================================
+-- PHYSICAL IMPLEMENTATION NOTES:
+-- ============================================================================
+--
+-- FPGA RESOURCE UTILIZATION:
+-- - Logic Elements: High, especially for fully unrolled or pipelined designs.
+-- - BRAMs: For S-boxes, key schedule storage, or round key buffers.
+-- - DSP Slices: Potentially for GF(2^8) multiplications in MixColumns (if optimized).
+-- - Registers: For state, round keys, and FSM control.
+--
+-- TIMING CHARACTERISTICS:
+-- - Critical Path: Through MixColumns (combinational) or pipelined stages.
+-- - Clock Frequency: Achievable frequency depends on pipelining depth.
+-- - Latency: Number of clock cycles from 'start' to 'done'.
+-- - Throughput: Number of bits encrypted per clock cycle.
+--
+-- POWER CONSUMPTION:
+-- - Dynamic Power: High due to extensive switching activity during encryption.
+-- - Static Power: FPGA leakage.
+-- - Optimization: Clock gating, power-aware synthesis techniques.
+--
+-- DESIGN CONSTRAINTS:
+-- - Timing constraints for high clock frequencies.
+-- - Area constraints for fitting into target FPGA.
+-- - Security constraints for side-channel resistance.
+-- - Power constraints for thermal management.
+--
+-- ============================================================================
+-- ADVANCED AES CONCEPTS:
+-- ============================================================================
+--
+-- AES MODES OF OPERATION:
+-- - ECB (Electronic Codebook): Simple, but not semantically secure.
+-- - CBC (Cipher Block Chaining): Uses IV, provides semantic security.
+-- - CTR (Counter): Turns block cipher into stream cipher, good for parallelization.
+-- - GCM (Galois/Counter Mode): Authenticated encryption, widely used.
+-- - XTS (XEX-based Tweakable Block Cipher with Ciphertext Stealing): For disk encryption.
+--
+-- HARDWARE OPTIMIZATIONS:
+-- - SubBytes: Composite field arithmetic (GF((2^4)^2)) for smaller S-box logic.
+-- - MixColumns: Shift-and-XOR operations, or dedicated GF multipliers.
+-- - Pipelining: Increase throughput by processing multiple rounds concurrently.
+-- - Loop Unrolling: Replicate hardware for each round to reduce latency.
+--
+-- SIDE-CHANNEL COUNTERMEASURES:
+-- - Masking: Randomizing intermediate values to obscure power/EM traces.
+-- - Shuffling: Randomizing the order of operations.
+-- - Dual-rail logic: Balancing power consumption.
+-- - Dummy operations: Adding random, non-functional operations.
+--
+-- POST-QUANTUM CRYPTOGRAPHY:
+-- - Research into quantum-resistant algorithms.
+-- - Integration of new cryptographic primitives into hardware.
+-- - Hybrid approaches combining classical and post-quantum algorithms.
+--
+-- ============================================================================
+-- SIMULATION AND VERIFICATION NOTES:
+-- ============================================================================
+--
+-- TESTBENCH ARCHITECTURE:
+-- - Stimulus generation for clock, reset, start, data_in, key_in, key_length_sel.
+-- - Output capture for data_out, done.
+-- - Comparison with known good ciphertext (KATs).
+-- - Coverage analysis for FSM states, key lengths, and data patterns.
+--
+-- VERIFICATION METHODOLOGY:
+-- - Directed testing for specific plaintext/key pairs.
+-- - Random testing with various key lengths and data.
+-- - Formal verification for security properties (e.g., functional correctness).
+-- - Assertion-based verification for continuous checking of internal signals.
+--
+-- DEBUGGING TECHNIQUES:
+-- - Waveform analysis of state, round keys, and intermediate transformations.
+-- - Breakpoint debugging in simulation.
+-- - Monitoring FSM state transitions.
+-- - Comparing internal signals with reference model outputs.
+--
+-- PERFORMANCE ANALYSIS:
+-- - Throughput measurement (bits/cycle, Mbps).
+-- - Latency measurement (clock cycles).
+-- - Resource utilization analysis (LUTs, BRAMs, DSPs).
+-- - Power estimation for different configurations.
+--
+-- ============================================================================
+-- IMPLEMENTATION TEMPLATE:
+-- ============================================================================
+--
+-- [Add your library declarations here]
+--
+-- [Add your entity declaration here]
+--
+-- [Add your architecture implementation here]
+--
+-- ============================================================================

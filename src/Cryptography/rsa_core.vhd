@@ -1,0 +1,202 @@
+-- ============================================================================
+-- Project: FPGA-Optimized RSA Core
+--
+-- Description:
+-- This VHDL module implements a high-performance RSA (Rivest-Shamir-Adleman)
+-- cryptographic core, optimized for FPGA synthesis. RSA is a widely used
+-- public-key cryptosystem for secure data transmission and digital signatures.
+-- This design focuses on accelerating the modular exponentiation operation,
+-- which is the computational bottleneck of RSA, with efficient resource utilization.
+-- It is suitable for applications requiring hardware acceleration of cryptographic
+-- operations, such as secure boot, secure communication, and key exchange.
+--
+-- Learning Objectives:
+-- 1. Understand the mathematical principles behind RSA cryptography, including
+--    modular exponentiation, prime number generation, and key pair generation.
+-- 2. Learn how to implement large-number arithmetic operations (multiplication,
+--    addition, subtraction) in VHDL for arbitrary bit widths.
+-- 3. Explore techniques for efficient modular exponentiation, such as the
+--    Montgomery multiplication algorithm or binary exponentiation (square-and-multiply).
+-- 4. Implement pipelining and parallel processing strategies to maximize RSA throughput.
+-- 5. Develop control logic for managing the modular exponentiation process and
+--    handling multi-precision operands.
+-- 6. Gain experience in designing a robust and secure cryptographic hardware core.
+--
+-- Implementation Guidance:
+-- 1. **Modular Exponentiation**: The core operation of RSA is C = M^e mod N (encryption)
+--    or M = C^d mod N (decryption). This requires efficient computation of (base^exponent) mod modulus.
+-- 2. **Large Number Arithmetic**: Implement custom arithmetic units for operations on
+--    large numbers (e.g., 1024-bit, 2048-bit, or 4096-bit). This includes multi-precision
+--    adders, subtractors, and multipliers.
+-- 3. **Montgomery Multiplication**: This algorithm is highly efficient for modular
+--    multiplication in hardware as it avoids trial division. It requires pre-computation
+--    of the Montgomery constant R^-1 mod N and N'.
+-- 4. **Binary Exponentiation (Square-and-Multiply)**: This algorithm computes modular
+--    exponentiation by repeatedly squaring the base and multiplying by the base if the
+--    corresponding exponent bit is '1'. This can be pipelined.
+-- 5. **Pipelining**: Pipelining the modular multiplication and squaring operations is
+--    essential for achieving high throughput in the modular exponentiation unit.
+-- 6. **Control Logic**: Design a state machine to manage the sequence of operations
+--    for modular exponentiation, including loading operands, performing iterations,
+--    and outputting results.
+-- 7. **Input/Output Interface**: Implement an interface (e.g., AXI-Stream or memory-mapped)
+--    to load the base, exponent, and modulus, and to retrieve the result.
+-- 8. **Testbench Development**: Create a comprehensive testbench to verify the RSA core's
+--    functionality and correctness using known RSA test vectors and comparing against
+--    software implementations.
+--
+-- Common Design Considerations:
+-- - **Key Size**: RSA security relies on the difficulty of factoring large numbers.
+--   Common key sizes are 1024-bit, 2048-bit, and 4096-bit. Larger key sizes provide
+--   more security but require more computational resources.
+-- - **Side-Channel Attacks**: Hardware implementations of RSA can be vulnerable to
+--   side-channel attacks (e.g., power analysis, timing attacks). Design considerations
+--   should include countermeasures to mitigate these risks.
+-- - **Random Number Generation**: Secure RSA key generation requires a high-quality
+--   True Random Number Generator (TRNG) or Pseudo-Random Number Generator (PRNG).
+-- - **Error Detection and Correction**: For critical applications, consider adding
+--   error detection and correction mechanisms to protect against transient faults.
+-- - **Resource Utilization vs. Throughput**: Balance the use of FPGA resources
+--   (LUTs, FFs, DSP blocks) with the desired throughput and latency.
+--
+-- Design Verification Checklist:
+-- - [ ] Functional correctness for various key sizes and operand values.
+-- - [ ] Correctness of modular exponentiation for encryption and decryption.
+-- - [ ] Handling of edge cases (e.g., zero or one as operands).
+-- - [ ] Performance metrics (throughput, latency) meet specifications.
+-- - [ ] Resource utilization is within acceptable limits.
+-- - [ ] Robustness against side-channel attacks (if applicable).
+-- - [ ] Integration with system-level interfaces (e.g., AXI).
+--
+-- Digital Design Context:
+-- RSA is a foundational algorithm in public-key cryptography. Its hardware
+-- implementation often involves complex arithmetic operations on large numbers,
+-- making it a challenging but rewarding design task for FPGAs. The choice of
+-- algorithms for modular multiplication (e.g., Montgomery) and exponentiation
+-- (e.g., square-and-multiply) significantly impacts performance and resource usage.
+--
+-- Physical Implementation Notes:
+-- - **Clock Frequency**: The maximum achievable clock frequency will depend on the
+--   critical path of the modular arithmetic units. Pipelining is crucial for high frequencies.
+-- - **DSP Blocks**: Modern FPGAs have dedicated DSP blocks that can accelerate
+--   multiplication operations, which are highly beneficial for large-number arithmetic.
+-- - **Memory Usage**: Storing large numbers (base, exponent, modulus, intermediate results)
+--   will require significant memory resources, potentially utilizing block RAMs.
+-- - **Routing Congestion**: Complex data paths for large numbers can lead to routing
+--   congestion. Careful floorplanning and placement can help mitigate this.
+--
+-- Advanced RSA Concepts:
+-- - **Chinese Remainder Theorem (CRT)**: Can be used to speed up RSA decryption
+--   by performing modular exponentiation with smaller moduli.
+-- - **Multi-Prime RSA**: Uses more than two prime factors, increasing security
+--   and potentially improving performance for certain operations.
+-- - **RSA with Optimal Asymmetric Encryption Padding (OAEP)**: A padding scheme
+--   that adds randomness to messages before encryption, improving security.
+--
+-- Simulation and Verification Notes:
+-- - **Test Vector Generation**: Generate a comprehensive set of test vectors
+--   using a software RSA library (e.g., OpenSSL, Python's `cryptography` library)
+--   to verify the hardware implementation.
+-- - **Formal Verification**: For critical security applications, consider formal
+--   verification methods to mathematically prove the correctness of the design.
+-- - **Co-simulation**: Integrate the VHDL model with a software model for
+--   co-simulation to accelerate verification.
+--
+-- Implementation Template:
+-- This section would typically contain the VHDL code for the RSA core.
+-- However, as per the current instructions, only commented documentation is provided.
+--
+-- library ieee;
+-- use ieee.std_logic_1164.all;
+-- use ieee.numeric_std.all;
+--
+-- entity rsa_core is
+--     generic (
+--         KEY_SIZE_BITS   : natural := 1024 -- RSA key size (e.g., 1024, 2048, 4096)
+--     );
+--     port (
+--         clk             : in  std_logic;
+--         reset           : in  std_logic;
+--         start           : in  std_logic; -- Start RSA operation
+--         i_base          : in  std_logic_vector(KEY_SIZE_BITS-1 downto 0); -- M or C
+--         i_exponent      : in  std_logic_vector(KEY_SIZE_BITS-1 downto 0); -- e or d
+--         i_modulus       : in  std_logic_vector(KEY_SIZE_BITS-1 downto 0); -- N
+--         i_operand_valid : in  std_logic;
+--         o_result_valid  : out std_logic;
+--         o_result        : out std_logic_vector(KEY_SIZE_BITS-1 downto 0); -- C or M
+--         ready           : out std_logic  -- Indicates core is ready for new operation
+--     );
+-- end entity rsa_core;
+--
+-- architecture rtl of rsa_core is
+--
+--     -- Internal signals for modular exponentiation
+--     -- signal current_base     : std_logic_vector(KEY_SIZE_BITS-1 downto 0);
+--     -- signal current_exponent : std_logic_vector(KEY_SIZE_BITS-1 downto 0);
+--     -- signal current_modulus  : std_logic_vector(KEY_SIZE_BITS-1 downto 0);
+--     -- signal current_result   : std_logic_vector(KEY_SIZE_BITS-1 downto 0);
+--
+--     -- signal busy_internal    : std_logic := '0';
+--     -- signal exponent_bit_idx : natural range 0 to KEY_SIZE_BITS-1 := 0;
+--
+--     -- Placeholder for large number arithmetic functions (e.g., modular multiplication)
+--     -- function modular_multiply (a, b, m : std_logic_vector) return std_logic_vector;
+--
+-- begin
+--
+--     -- ready <= not busy_internal;
+--
+--     -- process (clk)
+--     --     variable temp_result : std_logic_vector(KEY_SIZE_BITS-1 downto 0);
+--     --     variable temp_base   : std_logic_vector(KEY_SIZE_BITS-1 downto 0);
+--     -- begin
+--     --     if rising_edge(clk) then
+--     --         if reset = '1' then
+--     --             current_base <= (others => '0');
+--     --             current_exponent <= (others => '0');
+--     --             current_modulus <= (others => '0');
+--     --             current_result <= (others => '0');
+--     --             o_result_valid <= '0';
+--     --             busy_internal <= '0';
+--     --             exponent_bit_idx <= 0;
+--     --         elsif start = '1' and ready = '1' and i_operand_valid = '1' then
+--     --             current_base <= i_base;
+--     --             current_exponent <= i_exponent;
+--     --             current_modulus <= i_modulus;
+--     --             current_result <= (others => '0'); -- Initialize result to 1 (mod N)
+--     --             temp_base := i_base;
+--     --             temp_result := (others => '0');
+--     --             temp_result(0) := '1'; -- Initialize result to 1
+--
+--     --             busy_internal <= '1';
+--     --             exponent_bit_idx <= 0;
+--     --             o_result_valid <= '0';
+--     --         elsif busy_internal = '1' then
+--     --             if exponent_bit_idx < KEY_SIZE_BITS then
+--     --                 -- Binary Exponentiation (Square-and-Multiply) Algorithm
+--     --                 -- This is a simplified sequential implementation. A real hardware
+--     --                 -- implementation would pipeline these operations.
+--
+--     --                 if current_exponent(exponent_bit_idx) = '1' then
+--     --                     -- temp_result = (temp_result * temp_base) mod current_modulus;
+--     --                     -- Placeholder for modular multiplication
+--     --                     -- For demonstration, just a simple assignment (NOT actual RSA logic)
+--     --                     temp_result := temp_base; -- This is incorrect for RSA, just for template
+--     --                 end if;
+--
+--     --                 -- temp_base = (temp_base * temp_base) mod current_modulus;
+--     --                 -- Placeholder for modular squaring
+--     --                 -- For demonstration, just a simple assignment (NOT actual RSA logic)
+--     --                     temp_base := temp_base; -- This is incorrect for RSA, just for template
+--
+--     --                 exponent_bit_idx <= exponent_bit_idx + 1;
+--     --             else
+--     --                 o_result <= temp_result;
+--     --                 o_result_valid <= '1';
+--     --                 busy_internal <= '0';
+--     --             end if;
+--     --         end if;
+--     --     end if;
+--     -- end process;
+--
+-- end architecture rtl;
