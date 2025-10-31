@@ -84,6 +84,26 @@
 
 ---
 
+## 🧠 VHDL Keywords to Memorize
+
+- Structure: `entity`, `architecture`, `library`, `use`, `package`, `component`, `configuration`
+- Interfaces: `port`, `generic`, `map`, `in`, `out`, `inout`, `buffer`
+- Objects: `signal`, `variable`, `constant`, `file` (TB), `shared` (TB), `alias`, `subtype`
+- Types: `type`, `record`, `array`, `access` (2008, TB), `protected` (2008, TB)
+- Sequential: `process`, `if`, `elsif`, `else`, `case`, `loop`, `for`, `while`, `exit`, `next`, `return`, `wait`, `null`
+- Concurrent: `generate` (for/if/case), `with ... select`, `when ... else`, concurrent assignments
+- Verification: `assert`, `report`, `severity` (`note`, `warning`, `error`, `failure`)
+- Attributes: `'event`, `'range`, `'length`, `'left`, `'right`, `'high`, `'low`, `'ascending`
+- Clocks/Edges: `rising_edge(clk)`, `falling_edge(clk)`
+- Conversions (numeric_std): `to_unsigned`, `to_signed`, `resize`, `to_integer`, `unsigned`, `signed`
+- Operators: `<=` (signal), `:=` (variable), `&` (concat), `sll/srl`, `rol/ror`, `and/or/xor/nand/nor`, `not`
+- Handy literals: `others =>` for default fills; `open` for unconnected ports in TB
+
+Quick rule-of-thumb:
+- Use `numeric_std` with `unsigned/signed` for arithmetic; avoid legacy `std_logic_arith`.
+- Prefer concurrent assignments for combinational logic; use `process` for clocked/sequential behavior.
+- Always provide complete `when/else` paths to avoid unintended latches.
+
 ## 📚 Table of Contents
 1. [🚀 Expert-Level VHDL Mastery Guide](#-expert-level-vhdl-mastery-guide)
 2. [Basic Structure & Syntax](#basic-structure--syntax)
@@ -196,6 +216,51 @@ entity my_design is
 end entity my_design;
 ```
 
+Entity declaration deep-dive:
+- Port modes: `in` (read-only), `out` (write-only), `inout` (bi-dir), `buffer` (legacy; avoid).
+- Use clear widths and directions; prefer `downto` for bus MSB→LSB readability.
+- Generics: parameterize widths/behavior; always provide sane defaults.
+
+Examples:
+```vhdl
+-- Named association on instantiation for clarity
+u_core: entity work.my_design
+  generic map (
+    DATA_WIDTH => 16,
+    ADDR_WIDTH => 8
+  )
+  port map (
+    clk      => sys_clk,
+    reset_n  => rst_n,
+    enable   => core_en,
+    data_in  => din,
+    data_out => dout,
+    valid    => dout_valid
+  );
+
+-- VHDL-2008 unconstrained array generic for flexible ports
+package if_types is
+  type word_t is array (natural range <>) of std_logic;
+end package;
+
+entity flex_bus is
+  generic (
+    W : natural := 32
+  );
+  port (
+    clk  : in  std_logic;
+    rst_n: in  std_logic;
+    bus_i: in  std_logic_vector(W-1 downto 0);
+    bus_o: out std_logic_vector(W-1 downto 0)
+  );
+end entity;
+```
+
+Best practices:
+- Keep entity interfaces stable; hide internals with packages and clean port sets.
+- Document generics/ports with intent (units, ranges, reset behavior).
+- Avoid `inout` unless modeling true tri-state or bidirectional pins at top-level.
+
 ### Architecture Structure
 ```vhdl
 architecture behavioral of my_design is
@@ -232,6 +297,46 @@ use ieee.std_logic_unsigned.all; -- Legacy (avoid in new designs)
 use std.textio.all;
 use ieee.std_logic_textio.all;
 ```
+
+Recommended modes of use:
+- Synthesis: `ieee.std_logic_1164`, `ieee.numeric_std` with `unsigned/signed` for math.
+- Testbench: add `std.textio` and `ieee.std_logic_textio` for string/file I/O.
+- Math (TB-only): `ieee.math_real` and `ieee.math_complex` for floating-point modeling.
+- Avoid legacy `std_logic_arith/std_logic_unsigned` in new RTL; keep only in legacy TBs.
+
+String/TextIO quick examples (TB-only):
+```vhdl
+-- Write a string and a vector to console/file
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use std.textio.all;
+use ieee.std_logic_textio.all;
+
+entity tb is end entity;
+architecture sim of tb is
+begin
+  process
+    variable L : line;
+    variable v : std_logic_vector(7 downto 0) := x"A5";
+  begin
+    write(L, string'("Byte value: "));
+    write(L, v);
+    writeline(output, L);  -- print to console
+
+    -- Read back from a string line
+    L := new string'("1010_0101");
+    read(L, v);
+    assert v = x"A5" report "TextIO read mismatch" severity error;
+    wait;
+  end process;
+end architecture;
+```
+
+Best practices:
+- Keep RTL portable: restrict to IEEE libraries; gate vendor-specific packages to wrappers.
+- Explicitly convert types on boundaries (`to_unsigned`, `to_signed`, `std_logic_vector(...)`).
+- Use `std_ulogic` for single-driver signals when helpful; prefer `std_logic` for buses.
 
 ### Protocol BFMs: Avalon-MM and Wishbone
 ```vhdl
@@ -405,6 +510,82 @@ begin
         output_data <= temp_var;   -- Use updated value
     end if;
 end process;
+```
+
+### String & Character (TB and Generics)
+```vhdl
+-- Strings are for TBs and generics; not synthesizable as signals
+generic (
+  MODULE_NAME : string := "my_design"  -- Useful in logs
+);
+
+-- TB usage with TextIO
+use std.textio.all; use ieee.std_logic_textio.all;
+process
+  variable L : line;
+begin
+  write(L, string'("Hello, VHDL!"));
+  writeline(output, L);
+  wait;
+end process;
+
+-- Characters
+signal ch : character := 'A';  -- TB modeling only
+```
+
+### Time & Physical Types (TB-only)
+```vhdl
+-- Built-in physical type 'time' for simulation delays
+constant CLK_PERIOD : time := 10 ns;
+clk <= not clk after CLK_PERIOD/2;  -- TB clock generation
+
+-- User physical types exist but are rarely used in RTL
+```
+
+### Unconstrained Arrays & Subtypes
+```vhdl
+type word_t is array (natural range <>) of std_logic;  -- VHDL-2008
+subtype byte_t is std_logic_vector(7 downto 0);
+
+signal data_vec : std_logic_vector(WORD_LEN-1 downto 0);
+constant BYTES   : natural := data_vec'length/8;
+```
+
+### Records & Arrays of Records
+```vhdl
+type pkt_t is record
+  valid : std_logic;
+  data  : std_logic_vector(31 downto 0);
+end record;
+
+type pkt_mem_t is array (0 to 255) of pkt_t;
+signal pkt_fifo : pkt_mem_t;
+```
+
+### Object Classes & Scope
+- `signal`: concurrent driver, visible outside processes.
+- `variable`: local to process; updates immediately; use carefully in clocked logic.
+- `constant`: immutable; prefer for fixed parameters.
+- `file`: TB-only with TextIO for external data.
+
+### Array Attributes & Ranges
+- `'length`, `'range`, `'left`, `'right`, `'high`, `'low`, `'ascending` simplify indexing.
+```vhdl
+for i in data_vec'range loop
+  data_vec(i) <= '0';
+end loop;
+```
+
+### Numeric Types & Conversions (numeric_std)
+```vhdl
+use ieee.numeric_std.all;
+signal a_u : unsigned(15 downto 0);
+signal b_s : signed(15 downto 0);
+signal v   : std_logic_vector(15 downto 0);
+
+v   <= std_logic_vector(a_u);
+a_u <= resize(unsigned(v), a_u'length);
+b_s <= to_signed(7, b_s'length);
 ```
 
 ---
@@ -5067,6 +5248,58 @@ begin
     end if;
 end process;
 ```
+
+### Advanced Concurrent Constructs
+```vhdl
+-- Selected signal assignment
+with sel select
+  mux_out <= a when "00",
+             b when "01",
+             c when others;
+
+-- Conditional signal assignment
+out_bus <= data_a when en = '1' else data_b;
+
+-- If/case generate (elaboration-time hardware inclusion)
+gen_ops: if WIDTH > 8 generate
+  wide <= '1';
+end generate;
+
+gen_mux: for i in 0 to N-1 generate
+  y(i) <= a(i) when sel = '0' else b(i);
+end generate;
+```
+
+Notes:
+- Concurrent assignments are equivalent to processes with sensitivity lists.
+- `with ... select` requires full coverage; add `others` to avoid unassigned drivers.
+
+### Advanced Sequential Constructs
+```vhdl
+-- Wait-based process (TB-only)
+process
+begin
+  wait until rising_edge(clk);
+  -- sequential logic
+end process;
+
+-- Variables vs signals inside clocked process
+process(clk)
+  variable sum_v : unsigned(7 downto 0);
+begin
+  if rising_edge(clk) then
+    sum_v := a + b;            -- immediate update
+    sum_s <= sum_v;            -- signal gets new value after delta
+  end if;
+end process;
+```
+
+Semantics & pitfalls:
+- Incomplete `if/case` in clockless processes infer latches; always provide defaults.
+- Multiple drivers on a resolved type (`std_logic`) merge via resolution; avoid in RTL except tri-state at I/O.
+- Delta cycles: signals update after the process; use variables for intra-cycle computation.
+- Sensitivity lists: include all read signals for combinational processes; clock/reset only for sequential ones.
+- Prefer `rising_edge(clk)` over `clk'event and clk = '1'` for clarity.
 
 ---
 
