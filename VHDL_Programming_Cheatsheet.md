@@ -338,6 +338,387 @@ Best practices:
 - Explicitly convert types on boundaries (`to_unsigned`, `to_signed`, `std_logic_vector(...)`).
 - Use `std_ulogic` for single-driver signals when helpful; prefer `std_logic` for buses.
 
+Library breakdown & usage:
+- `ieee.std_logic_1164`
+  - Provides `std_logic`, `std_logic_vector`, `std_ulogic` and edge detection (`rising_edge`, `falling_edge`).
+  - Multi-driver resolution (wired-OR) applies to `std_logic`; avoid multiple drivers in RTL except tri-state at I/O.
+  - Common utilities: `to_x01`, `to_x01z`, `is_x` may be available for cleaning/diagnostics (tool-dependent).
+  - Example:
+    ```vhdl
+    signal a : std_logic; signal b : std_logic; signal y : std_logic;
+    y <= a and b;  -- resolved logic
+    ```
+- `ieee.numeric_std`
+  - Use `unsigned/signed` for arithmetic; supports `+ - * /`, comparisons, and `resize`, `to_integer`.
+  - Conversions:
+    ```vhdl
+    use ieee.numeric_std.all;
+    signal u : unsigned(15 downto 0);
+    signal s : signed(15 downto 0);
+    signal v : std_logic_vector(15 downto 0);
+    v <= std_logic_vector(u);
+    u <= resize(unsigned(v), u'length);
+    s <= to_signed(7, s'length);
+    ```
+- `std_logic_arith` / `std_logic_unsigned` (legacy)
+  - Non-IEEE packages that treat `std_logic_vector` as numeric; cause ambiguity with `numeric_std`.
+  - Avoid in new RTL; use only to maintain legacy TBs. Do not mix with `numeric_std` in the same design unit.
+- `std.textio` (TB)
+  - File/line I/O for text-based stimulus and logging.
+  - Example read from file:
+    ```vhdl
+    use std.textio.all;
+    file fin : text open read_mode is "input.txt";
+    variable L : line;
+    variable s : string(1 to 16);
+    begin
+      readline(fin, L);  -- get one line
+      read(L, s);
+    ```
+- `ieee.std_logic_textio` (TB)
+  - Extends TextIO with support for logic vectors and related types (binary/hex formatting varies by tool).
+  - Example:
+    ```vhdl
+    use ieee.std_logic_textio.all;
+    variable L : line; variable v : std_logic_vector(7 downto 0);
+    write(L, v); writeline(output, L);
+    read(L, v);  -- parse a logic vector from text
+    ```
+- Additional TB libraries
+  - `ieee.math_real`: real-valued math (`sin`, `cos`, `sqrt`, `log`); non-synthesizable.
+  - `ieee.math_complex`: complex arithmetic for modeling; non-synthesizable.
+  - `std.env`: utilities like `finish/stop` for simulation control; non-synthesizable.
+- Fixed-point/float (VHDL-2008)
+  - `ieee.fixed_pkg`: `ufixed/sfixed` types for fixed-point arithmetic. Synthesizable in many tools.
+  - `ieee.float_pkg`: floating-point types; typically modeling/TB only.
+  - Example (fixed-point):
+    ```vhdl
+    library ieee; use ieee.fixed_pkg.all;
+    signal acc : ufixed(7 downto -8);  -- Q8.8 format
+    -- Convert to/from std_logic_vector via fixed_pkg helpers
+    -- Note: tool support for conversions varies; keep to integer constants for synthesis
+    ```
+
+### Additional Libraries: Hardware, Protocols, DSP
+- Intel/Altera device & IP libraries (Quartus)
+  - `altera_mf` — Megafunction components like `altsyncram`, `altpll`, `altmult_add` (DSP MAC).
+    - Import: `library altera_mf; use altera_mf.altera_mf_components.all;`
+    - Example (MAC):
+      ```vhdl
+      library altera_mf; use altera_mf.altera_mf_components.all;
+      signal a,b : std_logic_vector(7 downto 0);
+      signal p   : std_logic_vector(15 downto 0);
+      u_mac: altmult_add
+        generic map (
+          number_of_multipliers => 1,
+          width_a => 8, width_b => 8, width_result => 16,
+          representation_a => "UNSIGNED", representation_b => "UNSIGNED"
+        )
+        port map (
+          dataa_0 => a,
+          datab_0 => b,
+          result  => p
+        );
+      ```
+  - `lpm` — Library of Parameterized Modules (portable, long-lived): `lpm_mult`, `lpm_add_sub`, `lpm_rom`, `lpm_fifo`.
+    - Import: `library lpm; use lpm.lpm_components.all;`
+    - Example (multiply):
+      ```vhdl
+      library lpm; use lpm.lpm_components.all;
+      signal a,b : std_logic_vector(7 downto 0);
+      signal p   : std_logic_vector(15 downto 0);
+      u_mult: lpm_mult
+        generic map (
+          LPM_WIDTHA => 8, LPM_WIDTHB => 8, LPM_WIDTHP => 16,
+          LPM_REPRESENTATION => "UNSIGNED"
+        )
+        port map (
+          dataa  => a,
+          datab  => b,
+          result => p
+        );
+      ```
+  - Device primitives: `cycloneiii` (family-specific), `altera` (primitives)
+    - Import: `library cycloneiii; use cycloneiii.cycloneiii_components.all;`
+    - Typical use: I/O buffers, PLLs, global clocks; prefer IP-generated wrappers for portability.
+  - Simulation libs: `altera_lnsim` (simulation models for megafunctions). Compile/make available in your simulator.
+
+- Communication protocol support
+  - Avalon-MM/Avalon-ST BFMs — Provided by Intel Platform Designer (Qsys). Generate BFMs and include their packages in TB.
+  - UVVM (Universal VHDL Verification Methodology) — TB-only BFMs and utilities for AXI/Avalon, SPI, I2C, UART, GPIO, etc.
+    - Import: `library uvvm_util; use uvvm_util.uvvm_util_pkg.all;`
+    - Use VVCs (verification components) to drive transactions deterministically with checkers.
+  - OSVVM — TB-only constrained random and coverage; great for protocol stimulus and scoreboarding.
+    - Import: `library osvvm; use osvvm.RandomPkg.all; use osvvm.CoveragePkg.all;`
+    - Example (random stimulus):
+      ```vhdl
+      library osvvm; use osvvm.RandomPkg.all;
+      shared variable RNG : RandomPType;
+      signal rnd_val : integer;
+      process
+      begin
+        RNG.InitSeed(1);
+        rnd_val := RNG.RandInt(0, 255);
+        wait;
+      end process;
+      ```
+
+- DSP-focused packages
+  - IEEE fixed/float (listed above): `ieee.fixed_pkg`, `ieee.float_pkg` for fixed/floating arithmetic in TB and, for fixed, often synthesizable.
+  - IEEE math: `ieee.math_real`, `ieee.math_complex` for modeling filters, NCOs, and reference models (TB-only).
+  - Vendor DSP IP via `altera_mf` (e.g., FIR filters, FFT, NCO) — instantiate generated components; keep interfaces IEEE (`std_logic`, `unsigned`).
+
+Notes & best practices:
+- Prefer IEEE types at entity boundaries for portability; encapsulate vendor-specific components inside wrappers.
+- For simulation, ensure vendor libraries (`altera_mf`, `cycloneiii`, `lpm`) are compiled/mapped in your simulator (ModelSim/Questa) before TB compile.
+- Avoid hard-tying to device primitives unless necessary; use IP Catalog to generate portable wrappers and timing constraints.
+
+#### Code Examples: Intel/Altera IP (RAM/PLL/MAC)
+```vhdl
+-- 1) Single-port synchronous RAM using altsyncram
+library ieee; use ieee.std_logic_1164.all;
+library altera_mf; use altera_mf.altera_mf_components.all;
+
+entity ram_sp is
+  port(
+    clk   : in  std_logic;
+    we    : in  std_logic;
+    addr  : in  std_logic_vector(7 downto 0);
+    din   : in  std_logic_vector(7 downto 0);
+    dout  : out std_logic_vector(7 downto 0)
+  );
+end entity;
+
+architecture rtl of ram_sp is
+begin
+  u_ram: altsyncram
+    generic map (
+      operation_mode => "SINGLE_PORT",
+      width_a        => 8,
+      numwords_a     => 256,
+      address_aclr_a => "NONE",
+      outdata_reg_a  => "UNREGISTERED",
+      init_file      => "ram_init.mif"
+    )
+    port map (
+      clock0    => clk,
+      address_a => addr,
+      data_a    => din,
+      wren_a    => we,
+      q_a       => dout
+    );
+end architecture;
+
+-- 2) PLL skeleton (configure via IP Catalog)
+library ieee; use ieee.std_logic_1164.all;
+library altera_mf; use altera_mf.altera_mf_components.all;
+
+entity pll_wrap is
+  port(
+    inclk    : in  std_logic;
+    sys_clk  : out std_logic;
+    pll_lock : out std_logic
+  );
+end entity;
+
+architecture rtl of pll_wrap is
+begin
+  u_pll: altpll
+    generic map (
+      operation_mode => "NORMAL"
+      -- Other generics are tool-generated; use Quartus IP Catalog.
+    )
+    port map (
+      inclk0 => inclk,
+      c0     => sys_clk,
+      locked => pll_lock
+    );
+end architecture;
+
+-- 3) Multiply-accumulate using altmult_add (unsigned 8x8 -> 16)
+library ieee; use ieee.std_logic_1164.all;
+library altera_mf; use altera_mf.altera_mf_components.all;
+
+entity mac8 is
+  port(
+    a,b   : in  std_logic_vector(7 downto 0);
+    p     : out std_logic_vector(15 downto 0)
+  );
+end entity;
+
+architecture rtl of mac8 is
+begin
+  u_mac: altmult_add
+    generic map (
+      number_of_multipliers => 1,
+      width_a => 8, width_b => 8, width_result => 16,
+      representation_a => "UNSIGNED", representation_b => "UNSIGNED"
+    )
+    port map (
+      dataa_0 => a,
+      datab_0 => b,
+      result  => p
+    );
+end architecture;
+```
+
+#### Code Examples: LPM modules (adder, dual-clock FIFO)
+```vhdl
+-- 1) Add/Sub with runtime control
+library ieee; use ieee.std_logic_1164.all;
+library lpm;  use lpm.lpm_components.all;
+
+entity addsub16 is
+  port(
+    a,b     : in  std_logic_vector(15 downto 0);
+    sub     : in  std_logic; -- '0' add, '1' subtract
+    result  : out std_logic_vector(15 downto 0)
+  );
+end entity;
+
+architecture rtl of addsub16 is
+begin
+  u_add: lpm_add_sub
+    generic map (
+      LPM_WIDTH => 16
+    )
+    port map (
+      dataa   => a,
+      datab   => b,
+      add_sub => sub,
+      result  => result
+    );
+end architecture;
+
+-- 2) Dual-clock FIFO (clock-domain crossing)
+library ieee; use ieee.std_logic_1164.all;
+library lpm;  use lpm.lpm_components.all;
+
+entity fifo_dc8 is
+  port(
+    wrclk, rdclk : in  std_logic;
+    reset        : in  std_logic; -- active-high async clear
+    wr_en        : in  std_logic;
+    rd_en        : in  std_logic;
+    wdata        : in  std_logic_vector(7 downto 0);
+    rdata        : out std_logic_vector(7 downto 0);
+    rd_empty     : out std_logic;
+    wr_full      : out std_logic
+  );
+end entity;
+
+architecture rtl of fifo_dc8 is
+begin
+  u_fifo: lpm_fifo_dc
+    generic map (
+      LPM_WIDTH    => 8,
+      LPM_NUMWORDS => 256
+    )
+    port map (
+      data     => wdata,
+      wrclock  => wrclk,
+      rdclock  => rdclk,
+      wrreq    => wr_en,
+      rdreq    => rd_en,
+      q        => rdata,
+      rdempty  => rd_empty,
+      wrfull   => wr_full,
+      aclr     => reset
+    );
+end architecture;
+```
+
+#### Code Examples: DSP with fixed_pkg and math_real
+```vhdl
+-- 1) 4-tap FIR (model) using ufixed types (VHDL-2008)
+library ieee; use ieee.std_logic_1164.all; use ieee.fixed_pkg.all;
+
+entity fir4 is
+  port(
+    clk : in  std_logic;
+    x   : in  ufixed(3 downto -12); -- input sample Q4.12
+    y   : out ufixed(7 downto -8)   -- output Q8.8
+  );
+end entity;
+
+architecture rtl of fir4 is
+  signal x0, x1, x2, x3 : ufixed(3 downto -12);
+  constant c0 : ufixed(0 downto -15) := to_ufixed(0.25, 0, -15);
+  constant c1 : ufixed(0 downto -15) := to_ufixed(0.25, 0, -15);
+  constant c2 : ufixed(0 downto -15) := to_ufixed(0.25, 0, -15);
+  constant c3 : ufixed(0 downto -15) := to_ufixed(0.25, 0, -15);
+begin
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      x3 <= x2; x2 <= x1; x1 <= x0; x0 <= x;
+      y  <= to_ufixed(x0*c0 + x1*c1 + x2*c2 + x3*c3, y'high, y'low);
+    end if;
+  end process;
+end architecture;
+
+-- 2) NCO-like real sine model (TB-only)
+library ieee; use ieee.std_logic_1164.all; use ieee.math_real.all;
+
+entity nco_tb is end entity;
+architecture sim of nco_tb is
+  constant Fs : real := 100_000_000.0; -- 100 MHz
+  constant F  : real := 1_000.0;       -- 1 kHz
+  signal clk  : std_logic := '0';
+  signal s    : real;
+  signal ph   : real := 0.0;
+begin
+  clk <= not clk after 5 ns;
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      ph <= ph + 2.0*3.141592653589793*F/Fs;
+      if ph > 2.0*3.141592653589793 then
+        ph <= ph - 2.0*3.141592653589793;
+      end if;
+      s <= sin(ph);
+    end if;
+  end process;
+end architecture;
+```
+
+#### Code Examples: TextIO helpers and simulation control
+```vhdl
+-- Hex/binary formatted I/O (tool-dependent formatting helpers)
+library ieee; use ieee.std_logic_1164.all; use ieee.numeric_std.all;
+use std.textio.all; use ieee.std_logic_textio.all;
+
+entity tb_textio is end entity;
+architecture sim of tb_textio is
+begin
+  process
+    variable L : line;
+    variable v : std_logic_vector(15 downto 0) := x"DEAD";
+  begin
+    -- Hex write/read
+    hwrite(L, v); writeline(output, L);
+    hread(L, v);
+
+    -- Binary write/read (if supported by tool)
+    write(L, v); writeline(output, L);
+    read(L, v);
+    wait;
+  end process;
+end architecture;
+
+-- Finish simulation gracefully
+library std; use std.env.all;
+entity tb_done is end entity;
+architecture sim of tb_done is
+begin
+  process
+  begin
+    wait for 1 ms;  -- run simulation for a while
+    finish(0);
+  end process;
+end architecture;
+```
+
 ### Protocol BFMs: Avalon-MM and Wishbone
 ```vhdl
 -- Avalon-MM Master BFM (write/read examples)
