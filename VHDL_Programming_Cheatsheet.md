@@ -101,6 +101,81 @@
 
 ---
 
+## 📏 Conventions: Reset Strategy & Preferred Libraries
+
+## ⏱️ Clocking & Reset Strategies (Cross-links)
+<a name="clock-reset-strategies"></a>
+- Reset: use synchronous, active-low `rst_n` across modules; synchronize deassertion per domain.
+- Multi-clock: apply domain-specific resets; use synchronizers/FIFOs/bridges for CDC.
+- Timing: register I/O boundaries, constrain clocks, and budget fanout on shared interconnects.
+- See also: Conventions, State Machines, Synthesis Guidelines, Testbench Essentials.
+
+### Reset Strategy
+- Use synchronous, active-low resets named `rst_n` for consistency and reliable synthesis.
+- Gate all sequential logic resets inside a clocked process; avoid asynchronous resets unless interfacing with external hardware that requires them.
+- For multi-clock designs, apply domain-specific resets and proper synchronization on release.
+
+```vhdl
+-- Reset/clock conventions
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+signal rst_n : std_logic;  -- Active-low synchronous reset
+signal clk   : std_logic;
+signal reg_a : unsigned(7 downto 0);
+
+process(clk)
+begin
+    if rising_edge(clk) then
+        if rst_n = '0' then
+            reg_a <= (others => '0');
+        else
+            reg_a <= reg_a + 1;
+        end if;
+    end if;
+end process;
+```
+
+### Preferred Libraries
+- Prefer `ieee.std_logic_1164` and `ieee.numeric_std` for all synthesizable arithmetic.
+- Use `unsigned`/`signed` types for math; convert explicitly with `to_unsigned`/`to_signed`.
+- Avoid legacy `std_logic_arith` and `std_logic_unsigned` in production code; reserve for legacy testbenches only.
+
+```vhdl
+use ieee.numeric_std.all;
+signal a_u : unsigned(15 downto 0);
+signal b_s : signed(15 downto 0);
+signal sum_s : signed(15 downto 0);
+
+sum_s <= b_s + to_signed(1, b_s'length);
+a_u   <= a_u + to_unsigned(1, a_u'length);
+```
+
+### Naming & Interface Conventions
+- Signals: `clk`, `rst_n`, `valid`, `ready`, `data_in`, `data_out`.
+- Use clear, intent-revealing names; keep widths and ranges explicit.
+- For CDC, reference Clock/Reset strategy and employ synchronizers and FIFOs as appropriate.
+
+See also: Clocking & Reset Strategies, State Machines, Synthesis Guidelines, Testbench Essentials.
+
+## 🧾 Documentation Style for VHDL Modules
+
+This repository adopts a documentation-first template for new module files under `src`: modules should contain commented documentation only (no functional VHDL code) unless explicitly authorized. Use the following structure, mirroring the style used in `barrel_shifter.vhd`:
+
+- Project Overview
+- Learning Objectives
+- Step-by-Step Implementation Guide
+- Common Design Considerations
+- Design Verification Checklist
+- Digital Design Context
+- Physical Implementation Notes
+- Advanced Concepts
+- Simulation & Verification Notes
+- Implementation Template (commented skeleton only)
+
+Cross-reference core sections in this cheatsheet for deeper guidance: Basic Structure & Syntax, State Machines, Synthesis Guidelines, Testbench Essentials, and Reverse Engineering Techniques.
+
 ## 🏗️ Basic Structure & Syntax
 
 ### Entity Declaration
@@ -157,6 +232,121 @@ use ieee.std_logic_unsigned.all; -- Legacy (avoid in new designs)
 use std.textio.all;
 use ieee.std_logic_textio.all;
 ```
+
+### Protocol BFMs: Avalon-MM and Wishbone
+```vhdl
+-- Avalon-MM Master BFM (write/read examples)
+-- Signals: clk, address, writedata, readdata, write, read, waitreq
+
+procedure avalon_write(
+    signal clk       : in  std_logic;
+    signal address   : out std_logic_vector;
+    signal writedata : out std_logic_vector;
+    signal write     : out std_logic;
+    signal waitreq   : in  std_logic;
+    constant addr    : in  unsigned;
+    constant data    : in  std_logic_vector
+) is
+begin
+    wait until rising_edge(clk);
+    address   <= std_logic_vector(addr);
+    writedata <= data;
+    write     <= '1';
+    -- Wait while slave asserts waitreq
+    while waitreq = '1' loop
+        wait until rising_edge(clk);
+    end loop;
+    write <= '0';
+end procedure;
+
+procedure avalon_read(
+    signal clk       : in  std_logic;
+    signal address   : out std_logic_vector;
+    signal read      : out std_logic;
+    signal waitreq   : in  std_logic;
+    signal readdata  : in  std_logic_vector;
+    constant addr    : in  unsigned;
+    out data_o       : std_logic_vector
+) is
+begin
+    wait until rising_edge(clk);
+    address <= std_logic_vector(addr);
+    read    <= '1';
+    while waitreq = '1' loop
+        wait until rising_edge(clk);
+    end loop;
+    read   <= '0';
+    data_o := readdata;
+end procedure;
+
+-- Example usage in stimulus
+-- avalon_write(clk, address, writedata, write, waitreq, to_unsigned(16, address'length), x"DEADBEEF");
+-- avalon_read(clk, address, read, waitreq, readdata, to_unsigned(16, address'length), rd_value);
+
+-- Wishbone Master BFM (write/read examples)
+-- Signals: clk_i, adr_i, dat_i, dat_o, we_i, cyc_i, stb_i, ack_o, err_o
+
+procedure wb_write(
+    signal clk_i   : in  std_logic;
+    signal adr_i   : out std_logic_vector;
+    signal dat_i   : out std_logic_vector;
+    signal we_i    : out std_logic;
+    signal cyc_i   : out std_logic;
+    signal stb_i   : out std_logic;
+    signal ack_o   : in  std_logic;
+    signal err_o   : in  std_logic;
+    constant addr  : in  unsigned;
+    constant data  : in  std_logic_vector
+) is
+begin
+    wait until rising_edge(clk_i);
+    adr_i <= std_logic_vector(addr);
+    dat_i <= data;
+    we_i  <= '1';
+    cyc_i <= '1';
+    stb_i <= '1';
+    -- Wait for acknowledge
+    while ack_o = '0' loop
+        wait until rising_edge(clk_i);
+        assert err_o = '0' report "Wishbone error during write" severity error;
+    end loop;
+    cyc_i <= '0';
+    stb_i <= '0';
+    we_i  <= '0';
+end procedure;
+
+procedure wb_read(
+    signal clk_i   : in  std_logic;
+    signal adr_i   : out std_logic_vector;
+    signal dat_o   : in  std_logic_vector;
+    signal we_i    : out std_logic;
+    signal cyc_i   : out std_logic;
+    signal stb_i   : out std_logic;
+    signal ack_o   : in  std_logic;
+    signal err_o   : in  std_logic;
+    constant addr  : in  unsigned;
+    out data_o     : std_logic_vector
+) is
+begin
+    wait until rising_edge(clk_i);
+    adr_i <= std_logic_vector(addr);
+    we_i  <= '0';
+    cyc_i <= '1';
+    stb_i <= '1';
+    while ack_o = '0' loop
+        wait until rising_edge(clk_i);
+        assert err_o = '0' report "Wishbone error during read" severity error;
+    end loop;
+    data_o := dat_o;
+    cyc_i <= '0';
+    stb_i <= '0';
+end procedure;
+```
+
+Notes:
+- Adapt signal names to match your DUT or Platform Designer/Qsys system.
+- Keep reset synchronous (`rst_n`) and ensure any BFMs honor deassertion synchronization.
+- For Avalon-ST pipelines, add backpressure handling (`valid`/`ready`).
 
 ---
 
@@ -1169,7 +1359,143 @@ end architecture rtl;
 
 ## 🟢 **Lattice IP Processors**
 
+### Learning Objectives
+- Understand LM32 integration and Wishbone bus interfacing.
+- Map instruction/data buses to memory and peripherals.
+- Configure JTAG/debug signals and interrupts.
+- Apply consistent reset strategies (`rst_n`) and clocking.
+
+### Integration Guide (LM32 + Wishbone)
+1. Instantiate the LM32 core with appropriate generics for caches and debug.
+2. Connect Wishbone Instruction/Data masters to on-chip memory and peripheral slaves.
+3. Create address maps for ROM/RAM and memory-mapped I/O.
+4. Bridge external I/O (GPIO/UART) via Wishbone slave components.
+5. Integrate JTAG signals for debug and set interrupt routing.
+
+### Common Pitfalls
+- Incomplete Wishbone handshake (STB/CYC/ACK) causing bus stalls.
+- Mixed reset conventions (`rst_i` vs `rst_n`) across subsystems.
+- Cache settings mismatched to memory latencies.
+- Un-synchronized external inputs leading to metastability.
+
+### Design Verification Checklist
+- Exercise Wishbone transactions with BFMs (reads/writes, burst, error paths).
+- Validate address decoding and peripheral access timing.
+- Check interrupt latencies and JTAG debug functionality.
+- Confirm reset sequencing and clock domain boundaries.
+
+### Physical Notes
+- Constrain Wishbone timing; budget for fanout on shared buses.
+- Review resource utilization for instruction/data paths and caches.
+- Ensure clean CDC for peripherals crossing domains.
+
+References: State Machines, Testbench Essentials, Code Analysis & Reverse Engineering, Enterprise Patterns.
+
+## 🔵 **Intel/Altera IP Processors (Cyclone III)**
+
+### Overview
+Cyclone III designs commonly use Nios II and Platform Designer (Qsys) with Avalon-MM/Avalon-ST interconnect. This section provides integration guidance tailored to this project.
+
+### Learning Objectives
+- Build a Nios II system in Platform Designer/Qsys.
+- Integrate Avalon-MM slaves for memory-mapped peripherals.
+- Manage clock/reset, address maps, and interrupt routing.
+- Validate interfaces using Avalon BFMs and simulation.
+
+### Integration Guide (Nios II + Avalon-MM)
+1. In Platform Designer, create a system: add `Nios II`, `On-Chip Memory`, and custom `Avalon-MM Slave` components.
+2. Define clock (`clk`) and reset (`rst_n`) sources; connect all components consistently.
+3. Map address spaces for memory and peripherals; export conduit signals for I/O.
+4. Generate HDL; instantiate the system in your top-level and connect board I/O.
+5. Implement a simple Avalon-MM slave wrapper for LEDs or registers.
+
+```vhdl
+-- Example Avalon-MM slave (cheatsheet example; do not place directly in src modules)
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity avalon_led_slave is
+    port (
+        clk      : in  std_logic;
+        rst_n    : in  std_logic;
+        address  : in  std_logic_vector(3 downto 0);
+        writedata: in  std_logic_vector(31 downto 0);
+        readdata : out std_logic_vector(31 downto 0);
+        write    : in  std_logic;
+        read     : in  std_logic;
+        waitreq  : out std_logic;
+        leds     : out std_logic_vector(7 downto 0)
+    );
+end entity;
+
+architecture rtl of avalon_led_slave is
+    signal reg0 : unsigned(7 downto 0);
+begin
+    waitreq <= '0';
+    leds    <= std_logic_vector(reg0);
+
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst_n = '0' then
+                reg0 <= (others => '0');
+                readdata <= (others => '0');
+            else
+                if write = '1' and address = x"0" then
+                    reg0 <= unsigned(writedata(7 downto 0));
+                end if;
+                if read = '1' then
+                    case address is
+                        when x"0" => readdata <= (23 downto 0 => '0') & std_logic_vector(reg0);
+                        when others => readdata <= (others => '0');
+                    end case;
+                end if;
+            end if;
+        end if;
+    end process;
+end architecture;
+```
+
+### Common Pitfalls
+- Incorrect Avalon-MM address alignment and byte enables.
+- Not handling `waitreq` for slaves with variable latency.
+- Mixed reset polarities between Platform Designer system and user logic.
+- Ignoring Qsys-generated timing constraints or clock relationships.
+
+### Design Verification Checklist
+- Simulate with Avalon BFMs for read/write/burst coverage.
+- Verify reset sequencing and that `rst_n` deassertion is synchronized.
+- Check address map correctness and readdata/writedata widths.
+- Validate resource usage and timing closure under Cyclone III constraints.
+
+### Physical Implementation Notes
+- Partition interconnect to manage fanout; register bridges to improve timing.
+- Use on-chip memory for low-latency control paths; constrain I/O timing.
+- For multi-clock systems, use clock crossing bridges and proper constraints.
+
+### Advanced Concepts
+- DMA engines for high-throughput paths; cache-coherent buffers where applicable.
+- Avalon-ST pipelines for streaming data; backpressure handling.
+- Interrupt controllers; latency budgeting for real-time responsiveness.
+
+See also: Clocking & Reset Strategies, Synthesis Guidelines, Testbench Essentials, Enterprise Patterns.
+
 ### **LatticeMico32 (LM32) Soft Processor**
+
+Reset alias note: LM32 examples often use active-high `rst_i`. For consistency with this cheatsheet’s synchronous, active-low `rst_n` convention, alias the reset in your wrapper or top-level:
+
+```vhdl
+-- Reset/clock aliasing (wrapper/top-level)
+signal clk    : std_logic;
+signal rst_n  : std_logic;
+signal clk_i  : std_logic;
+signal rst_i  : std_logic;
+
+clk_i <= clk;       -- Direct clock mapping
+rst_i <= not rst_n; -- Active-low to active-high reset alias
+```
+
 ```vhdl
 -- LatticeMico32 System Integration
 library ieee;
