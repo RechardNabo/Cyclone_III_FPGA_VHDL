@@ -72,6 +72,14 @@ entity seven_segment_4digit is
 end entity seven_segment_4digit;
 
 architecture rtl of seven_segment_4digit is
+    attribute chip_pin : string;
+    attribute chip_pin of clk     : signal is "G2";
+    attribute chip_pin of reset_n : signal is "G1";
+    attribute chip_pin of digits  : signal is "V9 T11 W8 T10 AB9 Y10 AA10 U11 V8 W6 AB8 AA9 AA8 AA14 W10 V11";
+    attribute chip_pin of dp_in   : signal is "AB5 AA5 W7 AB7";
+    attribute chip_pin of seg     : signal is "AB3 V10 AB4 AB10 U10 U9 Y7";
+    attribute chip_pin of dp      : signal is "Y6";
+    attribute chip_pin of dig_en  : signal is "V7 AA7 AA4 Y8";
     constant DIGIT_COUNT : integer := 4;
 
     function calc_ticks_per_digit(clk_hz : integer; refresh_hz : integer) return integer is
@@ -98,9 +106,10 @@ architecture rtl of seven_segment_4digit is
     signal current_nibble  : std_logic_vector(3 downto 0);
     signal current_dp      : std_logic;
 
-    signal raw_seg    : std_logic_vector(6 downto 0);
-    signal raw_dp     : std_logic;
-    signal raw_dig_en : std_logic_vector(3 downto 0);
+    signal seg_reg    : std_logic_vector(6 downto 0) := (others => '0');
+    signal dp_reg     : std_logic := '0';
+    signal dig_en_reg : std_logic_vector(3 downto 0) := (others => '0');
+    signal blanking   : std_logic := '0';
 
     function hex_to_segments(nibble : std_logic_vector(3 downto 0)) return std_logic_vector is
         variable result : std_logic_vector(6 downto 0);
@@ -134,14 +143,19 @@ begin
         if reset_n = '0' then
             refresh_counter <= 0;
             digit_index     <= 0;
+            blanking        <= '0';
         elsif rising_edge(clk) then
-            if refresh_counter = TICKS_PER_DIGIT - 1 then
+            if blanking = '1' then
+                blanking        <= '0';
                 refresh_counter <= 0;
                 if digit_index = DIGIT_COUNT - 1 then
                     digit_index <= 0;
                 else
                     digit_index <= digit_index + 1;
                 end if;
+            elsif refresh_counter = TICKS_PER_DIGIT - 1 then
+                refresh_counter <= 0;
+                blanking        <= '1';
             else
                 refresh_counter <= refresh_counter + 1;
             end if;
@@ -160,17 +174,31 @@ begin
         dp_in(2) when 2,
         dp_in(3) when others;
 
-    raw_seg <= hex_to_segments(current_nibble);
-    raw_dp  <= current_dp;
+    outputs : process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            seg_reg    <= (others => '0');
+            dp_reg     <= '0';
+            dig_en_reg <= (others => '0');
+        elsif rising_edge(clk) then
+            seg_reg <= hex_to_segments(current_nibble);
+            dp_reg  <= current_dp;
 
-    with digit_index select raw_dig_en <=
-        "0001" when 0,
-        "0010" when 1,
-        "0100" when 2,
-        "1000" when others;
+            if blanking = '1' then
+                dig_en_reg <= (others => '0');
+            else
+                case digit_index is
+                    when 0 => dig_en_reg <= "0001";
+                    when 1 => dig_en_reg <= "0010";
+                    when 2 => dig_en_reg <= "0100";
+                    when others => dig_en_reg <= "1000";
+                end case;
+            end if;
+        end if;
+    end process outputs;
 
-    seg    <= not raw_seg    when COMMON_ANODE else raw_seg;
-    dp     <= not raw_dp     when COMMON_ANODE else raw_dp;
-    dig_en <= not raw_dig_en when COMMON_ANODE else raw_dig_en;
+    seg    <= not seg_reg    when COMMON_ANODE else seg_reg;
+    dp     <= not dp_reg     when COMMON_ANODE else dp_reg;
+    dig_en <= not dig_en_reg when COMMON_ANODE else dig_en_reg;
 
 end architecture rtl;

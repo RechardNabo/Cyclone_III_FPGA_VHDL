@@ -156,9 +156,6 @@ set_global_assignment -name VHDL_FILE src/Basic_Logic/Driver.vhd
 set_global_assignment -name VHDL_FILE src/Basic_Logic/decoder_2to4.vhd
 set_global_assignment -name VHDL_FILE src/Basic_Logic/Basic_Logic_Top.vhd
 set_global_assignment -name VHDL_FILE src/Basic_Logic/AND_gate.vhd
-set_location_assignment PIN_J1 -to led_out
-set_location_assignment PIN_H2 -to reset
-set_location_assignment PIN_G21 -to clk
 set_global_assignment -name RELEASE_CLEARS_BEFORE_TRI_STATES ON
 set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
 set_global_assignment -name ENABLE_NCE_PIN OFF

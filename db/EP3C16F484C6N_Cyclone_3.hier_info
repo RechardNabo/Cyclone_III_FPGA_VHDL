@@ -1,4 +1,17 @@
 |seven_segment_4digit
+clk => dig_en_reg[0].CLK
+clk => dig_en_reg[1].CLK
+clk => dig_en_reg[2].CLK
+clk => dig_en_reg[3].CLK
+clk => dp_reg.CLK
+clk => seg_reg[0].CLK
+clk => seg_reg[1].CLK
+clk => seg_reg[2].CLK
+clk => seg_reg[3].CLK
+clk => seg_reg[4].CLK
+clk => seg_reg[5].CLK
+clk => seg_reg[6].CLK
+clk => blanking.CLK
 clk => digit_index[0].CLK
 clk => digit_index[1].CLK
 clk => refresh_counter[0].CLK
@@ -15,6 +28,7 @@ clk => refresh_counter[10].CLK
 clk => refresh_counter[11].CLK
 clk => refresh_counter[12].CLK
 clk => refresh_counter[13].CLK
+reset_n => blanking.ACLR
 reset_n => digit_index[0].ACLR
 reset_n => digit_index[1].ACLR
 reset_n => refresh_counter[0].ACLR
@@ -31,6 +45,18 @@ reset_n => refresh_counter[10].ACLR
 reset_n => refresh_counter[11].ACLR
 reset_n => refresh_counter[12].ACLR
 reset_n => refresh_counter[13].ACLR
+reset_n => dig_en_reg[0].ACLR
+reset_n => dig_en_reg[1].ACLR
+reset_n => dig_en_reg[2].ACLR
+reset_n => dig_en_reg[3].ACLR
+reset_n => dp_reg.ACLR
+reset_n => seg_reg[0].ACLR
+reset_n => seg_reg[1].ACLR
+reset_n => seg_reg[2].ACLR
+reset_n => seg_reg[3].ACLR
+reset_n => seg_reg[4].ACLR
+reset_n => seg_reg[5].ACLR
+reset_n => seg_reg[6].ACLR
 digits[0] => Mux3.IN3
 digits[1] => Mux2.IN3
 digits[2] => Mux1.IN3
@@ -51,17 +77,17 @@ dp_in[0] => Mux4.IN3
 dp_in[1] => Mux4.IN2
 dp_in[2] => Mux4.IN1
 dp_in[3] => Mux4.IN0
-seg[0] <= Mux11.DB_MAX_OUTPUT_PORT_TYPE
-seg[1] <= Mux10.DB_MAX_OUTPUT_PORT_TYPE
-seg[2] <= Mux9.DB_MAX_OUTPUT_PORT_TYPE
-seg[3] <= Mux8.DB_MAX_OUTPUT_PORT_TYPE
-seg[4] <= Mux7.DB_MAX_OUTPUT_PORT_TYPE
-seg[5] <= Mux6.DB_MAX_OUTPUT_PORT_TYPE
-seg[6] <= Mux5.DB_MAX_OUTPUT_PORT_TYPE
-dp <= Mux4.DB_MAX_OUTPUT_PORT_TYPE
-dig_en[0] <= Mux15.DB_MAX_OUTPUT_PORT_TYPE
-dig_en[1] <= Mux14.DB_MAX_OUTPUT_PORT_TYPE
-dig_en[2] <= Mux13.DB_MAX_OUTPUT_PORT_TYPE
-dig_en[3] <= Mux12.DB_MAX_OUTPUT_PORT_TYPE
+seg[0] << seg_reg[0].DB_MAX_OUTPUT_PORT_TYPE
+seg[1] << seg_reg[1].DB_MAX_OUTPUT_PORT_TYPE
+seg[2] << seg_reg[2].DB_MAX_OUTPUT_PORT_TYPE
+seg[3] << seg_reg[3].DB_MAX_OUTPUT_PORT_TYPE
+seg[4] << seg_reg[4].DB_MAX_OUTPUT_PORT_TYPE
+seg[5] << seg_reg[5].DB_MAX_OUTPUT_PORT_TYPE
+seg[6] << seg_reg[6].DB_MAX_OUTPUT_PORT_TYPE
+dp << dp_reg.DB_MAX_OUTPUT_PORT_TYPE
+dig_en[0] << dig_en_reg[0].DB_MAX_OUTPUT_PORT_TYPE
+dig_en[1] << dig_en_reg[1].DB_MAX_OUTPUT_PORT_TYPE
+dig_en[2] << dig_en_reg[2].DB_MAX_OUTPUT_PORT_TYPE
+dig_en[3] << dig_en_reg[3].DB_MAX_OUTPUT_PORT_TYPE
 
 
