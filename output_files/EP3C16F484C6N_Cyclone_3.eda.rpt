@@ -1,5 +1,5 @@
 EDA Netlist Writer report for EP3C16F484C6N_Cyclone_3
-Wed Nov 05 21:05:28 2025
+Thu Nov 06 20:35:44 2025
 Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
 
 
@@ -36,7 +36,7 @@ applicable agreement for further details.
 +-------------------------------------------------------------------+
 ; EDA Netlist Writer Summary                                        ;
 +---------------------------+---------------------------------------+
-; EDA Netlist Writer Status ; Successful - Wed Nov 05 21:05:28 2025 ;
+; EDA Netlist Writer Status ; Successful - Thu Nov 06 20:35:44 2025 ;
 ; Revision Name             ; EP3C16F484C6N_Cyclone_3               ;
 ; Top-level Entity Name     ; seven_segment_4digit                  ;
 ; Family                    ; Cyclone III                           ;
@@ -88,7 +88,7 @@ applicable agreement for further details.
 Info: *******************************************************************
 Info: Running Quartus II 64-Bit EDA Netlist Writer
     Info: Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
-    Info: Processing started: Wed Nov 05 21:05:27 2025
+    Info: Processing started: Thu Nov 06 20:35:43 2025
 Info: Command: quartus_eda --read_settings_files=off --write_settings_files=off EP3C16F484C6N_Cyclone_3 -c EP3C16F484C6N_Cyclone_3
 Info (204019): Generated file EP3C16F484C6N_Cyclone_3_6_1200mv_85c_slow.vho in folder "C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/simulation/modelsim/" for EDA simulation tool
 Info (204019): Generated file EP3C16F484C6N_Cyclone_3_6_1200mv_0c_slow.vho in folder "C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/simulation/modelsim/" for EDA simulation tool
@@ -99,8 +99,8 @@ Info (204019): Generated file EP3C16F484C6N_Cyclone_3_6_1200mv_0c_vhd_slow.sdo i
 Info (204019): Generated file EP3C16F484C6N_Cyclone_3_min_1200mv_0c_vhd_fast.sdo in folder "C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/simulation/modelsim/" for EDA simulation tool
 Info (204019): Generated file EP3C16F484C6N_Cyclone_3_vhd.sdo in folder "C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/simulation/modelsim/" for EDA simulation tool
 Info: Quartus II 64-Bit EDA Netlist Writer was successful. 0 errors, 0 warnings
-    Info: Peak virtual memory: 4542 megabytes
-    Info: Processing ended: Wed Nov 05 21:05:28 2025
+    Info: Peak virtual memory: 4543 megabytes
+    Info: Processing ended: Thu Nov 06 20:35:44 2025
     Info: Elapsed time: 00:00:01
     Info: Total CPU time (on all processors): 00:00:01
 

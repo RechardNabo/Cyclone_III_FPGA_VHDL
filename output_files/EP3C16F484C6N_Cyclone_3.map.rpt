@@ -1,5 +1,5 @@
 Analysis & Synthesis report for EP3C16F484C6N_Cyclone_3
-Wed Nov 05 21:05:06 2025
+Thu Nov 06 20:40:58 2025
 Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
 
 
@@ -43,15 +43,15 @@ applicable agreement for further details.
 +---------------------------------------------------------------------------------+
 ; Analysis & Synthesis Summary                                                    ;
 +------------------------------------+--------------------------------------------+
-; Analysis & Synthesis Status        ; Successful - Wed Nov 05 21:05:06 2025      ;
+; Analysis & Synthesis Status        ; Successful - Thu Nov 06 20:40:58 2025      ;
 ; Quartus II 64-Bit Version          ; 13.1.0 Build 162 10/23/2013 SJ Web Edition ;
 ; Revision Name                      ; EP3C16F484C6N_Cyclone_3                    ;
 ; Top-level Entity Name              ; seven_segment_4digit                       ;
 ; Family                             ; Cyclone III                                ;
-; Total logic elements               ; 48                                         ;
-;     Total combinational functions  ; 48                                         ;
-;     Dedicated logic registers      ; 16                                         ;
-; Total registers                    ; 16                                         ;
+; Total logic elements               ; 43                                         ;
+;     Total combinational functions  ; 43                                         ;
+;     Dedicated logic registers      ; 29                                         ;
+; Total registers                    ; 29                                         ;
 ; Total pins                         ; 34                                         ;
 ; Total virtual pins                 ; 0                                          ;
 ; Total memory bits                  ; 0                                          ;
@@ -172,28 +172,28 @@ Parallel compilation was disabled, but you have multiple processors available. E
 +---------------------------------------------+-----------+
 ; Resource                                    ; Usage     ;
 +---------------------------------------------+-----------+
-; Estimated Total logic elements              ; 48        ;
+; Estimated Total logic elements              ; 43        ;
 ;                                             ;           ;
-; Total combinational functions               ; 48        ;
+; Total combinational functions               ; 43        ;
 ; Logic element usage by number of LUT inputs ;           ;
-;     -- 4 input functions                    ; 27        ;
-;     -- 3 input functions                    ; 3         ;
-;     -- <=2 input functions                  ; 18        ;
+;     -- 4 input functions                    ; 22        ;
+;     -- 3 input functions                    ; 6         ;
+;     -- <=2 input functions                  ; 15        ;
 ;                                             ;           ;
 ; Logic elements by mode                      ;           ;
-;     -- normal mode                          ; 35        ;
+;     -- normal mode                          ; 30        ;
 ;     -- arithmetic mode                      ; 13        ;
 ;                                             ;           ;
-; Total registers                             ; 16        ;
-;     -- Dedicated logic registers            ; 16        ;
+; Total registers                             ; 29        ;
+;     -- Dedicated logic registers            ; 29        ;
 ;     -- I/O registers                        ; 0         ;
 ;                                             ;           ;
 ; I/O pins                                    ; 34        ;
 ; Embedded Multiplier 9-bit elements          ; 0         ;
 ; Maximum fan-out node                        ; clk~input ;
-; Maximum fan-out                             ; 16        ;
-; Total fan-out                               ; 246       ;
-; Average fan-out                             ; 1.86      ;
+; Maximum fan-out                             ; 29        ;
+; Total fan-out                               ; 282       ;
+; Average fan-out                             ; 2.01      ;
 +---------------------------------------------+-----------+
 
 
@@ -202,7 +202,7 @@ Parallel compilation was disabled, but you have multiple processors available. E
 +----------------------------+-------------------+--------------+-------------+--------------+---------+-----------+------+--------------+-----------------------+--------------+
 ; Compilation Hierarchy Node ; LC Combinationals ; LC Registers ; Memory Bits ; DSP Elements ; DSP 9x9 ; DSP 18x18 ; Pins ; Virtual Pins ; Full Hierarchy Name   ; Library Name ;
 +----------------------------+-------------------+--------------+-------------+--------------+---------+-----------+------+--------------+-----------------------+--------------+
-; |seven_segment_4digit      ; 48 (48)           ; 16 (16)      ; 0           ; 0            ; 0       ; 0         ; 34   ; 0            ; |seven_segment_4digit ; work         ;
+; |seven_segment_4digit      ; 43 (43)           ; 29 (29)      ; 0           ; 0            ; 0       ; 0         ; 34   ; 0            ; |seven_segment_4digit ; work         ;
 +----------------------------+-------------------+--------------+-------------+--------------+---------+-----------+------+--------------+-----------------------+--------------+
 Note: For table entries with two numbers listed, the numbers in parentheses indicate the number of resources of the given type used by the specific entity alone. The numbers listed outside of parentheses indicate the total resources of the given type used by the specific entity and all of its sub-entities in the hierarchy.
 
@@ -212,23 +212,24 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +----------------------------------------------+-------+
 ; Statistic                                    ; Value ;
 +----------------------------------------------+-------+
-; Total registers                              ; 16    ;
-; Number of registers using Synchronous Clear  ; 0     ;
+; Total registers                              ; 29    ;
+; Number of registers using Synchronous Clear  ; 14    ;
 ; Number of registers using Synchronous Load   ; 0     ;
-; Number of registers using Asynchronous Clear ; 16    ;
+; Number of registers using Asynchronous Clear ; 29    ;
 ; Number of registers using Asynchronous Load  ; 0     ;
 ; Number of registers using Clock Enable       ; 0     ;
 ; Number of registers using Preset             ; 0     ;
 +----------------------------------------------+-------+
 
 
-+------------------------------------------------------------------------------------------------------------------------------------------+
-; Multiplexer Restructuring Statistics (Restructuring Performed)                                                                           ;
-+--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------+
-; Multiplexer Inputs ; Bus Width ; Baseline Area ; Area if Restructured ; Saving if Restructured ; Registered ; Example Multiplexer Output ;
-+--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------+
-; 4:1                ; 5 bits    ; 10 LEs        ; 10 LEs               ; 0 LEs                  ; No         ; |seven_segment_4digit|Mux0 ;
-+--------------------+-----------+---------------+----------------------+------------------------+------------+----------------------------+
++---------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Multiplexer Restructuring Statistics (Restructuring Performed)                                                                                          ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+-------------------------------------------+
+; Multiplexer Inputs ; Bus Width ; Baseline Area ; Area if Restructured ; Saving if Restructured ; Registered ; Example Multiplexer Output                ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+-------------------------------------------+
+; 3:1                ; 14 bits   ; 28 LEs        ; 14 LEs               ; 14 LEs                 ; Yes        ; |seven_segment_4digit|refresh_counter[13] ;
+; 4:1                ; 4 bits    ; 8 LEs         ; 8 LEs                ; 0 LEs                  ; No         ; |seven_segment_4digit|Mux0                ;
++--------------------+-----------+---------------+----------------------+------------------------+------------+-------------------------------------------+
 
 
 +--------------------------------------------------------------------------------------+
@@ -258,7 +259,7 @@ Note: In order to hide this table in the UI and the text report file, please set
 Info: *******************************************************************
 Info: Running Quartus II 64-Bit Analysis & Synthesis
     Info: Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
-    Info: Processing started: Wed Nov 05 21:05:02 2025
+    Info: Processing started: Thu Nov 06 20:40:55 2025
 Info: Command: quartus_map --read_settings_files=on --write_settings_files=off EP3C16F484C6N_Cyclone_3 -c EP3C16F484C6N_Cyclone_3
 Warning (20028): Parallel compilation is not licensed and has been disabled
 Info (12021): Found 0 design units, including 0 entities, in source file src/hardware_alter_board_basics/switches.vhd
@@ -375,18 +376,18 @@ Info (12021): Found 2 design units, including 1 entities, in source file src/bas
     Info (12022): Found design unit 1: AND_gate-dataflow
     Info (12023): Found entity 1: AND_gate
 Info (12127): Elaborating entity "seven_segment_4digit" for the top level hierarchy
-Warning (10542): VHDL Variable Declaration warning at seven_segment_4digit.vhd(107): used initial value expression for variable "value" because variable was never assigned a value
+Warning (10542): VHDL Variable Declaration warning at seven_segment_4digit.vhd(108): used initial value expression for variable "value" because variable was never assigned a value
 Info (286030): Timing-Driven Synthesis is running
 Info (16010): Generating hard_block partition "hard_block:auto_generated_inst"
     Info (16011): Adding 0 node(s), including 0 DDIO, 0 PLL, 0 transceiver and 0 LCELL
-Info (21057): Implemented 82 device resources after synthesis - the final resource count might be different
+Info (21057): Implemented 77 device resources after synthesis - the final resource count might be different
     Info (21058): Implemented 22 input pins
     Info (21059): Implemented 12 output pins
-    Info (21061): Implemented 48 logic cells
+    Info (21061): Implemented 43 logic cells
 Info: Quartus II 64-Bit Analysis & Synthesis was successful. 0 errors, 2 warnings
     Info: Peak virtual memory: 4662 megabytes
-    Info: Processing ended: Wed Nov 05 21:05:06 2025
-    Info: Elapsed time: 00:00:04
-    Info: Total CPU time (on all processors): 00:00:03
+    Info: Processing ended: Thu Nov 06 20:40:58 2025
+    Info: Elapsed time: 00:00:03
+    Info: Total CPU time (on all processors): 00:00:02
 
 
