@@ -1,5 +1,5 @@
 Fitter report for EP3C16F484C6N_Cyclone_3
-Thu Nov 06 20:35:34 2025
+Sat Nov 08 08:15:26 2025
 Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
 
 
@@ -11,36 +11,37 @@ Quartus II 64-Bit Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
   3. Fitter Settings
   4. Parallel Compilation
   5. I/O Assignment Warnings
-  6. Incremental Compilation Preservation Summary
-  7. Incremental Compilation Partition Settings
-  8. Incremental Compilation Placement Preservation
-  9. Pin-Out File
- 10. Fitter Resource Usage Summary
- 11. Fitter Partition Statistics
- 12. Input Pins
- 13. Output Pins
- 14. Dual Purpose and Dedicated Pins
- 15. I/O Bank Usage
- 16. All Package Pins
- 17. Fitter Resource Utilization by Entity
- 18. Delay Chain Summary
- 19. Pad To Core Delay Chain Fanout
- 20. Control Signals
- 21. Global & Other Fast Signals
- 22. Non-Global High Fan-Out Signals
- 23. Routing Usage Summary
- 24. LAB Logic Elements
- 25. LAB-wide Signals
- 26. LAB Signals Sourced
- 27. LAB Signals Sourced Out
- 28. LAB Distinct Inputs
- 29. I/O Rules Summary
- 30. I/O Rules Details
- 31. I/O Rules Matrix
- 32. Fitter Device Options
- 33. Operating Settings and Conditions
- 34. Fitter Messages
- 35. Fitter Suppressed Messages
+  6. Ignored Assignments
+  7. Incremental Compilation Preservation Summary
+  8. Incremental Compilation Partition Settings
+  9. Incremental Compilation Placement Preservation
+ 10. Pin-Out File
+ 11. Fitter Resource Usage Summary
+ 12. Fitter Partition Statistics
+ 13. Input Pins
+ 14. Output Pins
+ 15. Dual Purpose and Dedicated Pins
+ 16. I/O Bank Usage
+ 17. All Package Pins
+ 18. Fitter Resource Utilization by Entity
+ 19. Delay Chain Summary
+ 20. Pad To Core Delay Chain Fanout
+ 21. Control Signals
+ 22. Global & Other Fast Signals
+ 23. Non-Global High Fan-Out Signals
+ 24. Routing Usage Summary
+ 25. LAB Logic Elements
+ 26. LAB-wide Signals
+ 27. LAB Signals Sourced
+ 28. LAB Signals Sourced Out
+ 29. LAB Distinct Inputs
+ 30. I/O Rules Summary
+ 31. I/O Rules Details
+ 32. I/O Rules Matrix
+ 33. Fitter Device Options
+ 34. Operating Settings and Conditions
+ 35. Fitter Messages
+ 36. Fitter Suppressed Messages
 
 
 
@@ -66,7 +67,7 @@ applicable agreement for further details.
 +---------------------------------------------------------------------------------+
 ; Fitter Summary                                                                  ;
 +------------------------------------+--------------------------------------------+
-; Fitter Status                      ; Successful - Thu Nov 06 20:35:34 2025      ;
+; Fitter Status                      ; Successful - Sat Nov 08 08:15:26 2025      ;
 ; Quartus II 64-Bit Version          ; 13.1.0 Build 162 10/23/2013 SJ Web Edition ;
 ; Revision Name                      ; EP3C16F484C6N_Cyclone_3                    ;
 ; Top-level Entity Name              ; seven_segment_4digit                       ;
@@ -176,6 +177,266 @@ Parallel compilation was disabled, but you have multiple processors available. E
 +-----------+--------------------------------------+
 
 
++---------------------------------------------------------------------------------------------+
+; Ignored Assignments                                                                         ;
++----------+----------------+--------------+-----------------+---------------+----------------+
+; Name     ; Ignored Entity ; Ignored From ; Ignored To      ; Ignored Value ; Ignored Source ;
++----------+----------------+--------------+-----------------+---------------+----------------+
+; Location ;                ;              ; BUTTON[0]       ; PIN_H2        ; QSF Assignment ;
+; Location ;                ;              ; BUTTON[1]       ; PIN_G3        ; QSF Assignment ;
+; Location ;                ;              ; BUTTON[2]       ; PIN_F1        ; QSF Assignment ;
+; Location ;                ;              ; CLOCK_50        ; PIN_G21       ; QSF Assignment ;
+; Location ;                ;              ; CLOCK_50_2      ; PIN_B12       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[0]    ; PIN_C4        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[10]   ; PIN_B4        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[11]   ; PIN_A7        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[12]   ; PIN_C8        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[1]    ; PIN_A3        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[2]    ; PIN_B3        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[3]    ; PIN_C3        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[4]    ; PIN_A5        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[5]    ; PIN_C6        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[6]    ; PIN_B6        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[7]    ; PIN_A6        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[8]    ; PIN_C7        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_ADDR[9]    ; PIN_B7        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_BA_0       ; PIN_B5        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_BA_1       ; PIN_A4        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_CAS_N      ; PIN_G8        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_CKE        ; PIN_E6        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_CLK        ; PIN_E5        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_CS_N       ; PIN_G7        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[0]      ; PIN_D10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[10]     ; PIN_A9        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[11]     ; PIN_C10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[12]     ; PIN_B10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[13]     ; PIN_A10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[14]     ; PIN_E10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[15]     ; PIN_F10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[1]      ; PIN_G10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[2]      ; PIN_H10       ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[3]      ; PIN_E9        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[4]      ; PIN_F9        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[5]      ; PIN_G9        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[6]      ; PIN_H9        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[7]      ; PIN_F8        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[8]      ; PIN_A8        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_DQ[9]      ; PIN_B9        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_LDQM       ; PIN_E7        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_RAS_N      ; PIN_F7        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_UDQM       ; PIN_B8        ; QSF Assignment ;
+; Location ;                ;              ; DRAM_WE_N       ; PIN_D6        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[0]      ; PIN_P7        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[10]     ; PIN_N1        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[11]     ; PIN_M3        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[12]     ; PIN_M2        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[13]     ; PIN_M1        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[14]     ; PIN_L7        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[15]     ; PIN_L6        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[16]     ; PIN_AA2       ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[17]     ; PIN_M5        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[18]     ; PIN_M6        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[19]     ; PIN_P1        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[1]      ; PIN_P5        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[20]     ; PIN_P3        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[21]     ; PIN_R2        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[2]      ; PIN_P6        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[3]      ; PIN_N7        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[4]      ; PIN_N5        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[5]      ; PIN_N6        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[6]      ; PIN_M8        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[7]      ; PIN_M4        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[8]      ; PIN_P2        ; QSF Assignment ;
+; Location ;                ;              ; FL_ADDR[9]      ; PIN_N2        ; QSF Assignment ;
+; Location ;                ;              ; FL_BYTE_N       ; PIN_AA1       ; QSF Assignment ;
+; Location ;                ;              ; FL_CE_N         ; PIN_N8        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ15_AM1     ; PIN_Y2        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[0]        ; PIN_R7        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[10]       ; PIN_T4        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[11]       ; PIN_U2        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[12]       ; PIN_V1        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[13]       ; PIN_V4        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[14]       ; PIN_W2        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[1]        ; PIN_P8        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[2]        ; PIN_R8        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[3]        ; PIN_U1        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[4]        ; PIN_V2        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[5]        ; PIN_V3        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[6]        ; PIN_W1        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[7]        ; PIN_Y1        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[8]        ; PIN_T5        ; QSF Assignment ;
+; Location ;                ;              ; FL_DQ[9]        ; PIN_T7        ; QSF Assignment ;
+; Location ;                ;              ; FL_OE_N         ; PIN_R6        ; QSF Assignment ;
+; Location ;                ;              ; FL_RST_N        ; PIN_R1        ; QSF Assignment ;
+; Location ;                ;              ; FL_RY           ; PIN_M7        ; QSF Assignment ;
+; Location ;                ;              ; FL_WE_N         ; PIN_P4        ; QSF Assignment ;
+; Location ;                ;              ; FL_WP_N         ; PIN_T3        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_CLKIN[0]  ; PIN_AB12      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_CLKIN[1]  ; PIN_AA12      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_CLKOUT[0] ; PIN_AB3       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_CLKOUT[1] ; PIN_AA3       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[0]      ; PIN_AB16      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[10]     ; PIN_AB8       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[11]     ; PIN_AA8       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[12]     ; PIN_AB5       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[13]     ; PIN_AA5       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[14]     ; PIN_AB4       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[15]     ; PIN_AA4       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[16]     ; PIN_V14       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[17]     ; PIN_U14       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[18]     ; PIN_Y13       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[19]     ; PIN_W13       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[1]      ; PIN_AA16      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[20]     ; PIN_U13       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[21]     ; PIN_V12       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[22]     ; PIN_R10       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[23]     ; PIN_V11       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[24]     ; PIN_Y10       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[25]     ; PIN_W10       ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[26]     ; PIN_T8        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[27]     ; PIN_V8        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[28]     ; PIN_W7        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[29]     ; PIN_W6        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[2]      ; PIN_AA15      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[30]     ; PIN_V5        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[31]     ; PIN_U7        ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[3]      ; PIN_AB15      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[4]      ; PIN_AA14      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[5]      ; PIN_AB14      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[6]      ; PIN_AB13      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[7]      ; PIN_AA13      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[8]      ; PIN_AB10      ; QSF Assignment ;
+; Location ;                ;              ; GPIO0_D[9]      ; PIN_AA10      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_CLKIN[0]  ; PIN_AB11      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_CLKIN[1]  ; PIN_AA11      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_CLKOUT[0] ; PIN_R16       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_CLKOUT[1] ; PIN_T16       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[0]      ; PIN_AA20      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[10]     ; PIN_U15       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[11]     ; PIN_T15       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[12]     ; PIN_W15       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[13]     ; PIN_V15       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[14]     ; PIN_AB9       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[15]     ; PIN_AA9       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[16]     ; PIN_AA7       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[17]     ; PIN_AB7       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[18]     ; PIN_T14       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[19]     ; PIN_R14       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[1]      ; PIN_AB20      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[20]     ; PIN_U12       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[21]     ; PIN_T12       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[22]     ; PIN_R11       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[23]     ; PIN_R12       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[24]     ; PIN_U10       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[25]     ; PIN_T10       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[26]     ; PIN_U9        ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[27]     ; PIN_T9        ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[28]     ; PIN_Y7        ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[29]     ; PIN_U8        ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[2]      ; PIN_AA19      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[30]     ; PIN_V6        ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[31]     ; PIN_V7        ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[3]      ; PIN_AB19      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[4]      ; PIN_AB18      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[5]      ; PIN_AA18      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[6]      ; PIN_AA17      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[7]      ; PIN_AB17      ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[8]      ; PIN_Y17       ; QSF Assignment ;
+; Location ;                ;              ; GPIO1_D[9]      ; PIN_W17       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_DP         ; PIN_D13       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[0]       ; PIN_E11       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[1]       ; PIN_F11       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[2]       ; PIN_H12       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[3]       ; PIN_H13       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[4]       ; PIN_G12       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[5]       ; PIN_F12       ; QSF Assignment ;
+; Location ;                ;              ; HEX0_D[6]       ; PIN_F13       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_DP         ; PIN_B15       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[0]       ; PIN_A13       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[1]       ; PIN_B13       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[2]       ; PIN_C13       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[3]       ; PIN_A14       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[4]       ; PIN_B14       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[5]       ; PIN_E14       ; QSF Assignment ;
+; Location ;                ;              ; HEX1_D[6]       ; PIN_A15       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_DP         ; PIN_A18       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[0]       ; PIN_D15       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[1]       ; PIN_A16       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[2]       ; PIN_B16       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[3]       ; PIN_E15       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[4]       ; PIN_A17       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[5]       ; PIN_B17       ; QSF Assignment ;
+; Location ;                ;              ; HEX2_D[6]       ; PIN_F14       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_DP         ; PIN_G16       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[0]       ; PIN_B18       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[1]       ; PIN_F15       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[2]       ; PIN_A19       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[3]       ; PIN_B19       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[4]       ; PIN_C19       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[5]       ; PIN_D19       ; QSF Assignment ;
+; Location ;                ;              ; HEX3_D[6]       ; PIN_G15       ; QSF Assignment ;
+; Location ;                ;              ; LCD_BLON        ; PIN_F21       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[0]     ; PIN_D22       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[1]     ; PIN_D21       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[2]     ; PIN_C22       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[3]     ; PIN_C21       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[4]     ; PIN_B22       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[5]     ; PIN_B21       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[6]     ; PIN_D20       ; QSF Assignment ;
+; Location ;                ;              ; LCD_DATA[7]     ; PIN_C20       ; QSF Assignment ;
+; Location ;                ;              ; LCD_EN          ; PIN_E21       ; QSF Assignment ;
+; Location ;                ;              ; LCD_RS          ; PIN_F22       ; QSF Assignment ;
+; Location ;                ;              ; LCD_RW          ; PIN_E22       ; QSF Assignment ;
+; Location ;                ;              ; LEDG[0]         ; PIN_J1        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[1]         ; PIN_J2        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[2]         ; PIN_J3        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[3]         ; PIN_H1        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[4]         ; PIN_F2        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[5]         ; PIN_E1        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[6]         ; PIN_C1        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[7]         ; PIN_C2        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[8]         ; PIN_B2        ; QSF Assignment ;
+; Location ;                ;              ; LEDG[9]         ; PIN_B1        ; QSF Assignment ;
+; Location ;                ;              ; PS2_KBCLK       ; PIN_P22       ; QSF Assignment ;
+; Location ;                ;              ; PS2_KBDAT       ; PIN_P21       ; QSF Assignment ;
+; Location ;                ;              ; PS2_MSCLK       ; PIN_R21       ; QSF Assignment ;
+; Location ;                ;              ; PS2_MSDAT       ; PIN_R22       ; QSF Assignment ;
+; Location ;                ;              ; SD_CLK          ; PIN_Y21       ; QSF Assignment ;
+; Location ;                ;              ; SD_CMD          ; PIN_Y22       ; QSF Assignment ;
+; Location ;                ;              ; SD_DAT0         ; PIN_AA22      ; QSF Assignment ;
+; Location ;                ;              ; SD_DAT3         ; PIN_W21       ; QSF Assignment ;
+; Location ;                ;              ; SD_WP_N         ; PIN_W20       ; QSF Assignment ;
+; Location ;                ;              ; SW[0]           ; PIN_J6        ; QSF Assignment ;
+; Location ;                ;              ; SW[1]           ; PIN_H5        ; QSF Assignment ;
+; Location ;                ;              ; SW[2]           ; PIN_H6        ; QSF Assignment ;
+; Location ;                ;              ; SW[3]           ; PIN_G4        ; QSF Assignment ;
+; Location ;                ;              ; SW[4]           ; PIN_G5        ; QSF Assignment ;
+; Location ;                ;              ; SW[5]           ; PIN_J7        ; QSF Assignment ;
+; Location ;                ;              ; SW[6]           ; PIN_H7        ; QSF Assignment ;
+; Location ;                ;              ; SW[7]           ; PIN_E3        ; QSF Assignment ;
+; Location ;                ;              ; SW[8]           ; PIN_E4        ; QSF Assignment ;
+; Location ;                ;              ; SW[9]           ; PIN_D2        ; QSF Assignment ;
+; Location ;                ;              ; UART_CTS        ; PIN_V21       ; QSF Assignment ;
+; Location ;                ;              ; UART_RTS        ; PIN_V22       ; QSF Assignment ;
+; Location ;                ;              ; UART_RXD        ; PIN_U22       ; QSF Assignment ;
+; Location ;                ;              ; UART_TXD        ; PIN_U21       ; QSF Assignment ;
+; Location ;                ;              ; VGA_B[0]        ; PIN_K22       ; QSF Assignment ;
+; Location ;                ;              ; VGA_B[1]        ; PIN_K21       ; QSF Assignment ;
+; Location ;                ;              ; VGA_B[2]        ; PIN_J22       ; QSF Assignment ;
+; Location ;                ;              ; VGA_B[3]        ; PIN_K18       ; QSF Assignment ;
+; Location ;                ;              ; VGA_G[0]        ; PIN_H22       ; QSF Assignment ;
+; Location ;                ;              ; VGA_G[1]        ; PIN_J17       ; QSF Assignment ;
+; Location ;                ;              ; VGA_G[2]        ; PIN_K17       ; QSF Assignment ;
+; Location ;                ;              ; VGA_G[3]        ; PIN_J21       ; QSF Assignment ;
+; Location ;                ;              ; VGA_HS          ; PIN_L21       ; QSF Assignment ;
+; Location ;                ;              ; VGA_R[0]        ; PIN_H19       ; QSF Assignment ;
+; Location ;                ;              ; VGA_R[1]        ; PIN_H17       ; QSF Assignment ;
+; Location ;                ;              ; VGA_R[2]        ; PIN_H20       ; QSF Assignment ;
+; Location ;                ;              ; VGA_R[3]        ; PIN_H21       ; QSF Assignment ;
+; Location ;                ;              ; VGA_VS          ; PIN_L22       ; QSF Assignment ;
++----------+----------------+--------------+-----------------+---------------+----------------+
+
+
 +--------------------------------------------------------------------------------------------------+
 ; Incremental Compilation Preservation Summary                                                     ;
 +---------------------+--------------------+----------------------------+--------------------------+
@@ -241,7 +502,7 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ;     -- Dedicated logic registers            ; 29 / 15,408 ( < 1 % ) ;
 ;     -- I/O registers                        ; 0 / 1,660 ( 0 % )     ;
 ;                                             ;                       ;
-; Total LABs:  partially or completely used   ; 5 / 963 ( < 1 % )     ;
+; Total LABs:  partially or completely used   ; 4 / 963 ( < 1 % )     ;
 ; Virtual pins                                ; 0                     ;
 ; I/O pins                                    ; 34 / 347 ( 10 % )     ;
 ;     -- Clock pins                           ; 1 / 8 ( 13 % )        ;
@@ -295,7 +556,7 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ;     -- Dedicated logic registers            ; 29 / 15408 ( < 1 % ) ; 0 / 15408 ( 0 % )              ;
 ;     -- I/O registers                        ; 0                    ; 0                              ;
 ;                                             ;                      ;                                ;
-; Total LABs:  partially or completely used   ; 5 / 963 ( < 1 % )    ; 0 / 963 ( 0 % )                ;
+; Total LABs:  partially or completely used   ; 4 / 963 ( < 1 % )    ; 0 / 963 ( 0 % )                ;
 ;                                             ;                      ;                                ;
 ; Virtual pins                                ; 0                    ; 0                              ;
 ; I/O pins                                    ; 34                   ; 0                              ;
@@ -344,28 +605,28 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 +------------+-------+----------+--------------+--------------+--------------+-----------------------+--------------------+--------+----------------+---------------+-----------------+----------+--------------+--------------+---------------------------+----------------------+
 ; Name       ; Pin # ; I/O Bank ; X coordinate ; Y coordinate ; Z coordinate ; Combinational Fan-Out ; Registered Fan-Out ; Global ; Input Register ; Power Up High ; PCI I/O Enabled ; Bus Hold ; Weak Pull Up ; I/O Standard ; Termination Control Block ; Location assigned by ;
 +------------+-------+----------+--------------+--------------+--------------+-----------------------+--------------------+--------+----------------+---------------+-----------------+----------+--------------+--------------+---------------------------+----------------------+
-; clk        ; G2    ; 1        ; 0            ; 14           ; 0            ; 29                    ; 0                  ; yes    ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[0]  ; V11   ; 3        ; 19           ; 0            ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[10] ; Y10   ; 3        ; 19           ; 0            ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[11] ; AB9   ; 3        ; 16           ; 0            ; 0            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[12] ; T10   ; 3        ; 14           ; 0            ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[13] ; W8    ; 3        ; 11           ; 0            ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[14] ; T11   ; 3        ; 16           ; 0            ; 14           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[15] ; V9    ; 3        ; 14           ; 0            ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[1]  ; W10   ; 3        ; 19           ; 0            ; 14           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[2]  ; AA14  ; 4        ; 23           ; 0            ; 14           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[3]  ; AA8   ; 3        ; 16           ; 0            ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[4]  ; AA9   ; 3        ; 16           ; 0            ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[5]  ; AB8   ; 3        ; 16           ; 0            ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[6]  ; W6    ; 3        ; 7            ; 0            ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[7]  ; V8    ; 3        ; 11           ; 0            ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[8]  ; U11   ; 3        ; 19           ; 0            ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; digits[9]  ; AA10  ; 3        ; 19           ; 0            ; 0            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; dp_in[0]   ; AB7   ; 3        ; 11           ; 0            ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; dp_in[1]   ; W7    ; 3        ; 9            ; 0            ; 14           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; dp_in[2]   ; AA5   ; 3        ; 9            ; 0            ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; dp_in[3]   ; AB5   ; 3        ; 9            ; 0            ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
-; reset_n    ; G1    ; 1        ; 0            ; 14           ; 7            ; 29                    ; 0                  ; yes    ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; clk        ; G2    ; 1        ; 0            ; 14           ; 0            ; 29                    ; 0                  ; yes    ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; User                 ;
+; digits[0]  ; A14   ; 7        ; 23           ; 29           ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[10] ; B10   ; 8        ; 16           ; 29           ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[11] ; E11   ; 7        ; 21           ; 29           ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[12] ; A9    ; 8        ; 16           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[13] ; B13   ; 7        ; 21           ; 29           ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[14] ; D13   ; 7        ; 23           ; 29           ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[15] ; A13   ; 7        ; 21           ; 29           ; 0            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[1]  ; B7    ; 8        ; 11           ; 29           ; 7            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[2]  ; A8    ; 8        ; 14           ; 29           ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[3]  ; E13   ; 7        ; 23           ; 29           ; 14           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[4]  ; C13   ; 7        ; 23           ; 29           ; 0            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[5]  ; B8    ; 8        ; 14           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[6]  ; H11   ; 8        ; 19           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[7]  ; B14   ; 7        ; 23           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[8]  ; E12   ; 7        ; 21           ; 29           ; 14           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; digits[9]  ; F11   ; 7        ; 21           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; dp_in[0]   ; B16   ; 7        ; 28           ; 29           ; 0            ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; dp_in[1]   ; H13   ; 7        ; 28           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; dp_in[2]   ; B15   ; 7        ; 26           ; 29           ; 28           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; dp_in[3]   ; F12   ; 7        ; 28           ; 29           ; 21           ; 1                     ; 0                  ; no     ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; Fitter               ;
+; reset_n    ; G1    ; 1        ; 0            ; 14           ; 7            ; 29                    ; 0                  ; yes    ; no             ; no            ; yes             ; no       ; Off          ; 2.5 V        ; --                        ; User                 ;
 +------------+-------+----------+--------------+--------------+--------------+-----------------------+--------------------+--------+----------------+---------------+-----------------+----------+--------------+--------------+---------------------------+----------------------+
 
 
@@ -374,40 +635,58 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 +-----------+-------+----------+--------------+--------------+--------------+-----------------+------------------------+---------------+-----------+-----------------+------------+---------------+----------+--------------+--------------+------------------+-----------------------------------+---------------------------+----------------------------+-----------------------------+----------------------+----------------------+---------------------+
 ; Name      ; Pin # ; I/O Bank ; X coordinate ; Y coordinate ; Z coordinate ; Output Register ; Output Enable Register ; Power Up High ; Slew Rate ; PCI I/O Enabled ; Open Drain ; TRI Primitive ; Bus Hold ; Weak Pull Up ; I/O Standard ; Current Strength ; Termination                       ; Termination Control Block ; Output Buffer Pre-emphasis ; Voltage Output Differential ; Location assigned by ; Output Enable Source ; Output Enable Group ;
 +-----------+-------+----------+--------------+--------------+--------------+-----------------+------------------------+---------------+-----------+-----------------+------------+---------------+----------+--------------+--------------+------------------+-----------------------------------+---------------------------+----------------------------+-----------------------------+----------------------+----------------------+---------------------+
-; dig_en[0] ; Y8    ; 3        ; 11           ; 0            ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; dig_en[1] ; AA4   ; 3        ; 7            ; 0            ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; dig_en[2] ; AA7   ; 3        ; 11           ; 0            ; 14           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; dig_en[3] ; V7    ; 3        ; 7            ; 0            ; 14           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; dp        ; Y6    ; 3        ; 5            ; 0            ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[0]    ; Y7    ; 3        ; 9            ; 0            ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[1]    ; U9    ; 3        ; 9            ; 0            ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[2]    ; U10   ; 3        ; 14           ; 0            ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[3]    ; AB10  ; 3        ; 21           ; 0            ; 28           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[4]    ; AB4   ; 3        ; 7            ; 0            ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[5]    ; V10   ; 3        ; 14           ; 0            ; 14           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
-; seg[6]    ; AB3   ; 3        ; 7            ; 0            ; 28           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; dig_en[0] ; G12   ; 7        ; 26           ; 29           ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; dig_en[1] ; A15   ; 7        ; 26           ; 29           ; 21           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; dig_en[2] ; F13   ; 7        ; 26           ; 29           ; 14           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; dig_en[3] ; H12   ; 7        ; 26           ; 29           ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; dp        ; Y6    ; 3        ; 5            ; 0            ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; User                 ; -                    ; -                   ;
+; seg[0]    ; G11   ; 8        ; 14           ; 29           ; 14           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; seg[1]    ; B9    ; 8        ; 14           ; 29           ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; seg[2]    ; C10   ; 8        ; 14           ; 29           ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; seg[3]    ; A7    ; 8        ; 11           ; 29           ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; seg[4]    ; E10   ; 8        ; 16           ; 29           ; 7            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; seg[5]    ; A10   ; 8        ; 16           ; 29           ; 14           ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
+; seg[6]    ; D10   ; 8        ; 16           ; 29           ; 0            ; no              ; no                     ; no            ; 2         ; no              ; no         ; no            ; no       ; Off          ; 2.5 V        ; Default          ; Series 50 Ohm without Calibration ; --                        ; no                         ; no                          ; Fitter               ; -                    ; -                   ;
 +-----------+-------+----------+--------------+--------------+--------------+-----------------+------------------------+---------------+-----------+-----------------+------------+---------------+----------+--------------+--------------+------------------+-----------------------------------+---------------------------+----------------------------+-----------------------------+----------------------+----------------------+---------------------+
 
 
-+-------------------------------------------------------------------------------------------------------------------------+
-; Dual Purpose and Dedicated Pins                                                                                         ;
-+----------+-----------------------------+--------------------------+-------------------------+---------------------------+
-; Location ; Pin Name                    ; Reserved As              ; User Signal Name        ; Pin Type                  ;
-+----------+-----------------------------+--------------------------+-------------------------+---------------------------+
-; D1       ; DIFFIO_L4n, DATA1, ASDO     ; As input tri-stated      ; ~ALTERA_ASDO_DATA1~     ; Dual Purpose Pin          ;
-; E2       ; DIFFIO_L6p, FLASH_nCE, nCSO ; As input tri-stated      ; ~ALTERA_FLASH_nCE_nCSO~ ; Dual Purpose Pin          ;
-; K6       ; nSTATUS                     ; -                        ; -                       ; Dedicated Programming Pin ;
-; K2       ; DCLK                        ; As output driving ground ; ~ALTERA_DCLK~           ; Dual Purpose Pin          ;
-; K1       ; DATA0                       ; As input tri-stated      ; ~ALTERA_DATA0~          ; Dual Purpose Pin          ;
-; K5       ; nCONFIG                     ; -                        ; -                       ; Dedicated Programming Pin ;
-; L3       ; nCE                         ; -                        ; -                       ; Dedicated Programming Pin ;
-; M18      ; CONF_DONE                   ; -                        ; -                       ; Dedicated Programming Pin ;
-; M17      ; MSEL0                       ; -                        ; -                       ; Dedicated Programming Pin ;
-; L18      ; MSEL1                       ; -                        ; -                       ; Dedicated Programming Pin ;
-; L17      ; MSEL2                       ; -                        ; -                       ; Dedicated Programming Pin ;
-; K20      ; MSEL3                       ; -                        ; -                       ; Dedicated Programming Pin ;
-; K22      ; DIFFIO_R16n, nCEO           ; Use as programming pin   ; ~ALTERA_nCEO~           ; Dual Purpose Pin          ;
-+----------+-----------------------------+--------------------------+-------------------------+---------------------------+
++--------------------------------------------------------------------------------------------------------------------------------------+
+; Dual Purpose and Dedicated Pins                                                                                                      ;
++----------+------------------------------------------+--------------------------+-------------------------+---------------------------+
+; Location ; Pin Name                                 ; Reserved As              ; User Signal Name        ; Pin Type                  ;
++----------+------------------------------------------+--------------------------+-------------------------+---------------------------+
+; D1       ; DIFFIO_L4n, DATA1, ASDO                  ; As input tri-stated      ; ~ALTERA_ASDO_DATA1~     ; Dual Purpose Pin          ;
+; E2       ; DIFFIO_L6p, FLASH_nCE, nCSO              ; As input tri-stated      ; ~ALTERA_FLASH_nCE_nCSO~ ; Dual Purpose Pin          ;
+; K6       ; nSTATUS                                  ; -                        ; -                       ; Dedicated Programming Pin ;
+; K2       ; DCLK                                     ; As output driving ground ; ~ALTERA_DCLK~           ; Dual Purpose Pin          ;
+; K1       ; DATA0                                    ; As input tri-stated      ; ~ALTERA_DATA0~          ; Dual Purpose Pin          ;
+; K5       ; nCONFIG                                  ; -                        ; -                       ; Dedicated Programming Pin ;
+; L3       ; nCE                                      ; -                        ; -                       ; Dedicated Programming Pin ;
+; M18      ; CONF_DONE                                ; -                        ; -                       ; Dedicated Programming Pin ;
+; M17      ; MSEL0                                    ; -                        ; -                       ; Dedicated Programming Pin ;
+; L18      ; MSEL1                                    ; -                        ; -                       ; Dedicated Programming Pin ;
+; L17      ; MSEL2                                    ; -                        ; -                       ; Dedicated Programming Pin ;
+; K20      ; MSEL3                                    ; -                        ; -                       ; Dedicated Programming Pin ;
+; K22      ; DIFFIO_R16n, nCEO                        ; Use as programming pin   ; ~ALTERA_nCEO~           ; Dual Purpose Pin          ;
+; F13      ; DIFFIO_T21p, PADD4, DQS2T/CQ3T,DPCLK8    ; Use as regular IO        ; dig_en[2]               ; Dual Purpose Pin          ;
+; A15      ; DIFFIO_T20n, PADD5                       ; Use as regular IO        ; dig_en[1]               ; Dual Purpose Pin          ;
+; B15      ; DIFFIO_T20p, PADD6                       ; Use as regular IO        ; dp_in[2]                ; Dual Purpose Pin          ;
+; C13      ; DIFFIO_T19n, PADD7                       ; Use as regular IO        ; digits[4]               ; Dual Purpose Pin          ;
+; D13      ; DIFFIO_T19p, PADD8                       ; Use as regular IO        ; digits[14]              ; Dual Purpose Pin          ;
+; A14      ; DIFFIO_T18n, PADD9                       ; Use as regular IO        ; digits[0]               ; Dual Purpose Pin          ;
+; B14      ; DIFFIO_T18p, PADD10                      ; Use as regular IO        ; digits[7]               ; Dual Purpose Pin          ;
+; A13      ; DIFFIO_T17n, PADD11                      ; Use as regular IO        ; digits[15]              ; Dual Purpose Pin          ;
+; B13      ; DIFFIO_T17p, PADD12, DQS4T/CQ5T,DPCLK9   ; Use as regular IO        ; digits[13]              ; Dual Purpose Pin          ;
+; E11      ; DIFFIO_T16n, PADD13                      ; Use as regular IO        ; digits[11]              ; Dual Purpose Pin          ;
+; F11      ; DIFFIO_T16p, PADD14                      ; Use as regular IO        ; digits[9]               ; Dual Purpose Pin          ;
+; B10      ; DIFFIO_T14p, PADD15                      ; Use as regular IO        ; digits[10]              ; Dual Purpose Pin          ;
+; A9       ; DIFFIO_T13n, PADD16                      ; Use as regular IO        ; digits[12]              ; Dual Purpose Pin          ;
+; B9       ; DIFFIO_T13p, PADD17, DQS5T/CQ5T#,DPCLK10 ; Use as regular IO        ; seg[1]                  ; Dual Purpose Pin          ;
+; A8       ; DIFFIO_T12n, DATA2                       ; Use as regular IO        ; digits[2]               ; Dual Purpose Pin          ;
+; B8       ; DIFFIO_T12p, DATA3                       ; Use as regular IO        ; digits[5]               ; Dual Purpose Pin          ;
+; A7       ; DIFFIO_T11n, PADD18                      ; Use as regular IO        ; seg[3]                  ; Dual Purpose Pin          ;
+; B7       ; DIFFIO_T11p, DATA4                       ; Use as regular IO        ; digits[1]               ; Dual Purpose Pin          ;
++----------+------------------------------------------+--------------------------+-------------------------+---------------------------+
 
 
 +------------------------------------------------------------+
@@ -417,12 +696,12 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 +----------+------------------+---------------+--------------+
 ; 1        ; 6 / 33 ( 18 % )  ; 2.5V          ; --           ;
 ; 2        ; 0 / 48 ( 0 % )   ; 2.5V          ; --           ;
-; 3        ; 31 / 46 ( 67 % ) ; 2.5V          ; --           ;
-; 4        ; 1 / 41 ( 2 % )   ; 2.5V          ; --           ;
+; 3        ; 1 / 46 ( 2 % )   ; 2.5V          ; --           ;
+; 4        ; 0 / 41 ( 0 % )   ; 2.5V          ; --           ;
 ; 5        ; 0 / 46 ( 0 % )   ; 2.5V          ; --           ;
 ; 6        ; 1 / 43 ( 2 % )   ; 2.5V          ; --           ;
-; 7        ; 0 / 47 ( 0 % )   ; 2.5V          ; --           ;
-; 8        ; 0 / 43 ( 0 % )   ; 2.5V          ; --           ;
+; 7        ; 18 / 47 ( 38 % ) ; 2.5V          ; --           ;
+; 8        ; 13 / 43 ( 30 % ) ; 2.5V          ; --           ;
 +----------+------------------+---------------+--------------+
 
 
@@ -437,15 +716,15 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; A4       ; 350        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; A5       ; 345        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; A6       ; 336        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; A7       ; 334        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; A8       ; 332        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; A9       ; 328        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; A10      ; 326        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; A7       ; 334        ; 8        ; seg[3]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; A8       ; 332        ; 8        ; digits[2]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; A9       ; 328        ; 8        ; digits[12]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; A10      ; 326        ; 8        ; seg[5]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; A11      ; 321        ; 8        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; A12      ; 319        ; 7        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
-; A13      ; 314        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; A14      ; 312        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; A15      ; 307        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; A13      ; 314        ; 7        ; digits[15]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; A14      ; 312        ; 7        ; digits[0]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; A15      ; 307        ; 7        ; dig_en[1]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; A16      ; 298        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; A17      ; 296        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; A18      ; 291        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -456,17 +735,17 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; AA1      ; 76         ; 2        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; AA2      ; 75         ; 2        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; AA3      ; 102        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; AA4      ; 106        ; 3        ; dig_en[1]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AA5      ; 108        ; 3        ; dp_in[2]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; AA4      ; 106        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AA5      ; 108        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AA6      ;            ; 3        ; VCCIO3                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
-; AA7      ; 115        ; 3        ; dig_en[2]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AA8      ; 123        ; 3        ; digits[3]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AA9      ; 126        ; 3        ; digits[4]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AA10     ; 132        ; 3        ; digits[9]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; AA7      ; 115        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AA8      ; 123        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AA9      ; 126        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AA10     ; 132        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AA11     ; 134        ; 3        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; AA12     ; 136        ; 4        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; AA13     ; 138        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; AA14     ; 140        ; 4        ; digits[2]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; AA14     ; 140        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AA15     ; 145        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AA16     ; 149        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AA17     ; 151        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -477,14 +756,14 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; AA22     ; 178        ; 5        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; AB1      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; AB2      ;            ; 3        ; VCCIO3                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
-; AB3      ; 103        ; 3        ; seg[6]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AB4      ; 107        ; 3        ; seg[4]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AB5      ; 109        ; 3        ; dp_in[3]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; AB3      ; 103        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AB4      ; 107        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AB5      ; 109        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AB6      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
-; AB7      ; 116        ; 3        ; dp_in[0]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AB8      ; 124        ; 3        ; digits[5]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AB9      ; 127        ; 3        ; digits[11]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; AB10     ; 133        ; 3        ; seg[3]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; AB7      ; 116        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AB8      ; 124        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AB9      ; 127        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; AB10     ; 133        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; AB11     ; 135        ; 3        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; AB12     ; 137        ; 4        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; AB13     ; 139        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -503,16 +782,16 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; B4       ; 351        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; B5       ; 346        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; B6       ; 337        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B7       ; 335        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B8       ; 333        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B9       ; 329        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B10      ; 327        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; B7       ; 335        ; 8        ; digits[1]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; B8       ; 333        ; 8        ; digits[5]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; B9       ; 329        ; 8        ; seg[1]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; B10      ; 327        ; 8        ; digits[10]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; B11      ; 322        ; 8        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; B12      ; 320        ; 7        ; GND+                                                      ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
-; B13      ; 315        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B14      ; 313        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B15      ; 308        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; B16      ; 299        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; B13      ; 315        ; 7        ; digits[13]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; B14      ; 313        ; 7        ; digits[7]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; B15      ; 308        ; 7        ; dp_in[2]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; B16      ; 299        ; 7        ; dp_in[0]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; B17      ; 297        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; B18      ; 292        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; B19      ; 289        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -528,10 +807,10 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; C7       ; 340        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; C8       ; 339        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; C9       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
-; C10      ; 330        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; C10      ; 330        ; 8        ; seg[2]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; C11      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; C12      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
-; C13      ; 309        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; C13      ; 309        ; 7        ; digits[4]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; C14      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; C15      ; 300        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; C16      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
@@ -550,10 +829,10 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; D7       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; D8       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; D9       ;            ; 8        ; VCCIO8                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
-; D10      ; 324        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; D10      ; 324        ; 8        ; seg[6]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; D11      ;            ; 8        ; VCCIO8                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
 ; D12      ;            ; 7        ; VCCIO7                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
-; D13      ; 310        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; D13      ; 310        ; 7        ; digits[14]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; D14      ;            ; 7        ; VCCIO7                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
 ; D15      ; 293        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; D16      ;            ; 7        ; VCCIO7                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
@@ -572,10 +851,10 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; E7       ; 357        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; E8       ;            ; 8        ; VCCIO8                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
 ; E9       ; 338        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
-; E10      ; 325        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; E11      ; 317        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; E12      ; 316        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; E13      ; 311        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; E10      ; 325        ; 8        ; seg[4]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; E11      ; 317        ; 7        ; digits[11]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; E12      ; 316        ; 7        ; digits[8]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; E13      ; 311        ; 7        ; digits[3]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; E14      ; 301        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; E15      ; 294        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; E16      ; 275        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -595,9 +874,9 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; F8       ; 352        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; F9       ; 347        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; F10      ; 348        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; F11      ; 318        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; F12      ; 302        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; F13      ; 306        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; F11      ; 318        ; 7        ; digits[9]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; F12      ; 302        ; 7        ; dp_in[3]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; F13      ; 306        ; 7        ; dig_en[2]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; F14      ; 279        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; F15      ; 276        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; F16      ; 274        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -607,8 +886,8 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; F20      ; 262        ; 6        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; F21      ; 251        ; 6        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; F22      ; 250        ; 6        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
-; G1       ; 39         ; 1        ; reset_n                                                   ; input  ; 2.5 V        ;         ; Row I/O    ; N               ; no       ; Off          ;
-; G2       ; 38         ; 1        ; clk                                                       ; input  ; 2.5 V        ;         ; Row I/O    ; N               ; no       ; Off          ;
+; G1       ; 39         ; 1        ; reset_n                                                   ; input  ; 2.5 V        ;         ; Row I/O    ; Y               ; no       ; Off          ;
+; G2       ; 38         ; 1        ; clk                                                       ; input  ; 2.5 V        ;         ; Row I/O    ; Y               ; no       ; Off          ;
 ; G3       ; 18         ; 1        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; G4       ; 17         ; 1        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; G5       ; 3          ; 1        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
@@ -617,8 +896,8 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; G8       ; 353        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; G9       ; 342        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; G10      ; 341        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; G11      ; 331        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; G12      ; 305        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; G11      ; 331        ; 8        ; seg[0]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; G12      ; 305        ; 7        ; dig_en[0]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; G13      ; 295        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; G14      ; 280        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; G15      ; 278        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -639,9 +918,9 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; H8       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; H9       ; 344        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; H10      ; 343        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; H11      ; 323        ; 8        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; H12      ; 304        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; H13      ; 303        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; H11      ; 323        ; 8        ; digits[6]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; H12      ; 304        ; 7        ; dig_en[3]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; H13      ; 303        ; 7        ; dp_in[1]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
 ; H14      ; 288        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; H15      ; 287        ; 7        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; H16      ; 259        ; 6        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
@@ -814,8 +1093,8 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; T7       ; 85         ; 2        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; T8       ; 89         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; T9       ; 91         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; T10      ; 121        ; 3        ; digits[12]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; T11      ; 125        ; 3        ; digits[14]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; T10      ; 121        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; T11      ; 125        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; T12      ; 148        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; T13      ;            ;          ; VCCINT                                                    ; power  ;              ; 1.2V    ; --         ;                 ; --       ; --           ;
 ; T14      ; 160        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -835,9 +1114,9 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; U6       ;            ;          ; VCCD_PLL1                                                 ; power  ;              ; 1.2V    ; --         ;                 ; --       ; --           ;
 ; U7       ; 94         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; U8       ; 95         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; U9       ; 112        ; 3        ; seg[1]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; U10      ; 122        ; 3        ; seg[2]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; U11      ; 128        ; 3        ; digits[8]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; U9       ; 112        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; U10      ; 122        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; U11      ; 128        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; U12      ; 147        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; U13      ; 156        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; U14      ; 174        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -855,11 +1134,11 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; V4       ; 77         ; 2        ; RESERVED_INPUT                                            ;        ;              ;         ; Row I/O    ;                 ; no       ; Off          ;
 ; V5       ; 93         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; V6       ; 92         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
-; V7       ; 105        ; 3        ; dig_en[3]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; V8       ; 113        ; 3        ; digits[7]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; V9       ; 119        ; 3        ; digits[15]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; V10      ; 120        ; 3        ; seg[5]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; V11      ; 129        ; 3        ; digits[0]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; V7       ; 105        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; V8       ; 113        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; V9       ; 119        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
+; V10      ; 120        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; V11      ; 129        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; V12      ; 142        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; V13      ; 154        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; V14      ; 157        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -876,11 +1155,11 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; W3       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; W4       ;            ; 2        ; VCCIO2                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
 ; W5       ;            ; 3        ; VCCIO3                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
-; W6       ; 104        ; 3        ; digits[6]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; W7       ; 110        ; 3        ; dp_in[1]                                                  ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; W8       ; 114        ; 3        ; digits[13]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; W6       ; 104        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; W7       ; 110        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; W8       ; 114        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; W9       ;            ; 3        ; VCCIO3                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
-; W10      ; 130        ; 3        ; digits[1]                                                 ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; W10      ; 130        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; W11      ;            ; 3        ; VCCIO3                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
 ; W12      ;            ; 4        ; VCCIO4                                                    ; power  ;              ; 2.5V    ; --         ;                 ; --       ; --           ;
 ; W13      ; 143        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -898,11 +1177,11 @@ The pin-out file can be found in C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FP
 ; Y3       ; 99         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; Y4       ; 96         ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; --       ; --           ;
 ; Y5       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
-; Y6       ; 101        ; 3        ; dp                                                        ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; Y7       ; 111        ; 3        ; seg[0]                                                    ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
-; Y8       ; 117        ; 3        ; dig_en[0]                                                 ; output ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; Y6       ; 101        ; 3        ; dp                                                        ; output ; 2.5 V        ;         ; Column I/O ; Y               ; no       ; Off          ;
+; Y7       ; 111        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
+; Y8       ; 117        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; Y9       ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
-; Y10      ; 131        ; 3        ; digits[10]                                                ; input  ; 2.5 V        ;         ; Column I/O ; N               ; no       ; Off          ;
+; Y10      ; 131        ; 3        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
 ; Y11      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; Y12      ;            ;          ; GND                                                       ; gnd    ;              ;         ; --         ;                 ; --       ; --           ;
 ; Y13      ; 144        ; 4        ; RESERVED_INPUT                                            ;        ;              ;         ; Column I/O ;                 ; no       ; Off          ;
@@ -946,28 +1225,28 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; dig_en[1]  ; Output   ; --            ; --            ; --                    ; --  ; --   ;
 ; dig_en[2]  ; Output   ; --            ; --            ; --                    ; --  ; --   ;
 ; dig_en[3]  ; Output   ; --            ; --            ; --                    ; --  ; --   ;
-; digits[8]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; digits[8]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 ; digits[4]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[0]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[12] ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; digits[0]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
+; digits[12] ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 ; digits[5]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 ; digits[9]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[1]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; digits[1]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 ; digits[13] ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[10] ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[6]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
-; digits[2]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; digits[10] ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
+; digits[6]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; digits[2]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 ; digits[14] ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[11] ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; digits[11] ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 ; digits[7]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
-; digits[3]  ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; digits[15] ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
+; digits[3]  ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
+; digits[15] ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
 ; clk        ; Input    ; (0) 0 ps      ; --            ; --                    ; --  ; --   ;
 ; reset_n    ; Input    ; (0) 0 ps      ; --            ; --                    ; --  ; --   ;
 ; dp_in[1]   ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
-; dp_in[2]   ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
+; dp_in[2]   ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
 ; dp_in[0]   ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
-; dp_in[3]   ; Input    ; --            ; (6) 1314 ps   ; --                    ; --  ; --   ;
+; dp_in[3]   ; Input    ; (6) 1314 ps   ; --            ; --                    ; --  ; --   ;
 +------------+----------+---------------+---------------+-----------------------+-----+------+
 
 
@@ -977,59 +1256,59 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; Source Pin / Fanout ; Pad To Core Index ; Setting ;
 +---------------------+-------------------+---------+
 ; digits[8]           ;                   ;         ;
-;      - Mux3~1       ; 1                 ; 6       ;
+;      - Mux3~1       ; 0                 ; 6       ;
 ; digits[4]           ;                   ;         ;
 ;      - Mux3~0       ; 1                 ; 6       ;
 ; digits[0]           ;                   ;         ;
-;      - Mux3~0       ; 1                 ; 6       ;
+;      - Mux3~0       ; 0                 ; 6       ;
 ; digits[12]          ;                   ;         ;
-;      - Mux3~1       ; 1                 ; 6       ;
+;      - Mux3~1       ; 0                 ; 6       ;
 ; digits[5]           ;                   ;         ;
 ;      - Mux2~1       ; 0                 ; 6       ;
 ; digits[9]           ;                   ;         ;
 ;      - Mux2~0       ; 1                 ; 6       ;
 ; digits[1]           ;                   ;         ;
-;      - Mux2~0       ; 1                 ; 6       ;
+;      - Mux2~0       ; 0                 ; 6       ;
 ; digits[13]          ;                   ;         ;
 ;      - Mux2~1       ; 1                 ; 6       ;
 ; digits[10]          ;                   ;         ;
-;      - Mux1~1       ; 1                 ; 6       ;
+;      - Mux1~1       ; 0                 ; 6       ;
 ; digits[6]           ;                   ;         ;
-;      - Mux1~0       ; 0                 ; 6       ;
-; digits[2]           ;                   ;         ;
 ;      - Mux1~0       ; 1                 ; 6       ;
+; digits[2]           ;                   ;         ;
+;      - Mux1~0       ; 0                 ; 6       ;
 ; digits[14]          ;                   ;         ;
 ;      - Mux1~1       ; 1                 ; 6       ;
 ; digits[11]          ;                   ;         ;
-;      - Mux0~1       ; 1                 ; 6       ;
+;      - Mux0~1       ; 0                 ; 6       ;
 ; digits[7]           ;                   ;         ;
 ;      - Mux0~0       ; 0                 ; 6       ;
 ; digits[3]           ;                   ;         ;
-;      - Mux0~0       ; 1                 ; 6       ;
+;      - Mux0~0       ; 0                 ; 6       ;
 ; digits[15]          ;                   ;         ;
-;      - Mux0~1       ; 0                 ; 6       ;
+;      - Mux0~1       ; 1                 ; 6       ;
 ; clk                 ;                   ;         ;
 ; reset_n             ;                   ;         ;
 ; dp_in[1]            ;                   ;         ;
 ;      - Mux4~1       ; 0                 ; 6       ;
 ; dp_in[2]            ;                   ;         ;
-;      - Mux4~0       ; 0                 ; 6       ;
+;      - Mux4~0       ; 1                 ; 6       ;
 ; dp_in[0]            ;                   ;         ;
 ;      - Mux4~0       ; 1                 ; 6       ;
 ; dp_in[3]            ;                   ;         ;
-;      - Mux4~1       ; 1                 ; 6       ;
+;      - Mux4~1       ; 0                 ; 6       ;
 +---------------------+-------------------+---------+
 
 
-+---------------------------------------------------------------------------------------------------------------------------------------+
-; Control Signals                                                                                                                       ;
-+------------+------------------+---------+--------------+--------+----------------------+------------------+---------------------------+
-; Name       ; Location         ; Fan-Out ; Usage        ; Global ; Global Resource Used ; Global Line Name ; Enable Signal Source Name ;
-+------------+------------------+---------+--------------+--------+----------------------+------------------+---------------------------+
-; blanking~1 ; LCCOMB_X11_Y1_N2 ; 14      ; Sync. clear  ; no     ; --                   ; --               ; --                        ;
-; clk        ; PIN_G2           ; 29      ; Clock        ; yes    ; Global Clock         ; GCLK4            ; --                        ;
-; reset_n    ; PIN_G1           ; 29      ; Async. clear ; yes    ; Global Clock         ; GCLK2            ; --                        ;
-+------------+------------------+---------+--------------+--------+----------------------+------------------+---------------------------+
++----------------------------------------------------------------------------------------------------------------------------------------+
+; Control Signals                                                                                                                        ;
++------------+-------------------+---------+--------------+--------+----------------------+------------------+---------------------------+
+; Name       ; Location          ; Fan-Out ; Usage        ; Global ; Global Resource Used ; Global Line Name ; Enable Signal Source Name ;
++------------+-------------------+---------+--------------+--------+----------------------+------------------+---------------------------+
+; blanking~1 ; LCCOMB_X26_Y25_N2 ; 14      ; Sync. clear  ; no     ; --                   ; --               ; --                        ;
+; clk        ; PIN_G2            ; 29      ; Clock        ; yes    ; Global Clock         ; GCLK4            ; --                        ;
+; reset_n    ; PIN_G1            ; 29      ; Async. clear ; yes    ; Global Clock         ; GCLK2            ; --                        ;
++------------+-------------------+---------+--------------+--------+----------------------+------------------+---------------------------+
 
 
 +-------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1160,45 +1439,45 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +-----------------------+-----------------------+
 ; Routing Resource Type ; Usage                 ;
 +-----------------------+-----------------------+
-; Block interconnects   ; 56 / 47,787 ( < 1 % ) ;
-; C16 interconnects     ; 0 / 1,804 ( 0 % )     ;
-; C4 interconnects      ; 32 / 31,272 ( < 1 % ) ;
-; Direct links          ; 13 / 47,787 ( < 1 % ) ;
+; Block interconnects   ; 59 / 47,787 ( < 1 % ) ;
+; C16 interconnects     ; 3 / 1,804 ( < 1 % )   ;
+; C4 interconnects      ; 33 / 31,272 ( < 1 % ) ;
+; Direct links          ; 20 / 47,787 ( < 1 % ) ;
 ; Global clocks         ; 2 / 20 ( 10 % )       ;
-; Local interconnects   ; 28 / 15,408 ( < 1 % ) ;
-; R24 interconnects     ; 0 / 1,775 ( 0 % )     ;
-; R4 interconnects      ; 32 / 41,310 ( < 1 % ) ;
+; Local interconnects   ; 27 / 15,408 ( < 1 % ) ;
+; R24 interconnects     ; 2 / 1,775 ( < 1 % )   ;
+; R4 interconnects      ; 28 / 41,310 ( < 1 % ) ;
 +-----------------------+-----------------------+
 
 
-+--------------------------------------------------------------------------+
-; LAB Logic Elements                                                       ;
-+--------------------------------------------+-----------------------------+
-; Number of Logic Elements  (Average = 8.60) ; Number of LABs  (Total = 5) ;
-+--------------------------------------------+-----------------------------+
-; 1                                          ; 1                           ;
-; 2                                          ; 1                           ;
-; 3                                          ; 0                           ;
-; 4                                          ; 0                           ;
-; 5                                          ; 0                           ;
-; 6                                          ; 0                           ;
-; 7                                          ; 0                           ;
-; 8                                          ; 0                           ;
-; 9                                          ; 1                           ;
-; 10                                         ; 0                           ;
-; 11                                         ; 0                           ;
-; 12                                         ; 0                           ;
-; 13                                         ; 0                           ;
-; 14                                         ; 0                           ;
-; 15                                         ; 1                           ;
-; 16                                         ; 1                           ;
-+--------------------------------------------+-----------------------------+
++---------------------------------------------------------------------------+
+; LAB Logic Elements                                                        ;
++---------------------------------------------+-----------------------------+
+; Number of Logic Elements  (Average = 10.75) ; Number of LABs  (Total = 4) ;
++---------------------------------------------+-----------------------------+
+; 1                                           ; 0                           ;
+; 2                                           ; 0                           ;
+; 3                                           ; 0                           ;
+; 4                                           ; 1                           ;
+; 5                                           ; 0                           ;
+; 6                                           ; 0                           ;
+; 7                                           ; 0                           ;
+; 8                                           ; 0                           ;
+; 9                                           ; 0                           ;
+; 10                                          ; 1                           ;
+; 11                                          ; 0                           ;
+; 12                                          ; 0                           ;
+; 13                                          ; 1                           ;
+; 14                                          ; 0                           ;
+; 15                                          ; 0                           ;
+; 16                                          ; 1                           ;
++---------------------------------------------+-----------------------------+
 
 
 +------------------------------------------------------------------+
 ; LAB-wide Signals                                                 ;
 +------------------------------------+-----------------------------+
-; LAB-wide Signals  (Average = 1.60) ; Number of LABs  (Total = 5) ;
+; LAB-wide Signals  (Average = 2.00) ; Number of LABs  (Total = 4) ;
 +------------------------------------+-----------------------------+
 ; 1 Async. clear                     ; 4                           ;
 ; 1 Clock                            ; 4                           ;
@@ -1208,15 +1487,15 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +----------------------------------------------------------------------------+
 ; LAB Signals Sourced                                                        ;
 +----------------------------------------------+-----------------------------+
-; Number of Signals Sourced  (Average = 14.40) ; Number of LABs  (Total = 5) ;
+; Number of Signals Sourced  (Average = 18.00) ; Number of LABs  (Total = 4) ;
 +----------------------------------------------+-----------------------------+
 ; 0                                            ; 0                           ;
 ; 1                                            ; 0                           ;
-; 2                                            ; 2                           ;
+; 2                                            ; 0                           ;
 ; 3                                            ; 0                           ;
 ; 4                                            ; 0                           ;
 ; 5                                            ; 0                           ;
-; 6                                            ; 0                           ;
+; 6                                            ; 1                           ;
 ; 7                                            ; 0                           ;
 ; 8                                            ; 0                           ;
 ; 9                                            ; 0                           ;
@@ -1230,9 +1509,9 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; 17                                           ; 0                           ;
 ; 18                                           ; 0                           ;
 ; 19                                           ; 0                           ;
-; 20                                           ; 0                           ;
+; 20                                           ; 1                           ;
 ; 21                                           ; 0                           ;
-; 22                                           ; 1                           ;
+; 22                                           ; 0                           ;
 ; 23                                           ; 0                           ;
 ; 24                                           ; 0                           ;
 ; 25                                           ; 0                           ;
@@ -1247,13 +1526,13 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +-------------------------------------------------------------------------------+
 ; LAB Signals Sourced Out                                                       ;
 +-------------------------------------------------+-----------------------------+
-; Number of Signals Sourced Out  (Average = 6.40) ; Number of LABs  (Total = 5) ;
+; Number of Signals Sourced Out  (Average = 8.25) ; Number of LABs  (Total = 4) ;
 +-------------------------------------------------+-----------------------------+
 ; 0                                               ; 0                           ;
-; 1                                               ; 1                           ;
-; 2                                               ; 1                           ;
+; 1                                               ; 0                           ;
+; 2                                               ; 0                           ;
 ; 3                                               ; 0                           ;
-; 4                                               ; 0                           ;
+; 4                                               ; 1                           ;
 ; 5                                               ; 0                           ;
 ; 6                                               ; 0                           ;
 ; 7                                               ; 1                           ;
@@ -1269,7 +1548,7 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +----------------------------------------------------------------------------+
 ; LAB Distinct Inputs                                                        ;
 +----------------------------------------------+-----------------------------+
-; Number of Distinct Inputs  (Average = 10.00) ; Number of LABs  (Total = 5) ;
+; Number of Distinct Inputs  (Average = 13.00) ; Number of LABs  (Total = 4) ;
 +----------------------------------------------+-----------------------------+
 ; 0                                            ; 0                           ;
 ; 1                                            ; 0                           ;
@@ -1277,11 +1556,11 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; 3                                            ; 0                           ;
 ; 4                                            ; 0                           ;
 ; 5                                            ; 0                           ;
-; 6                                            ; 2                           ;
-; 7                                            ; 0                           ;
-; 8                                            ; 1                           ;
+; 6                                            ; 1                           ;
+; 7                                            ; 1                           ;
+; 8                                            ; 0                           ;
 ; 9                                            ; 0                           ;
-; 10                                           ; 1                           ;
+; 10                                           ; 0                           ;
 ; 11                                           ; 0                           ;
 ; 12                                           ; 0                           ;
 ; 13                                           ; 0                           ;
@@ -1289,9 +1568,10 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; 15                                           ; 0                           ;
 ; 16                                           ; 0                           ;
 ; 17                                           ; 0                           ;
-; 18                                           ; 0                           ;
+; 18                                           ; 1                           ;
 ; 19                                           ; 0                           ;
-; 20                                           ; 1                           ;
+; 20                                           ; 0                           ;
+; 21                                           ; 1                           ;
 +----------------------------------------------+-----------------------------+
 
 
@@ -1301,10 +1581,10 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; I/O Rules Statistic              ; Total ;
 +----------------------------------+-------+
 ; Total I/O Rules                  ; 30    ;
-; Number of I/O Rules Passed       ; 9     ;
+; Number of I/O Rules Passed       ; 12    ;
 ; Number of I/O Rules Failed       ; 0     ;
 ; Number of I/O Rules Unchecked    ; 0     ;
-; Number of I/O Rules Inapplicable ; 21    ;
+; Number of I/O Rules Inapplicable ; 18    ;
 +----------------------------------+-------+
 
 
@@ -1313,13 +1593,13 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +--------------+-----------+-----------------------------------+------------------------------------------------------------------------------------------------------+----------+--------------------------------------------------------------------------+---------------------+-------------------+
 ; Status       ; ID        ; Category                          ; Rule Description                                                                                     ; Severity ; Information                                                              ; Area                ; Extra Information ;
 +--------------+-----------+-----------------------------------+------------------------------------------------------------------------------------------------------+----------+--------------------------------------------------------------------------+---------------------+-------------------+
-; Inapplicable ; IO_000001 ; Capacity Checks                   ; Number of pins in an I/O bank should not exceed the number of locations available.                   ; Critical ; No Location assignments found.                                           ; I/O                 ;                   ;
+; Pass         ; IO_000001 ; Capacity Checks                   ; Number of pins in an I/O bank should not exceed the number of locations available.                   ; Critical ; 0 such failures found.                                                   ; I/O                 ;                   ;
 ; Inapplicable ; IO_000002 ; Capacity Checks                   ; Number of clocks in an I/O bank should not exceed the number of clocks available.                    ; Critical ; No Global Signal assignments found.                                      ; I/O                 ;                   ;
-; Inapplicable ; IO_000003 ; Capacity Checks                   ; Number of pins in a Vrefgroup should not exceed the number of locations available.                   ; Critical ; No Location assignments found.                                           ; I/O                 ;                   ;
+; Pass         ; IO_000003 ; Capacity Checks                   ; Number of pins in a Vrefgroup should not exceed the number of locations available.                   ; Critical ; 0 such failures found.                                                   ; I/O                 ;                   ;
 ; Inapplicable ; IO_000004 ; Voltage Compatibility Checks      ; The I/O bank should support the requested VCCIO.                                                     ; Critical ; No IOBANK_VCCIO assignments found.                                       ; I/O                 ;                   ;
 ; Inapplicable ; IO_000005 ; Voltage Compatibility Checks      ; The I/O bank should not have competing VREF values.                                                  ; Critical ; No VREF I/O Standard assignments found.                                  ; I/O                 ;                   ;
 ; Pass         ; IO_000006 ; Voltage Compatibility Checks      ; The I/O bank should not have competing VCCIO values.                                                 ; Critical ; 0 such failures found.                                                   ; I/O                 ;                   ;
-; Inapplicable ; IO_000007 ; Valid Location Checks             ; Checks for unavailable locations.                                                                    ; Critical ; No Location assignments found.                                           ; I/O                 ;                   ;
+; Pass         ; IO_000007 ; Valid Location Checks             ; Checks for unavailable locations.                                                                    ; Critical ; 0 such failures found.                                                   ; I/O                 ;                   ;
 ; Inapplicable ; IO_000008 ; Valid Location Checks             ; Checks for reserved locations.                                                                       ; Critical ; No reserved LogicLock region found.                                      ; I/O                 ;                   ;
 ; Pass         ; IO_000009 ; I/O Properties Checks for One I/O ; The location should support the requested I/O standard.                                              ; Critical ; 0 such failures found.                                                   ; I/O                 ;                   ;
 ; Pass         ; IO_000010 ; I/O Properties Checks for One I/O ; The location should support the requested I/O direction.                                             ; Critical ; 0 such failures found.                                                   ; I/O                 ;                   ;
@@ -1352,9 +1632,9 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 +--------------------+--------------+--------------+--------------+--------------+--------------+-----------+--------------+--------------+-----------+-----------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+-----------+--------------+--------------+
 ; Pin/Rules          ; IO_000001    ; IO_000002    ; IO_000003    ; IO_000004    ; IO_000005    ; IO_000006 ; IO_000007    ; IO_000008    ; IO_000009 ; IO_000010 ; IO_000011    ; IO_000012    ; IO_000013    ; IO_000014    ; IO_000015    ; IO_000018    ; IO_000019    ; IO_000020    ; IO_000021    ; IO_000022    ; IO_000023    ; IO_000024    ; IO_000026    ; IO_000027    ; IO_000045    ; IO_000046    ; IO_000047    ; IO_000033 ; IO_000034    ; IO_000042    ;
 +--------------------+--------------+--------------+--------------+--------------+--------------+-----------+--------------+--------------+-----------+-----------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+--------------+-----------+--------------+--------------+
-; Total Pass         ; 0            ; 0            ; 0            ; 0            ; 0            ; 34        ; 0            ; 0            ; 34        ; 34        ; 0            ; 12           ; 0            ; 0            ; 22           ; 0            ; 12           ; 22           ; 0            ; 0            ; 0            ; 12           ; 0            ; 0            ; 0            ; 0            ; 0            ; 34        ; 0            ; 0            ;
+; Total Pass         ; 3            ; 0            ; 3            ; 0            ; 0            ; 34        ; 3            ; 0            ; 34        ; 34        ; 0            ; 12           ; 0            ; 0            ; 22           ; 0            ; 12           ; 22           ; 0            ; 0            ; 0            ; 12           ; 0            ; 0            ; 0            ; 0            ; 0            ; 34        ; 0            ; 0            ;
 ; Total Unchecked    ; 0            ; 0            ; 0            ; 0            ; 0            ; 0         ; 0            ; 0            ; 0         ; 0         ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0         ; 0            ; 0            ;
-; Total Inapplicable ; 34           ; 34           ; 34           ; 34           ; 34           ; 0         ; 34           ; 34           ; 0         ; 0         ; 34           ; 22           ; 34           ; 34           ; 12           ; 34           ; 22           ; 12           ; 34           ; 34           ; 34           ; 22           ; 34           ; 34           ; 34           ; 34           ; 34           ; 0         ; 34           ; 34           ;
+; Total Inapplicable ; 31           ; 34           ; 31           ; 34           ; 34           ; 0         ; 31           ; 34           ; 0         ; 0         ; 34           ; 22           ; 34           ; 34           ; 12           ; 34           ; 22           ; 12           ; 34           ; 34           ; 34           ; 22           ; 34           ; 34           ; 34           ; 34           ; 34           ; 0         ; 34           ; 34           ;
 ; Total Fail         ; 0            ; 0            ; 0            ; 0            ; 0            ; 0         ; 0            ; 0            ; 0         ; 0         ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0            ; 0         ; 0            ; 0            ;
 ; seg[0]             ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; seg[1]             ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
@@ -1363,7 +1643,7 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; seg[4]             ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; seg[5]             ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; seg[6]             ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
-; dp                 ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
+; dp                 ; Pass         ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass      ; Pass         ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; dig_en[0]          ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; dig_en[1]          ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; dig_en[2]          ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
@@ -1384,8 +1664,8 @@ Note: For table entries with two numbers listed, the numbers in parentheses indi
 ; digits[7]          ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; digits[3]          ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; digits[15]         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
-; clk                ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
-; reset_n            ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
+; clk                ; Pass         ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass      ; Pass         ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
+; reset_n            ; Pass         ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass      ; Pass         ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; dp_in[1]           ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; dp_in[2]           ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
 ; dp_in[0]           ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ; Pass      ; Pass      ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Pass         ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Inapplicable ; Pass      ; Inapplicable ; Inapplicable ;
@@ -1450,7 +1730,7 @@ Info (169124): Fitter converted 5 user pins into dedicated programming pins
     Info (169125): Pin ~ALTERA_DATA0~ is reserved at location K1
     Info (169125): Pin ~ALTERA_nCEO~ is reserved at location K22
 Warning (15714): Some pins have incomplete I/O assignments. Refer to the I/O Assignment Warnings report for details
-Critical Warning (169085): No exact pin location assignment(s) for 34 pins of 34 total pins
+Critical Warning (169085): No exact pin location assignment(s) for 31 pins of 34 total pins
     Info (169086): Pin seg[0] not assigned to an exact location on the device
     Info (169086): Pin seg[1] not assigned to an exact location on the device
     Info (169086): Pin seg[2] not assigned to an exact location on the device
@@ -1458,7 +1738,6 @@ Critical Warning (169085): No exact pin location assignment(s) for 34 pins of 34
     Info (169086): Pin seg[4] not assigned to an exact location on the device
     Info (169086): Pin seg[5] not assigned to an exact location on the device
     Info (169086): Pin seg[6] not assigned to an exact location on the device
-    Info (169086): Pin dp not assigned to an exact location on the device
     Info (169086): Pin dig_en[0] not assigned to an exact location on the device
     Info (169086): Pin dig_en[1] not assigned to an exact location on the device
     Info (169086): Pin dig_en[2] not assigned to an exact location on the device
@@ -1479,8 +1758,6 @@ Critical Warning (169085): No exact pin location assignment(s) for 34 pins of 34
     Info (169086): Pin digits[7] not assigned to an exact location on the device
     Info (169086): Pin digits[3] not assigned to an exact location on the device
     Info (169086): Pin digits[15] not assigned to an exact location on the device
-    Info (169086): Pin clk not assigned to an exact location on the device
-    Info (169086): Pin reset_n not assigned to an exact location on the device
     Info (169086): Pin dp_in[1] not assigned to an exact location on the device
     Info (169086): Pin dp_in[2] not assigned to an exact location on the device
     Info (169086): Pin dp_in[0] not assigned to an exact location on the device
@@ -1498,19 +1775,272 @@ Info (176233): Starting register packing
 Info (176235): Finished register packing
     Extra Info (176219): No registers were packed into other blocks
 Info (176214): Statistics of I/O pins that need to be placed that use the same VCCIO and VREF, before I/O pin placement
-    Info (176211): Number of I/O pins in group: 32 (unused VREF, 2.5V VCCIO, 20 input, 12 output, 0 bidirectional)
+    Info (176211): Number of I/O pins in group: 31 (unused VREF, 2.5V VCCIO, 20 input, 11 output, 0 bidirectional)
         Info (176212): I/O standards used: 2.5 V.
 Info (176215): I/O bank details before I/O pin placement
     Info (176214): Statistics of I/O banks
         Info (176213): I/O bank number 1 does not use VREF pins and has undetermined VCCIO pins. 6 total pin(s) used --  27 pins available
         Info (176213): I/O bank number 2 does not use VREF pins and has undetermined VCCIO pins. 0 total pin(s) used --  48 pins available
-        Info (176213): I/O bank number 3 does not use VREF pins and has undetermined VCCIO pins. 0 total pin(s) used --  46 pins available
+        Info (176213): I/O bank number 3 does not use VREF pins and has 2.5V VCCIO pins. 1 total pin(s) used --  45 pins available
         Info (176213): I/O bank number 4 does not use VREF pins and has undetermined VCCIO pins. 0 total pin(s) used --  41 pins available
         Info (176213): I/O bank number 5 does not use VREF pins and has undetermined VCCIO pins. 0 total pin(s) used --  46 pins available
         Info (176213): I/O bank number 6 does not use VREF pins and has undetermined VCCIO pins. 1 total pin(s) used --  42 pins available
         Info (176213): I/O bank number 7 does not use VREF pins and has undetermined VCCIO pins. 0 total pin(s) used --  47 pins available
         Info (176213): I/O bank number 8 does not use VREF pins and has undetermined VCCIO pins. 0 total pin(s) used --  43 pins available
-Info (171121): Fitter preparation operations ending: elapsed time is 00:00:01
+Warning (15705): Ignored locations or region assignments to the following nodes
+    Warning (15706): Node "BUTTON[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "BUTTON[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "BUTTON[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "CLOCK_50" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "CLOCK_50_2" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[10]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[11]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[12]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_ADDR[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_BA_0" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_BA_1" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_CAS_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_CKE" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_CLK" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_CS_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[10]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[11]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[12]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[13]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[14]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[15]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_DQ[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_LDQM" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_RAS_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_UDQM" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "DRAM_WE_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[10]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[11]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[12]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[13]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[14]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[15]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[16]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[17]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[18]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[19]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[20]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[21]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_ADDR[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_BYTE_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_CE_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ15_AM1" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[10]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[11]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[12]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[13]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[14]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_DQ[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_OE_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_RST_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_RY" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_WE_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "FL_WP_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_CLKIN[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_CLKIN[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_CLKOUT[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_CLKOUT[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[10]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[11]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[12]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[13]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[14]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[15]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[16]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[17]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[18]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[19]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[20]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[21]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[22]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[23]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[24]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[25]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[26]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[27]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[28]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[29]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[30]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[31]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO0_D[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_CLKIN[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_CLKIN[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_CLKOUT[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_CLKOUT[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[10]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[11]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[12]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[13]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[14]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[15]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[16]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[17]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[18]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[19]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[20]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[21]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[22]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[23]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[24]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[25]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[26]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[27]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[28]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[29]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[30]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[31]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "GPIO1_D[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_DP" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX0_D[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_DP" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX1_D[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_DP" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX2_D[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_DP" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "HEX3_D[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_BLON" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_DATA[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_EN" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_RS" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LCD_RW" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "LEDG[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "PS2_KBCLK" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "PS2_KBDAT" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "PS2_MSCLK" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "PS2_MSDAT" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SD_CLK" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SD_CMD" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SD_DAT0" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SD_DAT3" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SD_WP_N" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[4]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[5]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[6]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[7]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[8]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "SW[9]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "UART_CTS" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "UART_RTS" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "UART_RXD" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "UART_TXD" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_B[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_B[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_B[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_B[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_G[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_G[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_G[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_G[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_HS" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_R[0]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_R[1]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_R[2]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_R[3]" is assigned to location or region, but does not exist in design
+    Warning (15706): Node "VGA_VS" is assigned to location or region, but does not exist in design
+Info (171121): Fitter preparation operations ending: elapsed time is 00:00:02
 Info (170189): Fitter placement preparation operations beginning
 Info (170190): Fitter placement preparation operations ending: elapsed time is 00:00:00
 Info (170191): Fitter placement operations beginning
@@ -1518,22 +2048,23 @@ Info (170137): Fitter placement was successful
 Info (170192): Fitter placement operations ending: elapsed time is 00:00:01
 Info (170193): Fitter routing operations beginning
 Info (170195): Router estimated average interconnect usage is 0% of the available device resources
-    Info (170196): Router estimated peak interconnect usage is 0% of the available device resources in the region that extends from location X10_Y0 to location X20_Y9
+    Info (170196): Router estimated peak interconnect usage is 0% of the available device resources in the region that extends from location X21_Y20 to location X30_Y29
 Info (170194): Fitter routing operations ending: elapsed time is 00:00:01
 Info (170199): The Fitter performed an Auto Fit compilation.  Optimizations were skipped to reduce compilation time.
     Info (170201): Optimizations that may affect the design's routability were skipped
-Info (11888): Total time spent on timing analysis during the Fitter is 0.20 seconds.
+Info (11888): Total time spent on timing analysis during the Fitter is 0.19 seconds.
 Info (334003): Started post-fitting delay annotation
 Info (334004): Delay annotation completed successfully
 Info (334003): Started post-fitting delay annotation
 Info (334004): Delay annotation completed successfully
 Info (11218): Fitter post-fit operations ending: elapsed time is 00:00:01
+Warning (171167): Found invalid Fitter assignments. See the Ignored Assignments panel in the Fitter Compilation Report for more information.
 Info (144001): Generated suppressed messages file C:/Users/nhlan/Desktop/EmberCore/Cyclone_III_FPGA_VHDL/output_files/EP3C16F484C6N_Cyclone_3.fit.smsg
-Info: Quartus II 64-Bit Fitter was successful. 0 errors, 5 warnings
-    Info: Peak virtual memory: 4955 megabytes
-    Info: Processing ended: Thu Nov 06 20:35:34 2025
+Info: Quartus II 64-Bit Fitter was successful. 0 errors, 259 warnings
+    Info: Peak virtual memory: 4963 megabytes
+    Info: Processing ended: Sat Nov 08 08:15:26 2025
     Info: Elapsed time: 00:00:10
-    Info: Total CPU time (on all processors): 00:00:09
+    Info: Total CPU time (on all processors): 00:00:08
 
 
 +----------------------------+

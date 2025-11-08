@@ -77,17 +77,17 @@ dp_in[0] => Mux4.IN3
 dp_in[1] => Mux4.IN2
 dp_in[2] => Mux4.IN1
 dp_in[3] => Mux4.IN0
-seg[0] << seg_reg[0].DB_MAX_OUTPUT_PORT_TYPE
-seg[1] << seg_reg[1].DB_MAX_OUTPUT_PORT_TYPE
-seg[2] << seg_reg[2].DB_MAX_OUTPUT_PORT_TYPE
-seg[3] << seg_reg[3].DB_MAX_OUTPUT_PORT_TYPE
-seg[4] << seg_reg[4].DB_MAX_OUTPUT_PORT_TYPE
-seg[5] << seg_reg[5].DB_MAX_OUTPUT_PORT_TYPE
-seg[6] << seg_reg[6].DB_MAX_OUTPUT_PORT_TYPE
-dp << dp_reg.DB_MAX_OUTPUT_PORT_TYPE
-dig_en[0] << dig_en_reg[0].DB_MAX_OUTPUT_PORT_TYPE
-dig_en[1] << dig_en_reg[1].DB_MAX_OUTPUT_PORT_TYPE
-dig_en[2] << dig_en_reg[2].DB_MAX_OUTPUT_PORT_TYPE
-dig_en[3] << dig_en_reg[3].DB_MAX_OUTPUT_PORT_TYPE
+seg[0] <= seg_reg[0].DB_MAX_OUTPUT_PORT_TYPE
+seg[1] <= seg_reg[1].DB_MAX_OUTPUT_PORT_TYPE
+seg[2] <= seg_reg[2].DB_MAX_OUTPUT_PORT_TYPE
+seg[3] <= seg_reg[3].DB_MAX_OUTPUT_PORT_TYPE
+seg[4] <= seg_reg[4].DB_MAX_OUTPUT_PORT_TYPE
+seg[5] <= seg_reg[5].DB_MAX_OUTPUT_PORT_TYPE
+seg[6] <= seg_reg[6].DB_MAX_OUTPUT_PORT_TYPE
+dp <= dp_reg.DB_MAX_OUTPUT_PORT_TYPE
+dig_en[0] <= dig_en_reg[0].DB_MAX_OUTPUT_PORT_TYPE
+dig_en[1] <= dig_en_reg[1].DB_MAX_OUTPUT_PORT_TYPE
+dig_en[2] <= dig_en_reg[2].DB_MAX_OUTPUT_PORT_TYPE
+dig_en[3] <= dig_en_reg[3].DB_MAX_OUTPUT_PORT_TYPE
 
 
