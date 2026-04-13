@@ -1,0 +1,392 @@
+-- ============================================================================
+-- ARM CORTEX-M23 TESTBENCH VHDL FILE
+-- ============================================================================
+-- Project: ARM Cortex-M23 Processor Interface Verification
+-- File: cortex_m23_testbench.vhd
+-- 
+-- Author: [To be filled]
+-- Date: [To be filled]
+--
+-- Description: Testbench for Cortex-M23 processor interface verification
+--              Includes protocol compliance checks, functional tests, and
+--              security attribute validation for TrustZone-M Baseline
+--
+-- Learning Objectives:
+-- 1. Understand Cortex-M23 interface behavior and timing requirements
+-- 2. Learn AHB-Lite protocol verification techniques
+-- 3. Verify TrustZone-M Baseline security enforcement
+-- 4. Test NVIC interrupt routing and priorities
+-- 5. Validate debug interface (SWD) operation
+-- 6. Verify low-power mode transitions
+-- 7. Test memory protection (MPU/SAU) functionality
+-- 8. Perform system-level integration testing
+--
+-- ============================================================================
+-- TESTBENCH ARCHITECTURE
+-- ============================================================================
+--
+-- Test Organization:
+-- ┌──────────────────────────────────────────────────────────────────┐
+-- │ Cortex-M23 Interface Testbench                                   │
+-- ├──────────────────────────────────────────────────────────────────┤
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ Test Environment Setup                                     │  │
+-- │ │ • Clock and reset generation                              │  │
+-- │ │ • Memory model (Flash and SRAM)                           │  │
+-- │ │ • Peripheral device stubs                                 │  │
+-- │ │ • Reference monitor for protocol checking                 │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ Test Scenarios                                             │  │
+-- │ │ • Boot and initialization sequence                         │  │
+-- │ │ • Memory access patterns (read/write)                      │  │
+-- │ │ • AHB-Lite protocol compliance                             │  │
+-- │ │ • Interrupt handling (Secure/Non-Secure)                  │  │
+-- │ │ • Context preservation in privilege transitions           │  │
+-- │ │ • Sleep mode entry and exit                               │  │
+-- │ │ • Debug interface operation                                │  │
+-- │ │ • Security boundary enforcement (M/NS)                    │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ Verification Functions                                     │  │
+-- │ │ • AHB transaction monitor                                  │  │
+-- │ │ • Security attribute checker                               │  │
+-- │ │ • Interrupt sequence validator                             │  │
+-- │ │ • Timing analysis and reporting                            │  │
+-- │ │ • Coverage collector                                       │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- └──────────────────────────────────────────────────────────────────┘
+--
+-- ============================================================================
+-- TEST SCENARIOS
+-- ============================================================================
+--
+-- Test 1: Power-On Reset and Boot Sequence
+-- ├─ Objective: Verify processor comes out of reset correctly
+-- ├─ Steps:
+-- │  1. Assert reset
+-- │  2. Wait for reset period
+-- │  3. Deassert reset
+-- │  4. Check initial processor state
+-- │  5. Verify first instruction fetch
+-- └─ Expected: Processor fetches from vector table (0x0000_0000)
+--
+-- Test 2: AHB-Lite Memory Read Transaction
+-- ├─ Objective: Verify AHB read protocol
+-- ├─ Steps:
+-- │  1. Set up address and read control signals
+-- │  2. Wait for HREADY response
+-- │  3. Capture HRDATA
+-- │  4. Check response (HRESP)
+-- └─ Expected: Correct data returned, HRESP = OKAY
+--
+-- Test 3: AHB-Lite Memory Write Transaction
+-- ├─ Objective: Verify AHB write protocol
+-- ├─ Steps:
+-- │  1. Set up address, data, and write control
+-- │  2. Wait for HREADY
+-- │  3. Verify write was completed
+-- └─ Expected: Data written to memory, HRESP = OKAY
+--
+-- Test 4: Secure vs Non-Secure Access Distinction
+-- ├─ Objective: Verify HNONSEC attribute is set correctly
+-- ├─ Steps:
+-- │  1. Execute code from Secure region
+-- │  2. Check HNONSEC = '0' (Secure)
+-- │  3. Execute code from Non-Secure region
+-- │  4. Check HNONSEC = '1' (Non-Secure)
+-- └─ Expected: HNONSEC reflects execution context
+--
+-- Test 5: Interrupt Reception and Acknowledgment
+-- ├─ Objective: Verify NVIC functionality
+-- ├─ Steps:
+-- │  1. Enable interrupts
+-- │  2. Raise an interrupt request
+-- │  3. Wait for processor acknowledgment
+-- │  4. Check PC changes to vector address
+-- │  5. Execute ISR (simulated)
+-- │  6. Return from interrupt
+-- └─ Expected: Interrupt serviced, context restored
+--
+-- Test 6: Secure Interrupt Preempts Non-Secure Code
+-- ├─ Objective: Verify security interrupt priority
+-- ├─ Steps:
+-- │  1. Start executing Non-Secure code
+-- │  2. Raise a Secure interrupt
+-- │  3. Check immediate interrupt acceptance
+-- │  4. Observe HNONSEC = '0' in ISR
+-- │  5. Return and resume Non-Secure code
+-- └─ Expected: Secure ISR executes immediately
+--
+-- Test 7: Clock Gating and Sleep Mode
+-- ├─ Objective: Verify low-power mode entry/exit
+-- ├─ Steps:
+-- │  1. Execute WFI (Wait For Interrupt)
+-- │  2. Observe clock gating (optional)
+-- │  3. Observe status_sleep = '1'
+-- │  4. Raise an interrupt
+-- │  5. Resume execution
+-- └─ Expected: Processor sleeps until interrupt, then awakens
+--
+-- Test 8: Debug Interface (SWD) Operation
+-- ├─ Objective: Verify debug port access
+-- ├─ Steps:
+-- │  1. Send SWD JTAG-to-SWD sequence
+-- │  2. Connect to debug port
+-- │  3. Read debug registers
+-- │  4. Check breakpoint capability
+-- └─ Expected: Successful debug connection
+--
+-- Test 9: SAU (Security Attribution Unit) Boundary Check
+-- ├─ Objective: Verify memory security regions
+-- ├─ Steps:
+-- │  1. Configure SAU regions
+-- │  2. Attempt access to Secure region from NS code (should fail)
+-- │  3. Attempt access to NS region from Secure code (should succeed)
+-- │  4. Check fault generation
+-- └─ Expected: Security violations detected and reported
+--
+-- Test 10: NVIC Priority and Nesting
+-- ├─ Objective: Verify interrupt priority handling
+-- ├─ Steps:
+-- │  1. Set interrupt priorities (0-3 range)
+-- │  2. Raise lower-priority interrupt
+-- │  3. During ISR, raise higher-priority interrupt
+-- │  4. Check higher-priority ISR preempts lower
+-- │  5. Return in nested fashion
+-- └─ Expected: Higher-priority preemption works correctly
+--
+-- ============================================================================
+-- PROTOCOL MONITORING AND CHECKING
+-- ============================================================================
+--
+-- AHB-Lite Master Monitor:
+-- • Tracks address phase (HADDR, HWRITE, HSIZE, HNONSEC)
+-- • Validates data phase timing
+-- • Checks response signals (HRDATA, HRESP, HREADY)
+-- • Reports protocol violations
+-- • Logs all transactions to log file
+--
+-- Security Attribute Checker:
+-- • Verifies HNONSEC matches execution context
+-- • Tracks secure/non-secure transitions
+-- • Flags unexpected attribute changes
+-- • Validates TrustZone-M compliance
+--
+-- Interrupt Monitor:
+-- • Tracks interrupt request/acknowledge sequences
+-- • Validates NVIC priority enforcement
+-- • Checks secure/non-secure interrupt handling
+-- • Monitors interrupt context switches
+--
+-- ============================================================================
+-- TEST BENCH SIGNALS AND ARCHITECTURE
+-- ============================================================================
+--
+-- Testbench Entity:
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+-- Stimuli generation and response monitoring implementation to be added here
+-- This section will contain testbench procedures and test control logic
+
+-- Clock Generation:
+-- procedure gen_clock(...) is
+--    Generate main processor clock with specified period
+--    Typically 40 MHz for M23
+--
+-- Reset Sequencing:
+-- procedure gen_reset(...) is
+--    Generate asynchronous assert and synchronous deassert
+--
+-- AHB Transaction Generation:
+-- procedure gen_ahb_write(...) is
+--    Set up AHB write transaction with address and data
+-- procedure gen_ahb_read(...) is
+--    Set up AHB read transaction and return data
+--
+-- Interrupt Stimulation:
+-- procedure gen_interrupt(...) is
+--    Raise interrupt request and handle acknowledge
+--
+-- Expected Output Checking:
+-- procedure check_response(...) is
+--    Verify processor response against expected behavior
+--    Report mismatches and update coverage information
+--
+-- ============================================================================
+-- TEST EXECUTION FLOW
+-- ============================================================================
+--
+-- Initialization:
+--   1. Reset testbench signals
+--   2. Start clock generation
+--   3. Apply system reset to DUT
+--   4. Initialize memory models
+--   5. Configure interrupt controller
+--   6. Set up debug interface
+--
+-- Test Execution:
+--   1. Call individual test procedures
+--   2. Monitor response signals
+--   3. Log all transactions
+--   4. Check protocol compliance
+--   5. Update coverage metrics
+--
+-- Result Reporting:
+--   1. Count passed/failed tests
+--   2. Report timing violations
+--   3. Report coverage achieved
+--   4. Generate waveform output
+--   5. Write detailed test report
+--
+-- ============================================================================
+-- WAVEFORM ANALYSIS POINTS
+-- ============================================================================
+--
+-- Critical Signals to Observe:
+-- • clk: Main processor clock
+-- • reset_n: System reset (active low)
+-- • haddr[31:0]: AHB address bus
+-- • hwdata[31:0]: AHB write data
+-- • hrdata[31:0]: AHB read data
+-- • hwrite: AHB write enable signal
+-- • hready: AHB ready (slave ready)
+-- • hresp: AHB response (OKAY/ERROR)
+-- • hnonsec: Security attribute (Non-Secure access)
+-- • interrupt_req[N-1:0]: Interrupt request lines
+-- • interrupt_ack[N-1:0]: Interrupt acknowledge
+-- • interrupt_secure[N-1:0]: Per-interrupt security level
+-- • status_sleep: Sleep mode indicator
+-- • swdio/swdclk: Debug port signals
+--
+-- ============================================================================
+-- EXPECTED TEST COVERAGE
+-- ============================================================================
+--
+-- Functional Coverage:
+-- ✓ Boot-up sequence
+-- ✓ Memory read/write access patterns
+-- ✓ Interrupt generation and handling
+-- ✓ Secure/Non-Secure transitions
+-- ✓ Sleep mode entry and wake-up
+-- ✓ Debug port operations
+-- ✓ Error response handling
+-- ✓ Priority-based interrupt preemption
+-- ✓ Context preservation in exceptions
+-- ✓ SAU/MPU boundary enforcement
+--
+-- Code Coverage:
+-- • All state machine states
+-- • All conditional paths
+-- • Exception handling paths
+-- • Error recovery paths
+-- • Power management transitions
+-- • Debug access control
+--
+-- ============================================================================
+-- VERIFICATION TECHNIQUES USED
+-- ============================================================================
+--
+-- 1. **Directed Testing**:
+--    - Specific test scenarios targeting known features
+--    - Protocol compliance verification
+--    - Boundary condition testing
+--
+-- 2. **Assertion-Based Verification**:
+--    - Real-time property checking
+--    - Invariant validation
+--    - Timing constraint verification
+--
+-- 3. **Coverage-Driven Testing**:
+--    - Track functional and code coverage
+--    - Identify uncovered scenarios
+--    - Ensure comprehensive validation
+--
+-- 4. **Protocol Checking**:
+--    - Real-time AHB-Lite transaction monitoring
+--    - Security attribute validation
+--    - Interrupt sequencing verification
+--
+-- 5. **Simulation Logging**:
+--    - Transaction-level logging
+--    - Error annotation
+--    - Performance statistics collection
+--
+-- ============================================================================
+-- SIMULATION CONFIGURATION
+-- ============================================================================
+--
+-- Recommended Simulator Settings:
+-- • Resolution: 1 ns
+-- • Stop Time: Configurable (typically 1-100 ms per test)
+-- • Waveform Capture: All signals
+-- • Message Level: Warnings and errors
+-- • Array Unpacking: Full (for easy debugging)
+--
+-- Memory Configuration:
+-- • Flash Model: 64 KB (0x0000_0000 - 0x0000_FFFF)
+-- • SRAM Model: 32 KB (0x2000_0000 - 0x2000_7FFF)
+-- • Peripheral Space: Stub responses
+--
+-- ============================================================================
+-- REFERENCES AND DOCUMENTATION
+-- ============================================================================
+--
+-- 1. ARM Cortex-M23 Technical Reference Manual
+--    Section 2: System Design
+--    Section 3: Memory Model
+--    Section 4: Exceptions and Interrupts
+--    Section 5: TrustZone-M Baseline
+--
+-- 2. AMBA AHB-Lite Protocol Specification (v1.0)
+--    Basic read/write transactions
+--    Wait state handling
+--    Response signals
+--
+-- 3. CoreSight Architecture Specification v8-M
+--    Debug interfaces
+--    Breakpoint and watchpoint operation
+--    Secure debug control
+--
+-- 4. IEEE 1364 or SystemVerilog Testbench Methodologies
+--    Constrained random testing
+--    Functional coverage
+--    Debug and analysis
+--
+-- ============================================================================
+-- IMPLEMENTATION NOTES
+-- ============================================================================
+--
+-- This testbench template provides a framework for comprehensive M23 interface
+-- verification. Each test procedure should:
+--
+-- 1. Document the test objective
+-- 2. Set up pre-conditions
+-- 3. Apply test stimuli
+-- 4. Monitor responses
+-- 5. Verify results against specifications
+-- 6. Report pass/fail status
+-- 7. Clean up and prepare for next test
+--
+-- The modular approach allows individual test cases to be developed,
+-- verified, and debugged independently before integration.
+--
+-- For production use, consider:
+-- • Extending with constrained random testing
+-- • Adding formal property verification
+-- • Implementing coverage collection
+-- • Creating performance benchmarks
+-- • Adding stress tests for robustness
+--
+-- ============================================================================
+
+-- Entity declaration will be added here
+-- Architecture implementation with test procedures to be completed
+
+-- Implementation to be completed - baseline structure established

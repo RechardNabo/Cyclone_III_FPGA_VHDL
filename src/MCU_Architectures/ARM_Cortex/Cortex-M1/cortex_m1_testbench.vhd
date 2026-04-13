@@ -1,0 +1,332 @@
+-- ============================================================================
+-- ARM CORTEX-M1 TESTBENCH VHDL FILE
+-- ============================================================================
+-- Project: ARM Cortex-M1 Processor Interface Verification
+-- File: cortex_m1_testbench.vhd
+-- 
+-- Author: [To be filled]
+-- Date: [To be filled]
+--
+-- Description: Testbench for Cortex-M1 processor interface verification
+--              Includes FPGA-optimized protocol compliance checks and
+--              functional tests for cost-effective embedded systems
+--
+-- Learning Objectives:
+-- 1. Understand Cortex-M1 FPGA-optimized architecture
+-- 2. Learn AHB-Lite protocol verification for simple systems
+-- 3. Test NVIC interrupt routing and priorities
+-- 4. Validate debug interface operation
+-- 5. Verify low-power mode transitions
+-- 6. Test memory access patterns
+-- 7. Perform FPGA resource efficiency analysis
+-- 8. Verify system-level integration
+--
+-- ============================================================================
+-- TESTBENCH ARCHITECTURE
+-- ============================================================================
+--
+-- Test Organization:
+-- ┌──────────────────────────────────────────────────────────────────┐
+-- │ Cortex-M1 Interface Testbench                                    │
+-- ├──────────────────────────────────────────────────────────────────┤
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ Test Environment Setup                                     │  │
+-- │ │ • Clock and reset generation                              │  │
+-- │ │ • Memory model (Flash and SRAM)                           │  │
+-- │ │ • Peripheral device stubs                                 │  │
+-- │ │ • FPGA resource monitors                                  │  │
+-- │ │ • Reference NVIC model                                    │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ Test Scenarios                                             │  │
+-- │ │ • ARMv6-M instruction execution                            │  │
+-- │ │ • Boot and initialization sequence                         │  │
+-- │ │ • Memory access patterns (read/write)                      │  │
+-- │ │ • AHB-Lite protocol compliance                             │  │
+-- │ │ • Interrupt handling and nesting                           │  │
+-- │ │ • Context preservation                                     │  │
+-- │ │ • Sleep mode entry and exit                                │  │
+-- │ │ • Debug interface operation                                │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ Verification Functions                                     │  │
+-- │ │ • AHB transaction monitor (FPGA optimized)                 │  │
+-- │ │ • ARMv6-M instruction validator                            │  │
+-- │ │ • Interrupt sequence validator                             │  │
+-- │ │ • FPGA resource usage analyzer                             │  │
+-- │ │ • Timing and coverage collection                           │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- │ ┌────────────────────────────────────────────────────────────┐  │
+-- │ │ FPGA Optimization Checks                                   │  │
+-- │ │ • Minimal LUT usage                                        │  │
+-- │ │ • RAM utilization efficiency                               │  │
+-- │ │ • Distributed RAM usage (if applicable)                    │  │
+-- │ │ • Clock tree optimization                                  │  │
+-- │ └────────────────────────────────────────────────────────────┘  │
+-- │                                                                  │
+-- └──────────────────────────────────────────────────────────────────┘
+--
+-- ============================================================================
+-- TEST SCENARIOS
+-- ============================================================================
+--
+-- Test 1: Power-On Reset and Boot Sequence
+-- ├─ Objective: Verify processor comes out of reset correctly
+-- ├─ Steps:
+-- │  1. Assert reset
+-- │  2. Wait for reset period
+-- │  3. Deassert reset
+-- │  4. Check initial processor state
+-- │  5. Verify first instruction fetch from 0x0000_0000
+-- └─ Expected: Processor begins execution from reset vector
+--
+-- Test 2: ARMv6-M Instruction Execution
+-- ├─ Objective: Verify Thumb instruction execution
+-- ├─ Steps:
+-- │  1. Load test program into memory
+-- │  2. Execute various instruction types
+-- │  3. Verify register updates
+-- │  4. Check status register (PSR) updates
+-- └─ Expected: All instructions execute correctly
+--
+-- Test 3: AHB-Lite Memory Read Transaction
+-- ├─ Objective: Verify AHB read protocol
+-- ├─ Steps:
+-- │  1. Set up address and read control signals
+-- │  2. Wait for HREADY response
+-- │  3. Capture HRDATA
+-- │  4. Check response (HRESP)
+-- └─ Expected: Correct data returned, HRESP = OKAY
+--
+-- Test 4: AHB-Lite Memory Write Transaction
+-- ├─ Objective: Verify AHB write protocol
+-- ├─ Steps:
+-- │  1. Set up address, data, and write control
+-- │  2. Wait for HREADY
+-- │  3. Verify write was completed
+-- └─ Expected: Data written correctly, HRESP = OKAY
+--
+-- Test 5: Interrupt Generation and NVIC Response
+-- ├─ Objective: Verify interrupt handling
+-- ├─ Steps:
+-- │  1. Enable interrupts in processor
+-- │  2. Raise an interrupt request
+-- │  3. Wait for processor acknowledgment
+-- │  4. Check PC changes to interrupt vector
+-- │  5. Execute ISR (simulated)
+-- │  6. Return from interrupt
+-- └─ Expected: Interrupt serviced, context restored
+--
+-- Test 6: Interrupt Nesting
+-- ├─ Objective: Verify nested interrupt handling
+-- ├─ Steps:
+-- │  1. Raise interrupt A (lower priority)
+-- │  2. Start executing ISR A
+-- │  3. Raise interrupt B (higher priority)
+-- │  4. Check ISR B executes immediately
+-- │  5. Complete ISR B and return to ISR A
+-- │  6. Complete ISR A and return to main code
+-- └─ Expected: Higher priority preempts lower priority
+--
+-- Test 7: Sleep Mode Entry and Exit
+-- ├─ Objective: Verify low-power operation
+-- ├─ Steps:
+-- │  1. Execute WFI (Wait For Interrupt)
+-- │  2. Verify processor state changes to sleep
+-- │  3. Raise interrupt during sleep
+-- │  4. Verify processor wakes and handles interrupt
+-- │  5. Resume execution
+-- └─ Expected: Processor efficiently enters and exits sleep
+--
+-- Test 8: Debug Interface (JTAG) Operation
+-- ├─ Objective: Verify debug access
+-- ├─ Steps:
+-- │  1. Send JTAG sequences to processor
+-- │  2. Access debug registers
+-- │  3. Read processor state
+-- │  4. Set breakpoints (if supported)
+-- └─ Expected: Successful debug connection and access
+--
+-- Test 9: Load/Store Multiple Instructions
+-- ├─ Objective: Verify block memory operations
+-- ├─ Steps:
+-- │  1. Set up register list
+-- │  2. Execute LDM (Load Multiple)
+-- │  3. Verify all registers updated
+-- │  4. Execute STM (Store Multiple)
+-- │  5. Verify memory contains correct values
+-- └─ Expected: Block operations complete correctly
+--
+-- Test 10: Context Preservation in Exception
+-- ├─ Objective: Verify automatic context save/restore
+-- ├─ Steps:
+-- │  1. Set up R0-R3 and R12 with known values
+-- │  2. Generate exception
+-- │  3. Check that context was saved to stack
+-- │  4. Modify some saved values in ISR
+-- │  5. Return from exception
+-- │  6. Verify original context (except modified) is restored
+-- └─ Expected: Context automatically preserved and restored
+--
+-- ============================================================================
+-- FPGA-SPECIFIC CONSIDERATIONS
+-- ============================================================================
+--
+-- Cortex-M1 is specifically designed for FPGA implementation:
+--
+-- Resource Efficiency:
+-- • Optimized pipeline for synthesis
+-- • Minimal memory footprint
+-- • Distributed memory support
+-- • Efficient use of FPGA primitives
+--
+-- Clock Management:
+-- • Single clock domain
+-- • No complex clock generation needed
+-- • Simple reset sequencing
+-- • Direct PLL support
+--
+-- Implementation Tests:
+-- • Verify synthesis compiles without warnings
+-- • Check timing closure at target frequency (40-50 MHz)
+-- • Monitor resource utilization (should be 2.5-4K LEs)
+-- • Validate FPGA placement and routing
+--
+-- ============================================================================
+-- PROTOCOL MONITORING AND CHECKING
+-- ============================================================================
+--
+-- AHB-Lite Master Monitor:
+-- • Tracks address phase (HADDR, HWRITE, HSIZE)
+-- • Validates data phase timing
+-- • Checks response signals (HRDATA, HRESP, HREADY)
+-- • Optimized for M1 bus access patterns
+-- • Reports protocol violations
+--
+-- NVIC Priority Monitor:
+-- • Tracks interrupt priority levels
+-- • Validates preemption rules
+-- • Monitors exception return sequences
+-- • Detects priority errors
+--
+-- Performance Metrics:
+-- • Interrupt latency measurement
+-- • Memory access timing analysis
+-- • Context switch overhead
+-- • Power consumption estimation
+--
+-- ============================================================================
+-- TEST BENCH SIGNALS AND ARCHITECTURE
+-- ============================================================================
+--
+-- Testbench Interface:
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+-- Clock Generation:
+-- procedure gen_clock(clk: out std_logic; period: time) is
+--    Generate main processor clock with specified period
+--    Typical M1 clock: 50 MHz (20 ns period)
+--
+-- Reset Sequencing:
+-- procedure gen_reset(reset_n: out std_logic; duration: time) is
+--    Generate asynchronous assert and synchronous deassert
+--
+-- AHB Transaction Generation:
+-- procedure gen_ahb_write(haddr, hwdata: in std_logic_vector) is
+--    Set up AHB write transaction
+-- procedure gen_ahb_read(haddr: in std_logic_vector; hrdata: out std_logic_vector) is
+--    Set up AHB read transaction
+--
+-- Interrupt Stimulation:
+-- procedure gen_interrupt(irq_num: in integer) is
+--    Raise numbered interrupt
+--
+-- Result Checking:
+-- procedure check_response(...) is
+--    Verify response against expected behavior
+--
+-- ============================================================================
+-- TEST EXECUTION FLOW
+-- ============================================================================
+--
+-- Initialization:
+--   1. Reset all testbench signals
+--   2. Start clock generation (50 MHz)
+--   3. Apply system reset
+--   4. Initialize memory models
+--   5. Set up interrupt vectors
+--   6. Configure NVIC
+--
+-- Functional Testing:
+--   1. Verify boot sequence
+--   2. Test instruction execution
+--   3. Test memory access patterns
+--   4. Test interrupt handling
+--   5. Test debug interface
+--
+-- Performance Testing:
+--   1. Measure interrupt latency
+--   2. Analyze memory access cycles
+--   3. Check context switch overhead
+--   4. Verify timing margins
+--
+-- Result Reporting:
+--   1. Report test pass/fail status
+--   2. Generate performance statistics
+--   3. Estimate FPGA resource usage
+--   4. Provide optimization recommendations
+--
+-- ============================================================================
+-- WAVEFORM ANALYSIS POINTS
+-- ============================================================================
+--
+-- Critical Signals:
+-- • clk: Processor clock (50 MHz)
+-- • reset_n: System reset
+-- • haddr[31:0]: AHB address bus
+-- • hwdata[31:0]: AHB write data
+-- • hrdata[31:0]: AHB read data
+-- • hwrite: AHB write control
+-- • hsize[2:0]: AHB transfer size
+-- • hready: AHB ready signal
+-- • hresp: AHB response
+-- • interrupt_req[31:0]: Interrupt requests
+-- • interrupt_ack[31:0]: Interrupt acknowledge
+--
+-- ============================================================================
+-- FPGA RESOURCE TRACKING
+-- ============================================================================
+--
+-- Expected Resource Usage:
+-- • LUTs: 2,500-4,000 (single LE = 4-6 LUTs)
+-- • BRAMs: 0-1 (for optional local TCM)
+-- • DSPs: 0 (no multipliers needed)
+-- • I/O: ~50-100 pins
+--
+-- Resource Breakdown:
+-- • CPU Core: ~1,500-2,000 LEs
+-- • Memory Interface: ~400-600 LEs
+-- • NVIC: ~300-400 LEs
+-- • Debug/Misc: ~300-500 LEs
+--
+-- ============================================================================
+-- REFERENCES
+-- ============================================================================
+--
+-- 1. ARM Cortex-M1 Technical Reference Manual
+-- 2. AMBA AHB-Lite Protocol Specification
+-- 3. FPGA Design Guidelines (Altera/Intel or Xilinx specific)
+-- 4. ARMv6-M Instruction Set Architecture
+--
+-- ============================================================================
+
+-- Entity declaration will be added here
+-- Architecture implementation with test procedures to be completed
+
+-- Implementation to be completed - baseline structure established
