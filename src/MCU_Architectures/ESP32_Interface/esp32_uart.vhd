@@ -1,625 +1,326 @@
--- ============================================================================
--- ESP32 UART INTERFACE IMPLEMENTATION
--- ============================================================================
--- Project: ESP32 UART Communication Interface Design
--- Description: This project implements a comprehensive UART interface for ESP32 
---              microcontrollers, providing FPGA-based serial communication and 
---              control capabilities for various ESP32 series processors including 
---              ESP32, ESP32-S2, ESP32-S3, ESP32-C3, and ESP32-H2.
---
--- Learning Objectives:
--- 1. Understand ESP32 microcontroller architecture and UART interfaces
--- 2. Master ESP32 UART protocol implementation and timing
--- 3. Learn ESP32 GPIO multiplexing and pin configuration
--- 4. Implement high-speed UART communication with ESP32
--- 5. Understand ESP32 DMA integration for UART transfers
--- 6. Master ESP32 interrupt handling and event management
--- 7. Learn ESP32 power management and sleep modes
--- 8. Implement ESP32 bootloader and firmware update via UART
---
--- Supported ESP32 Microcontrollers:
--- ┌─────────────────┬─────────────┬─────────────────────────────────────┐
--- │ Microcontroller │ Series      │ Key Features                        │
--- ├─────────────────┼─────────────┼─────────────────────────────────────┤
--- │ ESP32           │ ESP32       │ 3x UART, WiFi, Bluetooth, 520KB    │
--- │ ESP32-PICO-D4   │ ESP32       │ System-in-Package, 4MB flash       │
--- │ ESP32-WROVER    │ ESP32       │ 8MB PSRAM, external antenna        │
--- │ ESP32-S2        │ ESP32-S2    │ 2x UART, WiFi, USB, 320KB          │
--- │ ESP32-S2-MINI   │ ESP32-S2    │ Compact module, PCB antenna         │
--- │ ESP32-S3        │ ESP32-S3    │ 3x UART, WiFi, Bluetooth, AI       │
--- │ ESP32-S3-MINI   │ ESP32-S3    │ Compact, 8MB flash, 8MB PSRAM      │
--- │ ESP32-C3        │ ESP32-C3    │ 2x UART, RISC-V, WiFi, BLE 5.0     │
--- │ ESP32-C3-MINI   │ ESP32-C3    │ Compact RISC-V module               │
--- │ ESP32-C6        │ ESP32-C6    │ 3x UART, RISC-V, WiFi 6, Zigbee    │
--- │ ESP32-H2        │ ESP32-H2    │ 2x UART, RISC-V, Zigbee, Thread    │
--- │ ESP32-P4        │ ESP32-P4    │ 5x UART, High-performance, AI      │
--- └─────────────────┴─────────────┴─────────────────────────────────────┘
---
--- ESP32 UART Architecture:
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   ESP32 CPU     │◀──▶│   UART0/1/2     │◀──▶│   FPGA UART     │
--- │   (Xtensa/      │    │   Controller    │    │   Interface     │
--- │    RISC-V)      │    │                 │    │                 │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---          │                       │                       │
---          ▼                       ▼                       ▼
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   DMA Engine    │    │   GPIO Matrix   │    │   Clock/Reset   │
--- │   (Transfer     │    │   (Pin Mux)     │    │   Management    │
--- │    Automation)  │    │                 │    │                 │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for ESP32-specific utilities
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding ESP32-specific packages if available
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the ESP32 UART controller
---
--- Entity Requirements:
--- - Name: esp32_uart (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - UART interface signals (TX, RX, RTS, CTS, DTR, DSR)
--- - ESP32 control interface
--- - Configuration and status signals
---
--- Generic Parameters:
--- - CLK_FREQ: System clock frequency (default: 80 MHz for ESP32)
--- - BAUD_RATE: Default UART baud rate (default: 115200)
--- - DATA_BITS: Number of data bits (5-8, default: 8)
--- - STOP_BITS: Number of stop bits (1-2, default: 1)
--- - PARITY: Parity type (NONE, EVEN, ODD, default: NONE)
--- - FIFO_DEPTH: TX/RX FIFO depth (default: 128)
--- - FLOW_CONTROL: Hardware flow control enable (default: false)
--- - AUTO_BAUD: Automatic baud rate detection (default: false)
---
--- Port Specifications:
--- System Interface:
--- - clk           : in  std_logic (System clock)
--- - rst_n         : in  std_logic (Active-low reset)
--- - enable        : in  std_logic (Module enable)
---
--- ESP32 UART Interface:
--- - esp32_tx      : out std_logic (ESP32 transmit data)
--- - esp32_rx      : in  std_logic (ESP32 receive data)
--- - esp32_rts     : out std_logic (ESP32 request to send)
--- - esp32_cts     : in  std_logic (ESP32 clear to send)
--- - esp32_dtr     : out std_logic (ESP32 data terminal ready)
--- - esp32_dsr     : in  std_logic (ESP32 data set ready)
--- - esp32_dcd     : in  std_logic (ESP32 data carrier detect)
--- - esp32_ri      : in  std_logic (ESP32 ring indicator)
---
--- FPGA Interface:
--- - fpga_tx_data  : in  std_logic_vector(7 downto 0) (Transmit data)
--- - fpga_tx_valid : in  std_logic (Transmit data valid)
--- - fpga_tx_ready : out std_logic (Transmit ready)
--- - fpga_rx_data  : out std_logic_vector(7 downto 0) (Receive data)
--- - fpga_rx_valid : out std_logic (Receive data valid)
--- - fpga_rx_ready : in  std_logic (Receive ready)
---
--- Configuration Interface:
--- - baud_rate     : in  std_logic_vector(31 downto 0) (Baud rate setting)
--- - data_bits     : in  std_logic_vector(2 downto 0) (Data bits: 5-8)
--- - stop_bits     : in  std_logic_vector(1 downto 0) (Stop bits: 1-2)
--- - parity_type   : in  std_logic_vector(1 downto 0) (Parity: 00=None, 01=Odd, 10=Even)
--- - flow_ctrl_en  : in  std_logic (Flow control enable)
--- - loopback_en   : in  std_logic (Loopback mode enable)
---
--- Status Interface:
--- - tx_busy       : out std_logic (Transmitter busy)
--- - rx_busy       : out std_logic (Receiver busy)
--- - tx_fifo_full  : out std_logic (TX FIFO full)
--- - tx_fifo_empty : out std_logic (TX FIFO empty)
--- - rx_fifo_full  : out std_logic (RX FIFO full)
--- - rx_fifo_empty : out std_logic (RX FIFO empty)
--- - frame_error   : out std_logic (Frame error detected)
--- - parity_error  : out std_logic (Parity error detected)
--- - overrun_error : out std_logic (Overrun error detected)
--- - break_detect  : out std_logic (Break condition detected)
---
--- Interrupt Interface:
--- - tx_interrupt  : out std_logic (TX interrupt)
--- - rx_interrupt  : out std_logic (RX interrupt)
--- - error_interrupt : out std_logic (Error interrupt)
---
--- ============================================================================
--- STEP 3: ARCHITECTURE DECLARATION
--- ============================================================================
--- Architecture: behavioral (or structural for complex implementations)
---
--- Internal Signal Requirements:
--- - Clock generation and baud rate timing
--- - TX/RX state machines
--- - FIFO buffers for transmit and receive
--- - Parity generation and checking
--- - Flow control logic
--- - Error detection and handling
--- - Interrupt generation logic
---
--- ============================================================================
--- STEP 4: INTERNAL SIGNALS AND CONSTANTS
--- ============================================================================
---
--- Clock and Timing Signals:
--- - baud_clk_tx    : std_logic (TX baud clock)
--- - baud_clk_rx    : std_logic (RX baud clock)
--- - baud_counter   : unsigned(15 downto 0) (Baud rate counter)
--- - sample_counter : unsigned(3 downto 0) (RX sampling counter)
---
--- TX State Machine Signals:
--- - tx_state       : tx_state_type (TX state machine)
--- - tx_shift_reg   : std_logic_vector(10 downto 0) (TX shift register)
--- - tx_bit_counter : unsigned(3 downto 0) (TX bit counter)
--- - tx_data_reg    : std_logic_vector(7 downto 0) (TX data register)
---
--- RX State Machine Signals:
--- - rx_state       : rx_state_type (RX state machine)
--- - rx_shift_reg   : std_logic_vector(10 downto 0) (RX shift register)
--- - rx_bit_counter : unsigned(3 downto 0) (RX bit counter)
--- - rx_data_reg    : std_logic_vector(7 downto 0) (RX data register)
--- - rx_sync        : std_logic_vector(2 downto 0) (RX synchronizer)
---
--- FIFO Signals:
--- - tx_fifo_wr_en  : std_logic (TX FIFO write enable)
--- - tx_fifo_rd_en  : std_logic (TX FIFO read enable)
--- - tx_fifo_data_in : std_logic_vector(7 downto 0) (TX FIFO input)
--- - tx_fifo_data_out : std_logic_vector(7 downto 0) (TX FIFO output)
--- - rx_fifo_wr_en  : std_logic (RX FIFO write enable)
--- - rx_fifo_rd_en  : std_logic (RX FIFO read enable)
--- - rx_fifo_data_in : std_logic_vector(7 downto 0) (RX FIFO input)
--- - rx_fifo_data_out : std_logic_vector(7 downto 0) (RX FIFO output)
---
--- Error Detection Signals:
--- - parity_calc    : std_logic (Calculated parity)
--- - parity_rx      : std_logic (Received parity)
--- - frame_err_det  : std_logic (Frame error detection)
--- - overrun_err_det : std_logic (Overrun error detection)
---
--- ============================================================================
--- STEP 5: BAUD RATE GENERATOR
--- ============================================================================
--- Implement baud rate generation for ESP32 UART communication
---
--- Baud Rate Calculation:
--- - ESP32 supports baud rates from 300 to 5,000,000 bps
--- - Common rates: 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
--- - Baud divisor = CLK_FREQ / (16 * BAUD_RATE) for 16x oversampling
--- - Support fractional baud rate generation for accuracy
---
--- Implementation Requirements:
--- - Configurable baud rate divisor
--- - 16x oversampling for RX (recommended)
--- - Separate TX and RX baud clocks
--- - Auto-baud detection capability
--- - Baud rate error calculation and reporting
---
--- ============================================================================
--- STEP 6: TRANSMITTER IMPLEMENTATION
--- ============================================================================
--- Implement UART transmitter with ESP32 compatibility
---
--- TX State Machine States:
--- - IDLE: Waiting for data to transmit
--- - START: Transmitting start bit
--- - DATA: Transmitting data bits
--- - PARITY: Transmitting parity bit (if enabled)
--- - STOP: Transmitting stop bits
---
--- TX Features:
--- - Configurable data bits (5-8)
--- - Configurable stop bits (1, 1.5, 2)
--- - Parity generation (None, Even, Odd, Mark, Space)
--- - TX FIFO with configurable depth
--- - Hardware flow control (RTS/CTS)
--- - Break generation
--- - Interrupt generation on TX complete/FIFO empty
---
--- ============================================================================
--- STEP 7: RECEIVER IMPLEMENTATION
--- ============================================================================
--- Implement UART receiver with ESP32 compatibility
---
--- RX State Machine States:
--- - IDLE: Waiting for start bit
--- - START: Detecting start bit
--- - DATA: Receiving data bits
--- - PARITY: Receiving parity bit (if enabled)
--- - STOP: Receiving stop bits
---
--- RX Features:
--- - 16x oversampling for noise immunity
--- - Start bit detection and validation
--- - Configurable data bits (5-8)
--- - Parity checking (None, Even, Odd, Mark, Space)
--- - Frame error detection
--- - Overrun error detection
--- - RX FIFO with configurable depth
--- - Hardware flow control (RTS/CTS)
--- - Break detection
--- - Interrupt generation on RX complete/FIFO full/errors
---
--- ============================================================================
--- STEP 8: FIFO IMPLEMENTATION
--- ============================================================================
--- Implement TX and RX FIFOs for buffering
---
--- FIFO Requirements:
--- - Configurable depth (16, 32, 64, 128, 256 bytes)
--- - Full/empty status flags
--- - Almost full/empty thresholds
--- - FIFO level indicators
--- - Overflow/underflow protection
--- - Reset capability
---
--- ESP32 FIFO Compatibility:
--- - ESP32 has 128-byte TX and RX FIFOs
--- - Support FIFO threshold interrupts
--- - DMA integration capability
--- - FIFO status register compatibility
---
--- ============================================================================
--- STEP 9: FLOW CONTROL IMPLEMENTATION
--- ============================================================================
--- Implement hardware flow control (RTS/CTS)
---
--- Flow Control Features:
--- - RTS (Request to Send) output control
--- - CTS (Clear to Send) input monitoring
--- - Automatic flow control based on FIFO levels
--- - Manual flow control via software
--- - DTR/DSR support for modem control
--- - Flow control enable/disable
---
--- ESP32 Flow Control Compatibility:
--- - Support ESP32 flow control timing
--- - Configurable RTS assertion/deassertion thresholds
--- - CTS timeout handling
--- - Flow control status reporting
---
--- ============================================================================
--- STEP 10: ERROR DETECTION AND HANDLING
--- ============================================================================
--- Implement comprehensive error detection
---
--- Error Types:
--- - Frame Error: Invalid stop bit
--- - Parity Error: Parity mismatch
--- - Overrun Error: RX FIFO overflow
--- - Break Condition: Extended low period
--- - Noise Error: Sampling inconsistency
---
--- Error Handling:
--- - Error status registers
--- - Error interrupt generation
--- - Error recovery mechanisms
--- - Error statistics collection
--- - Configurable error response
---
--- ============================================================================
--- STEP 11: INTERRUPT CONTROLLER
--- ============================================================================
--- Implement interrupt generation and control
---
--- Interrupt Sources:
--- - TX FIFO empty/threshold
--- - RX FIFO full/threshold
--- - Frame/parity/overrun errors
--- - Break detection
--- - CTS change
--- - TX complete
--- - RX timeout
---
--- Interrupt Features:
--- - Individual interrupt enable/disable
--- - Interrupt status register
--- - Interrupt priority levels
--- - Edge/level triggered options
--- - Interrupt clear mechanisms
---
--- ============================================================================
--- STEP 12: ESP32 SPECIFIC FEATURES
--- ============================================================================
--- Implement ESP32-specific UART features
---
--- ESP32 Features:
--- - Auto-baud detection
--- - RS485 mode support
--- - IrDA mode support
--- - Light sleep wake-up
--- - Pattern detection
--- - AT command detection
--- - DMA integration
--- - Clock source selection
---
--- Configuration Registers:
--- - UART_CONF0_REG: Basic configuration
--- - UART_CONF1_REG: Advanced configuration
--- - UART_LOWPULSE_REG: Low pulse detection
--- - UART_HIGHPULSE_REG: High pulse detection
--- - UART_RXD_CNT_REG: RX byte count
--- - UART_FLOW_CONF_REG: Flow control configuration
---
--- ============================================================================
--- STEP 13: POWER MANAGEMENT
--- ============================================================================
--- Implement power management features
---
--- Power Features:
--- - Clock gating when idle
--- - Light sleep mode support
--- - Wake-up on RX activity
--- - Power-down mode
--- - Clock source switching
--- - Dynamic frequency scaling
---
--- ESP32 Power Compatibility:
--- - Support ESP32 sleep modes
--- - Wake-up source configuration
--- - Power consumption optimization
--- - Clock domain isolation
---
--- ============================================================================
--- STEP 14: TESTING AND VERIFICATION
--- ============================================================================
--- Comprehensive testing strategy
---
--- Functional Testing:
--- - Basic TX/RX operation
--- - All baud rates and configurations
--- - Flow control operation
--- - Error detection and handling
--- - FIFO operation
--- - Interrupt generation
---
--- Performance Testing:
--- - Maximum throughput
--- - Latency measurements
--- - FIFO utilization
--- - Error rates
--- - Power consumption
---
--- Compatibility Testing:
--- - ESP32 bootloader communication
--- - AT command interface
--- - Arduino IDE compatibility
--- - ESP-IDF compatibility
--- - Third-party tool compatibility
---
--- ============================================================================
--- STEP 15: IMPLEMENTATION TEMPLATE
--- ============================================================================
--- Complete implementation template with all required components
---
--- Template Structure:
--- 1. Library declarations
--- 2. Entity declaration with all ports
--- 3. Architecture with internal signals
--- 4. Baud rate generator process
--- 5. TX state machine process
--- 6. RX state machine process
--- 7. FIFO instantiations
--- 8. Flow control logic
--- 9. Error detection logic
--- 10. Interrupt controller
--- 11. Status register updates
--- 12. Output assignments
---
--- ============================================================================
--- DESIGN CONSIDERATIONS
--- ============================================================================
---
--- Timing Analysis:
--- - Setup and hold time requirements
--- - Clock domain crossing
--- - Metastability prevention
--- - Jitter tolerance
--- - Baud rate accuracy
---
--- Reset Strategy:
--- - Synchronous reset implementation
--- - Reset sequence timing
--- - State machine reset states
--- - FIFO reset behavior
--- - Register initialization
---
--- Clock Domain Considerations:
--- - System clock vs. baud clock
--- - Clock enable generation
--- - Synchronizer design
--- - Clock gating implementation
--- - Phase relationship management
---
--- Synthesis Optimization:
--- - Resource utilization
--- - Timing closure
--- - Power optimization
--- - Area optimization
--- - Performance tuning
---
--- Testability Features:
--- - Built-in self-test (BIST)
--- - Scan chain insertion
--- - Observability points
--- - Debug interfaces
--- - Simulation models
---
--- ============================================================================
--- APPLICATIONS AND USE CASES
--- ============================================================================
---
--- ESP32 Communication Applications:
--- - ESP32 programming and debugging
--- - AT command interface
--- - Sensor data collection
--- - IoT device communication
--- - Bootloader interface
--- - Firmware update
--- - Configuration management
--- - Real-time data streaming
---
--- System Integration:
--- - FPGA-ESP32 hybrid systems
--- - Multi-processor communication
--- - Protocol bridging
--- - Data logging systems
--- - Industrial automation
--- - Smart home devices
--- - Wireless gateways
--- - Edge computing nodes
---
--- ============================================================================
--- TESTING STRATEGY
--- ============================================================================
---
--- Simulation Testing:
--- - Functional verification
--- - Timing verification
--- - Protocol compliance
--- - Error injection testing
--- - Performance analysis
--- - Power analysis
--- - Coverage analysis
---
--- Hardware Testing:
--- - FPGA implementation testing
--- - ESP32 board testing
--- - Signal integrity analysis
--- - EMI/EMC compliance
--- - Temperature testing
--- - Stress testing
--- - Long-term reliability
---
--- Software Testing:
--- - Driver development
--- - Application testing
--- - Performance benchmarking
--- - Compatibility testing
--- - Regression testing
--- - Integration testing
--- - System testing
---
--- ============================================================================
--- PERFORMANCE OPTIMIZATION
--- ============================================================================
---
--- Throughput Optimization:
--- - FIFO depth optimization
--- - DMA integration
--- - Interrupt latency reduction
--- - Flow control tuning
--- - Baud rate optimization
--- - Parallel processing
--- - Pipeline optimization
---
--- Latency Optimization:
--- - Interrupt response time
--- - FIFO bypass modes
--- - Hardware acceleration
--- - Predictive algorithms
--- - Cache optimization
--- - Memory bandwidth
--- - Processing efficiency
---
--- Power Optimization:
--- - Clock gating strategies
--- - Voltage scaling
--- - Sleep mode utilization
--- - Activity monitoring
--- - Dynamic configuration
--- - Leakage reduction
--- - Thermal management
---
--- ============================================================================
--- ADVANCED FEATURES
--- ============================================================================
---
--- DMA Integration:
--- - DMA controller interface
--- - Scatter-gather support
--- - Circular buffer mode
--- - Interrupt coalescing
--- - Bandwidth management
--- - Priority handling
--- - Error recovery
---
--- Security Features:
--- - Data encryption
--- - Authentication
--- - Secure boot support
--- - Key management
--- - Access control
--- - Audit logging
--- - Tamper detection
---
--- Debug and Monitoring:
--- - Performance counters
--- - Error statistics
--- - Traffic analysis
--- - Protocol analysis
--- - Real-time monitoring
--- - Debug interfaces
--- - Trace capabilities
---
--- ============================================================================
--- VERIFICATION CHECKLIST
--- ============================================================================
---
--- Functional Verification:
--- □ Basic UART TX/RX operation verified
--- □ All baud rates tested and working
--- □ Data bit configurations (5-8) verified
--- □ Stop bit configurations (1, 1.5, 2) verified
--- □ Parity generation and checking verified
--- □ Flow control (RTS/CTS) operation verified
--- □ FIFO operation and thresholds verified
--- □ Error detection (frame, parity, overrun) verified
--- □ Break detection and generation verified
--- □ Interrupt generation and handling verified
--- □ ESP32 compatibility verified
--- □ Auto-baud detection verified (if implemented)
--- □ Power management features verified
--- □ DMA integration verified (if implemented)
--- □ Loopback mode operation verified
---
--- Synthesis Verification:
--- □ Design synthesizes without errors
--- □ Timing constraints met
--- □ Resource utilization acceptable
--- □ Power consumption within limits
--- □ No critical warnings
--- □ Clock domain crossings properly handled
--- □ Reset behavior verified
--- □ I/O standards compatible
--- □ Pin assignments correct
--- □ Placement and routing successful
---
--- Hardware Verification:
--- □ FPGA programming successful
--- □ ESP32 communication established
--- □ Signal integrity verified
--- □ Timing margins adequate
--- □ Temperature operation verified
--- □ EMI/EMC compliance verified
--- □ Long-term stability verified
--- □ Performance benchmarks met
--- □ Interoperability verified
--- □ Regression tests passed
---
--- ============================================================================
--- END OF PROGRAMMING GUIDE
--- ============================================================================
+-- ================================================================================
+-- esp32_uart : ESP32-style UART interface model with full TX and RX
+-- Educational bus interface model -- not a full ESP32 CPU core.  Target: Cyclone III.
+--
+-- Models a configurable UART with baud rate generator, parity (none/even/odd),
+-- 5-8 data bits, 1-2 stop bits, FIFO flags, flow control, and error detection.
+--
+-- REGISTER MAP (4-bit addr):
+-- 0x0 TXDATA  -- Write: TX data byte.  Read: echo of last TX byte.
+-- 0x1 RXDATA  -- Read: RX data byte (reading clears RX_READY).
+-- 0x2 STATUS  -- bit7=RX_OVERRUN, bit6=FRAMING_ERR, bit5=PARITY_ERR,
+--               bit4=TX_BUSY, bit3=RX_READY, bit2=TX_EMPTY, bit1=RX_FULL, bit0=CTS_STATE
+-- 0x3 CTRL    -- bit7=TX_EN, bit6=RX_EN, bit5=RTS_EN, bit4=PARITY_EN,
+--               bit3=PARITY_EVEN(1)/ODD(0), bit2=STOP2(1=2stop,0=1stop),
+--               bit1:0=DATABITS(00=5,01=6,10=7,11=8)
+-- 0x4 BAUD_L  -- Baud rate divisor low byte
+-- 0x5 BAUD_H  -- Baud rate divisor high byte (16-bit total)
+-- 0x6 FIFO_CTRL-- bit7=RX_FIFO_FLUSH, bit6=TX_FIFO_FLUSH, bit3:0=RX_FIFO_THRESHOLD
+-- 0x7 INT_EN  -- bit2=TX_INT_EN, bit1=RX_INT_EN, bit0=ERR_INT_EN
+-- 0x8 INT_ST  -- bit2=TX_DONE, bit1=RX_READY, bit0=ERR (read to clear)
+-- ================================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity esp32_uart is
+    port (
+        clk, reset  : in  std_logic;
+        -- Memory-mapped register interface
+        cs, we      : in  std_logic;
+        addr        : in  std_logic_vector(3 downto 0);  -- 4-bit register select
+        din         : in  std_logic_vector(7 downto 0);
+        dout        : out std_logic_vector(7 downto 0);
+        -- UART physical pins
+        txd         : out std_logic;
+        rxd         : in  std_logic;
+        rts_n       : out std_logic;  -- flow control (active-low request to send)
+        cts_n       : in  std_logic;  -- flow control (active-low clear to send)
+        -- Interrupts
+        tx_int      : out std_logic;  -- TX complete interrupt
+        rx_int      : out std_logic;  -- RX ready interrupt
+        err_int     : out std_logic   -- error interrupt (parity/framing/overrun)
+    );
+end entity esp32_uart;
+
+architecture rtl of esp32_uart is
+    -- Register address constants
+    constant R_TXDATA   : std_logic_vector(3 downto 0) := "0000"; -- 0x0
+    constant R_RXDATA   : std_logic_vector(3 downto 0) := "0001"; -- 0x1
+    constant R_STATUS   : std_logic_vector(3 downto 0) := "0010"; -- 0x2
+    constant R_CTRL     : std_logic_vector(3 downto 0) := "0011"; -- 0x3
+    constant R_BAUD_L   : std_logic_vector(3 downto 0) := "0100"; -- 0x4
+    constant R_BAUD_H   : std_logic_vector(3 downto 0) := "0101"; -- 0x5
+    constant R_FIFO_CTRL: std_logic_vector(3 downto 0) := "0110"; -- 0x6
+    constant R_INT_EN   : std_logic_vector(3 downto 0) := "0111"; -- 0x7
+    constant R_INT_ST   : std_logic_vector(3 downto 0) := "1000"; -- 0x8
+
+    -- Control register: TX/RX enable, parity, stop bits, data bits
+    signal ctrl_reg     : std_logic_vector(7 downto 0) := (others => '0');
+    -- Baud rate divisor (16-bit)
+    signal baud_l_reg   : std_logic_vector(7 downto 0) := (others => '0');
+    signal baud_h_reg   : std_logic_vector(7 downto 0) := (others => '0');
+    -- Interrupt enable and status
+    signal int_en_reg   : std_logic_vector(7 downto 0) := (others => '0');
+    signal int_st_reg   : std_logic_vector(7 downto 0) := (others => '0');
+
+    -- TX state: data register, shift register, busy, bit counter, baud counter
+    signal tx_data      : std_logic_vector(7 downto 0) := (others => '0');
+    signal tx_shift     : std_logic_vector(7 downto 0) := (others => '0');
+    signal tx_busy      : std_logic := '0';
+    signal tx_bit_idx   : integer range 0 to 11 := 0;  -- start+data+parity+stop+stop2
+    signal tx_baud_cnt  : integer range 0 to 65535 := 0;
+    signal tx_parity_calc : std_logic := '0';  -- running parity for TX
+
+    -- RX state: data register, shift register, busy, bit counter, baud counter
+    signal rx_data      : std_logic_vector(7 downto 0) := (others => '0');
+    signal rx_shift     : std_logic_vector(7 downto 0) := (others => '0');
+    signal rx_busy      : std_logic := '0';
+    signal rx_bit_idx   : integer range 0 to 11 := 0;
+    signal rx_baud_cnt  : integer range 0 to 65535 := 0;
+    signal rx_parity_calc : std_logic := '0';  -- running parity for RX
+    signal rxd_prev     : std_logic := '1';    -- for start bit detection
+
+    -- Status register (assembled from individual flags)
+    signal rx_overrun   : std_logic := '0';
+    signal framing_err  : std_logic := '0';
+    signal parity_err   : std_logic := '0';
+    signal rx_ready     : std_logic := '0';  -- RX data available
+    signal tx_empty     : std_logic := '1';  -- TX buffer empty
+
+    -- Helper: 16-bit baud divisor
+    signal baud_divisor : unsigned(15 downto 0);
+
+begin
+
+    -- Combine baud high and low into 16-bit divisor
+    baud_divisor <= unsigned(baud_h_reg) & unsigned(baud_l_reg);
+
+    -- ==================================================================
+    -- PROCESS: tx_rx_engine -- UART TX and RX state machines + register writes
+    -- ==================================================================
+    process(clk, reset)
+        -- Local variables for computing parity and frame length
+        variable parity_temp  : std_logic;
+        variable parity_offset: integer;  -- 1 if parity enabled, 0 otherwise
+        variable stop_bits    : integer;  -- 1 or 2 stop bits
+    begin
+        if reset = '1' then
+            -- Active-high reset: clear all registers and state
+            ctrl_reg   <= (others => '0');
+            baud_l_reg <= (others => '0');
+            baud_h_reg <= (others => '0');
+            int_en_reg <= (others => '0');
+            int_st_reg <= (others => '0');
+            tx_data    <= (others => '0');
+            tx_shift   <= (others => '0');
+            tx_busy    <= '0';
+            tx_bit_idx <= 0;
+            tx_baud_cnt<= 0;
+            rx_data    <= (others => '0');
+            rx_shift   <= (others => '0');
+            rx_busy    <= '0';
+            rx_bit_idx <= 0;
+            rx_baud_cnt<= 0;
+            rxd_prev   <= '1';
+            rx_overrun <= '0';
+            framing_err<= '0';
+            parity_err <= '0';
+            rx_ready   <= '0';
+            tx_empty   <= '1';
+        elsif rising_edge(clk) then
+            -- ---- CPU register writes ----
+            if cs = '1' and we = '1' then
+                case addr is
+                    when R_CTRL      => ctrl_reg <= din;
+                    when R_BAUD_L    => baud_l_reg <= din;
+                    when R_BAUD_H    => baud_h_reg <= din;
+                    when R_INT_EN    => int_en_reg <= din;
+                    -- TXDATA write: load data and start TX if enabled and idle
+                    when R_TXDATA    =>
+                        if ctrl_reg(7) = '1' and tx_busy = '0' then
+                            tx_data  <= din;
+                            tx_shift <= din;
+                            tx_busy  <= '1';
+                            tx_empty <= '0';
+                            tx_bit_idx <= 0;
+                            tx_baud_cnt <= 0;
+                            -- Compute initial parity (XOR all data bits)
+                            parity_temp := '0';
+                            for i in 0 to 7 loop
+                                parity_temp := parity_temp xor din(i);
+                            end loop;
+                            tx_parity_calc <= parity_temp;
+                        end if;
+                    -- RXDATA read clears RX_READY (handled in read process via we=0)
+                    -- FIFO_CTRL: flush bits (simplified -- just clear flags)
+                    when R_FIFO_CTRL =>
+                        if din(7) = '1' then rx_ready <= '0'; rx_overrun <= '0'; end if;
+                        if din(6) = '1' then tx_empty <= '1'; end if;
+                    -- INT_ST: writing '1' to a bit clears it
+                    when R_INT_ST =>
+                        if din(2)='1' then int_st_reg(2)<='0'; end if;
+                        if din(1)='1' then int_st_reg(1)<='0'; end if;
+                        if din(0)='1' then int_st_reg(0)<='0'; end if;
+                    when others => null;
+                end case;
+            end if;
+
+            -- Clear RX_READY when CPU reads RXDATA
+            if cs = '1' and we = '0' and addr = R_RXDATA then
+                rx_ready <= '0';
+            end if;
+
+            -- ---- UART TX state machine ----
+            -- Frame: start(0) + data(5-8 bits) + parity(optional) + stop(1-2)
+            -- Compute parity offset and stop bits from control register
+            if ctrl_reg(4) = '1' then parity_offset := 1; else parity_offset := 0; end if;
+            if ctrl_reg(2) = '1' then stop_bits := 2; else stop_bits := 1; end if;
+            if tx_busy = '1' then
+                if tx_baud_cnt >= to_integer(baud_divisor) then
+                    tx_baud_cnt <= 0;
+                    -- tx_bit_idx: 0=start, 1..N=data, N+1=parity, then stop(s)
+                    -- Total = 1 + (5+ctrl) + parity_offset + stop_bits
+                    if tx_bit_idx = 0 then
+                        tx_bit_idx <= tx_bit_idx + 1;  -- start bit done
+                    elsif tx_bit_idx <= to_integer(unsigned(ctrl_reg(1 downto 0))) + 5 then
+                        tx_bit_idx <= tx_bit_idx + 1;  -- data bits
+                    elsif ctrl_reg(4) = '1' and
+                          tx_bit_idx = to_integer(unsigned(ctrl_reg(1 downto 0))) + 6 then
+                        tx_bit_idx <= tx_bit_idx + 1;  -- parity bit done
+                    elsif tx_bit_idx = to_integer(unsigned(ctrl_reg(1 downto 0))) + 6 +
+                                       parity_offset + stop_bits then
+                        -- All stop bits sent: transmission complete
+                        tx_busy <= '0'; tx_empty <= '1';
+                        int_st_reg(2) <= '1';  -- TX done interrupt flag
+                    else
+                        tx_bit_idx <= tx_bit_idx + 1;  -- stop bit(s)
+                    end if;
+                else
+                    tx_baud_cnt <= tx_baud_cnt + 1;
+                end if;
+            end if;
+
+            -- ---- UART RX state machine ----
+            -- Detect start bit (falling edge on rxd), sample data at baud rate
+            if rx_busy = '0' then
+                -- Start bit detection: rxd goes low
+                if rxd_prev = '1' and rxd = '0' and ctrl_reg(6) = '1' then
+                    rx_busy <= '1';
+                    rx_bit_idx <= 0;
+                    rx_baud_cnt <= 0;
+                    rx_parity_calc <= '0';
+                    rx_shift <= (others => '0');
+                end if;
+            else
+                -- Receiving: sample at baud intervals
+                if rx_baud_cnt >= to_integer(baud_divisor) then
+                    rx_baud_cnt <= 0;
+                    if rx_bit_idx = 0 then
+                        -- Verify start bit is still low
+                        if rxd = '0' then
+                            rx_bit_idx <= rx_bit_idx + 1;
+                        else
+                            rx_busy <= '0';  -- false start, abort
+                        end if;
+                    elsif rx_bit_idx <= to_integer(unsigned(ctrl_reg(1 downto 0))) + 5 then
+                        -- Data bits: shift in from rxd (LSB first)
+                        rx_shift <= rxd & rx_shift(7 downto 1);
+                        rx_parity_calc <= rx_parity_calc xor rxd;
+                        rx_bit_idx <= rx_bit_idx + 1;
+                    elsif ctrl_reg(4) = '1' and
+                          rx_bit_idx = to_integer(unsigned(ctrl_reg(1 downto 0))) + 6 then
+                        -- Parity bit: check against calculated
+                        if ctrl_reg(3) = '1' then  -- even parity
+                            if rxd /= rx_parity_calc then parity_err <= '1'; int_st_reg(0)<='1'; end if;
+                        else  -- odd parity
+                            if rxd = rx_parity_calc then parity_err <= '1'; int_st_reg(0)<='1'; end if;
+                        end if;
+                        rx_bit_idx <= rx_bit_idx + 1;
+                    elsif rx_bit_idx = to_integer(unsigned(ctrl_reg(1 downto 0))) + 6 +
+                                       parity_offset then
+                        -- Stop bit: should be high
+                        if rxd = '1' then
+                            -- Valid frame: latch data
+                            if rx_ready = '1' then
+                                rx_overrun <= '1';  -- previous data not read
+                                int_st_reg(0) <= '1';
+                            end if;
+                            rx_data <= rx_shift;
+                            rx_ready <= '1';
+                            int_st_reg(1) <= '1';  -- RX ready interrupt
+                        else
+                            framing_err <= '1';  -- stop bit not high
+                            int_st_reg(0) <= '1';
+                        end if;
+                        rx_busy <= '0';
+                    else
+                        -- Second stop bit (if configured) -- just advance
+                        rx_bit_idx <= rx_bit_idx + 1;
+                    end if;
+                else
+                    rx_baud_cnt <= rx_baud_cnt + 1;
+                end if;
+            end if;
+            rxd_prev <= rxd;
+        end if;
+    end process;
+
+    -- ==================================================================
+    -- PROCESS: register_read -- combinational read mux
+    -- ==================================================================
+    process(cs, addr, tx_data, rx_data, ctrl_reg, baud_l_reg, baud_h_reg,
+            int_en_reg, int_st_reg, tx_busy, rx_ready, tx_empty, rx_overrun,
+            framing_err, parity_err, cts_n)
+        -- Assemble status register from individual flags
+        variable status_val : std_logic_vector(7 downto 0);
+    begin
+        -- Build status register: [overrun, framing, parity, tx_busy,
+        --   rx_ready, tx_empty, rx_full(=rx_ready), cts_state]
+        status_val := rx_overrun & framing_err & parity_err & tx_busy &
+                      rx_ready & tx_empty & rx_ready & (not cts_n);
+        if cs = '1' then
+            case addr is
+                when R_TXDATA   => dout <= tx_data;       -- echo last TX byte
+                when R_RXDATA   => dout <= rx_data;       -- received data
+                when R_STATUS   => dout <= status_val;    -- assembled status
+                when R_CTRL     => dout <= ctrl_reg;
+                when R_BAUD_L   => dout <= baud_l_reg;
+                when R_BAUD_H   => dout <= baud_h_reg;
+                when R_FIFO_CTRL=> dout <= (others => '0'); -- write-only
+                when R_INT_EN   => dout <= int_en_reg;
+                when R_INT_ST   => dout <= int_st_reg;
+                when others     => dout <= (others => '0');
+            end case;
+        else
+            dout <= (others => '0');
+        end if;
+    end process;
+
+    -- ==================================================================
+    -- OUTPUT ASSIGNMENTS
+    -- ==================================================================
+
+    -- TXD line: start bit(0), data bits, parity, stop bit(s), idle high
+    -- tx_bit_idx: 0=start, 1..N=data, N+1=parity, then stop
+    txd <= '0' when (tx_busy='1' and tx_bit_idx=0)
+      -- Data bits: output tx_shift(bit_idx-1) for LSB-first
+      else tx_shift(tx_bit_idx - 1)
+           when (tx_busy='1' and tx_bit_idx>=1 and
+                 tx_bit_idx <= to_integer(unsigned(ctrl_reg(1 downto 0))) + 5)
+      -- Parity bit
+      else tx_parity_calc
+           when (tx_busy='1' and ctrl_reg(4)='1' and
+                 tx_bit_idx = to_integer(unsigned(ctrl_reg(1 downto 0))) + 6)
+      -- Stop bit(s) and idle: high
+      else '1';
+
+    -- RTS: active-low, assert (low) when RX is enabled and not overrun
+    rts_n <= '0' when (ctrl_reg(5)='1' and rx_overrun='0') else '1';
+
+    -- Interrupt outputs (flag AND enable)
+    tx_int  <= int_st_reg(2) and int_en_reg(2);
+    rx_int  <= int_st_reg(1) and int_en_reg(1);
+    err_int <= int_st_reg(0) and int_en_reg(0);
+
+end architecture rtl;

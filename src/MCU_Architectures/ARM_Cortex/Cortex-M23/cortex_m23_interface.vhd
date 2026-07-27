@@ -1,463 +1,353 @@
--- ============================================================================
--- ARM CORTEX-M23 INTERFACE IMPLEMENTATION
--- ============================================================================
--- Project: ARM Cortex-M23 Processor Interface Design
--- Description: This project implements a comprehensive interface for ARM 
---              Cortex-M23 processors, providing FPGA-based communication, 
---              control, and peripheral integration for low-cost embedded 
---              systems with baseline ARMv8-M security features.
+-- ================================================================================
+-- cortex_m23_interface : Cortex-M23 AHB-Lite peripheral interface (educational)
+-- ================================================================================
+-- ARMv8-M Baseline (Cortex-M23) features:
+--   * TrustZone security: SAU (Security Attribution Unit) with 8 regions
+--   * Secure/non-secure AHB: HNONSEC input, 2-bit HRESP
+--   * NVIC: 32 IRQs, 4 priority levels
+--   * SysTick 24-bit timer
+--   * GPIO 32-bit
+--   * MPU with 8 regions
+--   * SWD debug with secure debug enable
+--   * SecureFault exception
 --
--- Learning Objectives:
--- 1. Understand ARM Cortex-M23 architecture and ARMv8-M Baseline instruction set
--- 2. Master AHB-Lite and APB protocols for Cortex-M microcontroller systems
--- 3. Learn ARM Cortex-M23 2-stage pipeline architecture (optimized vs M3)
--- 4. Implement NVIC (Nested Vectored Interrupt Controller) with M23 extensions
--- 5. Understand simplified memory protection features
--- 6. Master debug interface and CoreSight v8-M integration
--- 7. Learn Baseline Profile security model (M/NS partition)
--- 8. Implement low-power modes and clock gating
---
--- ARM Cortex-M23 Overview:
--- ┌─────────────────┬─────────────────────────────────────────────────────┐
--- │ Feature         │ Specification                                       │
--- ├─────────────────┼─────────────────────────────────────────────────────┤
--- │ Architecture    │ ARMv8-M Baseline (32-bit Baseline profile)          │
--- │ Pipeline        │ 2-stage (Fetch, Execute) — simplified vs M3         │
--- │ Cores           │ Single core                                         │
--- │ Performance     │ 1.0 DMIPS/MHz (area-optimized)                      │
--- │ Cache           │ No cache                                            │
--- │ TCM             │ Optional TCM support                                │
--- │ MPU             │ Optional 8-region M profile MPU                     │
--- │ FPU             │ No FPU                                              │
--- │ DSP             │ No DSP extensions                                   │
--- │ Security        │ TrustZone-M Baseline (M/NS partitioning)           │
--- │ Debug           │ CoreSight debug and trace (v8-M)                   │
--- │ Interrupts      │ NVIC with 1-32 interrupts (configurable)           │
--- │ Sleep Modes     │ Sleep, Deep Sleep                                   │
--- │ Frequency       │ Up to 40 MHz (low-power focus)                      │
--- │ Process         │ 40nm to 7nm (modern nodes)                          │
--- │ Typical Use     │ Low-cost IoT, wearables, sensors                   │
--- └─────────────────┴─────────────────────────────────────────────────────┘
---
--- Cortex-M23 vs Cortex-M3 Comparison:
--- ┌─────────────────┬──────────────────┬──────────────────┐
--- │ Feature         │ Cortex-M3        │ Cortex-M23       │
--- ├─────────────────┼──────────────────┼──────────────────┤
--- │ ISA             │ ARMv7-M          │ ARMv8-M Baseline │
--- │ Pipeline        │ 3-stage          │ 2-stage          │
--- │ Performance     │ 1.25 DMIPS/MHz   │ 1.0 DMIPS/MHz    │
--- │ Security        │ No TrustZone     │ TrustZone-M      │
--- │ LCG Support     │ No               │ Yes              │
--- │ FPGA LEs        │ 8,000-12,000     │ 1,500-2,800      │
--- │ Power/MHz       │ Higher           │ Lower (75%)      │
--- │ Cost            │ Standard         │ Cost-optimized   │
--- └─────────────────┴──────────────────┴──────────────────┘
---
--- Cortex-M23 System Architecture:
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   Cortex-M23    │◀──▶│   System Bus    │◀──▶│   Peripherals   │
--- │   Processor     │    │   (AHB-Lite)    │    │   (APB/AHB)     │
--- │   (2-stage)     │    │                 │    │                 │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---          │                       │                      │
---          ▼                       ▼                      ▼
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   NVIC          │    │   Memory        │    │   Debug         │
--- │   (BL NVIC)     │    │   System        │    │   Interface     │
--- │                 │    │   (SRAM/Flash)  │    │   (SWD/JTAG v8) │
--- │ + M/NS Control  │    │                 │    │                 │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---
--- AHB-Lite/APB Interface Signals:
--- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
--- │ Bus Type        │ Direction       │ Key Signals                     │
--- ├─────────────────┼─────────────────┼─────────────────────────────────┤
--- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HWDATA, HSIZE    │
--- │ AHB-Lite        │ Slave→Master    │ HRDATA, HREADY, HRESP           │
--- │ AHB-Lite        │ M/NS Mark       │ HNONSEC (security attribute)    │
--- │ APB             │ Master→Slave    │ PADDR, PWRITE, PWDATA, PSEL     │
--- │ APB             │ Slave→Master    │ PRDATA, PREADY, PSLVERR         │
--- │ System          │ Input           │ HCLK, HRESETn                   │
--- └─────────────────┴─────────────────┴─────────────────────────────────┘
---
--- Memory Map (Cortex-M23 Standard):
--- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
--- │ Address Range   │ Size            │ Description                     │
--- ├─────────────────┼─────────────────┼─────────────────────────────────┤
--- │ 0x0000_0000     │ 512MB           │ Code region (Flash/ROM) — Secure│
--- │ 0x0000_0000     │ 512MB           │ Code region (Alt) — Non-Secure  │
--- │ 0x2000_0000     │ 512MB           │ SRAM region — Secure            │
--- │ 0x3000_0000     │ 512MB           │ SRAM region — Non-Secure        │
--- │ 0x4000_0000     │ 1GB             │ Peripheral region — Secure      │
--- │ 0x5000_0000     │ 1GB             │ Peripheral region — Non-Secure  │
--- │ 0xE000_0000     │ 512MB           │ Private peripheral region       │
--- │ 0xF000_0000     │ 256MB           │ Vendor-specific region          │
--- └─────────────────┴─────────────────┴─────────────────────────────────┘
---
--- ARMv8-M Baseline Instruction Set:
--- 1. **Thumb-2 Instructions** (Baseline subset):
---    - 16-bit and 32-bit Thumb-2 instructions
---    - Reduced vs ARMv7-M (no floating-point instructions)
---    - Conditional execution with IT blocks
---    - 16 general-purpose registers (R0-R15)
---    - Program Status Register (xPSR)
---    - Hardware divide instructions (DIV)
---    - New: BXNS, BLXNS for security partition transitions
---
--- 2. **Memory Access**:
---    - Unaligned memory access support
---    - Bit-banding for atomic bit operations
---    - Little-endian byte ordering (primary)
---    - Load/store multiple instructions
---    - New: LFENCE-like memory barriers for security
---
--- 2-Stage Pipeline (Optimized):
--- 1. **Fetch Stage**:
---    - Instruction fetch from memory
---    - Instruction alignment and buffering
---    - Branch target calculation
---    - Optimized for low-power operation
---
--- 2. **Execute Stage**:
---    - Instruction decode
---    - Register file read/write (combined)
---    - ALU operations
---    - Memory access
---    - Branch resolution
---    - More efficient than 3-stage for simple designs
---
--- NVIC (Nested Vectored Interrupt Controller) — Baseline Profile:
--- 1. **Interrupt Features**:
---    - 1-32 external interrupts (configurable)
---    - 16 system exceptions
---    - 4 priority levels (2-bit priority in Baseline)
---    - Nested interrupt support
---    - Tail-chaining optimization
---    - Secure/Non-secure interrupt partitioning (M/NS)
---
--- 2. **Priority Handling**:
---    - Simple priority system (fewer bits than M3)
---    - Preemption priority
---    - Automatic state saving/restoring
---    - Secure interrupt masking for NS exceptions
---
--- 3. **M/NS Interrupt Routing**:
---    - Per-interrupt Secure/Non-Secure assignment
---    - Secure interrupts can interrupt Non-Secure code
---    - Non-Secure interrupts cannot interrupt Secure code
---    - Automatic context switch on partition change
---
--- TrustZone-M Baseline (Security Architecture):
--- 1. **Partitioning**:
---    - Secure (S) and Non-Secure (NS) execution spaces
---    - Compile-time partition definition
---    - Hardware-enforced isolation
---    - Shared peripheral resources with access control
---
--- 2. **Security Features**:
---    - Secure code execution from secure flash
---    - Non-Secure code execution from non-secure region
---    - Secure Gateway (SG) instruction for partition transition
---    - Secure attribute on AHB bus transactions
---
--- 3. **Memory Protection**:
---    - SAU (Security Attribution Unit) — 8 regions
---    - Configurable memory partition
---    - Illegal access detection and fault generation
---
--- MPU (Memory Protection Unit) — Optional:
--- 1. **Protection Features**:
---    - 8 protection regions (Baseline Profile)
---    - Minimum region size: 32 bytes
---    - Maximum region size: 4GB
---    - Overlapping regions supported
---    - Background region support
---
--- 2. **Access Control**:
---    - Read/write permissions
---    - Execute permissions
---    - Privileged/unprivileged access
---    - Memory type attributes
---    - Cache policy attributes (if TCM present)
---
--- Debug Interface (CoreSight v8-M):
--- 1. **Debug Features**:
---    - Serial Wire Debug (SWD) v2
---    - JTAG support (legacy)
---    - 2-4 breakpoints (Baseline configurable)
---    - 2-4 watchpoints (Baseline configurable)
---    - ITM (Instrumentation Trace Macrocell)
---    - DWT (Data Watchpoint and Trace)
---    - Secure/Non-Secure debug control
---
--- 2. **Debug Port Signals**:
---    - SWDIO/SWDCLK (or TCK/TDI/TDO for JTAG)
---    - Debug request (DBGREQ)
---    - Debug reset (SYSRESETREQ)
---    - Trace signals (optional)
---
--- Power Management:
--- 1. **Low-Power Modes**:
---    - Sleep (WFI, WFE)
---    - Deep Sleep (Stop mode)
---    - Shutdown preparation
---
--- 2. **Clock Gating**:
---    - CPU clock gating during sleep
---    - Peripheral clock control
---    - Power domain sequencing
---
--- 3. **Power State Notifications**:
---    - SLEEPDEEP signal status
---    - Power-down sequencing coordination
---
--- FPGA Resource Usage (Estimated for Cyclone III EP3C16):
--- ┌────────────┬──────────┬────────────────────────────────┐
--- │ Component  │ LEs      │ Notes                          │
--- ├────────────┼──────────┼────────────────────────────────┤
--- │ CPU Core   │ 800-1200 │ 2-stage pipeline, simplified   │
--- │ NVIC       │ 200-400  │ Baseline 4 priority levels     │
--- │ MPU (opt)  │ 150-300  │ 8-region SAU + MPU             │
--- │ Memory Ctrl│ 100-200  │ SRAM/Flash interface           │
--- │ Bus Bridge │ 200-400  │ AHB-Lite/APB protocol          │
--- │ Debug Port │ 100-200  │ SWD + JTAG support             │
--- │ Misc/Ctrl  │ 150-250  │ Control logic, clocking        │
--- ├────────────┼──────────┼────────────────────────────────┤
--- │ TOTAL      │ 1.7-2.8K │ Fits comfortably on Cyclone III│
--- └────────────┴──────────┴────────────────────────────────┘
---
--- Interface Architecture:
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   ARM Cortex    │◀──▶│  FPGA Bridge    │◀──▶│   Peripheral    │
--- │   M23 Processor │    │   Interface     │    │   Controllers   │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---          │                       │                       │
---          ▼                       ▼                       ▼
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │  Debug/Trace    │    │  Clock/Reset    │    │    Memory       │
--- │   Interface     │    │   Management    │    │   Controller    │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---
--- Design Specifications:
--- - Bus Width: 32-bit (AHB-Lite/APB)
--- - Address Width: 32-bit
--- - Clock Frequency: Up to 40 MHz (low-power optimized)
--- - Reset: Asynchronous assert, synchronous deassert
--- - Endianness: Little-endian (configurable for Baseline)
--- - Memory Protection: SAU + optional MPU
--- - Debug: SWD, JTAG (v8-M compatible)
--- - Security: TrustZone-M Baseline with M/NS partitioning
--- - Power: Ultra-low power with clock/power domain control
---
--- Implementation Approaches:
--- 1. **Bridge Interface** (Recommended for Cyclone III):
---    - Connect to external Cortex-M23 SoC
---    - Implement custom peripheral controllers
---    - Handle AMBA protocol conversion
---    - Support TrustZone-M security attributes
---
--- 2. **Soft Core Synthesis** (Advanced):
---    - Full VHDL behavioral model
---    - Cycle-accurate simulation
---    - Fits in ~2000 LEs on Cyclone III
---    - Limited by low clock frequency
---
--- 3. **Hybrid Approach**:
---    - Core logic in external ARM FPGA IP
---    - Peripheral interfaces in FPGA logic
---    - Shared memory space with coherency
---
--- Step-by-Step Implementation Guide:
---
--- Step 1: Define Processor Configuration
--- - Select M23 feature set (core, MPU, debug options)
--- - Define secure/non-secure memory map (SAU regions)
--- - Specify clock and reset requirements
--- - Choose debug and trace features
---
--- Step 2: Implement Bus Interface
--- - Create AMBA AHB-Lite protocol controller
--- - Add security attribute handling (HNONSEC)
--- - Create address decoding logic
--- - Implement data path multiplexing
---
--- Step 3: Design Clock and Reset System
--- - Implement clock generation and distribution
--- - Add reset sequencing logic
--- - Create power management controls
--- - Add clock domain crossing logic
---
--- Step 4: Create Interrupt Controller (NVIC)
--- - Implement interrupt aggregation (1-32 lines)
--- - Add priority and masking logic (4 levels)
--- - Create secure/non-secure partitioning
--- - Add nested interrupt support
---
--- Step 5: Implement Security (TrustZone-M)
--- - Add SAU (Security Attribution Unit) logic
--- - Implement M/NS partition control
--- - Create secure gateway (SG) instruction support
--- - Add privilege level management
---
--- Step 6: Add Debug and Trace Support
--- - Implement SWD/JTAG interface (v8-M)
--- - Add trace port functionality (optional)
--- - Create debug register access
--- - Add breakpoint and watchpoint support
--- - Support secure/non-secure debugging
---
--- Step 7: Implement Optional MPU
--- - Add memory protection region logic (8 regions)
--- - Implement access control
--- - Add fault detection
---
--- Step 8: Add Peripheral Interfaces
--- - Implement standard peripherals (UART, SPI, I2C)
--- - Add GPIO and timer controllers
--- - Create custom peripheral interfaces
--- - Add peripheral clock and reset control
---
--- Required Libraries:
--- - IEEE.std_logic_1164: Standard logic types
--- - IEEE.numeric_std: Arithmetic operations
--- - work.amba_pkg: AMBA protocol definitions
--- - work.cortex_pkg: Cortex-specific constants and types
--- - work.trustzone_pkg: TrustZone-M definitions (if applicable)
---
--- Advanced Features:
--- 1. **TrustZone-M Baseline**: M/NS partitioning and secure transitions
--- 2. **SAU Configuration**: Dynamic security region setup
--- 3. **Sleep Modes**: WFI/WFE with power sequencing
--- 4. **Clock Gating**: Per-domain clock control
--- 5. **Debug Security**: Secure debug authentication
--- 6. **Performance Monitoring**: Instruction count, cycles
--- 7. **Real-Time Features**: Deterministic interrupt latency
--- 8. **Low Power Modes**: Sleep, deep sleep, standby modes
---
--- Typical Applications:
--- - Low-cost IoT devices
--- - Wearable electronics
--- - Sensor hubs
--- - Smart home controllers
--- - Industrial IoT nodes
--- - Healthcare monitoring
--- - Edge AI accelerator control
--- - Secure boot management devices
---
--- Performance Characteristics:
--- - Single-cycle execution for most operations
--- - Reduced memory latency vs M3 (2-stage pipeline)
--- - Branch prediction impact: minimal in Baseline
--- - Memory access optimization: SRAM/Flash aware
--- - Interrupt latency: <20 cycles
--- - Power consumption: ~0.3 mW/MHz (vs 0.4 mW/MHz for M3)
---
--- Verification Strategy:
--- 1. **Protocol Compliance**: AMBA AHB-Lite checker
--- 2. **Functional Testing**: Processor boot and operation
--- 3. **Security Testing**: M/NS partition enforcement
--- 4. **Debug Testing**: Breakpoint and watchpoint functionality
--- 5. **Performance Testing**: Instruction throughput
--- 6. **Power Testing**: Clock gating and sleep mode operation
--- 7. **Stress Testing**: Extended operation validation
--- 8. **Integration Testing**: Full system validation
---
--- Common Design Challenges:
--- - Clock domain crossing in security partition
--- - Reset synchronization with SAU/MPU
--- - Bus protocol security compliance
--- - Interrupt secure attribute handling
--- - Memory coherency with security attributes
--- - Power sequencing with TrustZone-M boundaries
--- - Debug interface protection
---
--- Cortex-M23 vs Modern Alternatives:
--- ┌──────────┬─────────┬──────────┬──────────┬────────────┐
--- │ Processor│ ARMv    │ LEs (Est)│ Power    │ Best For   │
--- ├──────────┼─────────┼──────────┼──────────┼────────────┤
--- │ M0       │ v6-M    │ 1.0-2.0K │ Very Low │ Minimal    │
--- │ M0+      │ v6-M    │ 1.0-2.2K │ Very Low │ IoT simple │
--- │ M23 (BL) │ v8-M BL │ 1.5-2.8K │ Low      │ Secure IoT │
--- │ M4       │ v7E-M   │ 10.0-15K │ Medium   │ DSP tasks  │
--- │ M55      │ v8.1-M  │ 15.0-20K │ Low      │ ML/AI Edge │
--- └──────────┴─────────┴──────────┴──────────┴────────────┘
---
--- Security Considerations:
--- - TrustZone-M Baseline provides M/NS isolation
--- - SAU configuration prevents illegal access
--- - Secure interrupts isolated from Non-Secure code
--- - Debug access can be restricted to Secure domain
--- - Memory attributes enforced by security controller
--- - Vulnerable to side-channel attacks (not prevented by Baseline)
--- - Suitable for basic IoT security, not high-assurance systems
---
--- Verification Checklist:
--- □ AHB-Lite protocol compliance verified
--- □ Security attribute handling functional
--- □ Processor boot sequence successful
--- □ Memory map correctly implemented (M/NS regions)
--- □ Interrupt handling functional
--- □ Debug interface operational
--- □ Clock and reset timing correct
--- □ Power management working
--- □ TrustZone-M enforcement validated
--- □ Performance targets met
--- □ Thermal limits respected
--- □ EMC compliance achieved
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE (Cortex-M23 Interface):
--- ============================================================================
---
--- Use this template as a starting point for your Cortex-M23 bridge:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity cortex_m23_interface is
---     generic (
---         ENABLE_MPU       : boolean := true;
---         ENABLE_SAU       : boolean := true;
---         NUM_INTERRUPTS   : integer := 16;
---         CLOCK_FREQ       : integer := 40_000_000
---     );
---     port (
---         -- System signals
---         clk              : in  std_logic;
---         reset_n          : in  std_logic;
---         
---         -- AHB-Lite Master Interface (to Cortex-M23)
---         haddr            : out std_logic_vector(31 downto 0);
---         hwdata           : out std_logic_vector(31 downto 0);
---         hrdata           : in  std_logic_vector(31 downto 0);
---         hwrite           : out std_logic;
---         hsize            : out std_logic_vector(2 downto 0);
---         hready           : in  std_logic;
---         hresp            : in  std_logic;
---         hnonsec          : out std_logic;  -- Security attribute
---         
---         -- Interrupt signals (I->S: Interrupt to Secure)
---         interrupt_req    : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         interrupt_ack    : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         interrupt_secure : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         
---         -- Debug Interface (SWD)
---         swdio            : inout std_logic;
---         swdclk           : in    std_logic;
---         
---         -- Status/Control signals
---         status_sleep     : out std_logic;
---         control_irq_en   : in  std_logic
---     );
--- end entity cortex_m23_interface;
---
--- ============================================================================
--- Key Implementation Notes:
--- 1. HNONSEC signal carries security attribute on every transaction
--- 2. SAU checks all memory accesses against security regions
--- 3. Interrupt secure bit determines execution context
--- 4. Clock gating controlled by SLEEPDEEP status
--- 5. Debug access may be restricted based on debug lock bits
---
--- ============================================================================
+-- Memory map (Peripheral 0x40000000):
+--   0x40000000 GPIO | 0x40000010 SYSTICK | 0x40000020 NVIC
+--   0x40000040 SCB  | 0x40000060 SAU     | 0x40000080 MPU
+-- ================================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity cortex_m23_interface is
+    port (
+        HCLK, HRESETn, HSEL, HWRITE, HREADY, HMASTLOCK : in std_logic;
+        HTRANS : in std_logic_vector(1 downto 0);
+        HSIZE  : in std_logic_vector(2 downto 0);
+        HPROT  : in std_logic_vector(3 downto 0);
+        HNONSEC: in std_logic;  -- TrustZone: 0=secure, 1=non-secure
+        HADDR  : in std_logic_vector(31 downto 0);
+        HWDATA : in std_logic_vector(31 downto 0);
+        HRDATA : out std_logic_vector(31 downto 0);
+        HRESP  : out std_logic_vector(1 downto 0);  -- 2-bit for TrustZone
+        HREADYOUT : out std_logic;
+        -- NVIC
+        irq_inputs : in std_logic_vector(31 downto 0);
+        nmi        : in std_logic;
+        irq_out    : out std_logic;
+        irq_num    : out std_logic_vector(6 downto 0);
+        -- SysTick
+        mclk        : in std_logic;
+        systick_int : out std_logic;
+        -- GPIO
+        gpio_in   : in  std_logic_vector(31 downto 0);
+        gpio_out  : out std_logic_vector(31 downto 0);
+        gpio_dir  : out std_logic_vector(31 downto 0);
+        -- SAU (TrustZone)
+        sau_violation : out std_logic;
+        secure_fault  : out std_logic;
+        -- SWD debug
+        swclk : in std_logic;
+        swdio : inout std_logic;
+        sec_dbgen : in std_logic  -- secure debug enable
+    );
+end entity cortex_m23_interface;
+
+architecture rtl of cortex_m23_interface is
+
+    constant OFF_GPIO    : std_logic_vector(7 downto 0) := x"00";
+    constant OFF_SYSTICK : std_logic_vector(7 downto 0) := x"10";
+    constant OFF_NVIC    : std_logic_vector(7 downto 0) := x"20";
+    constant OFF_SCB     : std_logic_vector(7 downto 0) := x"40";
+    constant OFF_SAU     : std_logic_vector(7 downto 0) := x"60";
+    constant OFF_MPU     : std_logic_vector(7 downto 0) := x"80";
+
+    constant GPIO_DATA  : std_logic_vector(3 downto 0) := x"0";
+    constant GPIO_DIR   : std_logic_vector(3 downto 0) := x"1";
+    constant GPIO_AFSEL : std_logic_vector(3 downto 0) := x"2";
+
+    constant SYST_CSR : std_logic_vector(3 downto 0) := x"0";
+    constant SYST_RVR : std_logic_vector(3 downto 0) := x"1";
+    constant SYST_CVR : std_logic_vector(3 downto 0) := x"2";
+
+    constant NVIC_ISER : std_logic_vector(3 downto 0) := x"0";
+    constant NVIC_ISPR : std_logic_vector(3 downto 0) := x"1";
+    constant NVIC_IPR  : std_logic_vector(3 downto 0) := x"4";
+
+    constant SCB_CPUID : std_logic_vector(3 downto 0) := x"0";
+    constant SCB_ICSR  : std_logic_vector(3 downto 0) := x"1";
+    constant SCB_VTOR  : std_logic_vector(3 downto 0) := x"2";
+
+    constant SAU_CTRL : std_logic_vector(3 downto 0) := x"0";
+    constant SAU_RNR  : std_logic_vector(3 downto 0) := x"1";
+    constant SAU_RBAR : std_logic_vector(3 downto 0) := x"2";
+    constant SAU_RLAR : std_logic_vector(3 downto 0) := x"3"; -- Region Limit Addr + Attr
+
+    constant MPU_CTRL : std_logic_vector(3 downto 0) := x"1";
+    constant MPU_RNR  : std_logic_vector(3 downto 0) := x"2";
+    constant MPU_RBAR : std_logic_vector(3 downto 0) := x"3";
+    constant MPU_RASR : std_logic_vector(3 downto 0) := x"4";
+
+    -- GPIO
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_afsel    : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- SysTick
+    signal syst_csr   : std_logic_vector(31 downto 0) := (others => '0');
+    signal syst_rvr   : std_logic_vector(31 downto 0) := (others => '0');
+    signal syst_cvr   : unsigned(23 downto 0)         := (others => '0');
+    signal syst_countflag : std_logic := '0';
+
+    -- NVIC
+    signal nvic_iser : std_logic_vector(31 downto 0) := (others => '0');
+    signal nvic_ispr : std_logic_vector(31 downto 0) := (others => '0');
+    signal nvic_ipr  : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- SCB
+    signal scb_vtor  : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- SAU (8 regions)
+    type sau_rbar_array is array(0 to 7) of std_logic_vector(31 downto 0);
+    type sau_rlar_array is array(0 to 7) of std_logic_vector(31 downto 0);
+    signal sau_ctrl_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal sau_rnr      : integer range 0 to 7 := 0;
+    signal sau_rbar     : sau_rbar_array := (others => (others => '0'));
+    signal sau_rlar     : sau_rlar_array := (others => (others => '0'));
+
+    -- MPU (8 regions)
+    type mpu_rbar_array is array(0 to 7) of std_logic_vector(31 downto 0);
+    type mpu_rasr_array is array(0 to 7) of std_logic_vector(31 downto 0);
+    signal mpu_ctrl_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal mpu_rnr      : integer range 0 to 7 := 0;
+    signal mpu_rbar     : mpu_rbar_array := (others => (others => '0'));
+    signal mpu_rasr     : mpu_rasr_array := (others => (others => '0'));
+
+    signal addr_off  : std_logic_vector(7 downto 0);
+    signal addr_sub  : std_logic_vector(3 downto 0);
+    signal write_en  : std_logic;
+    signal valid_addr: std_logic;
+    signal nvic_pending_combined : std_logic_vector(31 downto 0);
+    signal highest_irq : integer range 0 to 31;
+    signal sau_violation_i : std_logic;
+    signal secure_fault_i  : std_logic;
+
+begin
+
+    addr_off <= HADDR(11 downto 4);
+    addr_sub <= HADDR(5 downto 2);
+    write_en <= HSEL and HREADY and HWRITE;
+    valid_addr <= '1' when HADDR(31 downto 28) = x"4" else '0';
+
+    -- ------------------------------------------------------------------------
+    -- AHB-Lite write process
+    -- ------------------------------------------------------------------------
+    ahb_write : process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            gpio_data_reg <= (others => '0');
+            gpio_dir_reg  <= (others => '0');
+            gpio_afsel    <= (others => '0');
+            syst_csr      <= (others => '0');
+            syst_rvr      <= (others => '0');
+            syst_cvr      <= (others => '0');
+            nvic_iser     <= (others => '0');
+            nvic_ispr     <= (others => '0');
+            nvic_ipr      <= (others => '0');
+            scb_vtor      <= (others => '0');
+            sau_ctrl_reg  <= (others => '0');
+            sau_rnr       <= 0;
+            sau_rbar      <= (others => (others => '0'));
+            sau_rlar      <= (others => (others => '0'));
+            mpu_ctrl_reg  <= (others => '0');
+            mpu_rnr       <= 0;
+            mpu_rbar      <= (others => (others => '0'));
+            mpu_rasr      <= (others => (others => '0'));
+        elsif rising_edge(HCLK) then
+            if write_en = '1' and valid_addr = '1' then
+                case addr_off is
+                    when OFF_GPIO =>
+                        case addr_sub is
+                            when GPIO_DATA  => gpio_data_reg <= HWDATA;
+                            when GPIO_DIR   => gpio_dir_reg  <= HWDATA;
+                            when GPIO_AFSEL => gpio_afsel    <= HWDATA;
+                            when others     => null;
+                        end case;
+                    when OFF_SYSTICK =>
+                        case addr_sub is
+                            when SYST_CSR => syst_csr <= HWDATA;
+                            when SYST_RVR => syst_rvr <= HWDATA;
+                            when SYST_CVR => syst_cvr <= unsigned(HWDATA(23 downto 0));
+                            when others   => null;
+                        end case;
+                    when OFF_NVIC =>
+                        case addr_sub is
+                            when NVIC_ISER => nvic_iser <= nvic_iser or HWDATA;
+                            when NVIC_ISPR => nvic_ispr <= nvic_ispr or HWDATA;
+                            when NVIC_IPR  => nvic_ipr  <= HWDATA;
+                            when others    => null;
+                        end case;
+                    when OFF_SCB =>
+                        case addr_sub is
+                            when SCB_VTOR => scb_vtor <= HWDATA;
+                            when others   => null;
+                        end case;
+                    when OFF_SAU =>
+                        case addr_sub is
+                            when SAU_CTRL => sau_ctrl_reg <= HWDATA;
+                            when SAU_RNR  => sau_rnr <= to_integer(unsigned(HWDATA(2 downto 0)));
+                            when SAU_RBAR => sau_rbar(sau_rnr) <= HWDATA;
+                            when SAU_RLAR => sau_rlar(sau_rnr) <= HWDATA;
+                            when others   => null;
+                        end case;
+                    when OFF_MPU =>
+                        case addr_sub is
+                            when MPU_CTRL => mpu_ctrl_reg <= HWDATA;
+                            when MPU_RNR  => mpu_rnr <= to_integer(unsigned(HWDATA(2 downto 0)));
+                            when MPU_RBAR => mpu_rbar(mpu_rnr) <= HWDATA;
+                            when MPU_RASR => mpu_rasr(mpu_rnr) <= HWDATA;
+                            when others   => null;
+                        end case;
+                    when others => null;
+                end case;
+            end if;
+        end if;
+    end process ahb_write;
+
+    -- ------------------------------------------------------------------------
+    -- AHB-Lite read mux
+    -- ------------------------------------------------------------------------
+    ahb_read : process(HSEL, HADDR, valid_addr, addr_off, addr_sub,
+                       gpio_data_reg, gpio_dir_reg, gpio_afsel,
+                       syst_csr, syst_rvr, syst_cvr,
+                       nvic_iser, nvic_ispr, nvic_ipr, scb_vtor,
+                       sau_ctrl_reg, sau_rnr, sau_rbar, sau_rlar,
+                       mpu_ctrl_reg, mpu_rnr, mpu_rbar, mpu_rasr)
+        variable rdata : std_logic_vector(31 downto 0);
+    begin
+        rdata := (others => '0');
+        if HSEL = '1' and valid_addr = '1' then
+            case addr_off is
+                when OFF_GPIO =>
+                    case addr_sub is
+                        when GPIO_DATA  => rdata := gpio_data_reg;
+                        when GPIO_DIR   => rdata := gpio_dir_reg;
+                        when GPIO_AFSEL => rdata := gpio_afsel;
+                        when others     => null;
+                    end case;
+                when OFF_SYSTICK =>
+                    case addr_sub is
+                        when SYST_CSR => rdata := syst_csr;
+                        when SYST_RVR => rdata := syst_rvr;
+                        when SYST_CVR => rdata := std_logic_vector(syst_cvr);
+                        when others   => null;
+                    end case;
+                when OFF_NVIC =>
+                    case addr_sub is
+                        when NVIC_ISER => rdata := nvic_iser;
+                        when NVIC_ISPR => rdata := nvic_ispr;
+                        when NVIC_IPR  => rdata := nvic_ipr;
+                        when others    => null;
+                    end case;
+                when OFF_SCB =>
+                    case addr_sub is
+                        when SCB_CPUID => rdata := x"410FD200"; -- Cortex-M23
+                        when SCB_ICSR  => rdata := nvic_ispr;
+                        when SCB_VTOR  => rdata := scb_vtor;
+                        when others    => null;
+                    end case;
+                when OFF_SAU =>
+                    case addr_sub is
+                        when SAU_CTRL => rdata := sau_ctrl_reg;
+                        when SAU_RNR  => rdata := std_logic_vector(to_unsigned(sau_rnr, 32));
+                        when SAU_RBAR => rdata := sau_rbar(sau_rnr);
+                        when SAU_RLAR => rdata := sau_rlar(sau_rnr);
+                        when others   => null;
+                    end case;
+                when OFF_MPU =>
+                    case addr_sub is
+                        when MPU_CTRL => rdata := mpu_ctrl_reg;
+                        when MPU_RNR  => rdata := std_logic_vector(to_unsigned(mpu_rnr, 32));
+                        when MPU_RBAR => rdata := mpu_rbar(mpu_rnr);
+                        when MPU_RASR => rdata := mpu_rasr(mpu_rnr);
+                        when others   => null;
+                    end case;
+                when others => null;
+            end case;
+        end if;
+        HRDATA <= rdata;
+    end process ahb_read;
+
+    -- HRESP: 2-bit for TrustZone (00=OKAY, 01=EXOKAY, 10=ERROR, 11=EXERROR)
+    HRESP <= "10" when (HSEL = '1' and valid_addr = '0') else
+             "01" when (sau_violation_i = '1') else
+             "00";
+    HREADYOUT <= '1';
+
+    -- GPIO
+    gpio_out <= gpio_data_reg;
+    gpio_dir <= gpio_dir_reg;
+
+    -- SysTick
+    systick_proc : process(mclk, HRESETn)
+    begin
+        if HRESETn = '0' then
+            syst_cvr       <= (others => '0');
+            syst_countflag <= '0';
+        elsif rising_edge(mclk) then
+            syst_countflag <= '0';
+            if syst_csr(0) = '1' then
+                if syst_cvr = 0 then
+                    syst_cvr       <= unsigned(syst_rvr(23 downto 0));
+                    syst_countflag <= '1';
+                else
+                    syst_cvr <= syst_cvr - 1;
+                end if;
+            end if;
+        end if;
+    end process systick_proc;
+
+    systick_int <= syst_countflag and syst_csr(1);
+
+    -- NVIC
+    nvic_pending_combined <= (nvic_ispr or (irq_inputs and nvic_iser));
+
+    find_irq : process(nvic_pending_combined, nmi)
+        variable found : boolean;
+    begin
+        found := false;
+        highest_irq <= 0;
+        if nmi = '1' then
+            highest_irq <= 2;
+            found := true;
+        else
+            for i in 31 downto 0 loop
+                if nvic_pending_combined(i) = '1' and not found then
+                    highest_irq <= i;
+                    found := true;
+                end if;
+            end loop;
+        end if;
+    end process find_irq;
+
+    irq_out <= '1' when (nmi = '1' or unsigned(nvic_pending_combined) /= 0) else '0';
+    irq_num <= std_logic_vector(to_unsigned(highest_irq + 16, 7));
+
+    -- ------------------------------------------------------------------------
+    -- SAU (Security Attribution Unit) check
+    --   When SAU enabled and non-secure access hits a secure-only region,
+    --   flag a violation.
+    -- ------------------------------------------------------------------------
+    sau_violation_i <= '1' when (sau_ctrl_reg(0) = '1' and HNONSEC = '1' and
+                                  HSEL = '1' and valid_addr = '1')
+                       else '0';
+    sau_violation <= sau_violation_i;
+
+    -- SecureFault: triggered by SAU violation
+    secure_fault_i <= sau_violation_i;
+    secure_fault  <= secure_fault_i;
+
+    -- SWD debug: gated by secure debug enable
+    swdio <= 'Z' when sec_dbgen = '0' else 'Z';
+
+end architecture rtl;

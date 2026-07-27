@@ -1,454 +1,117 @@
 -- ============================================================================
--- FIR Filter Dataflow Implementation - Programming Guidance
+-- FIR Filter - Dataflow Model
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a Finite Impulse Response (FIR) digital filter using
--- dataflow architecture, which emphasizes concurrent signal assignments and
--- structural modeling. This approach is particularly suitable for high-speed
--- implementations where parallel processing and pipelining are critical.
--- The dataflow model provides excellent synthesis results and clear signal
--- flow visualization for complex DSP systems.
+-- A Finite Impulse Response (FIR) filter produces each output sample by
+-- multiplying a set of coefficients (the "taps") with the most recent input
+-- samples and summing the results. This is the classic MAC (Multiply-
+-- Accumulate) operation:  y[n] = sum( h[k] * x[n-k] ).
 --
--- LEARNING OBJECTIVES:
--- 1. Understand dataflow modeling in VHDL for DSP applications
--- 2. Learn concurrent signal assignment techniques
--- 3. Practice structural decomposition of FIR filters
--- 4. Implement parallel processing architectures
--- 5. Understand signal routing and interconnection strategies
--- 6. Learn optimization techniques for dataflow implementations
---
+-- This dataflow model uses concurrent signal assignments to describe the
+-- delay line, the parallel multipliers, and the adder tree. It is the most
+-- compact of the three FIR examples and emphasizes parallel computation.
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for advanced DSP operations
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding DSP library for optimized operations
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the dataflow FIR filter
---
--- Entity Requirements:
--- - Name: fir_dataflow (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - Data input and output with appropriate bit widths
--- - Control signals for filter operation
--- - Configuration inputs for filter parameters
---
--- Port Specifications:
--- - clk           : in  std_logic (System clock)
--- - reset         : in  std_logic (Asynchronous reset, active high)
--- - data_in       : in  signed(DATA_WIDTH-1 downto 0) (Input data samples)
--- - data_valid_in : in  std_logic (Input data valid signal)
--- - data_out      : out signed(OUTPUT_WIDTH-1 downto 0) (Filtered output data)
--- - data_valid_out: out std_logic (Output data valid signal)
--- - filter_enable : in  std_logic (Filter enable control)
--- - coeff_select  : in  std_logic_vector(COEFF_SELECT_WIDTH-1 downto 0) (Coefficient set selection)
---
--- Generic Parameters:
--- - DATA_WIDTH         : integer := 16 (Input data width in bits)
--- - COEFF_WIDTH        : integer := 16 (Coefficient width in bits)
--- - OUTPUT_WIDTH       : integer := 32 (Output data width in bits)
--- - NUM_TAPS           : integer := 64 (Number of filter taps)
--- - COEFF_SELECT_WIDTH : integer := 3  (Coefficient set selection width)
--- - PIPELINE_STAGES    : integer := 4  (Number of pipeline stages)
---
--- ============================================================================
--- STEP 3: DATAFLOW FIR FILTER PRINCIPLES
--- ============================================================================
---
--- Dataflow Architecture Characteristics:
--- - Concurrent signal assignments for parallel processing
--- - Structural decomposition into functional blocks
--- - Clear signal flow and data path visualization
--- - Excellent synthesis optimization opportunities
--- - Natural pipelining and parallelization
---
--- Key Dataflow Components:
--- 1. Delay Line: Shift register implemented with concurrent assignments
--- 2. Multiplier Array: Parallel coefficient multiplication
--- 3. Adder Tree: Hierarchical accumulation structure
--- 4. Pipeline Registers: Timing optimization stages
--- 5. Control Logic: Enable and configuration management
---
--- Signal Flow Organization:
--- - Input → Delay Line → Multiplier Array → Adder Tree → Output
--- - Control signals propagate through pipeline stages
--- - Valid signals maintain data integrity through processing
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic Dataflow FIR Filter (Recommended for beginners)
--- - Simple concurrent assignments for delay line
--- - Parallel multipliers with fixed coefficients
--- - Basic adder tree for accumulation
--- - Minimal pipelining for clarity
---
--- OPTION 2: Pipelined Dataflow FIR Filter (Intermediate)
--- - Multi-stage pipeline with register insertion
--- - Optimized adder tree with balanced delays
--- - Configurable coefficients through multiplexers
--- - Enhanced control signal management
---
--- OPTION 3: Systolic Dataflow FIR Filter (Advanced)
--- - Fully systolic architecture with dataflow modeling
--- - Maximum parallelization and pipelining
--- - Optimized for FPGA DSP block utilization
--- - Advanced coefficient management systems
---
--- OPTION 4: Multi-Channel Dataflow FIR Filter (Expert)
--- - Multiple parallel filter channels
--- - Shared coefficient storage and management
--- - Time-division multiplexing capabilities
--- - Complex routing and control structures
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Concurrent Assignment Strategy:
--- - Use concurrent assignments for combinational logic
--- - Implement registers with clocked processes
--- - Balance between concurrent and sequential modeling
--- - Optimize for synthesis tool understanding
---
--- Signal Routing and Interconnection:
--- - Plan signal flow for minimal routing complexity
--- - Use intermediate signals for complex expressions
--- - Consider signal naming conventions for clarity
--- - Implement proper signal buffering and driving
---
--- Timing and Performance:
--- - Balance pipeline depth with latency requirements
--- - Consider critical path optimization
--- - Plan for clock domain crossing if needed
--- - Optimize for target FPGA timing constraints
---
--- Resource Utilization:
--- - Leverage FPGA DSP blocks for multiplications
--- - Use distributed RAM for coefficient storage
--- - Optimize logic utilization with proper coding
--- - Consider power consumption implications
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Coefficient Management:
--- - Multiple coefficient sets for different responses
--- - Runtime coefficient loading capabilities
--- - Coefficient symmetry exploitation
--- - Distributed coefficient storage strategies
---
--- Multi-Rate Processing:
--- - Decimation and interpolation support
--- - Polyphase filter implementations
--- - Sample rate conversion capabilities
--- - Efficient multi-rate architectures
---
--- Adaptive Capabilities:
--- - Coefficient adaptation interfaces
--- - Error signal processing
--- - Convergence monitoring
--- - Performance optimization feedback
---
--- Advanced Architectures:
--- - Distributed arithmetic implementations
--- - Frequency-domain processing integration
--- - Multi-channel and multi-rate support
--- - Reconfigurable filter architectures
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. High-Speed Communications: Channel filtering, equalization
--- 2. Software Defined Radio: Channelization, pulse shaping
--- 3. Audio/Video Processing: Real-time filtering, effects
--- 4. Radar/Sonar Systems: Matched filtering, beamforming
--- 5. Medical Devices: Signal conditioning, noise reduction
--- 6. Industrial Control: Sensor signal processing
--- 7. Test Equipment: Signal generation and analysis
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual component verification
--- 2. Dataflow Verification: Signal flow and timing analysis
--- 3. Performance Testing: Throughput and latency measurement
--- 4. Resource Analysis: Utilization and optimization verification
--- 5. Timing Analysis: Critical path and setup/hold verification
--- 6. Functional Testing: Filter response and accuracy validation
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic dataflow structure
--- 2. Implement delay line with concurrent assignments
--- 3. Add parallel multiplier array
--- 4. Create hierarchical adder tree
--- 5. Insert pipeline registers for timing optimization
--- 6. Add control and configuration logic
--- 7. Optimize for target FPGA resources
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Implement different adder tree topologies
--- 2. Add coefficient symmetry optimization
--- 3. Create multi-channel filter implementation
--- 4. Implement polyphase filter structures
--- 5. Add runtime reconfiguration capabilities
--- 6. Create distributed arithmetic version
--- 7. Implement adaptive filtering extensions
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Mixing concurrent and sequential assignments inappropriately
--- 2. Creating unintended latches with incomplete signal assignments
--- 3. Poor signal naming leading to confusion
--- 4. Inadequate pipeline balancing causing timing issues
--- 5. Inefficient resource usage due to poor coding style
--- 6. Neglecting synthesis optimization opportunities
--- 7. Insufficient consideration of signal routing complexity
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ All signals properly assigned in all conditions
--- □ No unintended latches or combinational loops
--- □ Pipeline timing balanced and optimized
--- □ Resource utilization meets targets
--- □ Signal routing complexity manageable
--- □ Synthesis results meet performance goals
--- □ Functional verification passes all tests
--- □ Timing analysis shows positive slack
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This dataflow FIR filter demonstrates several key concepts:
--- - Concurrent modeling for parallel processing
--- - Structural decomposition of complex systems
--- - Pipeline optimization for high-speed operation
--- - Resource-efficient FPGA implementation techniques
--- - Signal flow management in complex designs
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Utilize FPGA DSP blocks for optimal performance
--- - Plan placement for minimal routing delays
--- - Consider clock distribution and skew
--- - Optimize for power consumption
--- - Plan for thermal management in high-speed designs
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Systolic array architectures
--- - Distributed arithmetic techniques
--- - Multi-rate signal processing
--- - Adaptive filtering algorithms
--- - Reconfigurable computing architectures
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Create comprehensive testbenches for dataflow verification
--- - Use assertion-based verification for signal integrity
--- - Implement timing-accurate simulation models
--- - Validate against reference implementations
--- - Test corner cases and boundary conditions
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity fir_dataflow is
---     generic (
---         DATA_WIDTH         : integer := 16;
---         COEFF_WIDTH        : integer := 16;
---         OUTPUT_WIDTH       : integer := 32;
---         NUM_TAPS           : integer := 64;
---         COEFF_SELECT_WIDTH : integer := 3;
---         PIPELINE_STAGES    : integer := 4
---     );
---     port (
---         clk             : in  std_logic;
---         reset           : in  std_logic;
---         data_in         : in  signed(DATA_WIDTH-1 downto 0);
---         data_valid_in   : in  std_logic;
---         data_out        : out signed(OUTPUT_WIDTH-1 downto 0);
---         data_valid_out  : out std_logic;
---         filter_enable   : in  std_logic;
---         coeff_select    : in  std_logic_vector(COEFF_SELECT_WIDTH-1 downto 0)
---     );
--- end entity fir_dataflow;
---
--- architecture dataflow of fir_dataflow is
---     -- Constants
---     constant ACCUMULATOR_WIDTH : integer := DATA_WIDTH + COEFF_WIDTH + 
---                                           integer(ceil(log2(real(NUM_TAPS))));
---     constant MULT_WIDTH : integer := DATA_WIDTH + COEFF_WIDTH;
---     
---     -- Coefficient arrays for different filter responses
---     type coeff_array_type is array (0 to NUM_TAPS-1) of 
---          signed(COEFF_WIDTH-1 downto 0);
---     type coeff_set_type is array (0 to 2**COEFF_SELECT_WIDTH-1) of 
---          coeff_array_type;
---     
---     -- Example coefficient sets (replace with actual filter coefficients)
---     constant COEFFICIENT_SETS : coeff_set_type := (
---         0 => (others => to_signed(1, COEFF_WIDTH)),  -- All-pass
---         1 => (others => to_signed(2, COEFF_WIDTH)),  -- Gain of 2
---         others => (others => (others => '0'))        -- Zeros
---     );
---     
---     -- Data delay line signals
---     type data_delay_type is array (0 to NUM_TAPS-1) of 
---          signed(DATA_WIDTH-1 downto 0);
---     signal data_delay_line : data_delay_type;
---     
---     -- Multiplier output signals
---     type mult_array_type is array (0 to NUM_TAPS-1) of 
---          signed(MULT_WIDTH-1 downto 0);
---     signal multiplier_outputs : mult_array_type;
---     
---     -- Adder tree intermediate signals
---     type adder_tree_type is array (0 to NUM_TAPS-1) of 
---          signed(ACCUMULATOR_WIDTH-1 downto 0);
---     signal adder_tree_level0 : adder_tree_type;
---     signal adder_tree_level1 : adder_tree_type;
---     signal adder_tree_level2 : adder_tree_type;
---     signal adder_tree_level3 : adder_tree_type;
---     
---     -- Pipeline registers
---     type pipeline_data_type is array (0 to PIPELINE_STAGES-1) of 
---          signed(OUTPUT_WIDTH-1 downto 0);
---     type pipeline_valid_type is array (0 to PIPELINE_STAGES-1) of std_logic;
---     signal pipeline_data : pipeline_data_type;
---     signal pipeline_valid : pipeline_valid_type;
---     
---     -- Control signals
---     signal selected_coefficients : coeff_array_type;
---     signal filter_result : signed(ACCUMULATOR_WIDTH-1 downto 0);
---     signal enable_pipeline : std_logic_vector(PIPELINE_STAGES-1 downto 0);
---     
--- begin
---     -- Coefficient selection (concurrent assignment)
---     selected_coefficients <= COEFFICIENT_SETS(to_integer(unsigned(coeff_select)));
---     
---     -- Data delay line implementation (clocked process)
---     delay_line_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             data_delay_line <= (others => (others => '0'));
---         elsif rising_edge(clk) then
---             if filter_enable = '1' and data_valid_in = '1' then
---                 -- Shift delay line
---                 data_delay_line(0) <= data_in;
---                 for i in 1 to NUM_TAPS-1 loop
---                     data_delay_line(i) <= data_delay_line(i-1);
---                 end loop;
---             end if;
---         end if;
---     end process;
---     
---     -- Parallel multiplier array (concurrent assignments)
---     multiplier_gen: for i in 0 to NUM_TAPS-1 generate
---         multiplier_outputs(i) <= data_delay_line(i) * selected_coefficients(i);
---     end generate;
---     
---     -- Adder tree level 0 (extend multiplier outputs)
---     adder_tree_level0_gen: for i in 0 to NUM_TAPS-1 generate
---         adder_tree_level0(i) <= resize(multiplier_outputs(i), ACCUMULATOR_WIDTH);
---     end generate;
---     
---     -- Adder tree level 1 (pair-wise addition)
---     adder_tree_level1_gen: for i in 0 to NUM_TAPS/2-1 generate
---         adder_tree_level1(i) <= adder_tree_level0(2*i) + adder_tree_level0(2*i+1);
---     end generate;
---     
---     -- Handle odd number of taps
---     odd_tap_gen: if NUM_TAPS mod 2 = 1 generate
---         adder_tree_level1(NUM_TAPS/2) <= adder_tree_level0(NUM_TAPS-1);
---     end generate;
---     
---     -- Adder tree level 2 (continue hierarchical addition)
---     adder_tree_level2_gen: for i in 0 to NUM_TAPS/4-1 generate
---         adder_tree_level2(i) <= adder_tree_level1(2*i) + adder_tree_level1(2*i+1);
---     end generate;
---     
---     -- Final accumulation (simplified for template)
---     accumulation_proc: process(clk, reset)
---         variable temp_sum : signed(ACCUMULATOR_WIDTH-1 downto 0);
---     begin
---         if reset = '1' then
---             filter_result <= (others => '0');
---         elsif rising_edge(clk) then
---             if filter_enable = '1' then
---                 temp_sum := (others => '0');
---                 for i in 0 to NUM_TAPS-1 loop
---                     temp_sum := temp_sum + adder_tree_level0(i);
---                 end loop;
---                 filter_result <= temp_sum;
---             end if;
---         end if;
---     end process;
---     
---     -- Pipeline implementation
---     pipeline_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             pipeline_data <= (others => (others => '0'));
---             pipeline_valid <= (others => '0');
---             enable_pipeline <= (others => '0');
---         elsif rising_edge(clk) then
---             -- Pipeline stage 0
---             pipeline_data(0) <= filter_result(ACCUMULATOR_WIDTH-1 downto 
---                                             ACCUMULATOR_WIDTH-OUTPUT_WIDTH);
---             pipeline_valid(0) <= data_valid_in and filter_enable;
---             enable_pipeline(0) <= filter_enable;
---             
---             -- Subsequent pipeline stages
---             for i in 1 to PIPELINE_STAGES-1 loop
---                 pipeline_data(i) <= pipeline_data(i-1);
---                 pipeline_valid(i) <= pipeline_valid(i-1);
---                 enable_pipeline(i) <= enable_pipeline(i-1);
---             end loop;
---         end if;
---     end process;
---     
---     -- Output assignments (concurrent)
---     data_out <= pipeline_data(PIPELINE_STAGES-1) when enable_pipeline(PIPELINE_STAGES-1) = '1' 
---                 else (others => '0');
---     data_valid_out <= pipeline_valid(PIPELINE_STAGES-1) and enable_pipeline(PIPELINE_STAGES-1);
---     
--- end architecture dataflow;
---
--- ============================================================================
--- Remember: This dataflow implementation emphasizes concurrent modeling and
--- structural decomposition. The key is to balance concurrent assignments with
--- clocked processes to achieve optimal synthesis results while maintaining
--- code clarity and functionality.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity fir_dataflow is
+    generic (
+        -- Number of filter taps (fixed at 8 for this educational design)
+        NUM_TAPS   : integer := 8;
+        -- Width of input/output data samples in bits
+        DATA_WIDTH : integer := 8
+    );
+    port (
+        clk        : in  std_logic;                                      -- System clock
+        reset      : in  std_logic;                                      -- Async reset (active high)
+        data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);        -- New input sample
+        valid_in   : in  std_logic;                                      -- Strobe: new sample available
+        data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);        -- Filtered output
+        valid_out  : out std_logic                                       -- Strobe: output sample ready
+    );
+end entity fir_dataflow;
+
+architecture rtl of fir_dataflow is
+
+    -- -------------------------------------------------------------------------
+    -- Coefficient array type and constant values.
+    -- These 8 integers are the filter's impulse response. Feeding an impulse
+    -- (a single 1 followed by zeros) makes the output equal to these values,
+    -- one per clock - a great way to verify the filter.
+    -- -------------------------------------------------------------------------
+    type coeff_array is array (0 to 7) of integer;
+    constant COEFFS : coeff_array := (1, 2, 3, 4, 4, 3, 2, 1);
+
+    -- Shift-register delay line: each entry holds one delayed input sample.
+    -- delay_line(0) = newest sample, delay_line(NUM_TAPS-1) = oldest sample.
+    type sample_array is array (0 to NUM_TAPS-1) of signed(DATA_WIDTH-1 downto 0);
+    signal delay_line : sample_array;
+
+    -- Products of each tap: h[k] * x[n-k] (parallel multiplier outputs)
+    type product_array is array (0 to NUM_TAPS-1) of signed(DATA_WIDTH+15 downto 0);
+    signal products : product_array;
+
+    -- Accumulator wide enough to hold the sum of all products without overflow
+    signal acc : signed(DATA_WIDTH+15 downto 0);
+
+    -- Pipeline the valid signal so it lines up with the registered output
+    signal valid_pipe : std_logic;
+
+begin
+
+    ---------------------------------------------------------------------------
+    -- Delay line: shift the input sample through the register chain on every
+    -- valid input. This creates the x[n], x[n-1], ... x[n-7] history.
+    ---------------------------------------------------------------------------
+    process (clk, reset)
+    begin
+        if reset = '1' then
+            for i in 0 to NUM_TAPS-1 loop
+                delay_line(i) <= (others => '0');
+            end loop;
+            valid_pipe <= '0';
+        elsif rising_edge(clk) then
+            if valid_in = '1' then
+                -- Newest sample goes into position 0; older samples shift down
+                delay_line(0) <= signed(data_in);
+                for i in 1 to NUM_TAPS-1 loop
+                    delay_line(i) <= delay_line(i-1);
+                end loop;
+            end if;
+            -- Delay the valid flag by one clock to align with the MAC output
+            valid_pipe <= valid_in;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Parallel multiply: each tap computes h[k] * x[n-k] concurrently.
+    -- This is the "dataflow" part - all multiplications happen at once.
+    ---------------------------------------------------------------------------
+    gen_mult : for k in 0 to NUM_TAPS-1 generate
+        products(k) <= delay_line(k) * to_signed(COEFFS(k), 16);
+    end generate gen_mult;
+
+    ---------------------------------------------------------------------------
+    -- Adder tree: sum all products into the accumulator (registered).
+    ---------------------------------------------------------------------------
+    process (clk, reset)
+        variable sum : signed(DATA_WIDTH+15 downto 0);
+    begin
+        if reset = '1' then
+            acc <= (others => '0');
+        elsif rising_edge(clk) then
+            sum := (others => '0');
+            for k in 0 to NUM_TAPS-1 loop
+                sum := sum + products(k);
+            end loop;
+            acc <= sum;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Output: take the lower DATA_WIDTH bits of the accumulator.
+    ---------------------------------------------------------------------------
+    data_out  <= std_logic_vector(acc(DATA_WIDTH-1 downto 0));
+    valid_out <= valid_pipe;
+
+end architecture rtl;

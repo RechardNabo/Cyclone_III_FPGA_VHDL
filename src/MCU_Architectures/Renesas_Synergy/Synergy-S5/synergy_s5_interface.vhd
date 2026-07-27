@@ -1,599 +1,219 @@
--- ============================================================================
--- RENESAS SYNERGY S5 SERIES MCU INTERFACE IMPLEMENTATION
--- ============================================================================
--- Project: Renesas Synergy S5 Series MCU Interface Design
--- Description: This project implements a comprehensive interface for Renesas 
---              Synergy S5 series microcontrollers, providing FPGA-based 
---              communication and control capabilities for high-performance 
---              embedded applications with advanced connectivity and security.
---
--- Learning Objectives:
--- 1. Understand Renesas Synergy S5 architecture and peripheral interfaces
--- 2. Master Synergy S5 communication protocols (SPI, I2C, UART, CAN, Ethernet)
--- 3. Learn Synergy S5 memory interfaces and external memory controllers
--- 4. Implement high-speed data transfer with Synergy S5 DMA controllers
--- 5. Understand Synergy S5 security features and cryptographic engines
--- 6. Master Synergy S5 analog interfaces and ADC/DAC integration
--- 7. Learn Synergy S5 power management and low-power modes
--- 8. Implement Synergy S5 real-time capabilities and timer systems
---
--- Supported Synergy S5 Microcontrollers:
--- ┌─────────────────┬─────────────┬─────────────────────────────────────┐
--- │ Microcontroller │ Core        │ Key Features                        │
--- ├─────────────────┼─────────────┼─────────────────────────────────────┤
--- │ S5D9            │ ARM Cortex-M4F │ 240MHz, 2MB Flash, 640KB RAM    │
--- │ S5D5            │ ARM Cortex-M4F │ 120MHz, 2MB Flash, 512KB RAM    │
--- │ S5D3            │ ARM Cortex-M4F │ 120MHz, 1MB Flash, 384KB RAM    │
--- │ S5D1            │ ARM Cortex-M4F │ 120MHz, 512KB Flash, 256KB RAM  │
--- └─────────────────┴─────────────┴─────────────────────────────────────┘
---
--- Synergy S5 Architecture Overview:
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   ARM Cortex-M4F│◀──▶│   Bus Matrix    │◀──▶│   FPGA Interface│
--- │   (up to 240MHz)│    │   (AHB/APB)     │    │   Controller    │
--- │                 │    │                 │    │                 │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---          │                       │                       │
---          ▼                       ▼                       ▼
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   Memory        │    │   Peripherals   │    │   Security      │
--- │   Controller    │    │   (UART, SPI,   │    │   Engine        │
--- │   (Flash, SRAM) │    │    I2C, CAN)    │    │   (AES, TRNG)   │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider Synergy-specific packages for advanced features
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding Synergy-specific packages if available
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the Synergy S5 MCU controller
---
--- Entity Requirements:
--- - Name: synergy_s5_interface (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - MCU interface signals (data, address, control)
--- - Peripheral interface connections
--- - Configuration and status signals
---
--- Generic Parameters:
--- - CLK_FREQ: System clock frequency (default: 240 MHz for S5D9)
--- - DATA_WIDTH: Data bus width (default: 32-bit)
--- - ADDR_WIDTH: Address bus width (default: 32-bit)
--- - PERIPHERAL_COUNT: Number of peripheral interfaces (default: 16)
--- - MEMORY_SIZE: External memory size (default: 8MB)
--- - SECURITY_ENABLE: Enable security features (default: true)
--- - DMA_CHANNELS: Number of DMA channels (default: 8)
--- - TIMER_COUNT: Number of timer channels (default: 16)
---
--- Port Specifications:
--- System Interface:
--- - clk           : in  std_logic (System clock)
--- - rst_n         : in  std_logic (Active-low reset)
--- - enable        : in  std_logic (Module enable)
--- - power_mode    : in  std_logic_vector(2 downto 0) (Power mode control)
---
--- MCU Bus Interface:
--- - mcu_addr      : inout std_logic_vector(31 downto 0) (Address bus)
--- - mcu_data      : inout std_logic_vector(31 downto 0) (Data bus)
--- - mcu_rd_n      : inout std_logic (Read strobe)
--- - mcu_wr_n      : inout std_logic (Write strobe)
--- - mcu_cs_n      : inout std_logic (Chip select)
--- - mcu_ale       : inout std_logic (Address latch enable)
--- - mcu_ready     : inout std_logic (Ready signal)
--- - mcu_wait_n    : inout std_logic (Wait state)
---
--- Memory Interface:
--- - mem_addr      : out std_logic_vector(31 downto 0) (Memory address)
--- - mem_data      : inout std_logic_vector(31 downto 0) (Memory data)
--- - mem_cs_n      : out std_logic (Memory chip select)
--- - mem_oe_n      : out std_logic (Memory output enable)
--- - mem_we_n      : out std_logic (Memory write enable)
--- - mem_ub_n      : out std_logic (Upper byte enable)
--- - mem_lb_n      : out std_logic (Lower byte enable)
--- - mem_ready     : in  std_logic (Memory ready)
---
--- UART Interface:
--- - uart_tx       : out std_logic_vector(7 downto 0) (UART transmit)
--- - uart_rx       : in  std_logic_vector(7 downto 0) (UART receive)
--- - uart_rts      : out std_logic_vector(7 downto 0) (Request to send)
--- - uart_cts      : in  std_logic_vector(7 downto 0) (Clear to send)
---
--- SPI Interface:
--- - spi_sclk      : out std_logic_vector(3 downto 0) (SPI clock)
--- - spi_mosi      : out std_logic_vector(3 downto 0) (Master out slave in)
--- - spi_miso      : in  std_logic_vector(3 downto 0) (Master in slave out)
--- - spi_cs_n      : out std_logic_vector(15 downto 0) (Chip select)
---
--- I2C Interface:
--- - i2c_scl       : inout std_logic_vector(3 downto 0) (I2C clock)
--- - i2c_sda       : inout std_logic_vector(3 downto 0) (I2C data)
---
--- CAN Interface:
--- - can_tx        : out std_logic_vector(1 downto 0) (CAN transmit)
--- - can_rx        : in  std_logic_vector(1 downto 0) (CAN receive)
---
--- Ethernet Interface:
--- - eth_mdc       : out std_logic (Ethernet management clock)
--- - eth_mdio      : inout std_logic (Ethernet management data)
--- - eth_tx_clk    : in  std_logic (Ethernet TX clock)
--- - eth_tx_data   : out std_logic_vector(3 downto 0) (Ethernet TX data)
--- - eth_tx_en     : out std_logic (Ethernet TX enable)
--- - eth_rx_clk    : in  std_logic (Ethernet RX clock)
--- - eth_rx_data   : in  std_logic_vector(3 downto 0) (Ethernet RX data)
--- - eth_rx_dv     : in  std_logic (Ethernet RX data valid)
--- - eth_crs       : in  std_logic (Ethernet carrier sense)
--- - eth_col       : in  std_logic (Ethernet collision)
---
--- ADC Interface:
--- - adc_data      : in  std_logic_vector(127 downto 0) (ADC data 16x8-bit)
--- - adc_valid     : in  std_logic_vector(15 downto 0) (ADC data valid)
--- - adc_start     : out std_logic_vector(15 downto 0) (ADC start conversion)
--- - adc_clk       : out std_logic (ADC clock)
---
--- DAC Interface:
--- - dac_data      : out std_logic_vector(31 downto 0) (DAC data 4x8-bit)
--- - dac_valid     : out std_logic_vector(3 downto 0) (DAC data valid)
--- - dac_clk       : out std_logic (DAC clock)
---
--- GPIO Interface:
--- - gpio_in       : in  std_logic_vector(127 downto 0) (GPIO inputs)
--- - gpio_out      : out std_logic_vector(127 downto 0) (GPIO outputs)
--- - gpio_oe       : out std_logic_vector(127 downto 0) (GPIO output enable)
---
--- Interrupt Interface:
--- - irq_in        : in  std_logic_vector(31 downto 0) (External interrupts)
--- - irq_out       : out std_logic_vector(31 downto 0) (Interrupt outputs)
--- - nmi           : out std_logic (Non-maskable interrupt)
---
--- DMA Interface:
--- - dma_req       : in  std_logic_vector(7 downto 0) (DMA requests)
--- - dma_ack       : out std_logic_vector(7 downto 0) (DMA acknowledge)
--- - dma_tc        : out std_logic_vector(7 downto 0) (DMA terminal count)
---
--- Security Interface:
--- - sec_key_valid : in  std_logic (Security key valid)
--- - sec_encrypt   : in  std_logic (Encryption enable)
--- - sec_decrypt   : in  std_logic (Decryption enable)
--- - sec_ready     : out std_logic (Security engine ready)
--- - sec_error     : out std_logic (Security error)
---
--- Status Interface:
--- - mcu_status    : out std_logic_vector(31 downto 0) (MCU status)
--- - error_status  : out std_logic_vector(15 downto 0) (Error status)
--- - power_status  : out std_logic_vector(7 downto 0) (Power status)
---
--- ============================================================================
--- STEP 3: ARCHITECTURE DECLARATION
--- ============================================================================
--- Architecture: behavioral (or structural for complex implementations)
---
--- Internal Signal Requirements:
--- - Bus arbitration and control logic
--- - Memory controller state machines
--- - Peripheral interface controllers
--- - DMA transfer management
--- - Interrupt controller logic
--- - Security engine interface
--- - Power management controller
--- - Clock generation and distribution
---
--- ============================================================================
--- STEP 4: INTERNAL SIGNALS AND CONSTANTS
--- ============================================================================
---
--- Bus Control Signals:
--- - bus_state      : bus_state_type (Bus state machine)
--- - addr_valid     : std_logic (Address valid)
--- - data_valid     : std_logic (Data valid)
--- - transfer_type  : std_logic_vector(2 downto 0) (Transfer type)
--- - bus_error      : std_logic (Bus error flag)
---
--- Memory Controller Signals:
--- - mem_state      : mem_state_type (Memory controller state)
--- - mem_addr_reg   : std_logic_vector(31 downto 0) (Memory address register)
--- - mem_data_reg   : std_logic_vector(31 downto 0) (Memory data register)
--- - mem_wait_count : unsigned(7 downto 0) (Memory wait counter)
---
--- Peripheral Control Signals:
--- - uart_ctrl      : uart_ctrl_array(7 downto 0) (UART controllers)
--- - spi_ctrl       : spi_ctrl_array(3 downto 0) (SPI controllers)
--- - i2c_ctrl       : i2c_ctrl_array(3 downto 0) (I2C controllers)
--- - can_ctrl       : can_ctrl_array(1 downto 0) (CAN controllers)
---
--- DMA Control Signals:
--- - dma_state      : dma_state_array(7 downto 0) (DMA channel states)
--- - dma_src_addr   : addr_array(7 downto 0) (DMA source addresses)
--- - dma_dst_addr   : addr_array(7 downto 0) (DMA destination addresses)
--- - dma_count      : count_array(7 downto 0) (DMA transfer counts)
---
--- Interrupt Control Signals:
--- - irq_pending    : std_logic_vector(31 downto 0) (Pending interrupts)
--- - irq_mask       : std_logic_vector(31 downto 0) (Interrupt mask)
--- - irq_priority   : priority_array(31 downto 0) (Interrupt priorities)
---
--- Security Engine Signals:
--- - sec_state      : sec_state_type (Security engine state)
--- - aes_key        : std_logic_vector(255 downto 0) (AES key)
--- - aes_data_in    : std_logic_vector(127 downto 0) (AES input data)
--- - aes_data_out   : std_logic_vector(127 downto 0) (AES output data)
--- - trng_data      : std_logic_vector(31 downto 0) (TRNG output)
---
--- ============================================================================
--- STEP 5: BUS INTERFACE CONTROLLER
--- ============================================================================
--- Implement bus interface for Synergy S5 communication
---
--- Bus Features:
--- - 32-bit address and data buses
--- - Multiple transfer modes (single, burst, block)
--- - Bus arbitration for multiple masters
--- - Error detection and recovery
--- - Wait state insertion for slow peripherals
--- - Bus timeout protection
---
--- Implementation Requirements:
--- - AHB-Lite master/slave interfaces
--- - APB peripheral bus support
--- - Bus matrix for multi-master systems
--- - Memory protection unit integration
--- - Cache coherency support
---
--- ============================================================================
--- STEP 6: MEMORY CONTROLLER IMPLEMENTATION
--- ============================================================================
--- Implement external memory controller
---
--- Memory Types Supported:
--- - SRAM (Static RAM)
--- - SDRAM (Synchronous DRAM)
--- - Flash memory (NOR/NAND)
--- - EEPROM
--- - FRAM (Ferroelectric RAM)
---
--- Memory Controller Features:
--- - Configurable timing parameters
--- - Multiple chip select regions
--- - Burst transfer support
--- - Refresh control for SDRAM
--- - Wear leveling for Flash
--- - Error correction codes (ECC)
---
--- ============================================================================
--- STEP 7: PERIPHERAL INTERFACE CONTROLLERS
--- ============================================================================
--- Implement peripheral communication interfaces
---
--- UART Controller Features:
--- - Multiple UART channels (up to 8)
--- - Configurable baud rates (300 to 4.5 Mbps)
--- - Hardware flow control (RTS/CTS)
--- - FIFO buffers (16-byte TX/RX)
--- - Interrupt generation
--- - DMA support
---
--- SPI Controller Features:
--- - Multiple SPI channels (up to 4)
--- - Master and slave modes
--- - Configurable clock polarity and phase
--- - Variable data frame size (4-32 bits)
--- - Multi-slave support
--- - DMA integration
---
--- I2C Controller Features:
--- - Multiple I2C channels (up to 4)
--- - Master and slave modes
--- - Standard (100 kHz) and Fast (400 kHz) modes
--- - Multi-master arbitration
--- - 7-bit and 10-bit addressing
--- - Clock stretching support
---
--- CAN Controller Features:
--- - Multiple CAN channels (up to 2)
--- - CAN 2.0A and 2.0B support
--- - Configurable bit rates (up to 1 Mbps)
--- - Message filtering
--- - Error detection and handling
--- - Time-triggered CAN support
---
--- ============================================================================
--- STEP 8: ETHERNET MAC CONTROLLER
--- ============================================================================
--- Implement Ethernet MAC for network connectivity
---
--- Ethernet Features:
--- - 10/100 Mbps operation
--- - Full and half duplex modes
--- - IEEE 802.3 compliance
--- - CSMA/CD collision detection
--- - Automatic pad and CRC generation
--- - VLAN tag support
--- - Wake-on-LAN capability
---
--- PHY Interface:
--- - MII (Media Independent Interface)
--- - RMII (Reduced MII)
--- - MDIO management interface
--- - Auto-negotiation support
--- - Link status monitoring
---
--- ============================================================================
--- STEP 9: DMA CONTROLLER IMPLEMENTATION
--- ============================================================================
--- Implement DMA for high-speed data transfers
---
--- DMA Features:
--- - Multiple DMA channels (up to 8)
--- - Memory-to-memory transfers
--- - Memory-to-peripheral transfers
--- - Peripheral-to-memory transfers
--- - Scatter-gather operation
--- - Circular buffer mode
--- - Priority-based arbitration
---
--- Transfer Modes:
--- - Single transfer
--- - Block transfer
--- - Burst transfer
--- - Linked list transfer
--- - Auto-reload mode
---
--- ============================================================================
--- STEP 10: INTERRUPT CONTROLLER
--- ============================================================================
--- Implement interrupt management system
---
--- Interrupt Features:
--- - Multiple interrupt sources (up to 32)
--- - Programmable priority levels
--- - Interrupt masking and enabling
--- - Edge and level triggered interrupts
--- - Interrupt nesting support
--- - Fast interrupt response
---
--- NVIC Integration:
--- - ARM Cortex-M4 NVIC compatibility
--- - Vector table management
--- - Interrupt latency optimization
--- - Tail-chaining support
--- - Late arrival handling
---
--- ============================================================================
--- STEP 11: ANALOG INTERFACE CONTROLLERS
--- ============================================================================
--- Implement ADC and DAC interfaces
---
--- ADC Controller Features:
--- - Multiple ADC channels (up to 16)
--- - 12-bit resolution
--- - Sampling rates up to 1 MSPS
--- - Single-shot and continuous modes
--- - Hardware trigger support
--- - DMA integration
--- - Oversampling and averaging
---
--- DAC Controller Features:
--- - Multiple DAC channels (up to 4)
--- - 12-bit resolution
--- - Update rates up to 1 MSPS
--- - Waveform generation
--- - DMA support
--- - Output buffering
---
--- ============================================================================
--- STEP 12: SECURITY ENGINE IMPLEMENTATION
--- ============================================================================
--- Implement security and cryptographic features
---
--- Cryptographic Engines:
--- - AES encryption/decryption (128/256-bit keys)
--- - SHA-256 hash function
--- - True Random Number Generator (TRNG)
--- - Hardware key storage
--- - Secure boot support
--- - Tamper detection
---
--- Security Features:
--- - Memory protection
--- - Secure key management
--- - Anti-tampering mechanisms
--- - Secure firmware update
--- - Debug port protection
--- - Side-channel attack protection
---
--- ============================================================================
--- STEP 13: POWER MANAGEMENT CONTROLLER
--- ============================================================================
--- Implement power management features
---
--- Power Modes:
--- - Run mode (full performance)
--- - Sleep mode (CPU stopped, peripherals active)
--- - Deep sleep mode (reduced clock, limited peripherals)
--- - Standby mode (minimal power, RTC active)
--- - Shutdown mode (lowest power, external wake-up only)
---
--- Power Management Features:
--- - Dynamic voltage and frequency scaling
--- - Clock gating for unused peripherals
--- - Power domain isolation
--- - Wake-up source configuration
--- - Power consumption monitoring
---
--- ============================================================================
--- STEP 14: CLOCK AND RESET MANAGEMENT
--- ============================================================================
--- Implement clock generation and distribution
---
--- Clock Sources:
--- - High-speed internal oscillator (HOCO)
--- - Low-speed internal oscillator (LOCO)
--- - Main crystal oscillator (MOSC)
--- - Sub-clock crystal oscillator (SOSC)
--- - PLL (Phase-Locked Loop)
---
--- Clock Distribution:
--- - System clock (ICLK)
--- - Peripheral clock (PCLK)
--- - External bus clock (BCLK)
--- - Flash interface clock (FCLK)
--- - USB clock (UCLK)
---
--- Reset Sources:
--- - Power-on reset (POR)
--- - Low voltage detection (LVD)
--- - Watchdog timer reset
--- - Software reset
--- - External reset pin
--- - Debug reset
---
--- ============================================================================
--- STEP 15: TESTING AND VERIFICATION
--- ============================================================================
--- Comprehensive testing strategy
---
--- Functional Testing:
--- - Bus interface operation
--- - Memory controller functionality
--- - Peripheral communication
--- - DMA transfer verification
--- - Interrupt handling
--- - Security engine operation
--- - Power management modes
---
--- Performance Testing:
--- - Maximum throughput measurements
--- - Latency analysis
--- - Power consumption profiling
--- - Thermal analysis
--- - EMI/EMC compliance
---
--- Compatibility Testing:
--- - Synergy Software Package (SSP) compatibility
--- - ThreadX RTOS integration
--- - NetX network stack compatibility
--- - GUIX graphics framework integration
--- - Third-party middleware compatibility
---
--- ============================================================================
--- DESIGN CONSIDERATIONS
--- ============================================================================
---
--- Timing Analysis:
--- - Setup and hold time requirements
--- - Clock domain crossing analysis
--- - Critical path optimization
--- - Jitter and skew analysis
--- - Signal integrity verification
---
--- Reset Strategy:
--- - Power-on reset sequencing
--- - Hierarchical reset distribution
--- - Reset synchronization
--- - Reset recovery procedures
--- - Fail-safe reset mechanisms
---
--- Clock Domain Management:
--- - Multiple clock domain handling
--- - Clock domain crossing synchronizers
--- - Clock gating implementation
--- - Phase-locked loop configuration
--- - Clock monitoring and switching
---
--- Synthesis Optimization:
--- - Resource utilization optimization
--- - Timing closure strategies
--- - Power optimization techniques
--- - Area minimization
--- - Performance tuning
---
--- ============================================================================
--- APPLICATIONS AND USE CASES
--- ============================================================================
---
--- Industrial Applications:
--- - Factory automation systems
--- - Motor control applications
--- - Industrial IoT gateways
--- - Process control systems
--- - Human-machine interfaces
--- - Safety-critical systems
---
--- Automotive Applications:
--- - Body control modules
--- - Infotainment systems
--- - Advanced driver assistance
--- - Engine control units
--- - Gateway modules
--- - Diagnostic systems
---
--- Consumer Electronics:
--- - Smart home devices
--- - Wearable technology
--- - Audio/video equipment
--- - Gaming peripherals
--- - Health monitoring devices
--- - Portable instruments
---
--- ============================================================================
--- VERIFICATION CHECKLIST
--- ============================================================================
---
--- Functional Verification:
--- □ Bus interface operation verified
--- □ Memory controller functionality tested
--- □ UART communication verified
--- □ SPI interface operation tested
--- □ I2C communication verified
--- □ CAN bus operation tested
--- □ Ethernet MAC functionality verified
--- □ ADC/DAC operation tested
--- □ GPIO functionality verified
--- □ DMA transfer operation tested
--- □ Interrupt handling verified
--- □ Security engine operation tested
--- □ Power management modes verified
--- □ Clock generation and distribution tested
--- □ Reset functionality verified
---
--- Synthesis Verification:
--- □ Design synthesizes without errors
--- □ Timing constraints met
--- □ Resource utilization acceptable
--- □ Power consumption within limits
--- □ No critical warnings
--- □ Clock domain crossings properly handled
--- □ Reset behavior verified
--- □ I/O standards compatible
--- □ Pin assignments correct
--- □ Placement and routing successful
---
--- Hardware Verification:
--- □ FPGA programming successful
--- □ Synergy S5 communication established
--- □ Signal integrity verified
--- □ Timing margins adequate
--- □ Temperature operation verified
--- □ EMI/EMC compliance verified
--- □ Long-term stability verified
--- □ Performance benchmarks met
--- □ Interoperability verified
--- □ Regression tests passed
---
--- ============================================================================
--- END OF PROGRAMMING GUIDE
--- ============================================================================
+-- ================================================================================
+-- synergy_s5_interface : Renesas Synergy S5 MCU interface
+-- Based on: ARM Cortex-M4 with FPU (high-performance variant)
+-- Target FPGA : Cyclone III (EP3C16F484C6N)
+--
+-- The S5 is the high-performance variant with DMA and USB, suitable for
+-- data-intensive applications requiring high throughput.
+--
+-- Peripheral set (S5 - HIGH-PERFORMANCE):
+--   [Y] GPIO  - 32-bit | [Y] Timer | [Y] UART | [Y] SPI | [Y] I2C | [Y] ADC
+--   [Y] DMA   - DMA controller for high-speed data transfers
+--   [Y] USB   - USB device interface
+--   [N] CAN/Ethernet/LCD/Security - Not included
+--
+-- AHB-Lite Register Map:
+--   0x00: GPIO_DATA | 0x04: GPIO_DIR | 0x08: TIMER_CTRL | 0x0C: TIMER_LOAD
+--   0x10: UART_DATA | 0x14: UART_STATUS | 0x18: SPI_CTRL | 0x1C: SPI_DATA
+--   0x20: I2C_CTRL  | 0x24: I2C_DATA  | 0x28: ADC_CTRL  | 0x2C: ADC_DATA
+--   0x30: DMA_CTRL  | 0x34: USB_CTRL  | 0x38: USB_DATA
+-- ================================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity synergy_s5_interface is
+    generic (
+        GPIO_WIDTH : integer := 32
+    );
+    port (
+        -- AHB-Lite bus interface (ARM Cortex-M4 with FPU, active-low reset)
+        HCLK, HRESETn, HSEL, HWRITE, HREADY, HMASTLOCK : in std_logic;
+        HTRANS : in std_logic_vector(1 downto 0);
+        HSIZE  : in std_logic_vector(2 downto 0);
+        HPROT  : in std_logic_vector(3 downto 0);
+        HADDR  : in std_logic_vector(31 downto 0);
+        HWDATA : in std_logic_vector(31 downto 0);
+        HRDATA : out std_logic_vector(31 downto 0);
+        HRESP  : out std_logic;
+        HREADYOUT : out std_logic;
+        -- GPIO
+        gpio_in  : in  std_logic_vector(31 downto 0);
+        gpio_out : out std_logic_vector(31 downto 0);
+        gpio_dir : out std_logic_vector(31 downto 0);
+        -- Timer
+        timer_int : out std_logic;
+        -- UART
+        uart_txd : out std_logic;  uart_rxd : in std_logic;  uart_int : out std_logic;
+        -- SPI (present on S5)
+        spi_sclk, spi_mosi : out std_logic;  spi_miso : in std_logic;  spi_int : out std_logic;
+        -- I2C (present on S5)
+        i2c_sda : inout std_logic;  i2c_scl : inout std_logic;  i2c_int : out std_logic;
+        -- ADC (present on S5)
+        adc_in  : in  std_logic_vector(11 downto 0);  adc_int : out std_logic;
+        -- DMA (present on S5 - high-performance feature)
+        dma_req : out std_logic;  dma_done : in std_logic;
+        -- CAN (NOT present on S5)
+        can_tx : out std_logic;  can_rx : in std_logic;  can_int : out std_logic;
+        -- Ethernet (NOT present on S5)
+        eth_txd : out std_logic_vector(3 downto 0);  eth_rxd : in std_logic_vector(3 downto 0);
+        eth_int : out std_logic;
+        -- USB (present on S5 - high-performance feature)
+        usb_dp, usb_dm : inout std_logic;  usb_int : out std_logic;
+        -- LCD (NOT present on S5)
+        lcd_data : out std_logic_vector(15 downto 0);
+        lcd_hsync, lcd_vsync, lcd_clk : out std_logic;
+        -- Security (NOT present on S5)
+        trng_valid, secure_boot : out std_logic
+    );
+end entity synergy_s5_interface;
+
+architecture rtl of synergy_s5_interface is
+    -- Peripheral registers
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_ctrl    : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_load    : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_count   : unsigned(31 downto 0) := (others => '0');
+    signal uart_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal uart_status   : std_logic_vector(31 downto 0) := x"00000001";
+    signal spi_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal spi_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal i2c_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal i2c_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal adc_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal adc_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal dma_ctrl      : std_logic_vector(31 downto 0) := (others => '0'); -- DMA control
+    signal usb_ctrl      : std_logic_vector(31 downto 0) := (others => '0'); -- USB control
+    signal usb_data_reg  : std_logic_vector(31 downto 0) := (others => '0'); -- USB data
+    signal reg_sel       : integer range 0 to 15;
+begin
+
+    reg_sel <= to_integer(unsigned(HADDR(7 downto 4)));
+
+    -- =========================================================================
+    -- AHB-LITE WRITE PROCESS
+    -- =========================================================================
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            gpio_data_reg <= (others => '0'); gpio_dir_reg <= (others => '0');
+            timer_ctrl <= (others => '0'); timer_load <= (others => '0');
+            timer_count <= (others => '0');
+            uart_data_reg <= (others => '0'); uart_status <= x"00000001";
+            spi_ctrl <= (others => '0'); spi_data_reg <= (others => '0');
+            i2c_ctrl <= (others => '0'); i2c_data_reg <= (others => '0');
+            adc_ctrl <= (others => '0'); adc_data_reg <= (others => '0');
+            dma_ctrl <= (others => '0'); usb_ctrl <= (others => '0');
+            usb_data_reg <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if HSEL = '1' and HREADY = '1' and HWRITE = '1' then
+                case reg_sel is
+                    when 0 => gpio_data_reg <= HWDATA;     -- GPIO_DATA
+                    when 1 => gpio_dir_reg  <= HWDATA;     -- GPIO_DIR
+                    when 2 => timer_ctrl    <= HWDATA;     -- TIMER_CTRL
+                    when 3 => timer_load    <= HWDATA; timer_count <= unsigned(HWDATA);
+                    when 4 => uart_data_reg <= HWDATA;     -- UART_DATA
+                    when 6 => spi_ctrl      <= HWDATA;     -- SPI_CTRL
+                    when 7 => spi_data_reg  <= HWDATA;     -- SPI_DATA
+                    when 8 => i2c_ctrl      <= HWDATA;     -- I2C_CTRL
+                    when 9 => i2c_data_reg  <= HWDATA;     -- I2C_DATA
+                    when 10 => adc_ctrl     <= HWDATA;     -- ADC_CTRL
+                    when 12 => dma_ctrl     <= HWDATA;     -- DMA_CTRL
+                    when 13 => usb_ctrl     <= HWDATA;     -- USB_CTRL
+                    when 14 => usb_data_reg <= HWDATA;     -- USB_DATA (TX)
+                    when others => null;
+                end case;
+            end if;
+            -- ADC: capture input when conversion started
+            if adc_ctrl(0) = '1' then adc_data_reg <= x"00000" & adc_in; end if;
+            -- SPI: capture MISO
+            if spi_ctrl(0) = '1' then spi_data_reg(0) <= spi_miso; end if;
+            uart_status(0) <= '1';
+        end if;
+    end process;
+
+    -- =========================================================================
+    -- AHB-LITE READ MULTIPLEXER
+    -- =========================================================================
+    process(HSEL, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl, timer_load,
+            timer_count, uart_data_reg, uart_status, spi_ctrl, spi_data_reg,
+            i2c_ctrl, i2c_data_reg, adc_ctrl, adc_data_reg, dma_ctrl,
+            usb_ctrl, usb_data_reg, gpio_in)
+    begin
+        if HSEL = '1' then
+            case reg_sel is
+                when 0 => HRDATA <= gpio_data_reg;
+                when 1 => HRDATA <= gpio_dir_reg;
+                when 2 => HRDATA <= timer_ctrl;
+                when 3 => HRDATA <= std_logic_vector(timer_count);
+                when 4 => HRDATA <= uart_data_reg;
+                when 5 => HRDATA <= uart_status;
+                when 6 => HRDATA <= spi_ctrl;
+                when 7 => HRDATA <= spi_data_reg;
+                when 8 => HRDATA <= i2c_ctrl;
+                when 9 => HRDATA <= i2c_data_reg;
+                when 10 => HRDATA <= adc_ctrl;
+                when 11 => HRDATA <= adc_data_reg;
+                when 12 => HRDATA <= dma_ctrl;
+                when 13 => HRDATA <= usb_ctrl;
+                when 14 => HRDATA <= usb_data_reg;
+                when others => HRDATA <= (others => '0');
+            end case;
+        else
+            HRDATA <= (others => '0');
+        end if;
+    end process;
+
+    HRESP <= '0'; HREADYOUT <= '1';
+
+    gpio_out <= gpio_data_reg; gpio_dir <= gpio_dir_reg;
+
+    -- Timer
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then timer_count <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if timer_ctrl(0) = '1' then
+                if timer_count = 0 then timer_count <= unsigned(timer_load);
+                else timer_count <= timer_count - 1; end if;
+            end if;
+        end if;
+    end process;
+    timer_int <= '1' when (timer_ctrl(0) = '1' and timer_ctrl(1) = '1'
+                           and timer_count = 0) else '0';
+
+    -- UART
+    uart_txd <= uart_data_reg(0);
+    uart_int <= '1' when (uart_status(1) = '1') else '0';
+
+    -- SPI
+    spi_sclk <= spi_ctrl(1) when spi_ctrl(0) = '1' else '0';
+    spi_mosi <= spi_data_reg(0) when spi_ctrl(0) = '1' else '0';
+    spi_int  <= '1' when spi_ctrl(2) = '1' else '0';
+
+    -- I2C
+    i2c_scl <= i2c_ctrl(0) when i2c_ctrl(4) = '1' else 'Z';
+    i2c_sda <= i2c_ctrl(1) when i2c_ctrl(4) = '1' else 'Z';
+    i2c_int <= '1' when i2c_ctrl(5) = '1' else '0';
+
+    -- ADC
+    adc_int <= '1' when (adc_ctrl(0) = '1' and adc_ctrl(1) = '1') else '0';
+
+    -- DMA (simplified: assert dma_req when ctrl bit0 is set, clear on dma_done)
+    dma_req <= dma_ctrl(0) and not dma_done;
+
+    -- USB (simplified: drive D+/D- from data register when enabled)
+    usb_dp  <= usb_data_reg(0) when usb_ctrl(0) = '1' else 'Z';
+    usb_dm  <= usb_data_reg(1) when usb_ctrl(0) = '1' else 'Z';
+    usb_int <= '1' when usb_ctrl(1) = '1' else '0';
+
+    -- =========================================================================
+    -- UNUSED PERIPHERAL OUTPUTS (S5 does not have CAN, Ethernet, LCD, Security)
+    -- =========================================================================
+    can_tx <= '0'; can_int <= '0';
+    eth_txd <= (others => '0'); eth_int <= '0';
+    lcd_data <= (others => '0'); lcd_hsync <= '0'; lcd_vsync <= '0'; lcd_clk <= '0';
+    trng_valid <= '0'; secure_boot <= '0';
+
+end architecture rtl;

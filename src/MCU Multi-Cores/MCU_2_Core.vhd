@@ -1,767 +1,332 @@
 -- ================================================================================
--- MCU Dual-Core Implementation - Programming Guidance
+-- MCU_2_Core : Dual-core 8-bit MCU with shared bus arbiter
+-- Target FPGA : Cyclone III (EP3C16F484C6N)
+--
+-- Two independent 8-bit cores share a single memory bus. A simple alternating
+-- arbiter grants bus access to each core on alternate cycles.
+--
+-- 8-BIT INSTRUCTION SET (same as MCU_1_Core):
+--   1-byte: MOV(0x0) ADD(0x1) SUB(0x2) AND(0x3) OR(0x4) XOR(0x5) HLT(0xB) NOP(0xC)
+--   2-byte: LOAD(0x6) STORE(0x7) JMP(0x8) JZ(0x9) JNZ(0xA)
+--   Format: [opcode(7:4) | rd(3:2) rs(1:0)] + optional [addr(7:0)]
+--
+-- STATUS BYTE per core:
+--   bit0=running bit1=halted bit2=waiting bit3=irq bit4=Z bit5=C bit6=N bit7=0
+--
+-- BUS ARBITER: Alternating (toggle) - core0 on even cycles, core1 on odd
+-- The non-active core stalls its state machine until it gets bus access.
 -- ================================================================================
-
--- PROJECT OVERVIEW:
--- This file implements a Dual-Core Microcontroller Unit (MCU) that provides
--- parallel processing capabilities with two independent CPU cores sharing
--- common resources. The dual-core architecture enables true multitasking,
--- improved performance, and enhanced real-time response through load balancing
--- and task distribution across cores. This implementation focuses on inter-core
--- communication, shared resource management, and symmetric multiprocessing (SMP).
-
--- LEARNING OBJECTIVES:
--- 1. Understand dual-core architecture and symmetric multiprocessing (SMP) design
--- 2. Learn inter-core communication and synchronization mechanisms
--- 3. Practice shared resource management and cache coherency protocols
--- 4. Understand load balancing and task distribution strategies
--- 5. Learn multi-core debugging and performance monitoring techniques
--- 6. Practice advanced interrupt handling and priority arbitration
-
--- STEP 1: LIBRARY DECLARATIONS
--- Include necessary VHDL libraries for dual-core MCU implementation
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-use IEEE.STD_LOGIC_ARITH.ALL;
-use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
 
--- TODO: Add custom packages for multi-core MCU-specific types and functions
--- use work.mcu_pkg.all;
--- use work.multicore_pkg.all;
--- use work.smp_pkg.all;
--- use work.coherency_pkg.all;
+entity MCU_2_Core is
+    port (
+        clk      : in  std_logic;                     -- System clock
+        reset    : in  std_logic;                     -- Active-high reset
+        addr_out : out std_logic_vector(7 downto 0);  -- Shared memory address bus
+        data_out : out std_logic_vector(7 downto 0);  -- Shared memory write data
+        we       : out std_logic;                     -- Shared write enable
+        core0_pc : out std_logic_vector(7 downto 0);  -- Core 0 program counter
+        core1_pc : out std_logic_vector(7 downto 0);  -- Core 1 program counter
+        data_in  : in  std_logic_vector(7 downto 0);  -- Shared read data
+        oe       : out std_logic;                     -- Output enable (read)
+        irq0     : in  std_logic;                     -- Core 0 interrupt request
+        irq1     : in  std_logic;                     -- Core 1 interrupt request
+        irq_ack  : out std_logic_vector(1 downto 0);  -- Per-core interrupt ack
+        core0_status : out std_logic_vector(7 downto 0); -- Core 0 status
+        core1_status : out std_logic_vector(7 downto 0); -- Core 1 status
+        bus_grant : in std_logic                       -- External bus grant (1=allowed)
+    );
+end entity MCU_2_Core;
 
--- STEP 2: ENTITY DECLARATION
+architecture rtl of MCU_2_Core is
 
--- The entity defines the interface for the dual-core MCU
+    -- Opcode constants (upper 4 bits of instruction byte)
+    constant OP_MOV   : std_logic_vector(3 downto 0) := "0000";
+    constant OP_ADD   : std_logic_vector(3 downto 0) := "0001";
+    constant OP_SUB   : std_logic_vector(3 downto 0) := "0010";
+    constant OP_AND   : std_logic_vector(3 downto 0) := "0011";
+    constant OP_OR    : std_logic_vector(3 downto 0) := "0100";
+    constant OP_XOR   : std_logic_vector(3 downto 0) := "0101";
+    constant OP_LOAD  : std_logic_vector(3 downto 0) := "0110";
+    constant OP_STORE : std_logic_vector(3 downto 0) := "0111";
+    constant OP_JMP   : std_logic_vector(3 downto 0) := "1000";
+    constant OP_JZ    : std_logic_vector(3 downto 0) := "1001";
+    constant OP_JNZ   : std_logic_vector(3 downto 0) := "1010";
+    constant OP_HLT   : std_logic_vector(3 downto 0) := "1011";
+    constant OP_NOP   : std_logic_vector(3 downto 0) := "1100";
+    constant IRQ_VECTOR : unsigned(7 downto 0) := x"FE";
 
--- Entity Requirements:
--- - Name: mcu_2_core (maintain current naming convention)
--- - Generics: Configurable parameters for dual-core flexibility
--- - System control signals (clock, reset, enable per core)
--- - Shared memory interfaces with coherency support
--- - Inter-core communication channels
--- - Distributed peripheral interfaces
--- - Advanced interrupt handling with core affinity
--- - Multi-core debug and trace interfaces
--- - Enhanced power management for dual cores
+    -- State machine type
+    type state_t is (S_FETCH, S_DECODE, S_OPERAND, S_LOAD, S_HALT);
 
--- entity mcu_2_core is
---     generic (
---         -- Core Configuration
---         DATA_WIDTH          : integer := 32;                   -- Data bus width
---         ADDR_WIDTH          : integer := 32;                   -- Address bus width
---         INSTR_WIDTH         : integer := 32;                   -- Instruction width
---         NUM_CORES           : integer := 2;                    -- Number of CPU cores
---         
---         -- Memory Configuration
---         SHARED_FLASH_SIZE   : integer := 2*1024*1024;          -- Shared flash memory (2MB)
---         SHARED_RAM_SIZE     : integer := 512*1024;             -- Shared RAM size (512KB)
---         CORE_CACHE_SIZE     : integer := 64*1024;              -- Per-core cache size (64KB)
---         SHARED_CACHE_SIZE   : integer := 128*1024;             -- Shared L2 cache (128KB)
---         CACHE_LINE_SIZE     : integer := 64;                   -- Cache line size
---         
---         -- Inter-Core Communication
---         IPC_CHANNELS        : integer := 8;                    -- Inter-process communication channels
---         MAILBOX_SIZE        : integer := 16;                   -- Mailbox depth per channel
---         SHARED_MEMORY_SIZE  : integer := 64*1024;              -- Shared memory region (64KB)
---         SEMAPHORE_COUNT     : integer := 32;                   -- Number of hardware semaphores
---         
---         -- Peripheral Configuration
---         NUM_GPIO_PINS       : integer := 64;                   -- Number of GPIO pins (doubled)
---         NUM_UART_CHANNELS   : integer := 8;                    -- Number of UART channels
---         NUM_SPI_CHANNELS    : integer := 6;                    -- Number of SPI channels
---         NUM_I2C_CHANNELS    : integer := 4;                    -- Number of I2C channels
---         NUM_ADC_CHANNELS    : integer := 32;                   -- Number of ADC channels
---         NUM_PWM_CHANNELS    : integer := 16;                   -- Number of PWM channels
---         NUM_TIMERS          : integer := 16;                   -- Number of timers
---         
---         -- Interrupt Configuration
---         NUM_INTERRUPTS      : integer := 128;                  -- Number of interrupt sources
---         INTERRUPT_LEVELS    : integer := 16;                   -- Number of priority levels
---         CORE_AFFINITY       : boolean := true;                 -- Enable interrupt core affinity
---         
---         -- Performance Configuration
---         CLOCK_FREQUENCY     : integer := 200_000_000;          -- System clock frequency (200MHz)
---         PIPELINE_STAGES     : integer := 7;                    -- Pipeline depth per core
---         BRANCH_PREDICTOR    : boolean := true;                 -- Enable branch prediction
---         OUT_OF_ORDER        : boolean := true;                 -- Enable out-of-order execution
---         
---         -- Cache Coherency
---         COHERENCY_PROTOCOL  : string := "MESI";                -- Cache coherency protocol
---         SNOOP_ENABLED       : boolean := true;                 -- Enable cache snooping
---         
---         -- Power Management
---         POWER_DOMAINS       : integer := 8;                    -- Number of power domains
---         SLEEP_MODES         : integer := 6;                    -- Number of sleep modes
---         DVFS_ENABLED        : boolean := true;                 -- Dynamic voltage/frequency scaling
---         
---         -- Debug and Test
---         DEBUG_ENABLED       : boolean := true;                 -- Enable debug features
---         TRACE_BUFFER_SIZE   : integer := 4096;                 -- Trace buffer size per core
---         JTAG_ENABLED        : boolean := true;                 -- Enable JTAG interface
---         PERFORMANCE_COUNTERS: integer := 16                    -- Number of performance counters per core
---     );
---     port (
---         -- System Control
---         clk                 : in  std_logic;                   -- System clock
---         reset               : in  std_logic;                   -- System reset
---         core_enable         : in  std_logic_vector(NUM_CORES-1 downto 0); -- Per-core enable
---         
---         -- Power Management
---         power_mode          : in  std_logic_vector(3 downto 0); -- Power mode selection
---         core_power_mode     : in  std_logic_vector(NUM_CORES*4-1 downto 0); -- Per-core power mode
---         wake_up             : in  std_logic_vector(NUM_CORES-1 downto 0); -- Per-core wake-up
---         sleep_req           : out std_logic_vector(NUM_CORES-1 downto 0); -- Per-core sleep request
---         power_good          : in  std_logic;                   -- Power supply status
---         
---         -- External Memory Interface (Shared)
---         ext_mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0); -- External memory address
---         ext_mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- External memory data out
---         ext_mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- External memory data in
---         ext_mem_read        : out std_logic;                   -- External memory read enable
---         ext_mem_write       : out std_logic;                   -- External memory write enable
---         ext_mem_ready       : in  std_logic;                   -- External memory ready
---         ext_mem_valid       : in  std_logic;                   -- External memory data valid
---         ext_mem_burst       : out std_logic_vector(7 downto 0); -- Burst length
---         
---         -- GPIO Interface (Distributed)
---         gpio_in             : in  std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO input pins
---         gpio_out            : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO output pins
---         gpio_dir            : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO direction control
---         gpio_pull           : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO pull-up/down
---         gpio_core_assign    : out std_logic_vector(NUM_GPIO_PINS-1 downto 0);  -- GPIO core assignment
---         
---         -- UART Interface (Distributed)
---         uart_tx             : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART transmit
---         uart_rx             : in  std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART receive
---         uart_rts            : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART RTS
---         uart_cts            : in  std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART CTS
---         uart_core_assign    : out std_logic_vector(NUM_UART_CHANNELS-1 downto 0); -- UART core assignment
---         
---         -- SPI Interface (Distributed)
---         spi_sclk            : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI clock
---         spi_mosi            : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI MOSI
---         spi_miso            : in  std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI MISO
---         spi_cs              : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI chip select
---         spi_core_assign     : out std_logic_vector(NUM_SPI_CHANNELS-1 downto 0);  -- SPI core assignment
---         
---         -- I2C Interface (Shared)
---         i2c_sda             : inout std_logic_vector(NUM_I2C_CHANNELS-1 downto 0); -- I2C data
---         i2c_scl             : inout std_logic_vector(NUM_I2C_CHANNELS-1 downto 0); -- I2C clock
---         i2c_arbitration     : out std_logic_vector(NUM_I2C_CHANNELS-1 downto 0);   -- I2C arbitration status
---         
---         -- ADC Interface (Shared with arbitration)
---         adc_data            : in  std_logic_vector(NUM_ADC_CHANNELS*12-1 downto 0); -- ADC data (12-bit per channel)
---         adc_valid           : in  std_logic_vector(NUM_ADC_CHANNELS-1 downto 0);    -- ADC data valid
---         adc_start           : out std_logic_vector(NUM_ADC_CHANNELS-1 downto 0);    -- ADC start conversion
---         adc_core_request    : out std_logic_vector(NUM_ADC_CHANNELS*2-1 downto 0);  -- ADC core request (2 bits per channel)
---         
---         -- PWM Interface (Distributed)
---         pwm_out             : out std_logic_vector(NUM_PWM_CHANNELS-1 downto 0);    -- PWM outputs
---         pwm_core_assign     : out std_logic_vector(NUM_PWM_CHANNELS-1 downto 0);    -- PWM core assignment
---         
---         -- Timer Interface (Distributed)
---         timer_out           : out std_logic_vector(NUM_TIMERS-1 downto 0);          -- Timer outputs
---         timer_core_assign   : out std_logic_vector(NUM_TIMERS-1 downto 0);          -- Timer core assignment
---         
---         -- Interrupt Interface (Advanced)
---         ext_interrupts      : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);     -- External interrupts
---         interrupt_ack       : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);     -- Interrupt acknowledge
---         interrupt_core_target: out std_logic_vector(NUM_INTERRUPTS*2-1 downto 0);  -- Interrupt core targeting
---         
---         -- Inter-Core Communication
---         ipc_mailbox_full    : out std_logic_vector(IPC_CHANNELS-1 downto 0);       -- Mailbox full status
---         ipc_mailbox_empty   : out std_logic_vector(IPC_CHANNELS-1 downto 0);       -- Mailbox empty status
---         ipc_semaphore_status: out std_logic_vector(SEMAPHORE_COUNT-1 downto 0);    -- Semaphore status
---         
---         -- Debug Interface (Multi-Core)
---         debug_core_select   : in  std_logic_vector(1 downto 0);                    -- Debug core selection
---         debug_addr          : in  std_logic_vector(ADDR_WIDTH-1 downto 0);         -- Debug address
---         debug_data_in       : in  std_logic_vector(DATA_WIDTH-1 downto 0);         -- Debug data input
---         debug_data_out      : out std_logic_vector(DATA_WIDTH-1 downto 0);         -- Debug data output
---         debug_read          : in  std_logic;                   -- Debug read enable
---         debug_write         : in  std_logic;                   -- Debug write enable
---         debug_ready         : out std_logic;                   -- Debug ready
---         debug_core_status   : out std_logic_vector(NUM_CORES*8-1 downto 0);        -- Per-core debug status
---         
---         -- JTAG Interface (Multi-Core)
---         jtag_tck            : in  std_logic;                   -- JTAG clock
---         jtag_tms            : in  std_logic;                   -- JTAG mode select
---         jtag_tdi            : in  std_logic;                   -- JTAG data input
---         jtag_tdo            : out std_logic;                   -- JTAG data output
---         jtag_core_select    : in  std_logic_vector(1 downto 0); -- JTAG core selection
---         
---         -- Status and Control (Enhanced)
---         mcu_status          : out std_logic_vector(15 downto 0); -- MCU status (enhanced)
---         core_status         : out std_logic_vector(NUM_CORES*8-1 downto 0); -- Per-core status
---         error_flags         : out std_logic_vector(31 downto 0); -- Error flags (enhanced)
---         performance_counters: out std_logic_vector(NUM_CORES*64-1 downto 0); -- Per-core performance counters
---         load_balance_status : out std_logic_vector(15 downto 0); -- Load balancing status
---         cache_coherency_status: out std_logic_vector(7 downto 0) -- Cache coherency status
---     );
--- end entity mcu_2_core;
+    -- Type definitions for per-core arrays
+    type regfile_t is array(0 to 7) of std_logic_vector(7 downto 0);
+    type core_regfiles_t is array(0 to 1) of regfile_t;
+    type pc_array_t is array(0 to 1) of unsigned(7 downto 0);
+    type state_array_t is array(0 to 1) of state_t;
+    type opcode_array_t is array(0 to 1) of std_logic_vector(3 downto 0);
+    type idx_array_t is array(0 to 1) of integer range 0 to 7;
 
--- STEP 3: DUAL-CORE MCU ARCHITECTURE PRINCIPLES
+    -- Per-core state arrays (index 0 = core0, index 1 = core1)
+    signal regs_arr      : core_regfiles_t := (others => (others => (others => '0')));
+    signal pc_arr        : pc_array_t := (others => (others => '0'));
+    signal state_arr     : state_array_t := (others => S_FETCH);
+    signal opcode_arr    : opcode_array_t := (others => (others => '0'));
+    signal rd_arr        : idx_array_t := (others => 0);
+    signal rs_arr        : idx_array_t := (others => 0);
+    signal saved_pc_arr  : pc_array_t := (others => (others => '0'));
 
--- Dual-Core MCU Components:
--- 1. Dual CPU Cores
---    - Independent instruction fetch, decode, and execution units
---    - Separate register files and execution pipelines
---    - Shared floating-point unit (optional)
---    - Inter-core communication interfaces
+    -- Per-core flags (bit 0 = core0, bit 1 = core1)
+    signal flag_z_arr  : std_logic_vector(1 downto 0) := "00";
+    signal flag_c_arr  : std_logic_vector(1 downto 0) := "00";
+    signal flag_n_arr  : std_logic_vector(1 downto 0) := "00";
+    signal running_arr : std_logic_vector(1 downto 0) := "11";
+    signal halted_arr  : std_logic_vector(1 downto 0) := "00";
 
--- 2. Shared Memory Subsystem
---    - Unified memory controller with arbitration
---    - Cache coherency protocol implementation (MESI/MOESI)
---    - Shared L2 cache with core-specific L1 caches
---    - Memory protection and virtual memory support
+    -- Bus arbiter: alternating grant (0=core0, 1=core1)
+    signal grant : std_logic := '0';
 
--- 3. Inter-Core Communication
---    - Hardware mailboxes for message passing
---    - Shared memory regions with synchronization
---    - Hardware semaphores and mutexes
---    - Inter-processor interrupts (IPI)
+    -- Bus output signals (driven by the active core)
+    signal active_addr : std_logic_vector(7 downto 0) := (others => '0');
+    signal active_data : std_logic_vector(7 downto 0) := (others => '0');
+    signal active_we   : std_logic := '0';
+    signal active_oe   : std_logic := '0';
 
--- 4. Advanced Interrupt Controller
---    - Interrupt routing and core affinity
---    - Load balancing for interrupt distribution
---    - Nested interrupt support per core
---    - Cross-core interrupt forwarding
+begin
 
--- 5. Distributed Peripheral Management
---    - Peripheral assignment to specific cores
---    - Shared peripheral arbitration
---    - DMA controllers with multi-core support
---    - Peripheral interrupt routing
+    -- =========================================================================
+    -- BUS ARBITER: Alternating grant (toggles each cycle when bus_grant=1)
+    -- =========================================================================
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            grant <= '0';
+        elsif rising_edge(clk) then
+            if bus_grant = '1' then
+                grant <= not grant; -- Alternate between core0 and core1
+            end if;
+        end if;
+    end process;
 
--- 6. Enhanced Power Management
---    - Per-core power gating and clock control
---    - Dynamic voltage and frequency scaling (DVFS)
---    - Coordinated sleep mode management
---    - Power-aware task scheduling support
+    -- =========================================================================
+    -- CORE EXECUTION PROCESS: handles both cores
+    -- Only the active core (selected by grant) advances its state machine.
+    -- The inactive core stalls in its current state until it gets bus access.
+    -- =========================================================================
+    process(clk, reset)
+        variable active : integer range 0 to 1;
+        variable opcode : std_logic_vector(3 downto 0);
+        variable rd_idx, rs_idx : integer range 0 to 7;
+        variable alu_a, alu_b : unsigned(7 downto 0);
+        variable alu_sum : unsigned(8 downto 0);
+        variable alu_result : std_logic_vector(7 downto 0);
+    begin
+        if reset = '1' then
+            -- Active-high reset: clear all state for both cores
+            pc_arr <= (others => (others => '0'));
+            state_arr <= (others => S_FETCH);
+            regs_arr <= (others => (others => (others => '0')));
+            flag_z_arr <= "00"; flag_c_arr <= "00"; flag_n_arr <= "00";
+            running_arr <= "11"; halted_arr <= "00";
+            active_we <= '0'; active_oe <= '0'; irq_ack <= "00";
+            active_addr <= (others => '0'); active_data <= (others => '0');
 
--- 7. Multi-Core Debug Infrastructure
---    - Per-core debug access and control
---    - Cross-trigger and synchronization
---    - Multi-core trace correlation
---    - Performance monitoring and profiling
+        elsif rising_edge(clk) then
+            -- Determine which core is active this cycle
+            if grant = '0' then active := 0; else active := 1; end if;
 
--- STEP 4: ARCHITECTURE OPTIONS
+            -- Default: no bus access, no interrupt ack
+            active_we <= '0'; active_oe <= '0'; irq_ack <= "00";
 
--- OPTION 1: Asymmetric Dual-Core (Beginner)
--- Features:
--- - One high-performance core, one low-power core
--- - Simple task partitioning (real-time vs. background)
--- - Basic inter-core communication
--- - Simplified cache coherency
+            -- Only the active core can use the bus and advance its state
+            if bus_grant = '1' then
+                case state_arr(active) is
 
--- OPTION 2: Symmetric Dual-Core (Intermediate)
--- Features:
--- - Two identical cores with equal capabilities
--- - Hardware-assisted load balancing
--- - Full cache coherency protocol
--- - Advanced inter-core synchronization
+                    -- S_FETCH: Set up memory read for instruction at PC
+                    when S_FETCH =>
+                        active_addr <= std_logic_vector(pc_arr(active));
+                        active_oe <= '1';
+                        state_arr(active) <= S_DECODE;
 
--- OPTION 3: Heterogeneous Dual-Core (Advanced)
--- Features:
--- - Specialized cores (e.g., ARM + DSP)
--- - Hardware accelerators and co-processors
--- - Complex memory hierarchy
--- - Advanced power management
+                    -- S_DECODE: data_in has instruction, decode and execute
+                    when S_DECODE =>
+                        opcode := data_in(7 downto 4);
+                        rd_idx := to_integer(unsigned(data_in(3 downto 2)));
+                        rs_idx := to_integer(unsigned(data_in(1 downto 0)));
+                        opcode_arr(active) <= opcode;
+                        rd_arr(active) <= rd_idx;
+                        rs_arr(active) <= rs_idx;
 
--- OPTION 4: High-Performance Dual-Core (Expert)
--- Features:
--- - Superscalar out-of-order cores
--- - Advanced branch prediction and speculation
--- - Hardware transactional memory
--- - Real-time guarantees with SMP support
+                        case opcode is
+                            when OP_MOV => -- MOV rd, rs (1-byte)
+                                regs_arr(active)(rd_idx) <= regs_arr(active)(rs_idx);
+                                flag_z_arr(active) <= '1' when regs_arr(active)(rs_idx) = x"00" else '0';
+                                flag_n_arr(active) <= regs_arr(active)(rs_idx)(7);
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- Implementation Considerations:
--- - Cache coherency protocol selection and implementation
--- - Inter-core communication latency and bandwidth
--- - Load balancing algorithms and fairness
--- - Power management coordination between cores
--- - Debug and trace synchronization
+                            when OP_ADD => -- ADD rd, rs (1-byte)
+                                alu_a := unsigned(regs_arr(active)(rd_idx));
+                                alu_b := unsigned(regs_arr(active)(rs_idx));
+                                alu_sum := ('0' & alu_a) + ('0' & alu_b);
+                                alu_result := std_logic_vector(alu_sum(7 downto 0));
+                                regs_arr(active)(rd_idx) <= alu_result;
+                                flag_z_arr(active) <= '1' when alu_result = x"00" else '0';
+                                flag_c_arr(active) <= alu_sum(8);
+                                flag_n_arr(active) <= alu_result(7);
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- Symmetric Multiprocessing (SMP) Support:
--- - Operating system SMP kernel support
--- - Hardware spinlocks and atomic operations
--- - Cache-coherent shared memory model
--- - Interrupt load balancing and affinity
--- - Per-core performance monitoring
+                            when OP_SUB => -- SUB rd, rs (1-byte)
+                                alu_a := unsigned(regs_arr(active)(rd_idx));
+                                alu_b := unsigned(regs_arr(active)(rs_idx));
+                                alu_sum := ('0' & alu_a) - ('0' & alu_b);
+                                alu_result := std_logic_vector(alu_sum(7 downto 0));
+                                regs_arr(active)(rd_idx) <= alu_result;
+                                flag_z_arr(active) <= '1' when alu_result = x"00" else '0';
+                                flag_c_arr(active) <= not alu_sum(8);
+                                flag_n_arr(active) <= alu_result(7);
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- Cache Coherency Protocols:
--- - MESI (Modified, Exclusive, Shared, Invalid)
--- - MOESI (Modified, Owned, Exclusive, Shared, Invalid)
--- - Directory-based coherency for scalability
--- - Snooping protocols for low latency
--- - Write-through vs. write-back policies
+                            when OP_AND => -- AND rd, rs (1-byte)
+                                alu_result := regs_arr(active)(rd_idx) and regs_arr(active)(rs_idx);
+                                regs_arr(active)(rd_idx) <= alu_result;
+                                flag_z_arr(active) <= '1' when alu_result = x"00" else '0';
+                                flag_n_arr(active) <= alu_result(7);
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- APPLICATIONS:
+                            when OP_OR => -- OR rd, rs (1-byte)
+                                alu_result := regs_arr(active)(rd_idx) or regs_arr(active)(rs_idx);
+                                regs_arr(active)(rd_idx) <= alu_result;
+                                flag_z_arr(active) <= '1' when alu_result = x"00" else '0';
+                                flag_n_arr(active) <= alu_result(7);
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- 1. High-Performance Embedded Systems: Real-time control with background processing
--- 2. Multimedia Processing: Video encoding/decoding with audio processing
--- 3. Automotive Systems: Safety-critical functions with infotainment
--- 4. Industrial Automation: Control loops with data logging and communication
--- 5. IoT Gateways: Protocol processing with edge computing
--- 6. Medical Devices: Signal processing with user interface management
--- 7. Aerospace Systems: Flight control with navigation and communication
+                            when OP_XOR => -- XOR rd, rs (1-byte)
+                                alu_result := regs_arr(active)(rd_idx) xor regs_arr(active)(rs_idx);
+                                regs_arr(active)(rd_idx) <= alu_result;
+                                flag_z_arr(active) <= '1' when alu_result = x"00" else '0';
+                                flag_n_arr(active) <= alu_result(7);
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- TESTING STRATEGIES:
+                            when OP_HLT => -- HLT (1-byte): halt core
+                                state_arr(active) <= S_HALT;
+                                running_arr(active) <= '0'; halted_arr(active) <= '1';
 
--- 1. Multi-Core Unit Testing: Individual core verification
--- 2. Inter-Core Communication Testing: Message passing and synchronization
--- 3. Cache Coherency Testing: Data consistency verification
--- 4. Load Balancing Testing: Performance distribution analysis
--- 5. Power Management Testing: Multi-core power state coordination
--- 6. Real-Time Testing: Deterministic response with dual cores
--- 7. Stress Testing: Maximum load with both cores active
+                            when OP_NOP => -- NOP (1-byte)
+                                pc_arr(active) <= pc_arr(active) + 1;
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- IMPLEMENTATION GUIDELINES:
+                            when others => -- 2-byte: fetch operand byte
+                                active_addr <= std_logic_vector(pc_arr(active) + 1);
+                                active_oe <= '1'; state_arr(active) <= S_OPERAND;
+                        end case;
 
--- 1. Start with symmetric dual-core architecture
--- 2. Implement basic inter-core communication (mailboxes)
--- 3. Add cache coherency protocol (MESI recommended)
--- 4. Implement interrupt routing and load balancing
--- 5. Add advanced power management features
--- 6. Integrate multi-core debug capabilities
--- 7. Optimize for performance and power efficiency
+                    -- S_OPERAND: data_in has operand, execute 2-byte instructions
+                    when S_OPERAND =>
+                        case opcode_arr(active) is
+                            when OP_JMP => -- JMP addr
+                                pc_arr(active) <= unsigned(data_in);
+                                active_addr <= data_in; active_oe <= '1';
+                                state_arr(active) <= S_DECODE;
+                            when OP_JZ => -- JZ addr (jump if zero flag set)
+                                if flag_z_arr(active) = '1' then
+                                    pc_arr(active) <= unsigned(data_in);
+                                    active_addr <= data_in;
+                                else
+                                    pc_arr(active) <= pc_arr(active) + 2;
+                                    active_addr <= std_logic_vector(pc_arr(active) + 2);
+                                end if;
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
+                            when OP_JNZ => -- JNZ addr (jump if zero flag clear)
+                                if flag_z_arr(active) = '0' then
+                                    pc_arr(active) <= unsigned(data_in);
+                                    active_addr <= data_in;
+                                else
+                                    pc_arr(active) <= pc_arr(active) + 2;
+                                    active_addr <= std_logic_vector(pc_arr(active) + 2);
+                                end if;
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
+                            when OP_LOAD => -- LOAD rd, [addr]: set up memory read
+                                active_addr <= data_in; active_oe <= '1';
+                                state_arr(active) <= S_LOAD;
+                            when OP_STORE => -- STORE [addr], rd: write to memory
+                                active_addr <= data_in;
+                                active_data <= regs_arr(active)(rd_arr(active));
+                                active_we <= '1';
+                                pc_arr(active) <= pc_arr(active) + 2;
+                                state_arr(active) <= S_FETCH;
+                            when others =>
+                                pc_arr(active) <= pc_arr(active) + 2;
+                                active_addr <= std_logic_vector(pc_arr(active) + 2);
+                                active_oe <= '1'; state_arr(active) <= S_DECODE;
+                        end case;
 
--- COMMON PITFALLS:
+                    -- S_LOAD: data_in has loaded byte, store to register
+                    when S_LOAD =>
+                        regs_arr(active)(rd_arr(active)) <= data_in;
+                        flag_z_arr(active) <= '1' when data_in = x"00" else '0';
+                        flag_n_arr(active) <= data_in(7);
+                        pc_arr(active) <= pc_arr(active) + 2;
+                        active_addr <= std_logic_vector(pc_arr(active) + 2);
+                        active_oe <= '1'; state_arr(active) <= S_DECODE;
 
--- 1. Cache coherency violations leading to data corruption
--- 2. Deadlocks in inter-core synchronization
--- 3. Unbalanced load distribution between cores
--- 4. Inadequate memory bandwidth for dual-core operation
--- 5. Power management conflicts between cores
--- 6. Debug complexity with multiple execution contexts
--- 7. Interrupt storm conditions with poor load balancing
+                    -- S_HALT: core stopped, do nothing
+                    when S_HALT => null;
+                end case;
 
--- VERIFICATION CHECKLIST:
+                -- =============================================================
+                -- INTERRUPT HANDLING for the active core
+                -- =============================================================
+                if (active = 0 and irq0 = '1') or (active = 1 and irq1 = '1') then
+                    if state_arr(active) = S_DECODE then
+                        saved_pc_arr(active) <= pc_arr(active);
+                        pc_arr(active) <= IRQ_VECTOR;
+                        active_addr <= std_logic_vector(IRQ_VECTOR);
+                        active_oe <= '1';
+                        irq_ack(active) <= '1';
+                        state_arr(active) <= S_DECODE;
+                    end if;
+                end if;
+            end if; -- bus_grant
+        end if; -- rising_edge
+    end process;
 
--- □ Both cores operate independently and correctly
--- □ Cache coherency maintains data consistency
--- □ Inter-core communication works reliably
--- □ Interrupt distribution balances load effectively
--- □ Power management coordinates between cores
--- □ Debug access works for both cores simultaneously
--- □ Performance scales appropriately with dual cores
--- □ Real-time requirements met with SMP operation
--- □ Memory protection prevents cross-core interference
--- □ Error handling and recovery work across cores
+    -- =========================================================================
+    -- BUS OUTPUT: route active core's signals to shared bus
+    -- =========================================================================
+    addr_out <= active_addr;
+    data_out <= active_data;
+    we       <= active_we;
+    oe       <= active_oe;
 
--- ADVANCED TOPICS:
+    -- Per-core PC outputs (always visible for debugging)
+    core0_pc <= std_logic_vector(pc_arr(0));
+    core1_pc <= std_logic_vector(pc_arr(1));
 
--- This dual-core MCU implementation demonstrates several key concepts:
--- - Symmetric multiprocessing (SMP) architecture
--- - Cache coherency and memory consistency models
--- - Inter-core communication and synchronization
--- - Load balancing and performance optimization
--- - Multi-core power management strategies
+    -- Per-core status bytes
+    core0_status <= (
+        0 => running_arr(0), 1 => halted_arr(0), 2 => not grant,
+        3 => irq0, 4 => flag_z_arr(0), 5 => flag_c_arr(0),
+        6 => flag_n_arr(0), 7 => '0'
+    );
+    core1_status <= (
+        0 => running_arr(1), 1 => halted_arr(1), 2 => grant,
+        3 => irq1, 4 => flag_z_arr(1), 5 => flag_c_arr(1),
+        6 => flag_n_arr(1), 7 => '0'
+    );
 
--- Consider these advanced topics for further development:
--- - Hardware transactional memory for lock-free programming
--- - Non-uniform memory access (NUMA) architectures
--- - Heterogeneous computing with specialized accelerators
--- - Real-time scheduling with multi-core guarantees
--- - Security isolation between cores and applications
--- - Machine learning workload distribution
-
--- Performance Optimization:
--- - Optimize cache line sharing and false sharing
--- - Implement efficient inter-core communication protocols
--- - Use hardware-assisted synchronization primitives
--- - Balance interrupt load across cores dynamically
--- - Optimize memory access patterns for dual-core operation
-
--- Design for Test:
--- - Implement per-core built-in self-test (BIST)
--- - Provide cross-core debug and trace correlation
--- - Support multi-core boundary scan testing
--- - Include cache coherency protocol verification
--- - Implement performance monitoring for both cores
-
--- IMPLEMENTATION TEMPLATE:
-
--- Uncomment and modify the following template for your implementation:
-
--- use work.mcu_pkg.all;
--- use work.multicore_pkg.all;
--- use work.smp_pkg.all;
-
--- entity mcu_2_core is
---     generic (
---         DATA_WIDTH          : integer := 32;
---         ADDR_WIDTH          : integer := 32;
---         NUM_CORES           : integer := 2;
---         SHARED_FLASH_SIZE   : integer := 2*1024*1024;
---         SHARED_RAM_SIZE     : integer := 512*1024;
---         CORE_CACHE_SIZE     : integer := 64*1024;
---         IPC_CHANNELS        : integer := 8;
---         NUM_INTERRUPTS      : integer := 128;
---         CLOCK_FREQUENCY     : integer := 200_000_000
---     );
---     port (
---         -- System signals
---         clk                 : in  std_logic;
---         reset               : in  std_logic;
---         core_enable         : in  std_logic_vector(NUM_CORES-1 downto 0);
---         
---         -- Memory interface
---         ext_mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
---         ext_mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
---         ext_mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
---         ext_mem_read        : out std_logic;
---         ext_mem_write       : out std_logic;
---         ext_mem_ready       : in  std_logic;
---         
---         -- Inter-core communication
---         ipc_mailbox_full    : out std_logic_vector(IPC_CHANNELS-1 downto 0);
---         ipc_mailbox_empty   : out std_logic_vector(IPC_CHANNELS-1 downto 0);
---         
---         -- Interrupt interface
---         ext_interrupts      : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         interrupt_ack       : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         
---         -- Status and debug
---         mcu_status          : out std_logic_vector(15 downto 0);
---         core_status         : out std_logic_vector(NUM_CORES*8-1 downto 0);
---         debug_data_out      : out std_logic_vector(DATA_WIDTH-1 downto 0)
---     );
--- end entity mcu_2_core;
-
--- architecture behavioral of mcu_2_core is
---     -- Component declarations for dual-core system
---     component cpu_core is
---         generic (
---             CORE_ID         : integer;
---             DATA_WIDTH      : integer := 32;
---             ADDR_WIDTH      : integer := 32;
---             PIPELINE_STAGES : integer := 7
---         );
---         port (
---             clk             : in  std_logic;
---             reset           : in  std_logic;
---             enable          : in  std_logic;
---             core_id         : out std_logic_vector(1 downto 0);
---             -- Memory interface
---             mem_addr        : out std_logic_vector(ADDR_WIDTH-1 downto 0);
---             mem_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
---             mem_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
---             mem_read        : out std_logic;
---             mem_write       : out std_logic;
---             mem_ready       : in  std_logic;
---             -- Cache interface
---             cache_hit       : in  std_logic;
---             cache_miss      : in  std_logic;
---             -- Inter-core communication
---             ipc_send        : out std_logic;
---             ipc_receive     : in  std_logic;
---             ipc_data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
---             ipc_data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
---             -- Interrupt interface
---             interrupt_req   : in  std_logic;
---             interrupt_ack   : out std_logic;
---             interrupt_vector: in  std_logic_vector(7 downto 0);
---             -- Status
---             cpu_status      : out std_logic_vector(7 downto 0)
---         );
---     end component;
---     
---     component cache_controller is
---         generic (
---             NUM_CORES       : integer := 2;
---             CACHE_SIZE      : integer := 64*1024;
---             CACHE_LINE_SIZE : integer := 64;
---             COHERENCY_PROTOCOL : string := "MESI"
---         );
---         port (
---             clk             : in  std_logic;
---             reset           : in  std_logic;
---             -- Core interfaces
---             core_addr       : in  std_logic_vector(NUM_CORES*32-1 downto 0);
---             core_data_out   : in  std_logic_vector(NUM_CORES*32-1 downto 0);
---             core_data_in    : out std_logic_vector(NUM_CORES*32-1 downto 0);
---             core_read       : in  std_logic_vector(NUM_CORES-1 downto 0);
---             core_write      : in  std_logic_vector(NUM_CORES-1 downto 0);
---             core_ready      : out std_logic_vector(NUM_CORES-1 downto 0);
---             -- Cache status
---             cache_hit       : out std_logic_vector(NUM_CORES-1 downto 0);
---             cache_miss      : out std_logic_vector(NUM_CORES-1 downto 0);
---             -- Memory interface
---             mem_addr        : out std_logic_vector(31 downto 0);
---             mem_data_out    : out std_logic_vector(31 downto 0);
---             mem_data_in     : in  std_logic_vector(31 downto 0);
---             mem_read        : out std_logic;
---             mem_write       : out std_logic;
---             mem_ready       : in  std_logic;
---             -- Coherency status
---             coherency_status: out std_logic_vector(7 downto 0)
---         );
---     end component;
---     
---     component ipc_controller is
---         generic (
---             NUM_CORES       : integer := 2;
---             IPC_CHANNELS    : integer := 8;
---             MAILBOX_SIZE    : integer := 16
---         );
---         port (
---             clk             : in  std_logic;
---             reset           : in  std_logic;
---             -- Core interfaces
---             core_send       : in  std_logic_vector(NUM_CORES-1 downto 0);
---             core_receive    : in  std_logic_vector(NUM_CORES-1 downto 0);
---             core_data_out   : in  std_logic_vector(NUM_CORES*32-1 downto 0);
---             core_data_in    : out std_logic_vector(NUM_CORES*32-1 downto 0);
---             core_channel    : in  std_logic_vector(NUM_CORES*3-1 downto 0);
---             -- Status
---             mailbox_full    : out std_logic_vector(IPC_CHANNELS-1 downto 0);
---             mailbox_empty   : out std_logic_vector(IPC_CHANNELS-1 downto 0);
---             ipc_ready       : out std_logic_vector(NUM_CORES-1 downto 0)
---         );
---     end component;
---     
---     component multicore_interrupt_controller is
---         generic (
---             NUM_CORES       : integer := 2;
---             NUM_INTERRUPTS  : integer := 128;
---             PRIORITY_LEVELS : integer := 16
---         );
---         port (
---             clk             : in  std_logic;
---             reset           : in  std_logic;
---             -- Interrupt inputs
---             interrupt_in    : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---             interrupt_enable: in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---             interrupt_priority: in std_logic_vector(NUM_INTERRUPTS*4-1 downto 0);
---             core_affinity   : in  std_logic_vector(NUM_INTERRUPTS*2-1 downto 0);
---             -- Core interfaces
---             core_interrupt_req: out std_logic_vector(NUM_CORES-1 downto 0);
---             core_interrupt_ack: in  std_logic_vector(NUM_CORES-1 downto 0);
---             core_interrupt_vector: out std_logic_vector(NUM_CORES*8-1 downto 0);
---             -- Load balancing
---             load_balance_enable: in std_logic;
---             core_load       : in  std_logic_vector(NUM_CORES*8-1 downto 0);
---             -- Status
---             pending_interrupts: out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---             interrupt_distribution: out std_logic_vector(15 downto 0)
---         );
---     end component;
---     
---     component multicore_power_management is
---         generic (
---             NUM_CORES       : integer := 2;
---             POWER_DOMAINS   : integer := 8;
---             SLEEP_MODES     : integer := 6
---         );
---         port (
---             clk             : in  std_logic;
---             reset           : in  std_logic;
---             -- Control interface
---             power_mode      : in  std_logic_vector(3 downto 0);
---             core_power_mode : in  std_logic_vector(NUM_CORES*4-1 downto 0);
---             wake_up         : in  std_logic_vector(NUM_CORES-1 downto 0);
---             sleep_req       : out std_logic_vector(NUM_CORES-1 downto 0);
---             power_good      : in  std_logic;
---             -- Clock control
---             core_clk_en     : out std_logic_vector(NUM_CORES-1 downto 0);
---             peripheral_clk_en: out std_logic;
---             memory_clk_en   : out std_logic;
---             -- Power domain control
---             power_domain_en : out std_logic_vector(POWER_DOMAINS-1 downto 0);
---             -- DVFS control
---             core_voltage    : out std_logic_vector(NUM_CORES*4-1 downto 0);
---             core_frequency  : out std_logic_vector(NUM_CORES*4-1 downto 0);
---             -- Status
---             power_status    : out std_logic_vector(15 downto 0)
---         );
---     end component;
---     
---     -- Internal signals for dual-core system
---     signal core_mem_addr        : std_logic_vector(NUM_CORES*ADDR_WIDTH-1 downto 0);
---     signal core_mem_data_out    : std_logic_vector(NUM_CORES*DATA_WIDTH-1 downto 0);
---     signal core_mem_data_in     : std_logic_vector(NUM_CORES*DATA_WIDTH-1 downto 0);
---     signal core_mem_read        : std_logic_vector(NUM_CORES-1 downto 0);
---     signal core_mem_write       : std_logic_vector(NUM_CORES-1 downto 0);
---     signal core_mem_ready       : std_logic_vector(NUM_CORES-1 downto 0);
---     
---     signal cache_hit_int        : std_logic_vector(NUM_CORES-1 downto 0);
---     signal cache_miss_int       : std_logic_vector(NUM_CORES-1 downto 0);
---     
---     signal core_interrupt_req   : std_logic_vector(NUM_CORES-1 downto 0);
---     signal core_interrupt_ack   : std_logic_vector(NUM_CORES-1 downto 0);
---     signal core_interrupt_vector: std_logic_vector(NUM_CORES*8-1 downto 0);
---     
---     signal ipc_send_int         : std_logic_vector(NUM_CORES-1 downto 0);
---     signal ipc_receive_int      : std_logic_vector(NUM_CORES-1 downto 0);
---     signal ipc_data_out_int     : std_logic_vector(NUM_CORES*DATA_WIDTH-1 downto 0);
---     signal ipc_data_in_int      : std_logic_vector(NUM_CORES*DATA_WIDTH-1 downto 0);
---     
---     signal core_clk_en          : std_logic_vector(NUM_CORES-1 downto 0);
---     signal gated_clk            : std_logic_vector(NUM_CORES-1 downto 0);
---     
---     signal core_status_int      : std_logic_vector(NUM_CORES*8-1 downto 0);
---     signal power_status_int     : std_logic_vector(15 downto 0);
---     signal coherency_status_int : std_logic_vector(7 downto 0);
---     
--- begin
---     -- Clock gating for each core
---     gen_gated_clocks: for i in 0 to NUM_CORES-1 generate
---         gated_clk(i) <= clk and core_clk_en(i);
---     end generate;
---     
---     -- CPU Core instantiations
---     gen_cpu_cores: for i in 0 to NUM_CORES-1 generate
---         cpu_core_inst: cpu_core
---             generic map (
---                 CORE_ID         => i,
---                 DATA_WIDTH      => DATA_WIDTH,
---                 ADDR_WIDTH      => ADDR_WIDTH,
---                 PIPELINE_STAGES => PIPELINE_STAGES
---             )
---             port map (
---                 clk             => gated_clk(i),
---                 reset           => reset,
---                 enable          => core_enable(i),
---                 core_id         => open,
---                 mem_addr        => core_mem_addr((i+1)*ADDR_WIDTH-1 downto i*ADDR_WIDTH),
---                 mem_data_out    => core_mem_data_out((i+1)*DATA_WIDTH-1 downto i*DATA_WIDTH),
---                 mem_data_in     => core_mem_data_in((i+1)*DATA_WIDTH-1 downto i*DATA_WIDTH),
---                 mem_read        => core_mem_read(i),
---                 mem_write       => core_mem_write(i),
---                 mem_ready       => core_mem_ready(i),
---                 cache_hit       => cache_hit_int(i),
---                 cache_miss      => cache_miss_int(i),
---                 ipc_send        => ipc_send_int(i),
---                 ipc_receive     => ipc_receive_int(i),
---                 ipc_data_out    => ipc_data_out_int((i+1)*DATA_WIDTH-1 downto i*DATA_WIDTH),
---                 ipc_data_in     => ipc_data_in_int((i+1)*DATA_WIDTH-1 downto i*DATA_WIDTH),
---                 interrupt_req   => core_interrupt_req(i),
---                 interrupt_ack   => core_interrupt_ack(i),
---                 interrupt_vector=> core_interrupt_vector((i+1)*8-1 downto i*8),
---                 cpu_status      => core_status_int((i+1)*8-1 downto i*8)
---             );
---     end generate;
---     
---     -- Cache Controller instantiation
---     cache_ctrl_inst: cache_controller
---         generic map (
---             NUM_CORES       => NUM_CORES,
---             CACHE_SIZE      => CORE_CACHE_SIZE,
---             CACHE_LINE_SIZE => CACHE_LINE_SIZE,
---             COHERENCY_PROTOCOL => COHERENCY_PROTOCOL
---         )
---         port map (
---             clk             => clk,
---             reset           => reset,
---             core_addr       => core_mem_addr,
---             core_data_out   => core_mem_data_out,
---             core_data_in    => core_mem_data_in,
---             core_read       => core_mem_read,
---             core_write      => core_mem_write,
---             core_ready      => core_mem_ready,
---             cache_hit       => cache_hit_int,
---             cache_miss      => cache_miss_int,
---             mem_addr        => ext_mem_addr,
---             mem_data_out    => ext_mem_data_out,
---             mem_data_in     => ext_mem_data_in,
---             mem_read        => ext_mem_read,
---             mem_write       => ext_mem_write,
---             mem_ready       => ext_mem_ready,
---             coherency_status=> coherency_status_int
---         );
---     
---     -- IPC Controller instantiation
---     ipc_ctrl_inst: ipc_controller
---         generic map (
---             NUM_CORES       => NUM_CORES,
---             IPC_CHANNELS    => IPC_CHANNELS,
---             MAILBOX_SIZE    => MAILBOX_SIZE
---         )
---         port map (
---             clk             => clk,
---             reset           => reset,
---             core_send       => ipc_send_int,
---             core_receive    => ipc_receive_int,
---             core_data_out   => ipc_data_out_int,
---             core_data_in    => ipc_data_in_int,
---             core_channel    => (others => '0'), -- Default channel selection
---             mailbox_full    => ipc_mailbox_full,
---             mailbox_empty   => ipc_mailbox_empty,
---             ipc_ready       => open
---         );
---     
---     -- Multi-Core Interrupt Controller instantiation
---     int_ctrl_inst: multicore_interrupt_controller
---         generic map (
---             NUM_CORES       => NUM_CORES,
---             NUM_INTERRUPTS  => NUM_INTERRUPTS,
---             PRIORITY_LEVELS => INTERRUPT_LEVELS
---         )
---         port map (
---             clk             => clk,
---             reset           => reset,
---             interrupt_in    => ext_interrupts,
---             interrupt_enable=> (others => '1'), -- Enable all interrupts
---             interrupt_priority=> (others => '0'), -- Default priority
---             core_affinity   => (others => '0'), -- Round-robin by default
---             core_interrupt_req=> core_interrupt_req,
---             core_interrupt_ack=> core_interrupt_ack,
---             core_interrupt_vector=> core_interrupt_vector,
---             load_balance_enable=> '1',
---             core_load       => (others => '0'), -- Implement load monitoring
---             pending_interrupts=> open,
---             interrupt_distribution=> open
---         );
---     
---     -- Multi-Core Power Management instantiation
---     power_mgmt_inst: multicore_power_management
---         generic map (
---             NUM_CORES       => NUM_CORES,
---             POWER_DOMAINS   => POWER_DOMAINS,
---             SLEEP_MODES     => SLEEP_MODES
---         )
---         port map (
---             clk             => clk,
---             reset           => reset,
---             power_mode      => power_mode,
---             core_power_mode => core_power_mode,
---             wake_up         => wake_up,
---             sleep_req       => sleep_req,
---             power_good      => power_good,
---             core_clk_en     => core_clk_en,
---             peripheral_clk_en=> open,
---             memory_clk_en   => open,
---             power_domain_en => open,
---             core_voltage    => open,
---             core_frequency  => open,
---             power_status    => power_status_int
---         );
---     
---     -- Status output assignments
---     mcu_status <= power_status_int;
---     core_status <= core_status_int;
---     cache_coherency_status <= coherency_status_int;
---     error_flags <= (others => '0'); -- Implement error detection logic
---     performance_counters <= (others => '0'); -- Implement performance counters
---     load_balance_status <= (others => '0'); -- Implement load balancing status
---     
---     -- Debug interface (multi-core aware)
---     debug_data_out <= core_mem_data_in(DATA_WIDTH-1 downto 0) when debug_core_select = "00" else
---                       core_mem_data_in(2*DATA_WIDTH-1 downto DATA_WIDTH) when debug_core_select = "01" else
---                       (others => '0');
---     debug_ready <= '1'; -- Always ready for debug access
---     debug_core_status <= core_status_int;
---     
---     -- JTAG interface (multi-core)
---     jtag_tdo <= jtag_tdi; -- Simple loopback for now
---     
--- end architecture behavioral;
-
--- Remember: This dual-core MCU implementation provides advanced multi-processing
--- capabilities with cache coherency, inter-core communication, and load balancing.
--- Customize the generics and interfaces for your specific dual-core application
--- requirements and target FPGA device capabilities.
+end architecture rtl;

@@ -1,452 +1,212 @@
--- ============================================================================
--- Renesas Synergy S3 Interface - Programming Guidance
--- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements the interface for Renesas Synergy S3 series microcontrollers,
--- which are ARM Cortex-M4 based MCUs designed for cost-effective IoT and embedded
--- applications. The Synergy S3 series provides a balanced combination of performance,
--- connectivity, and power efficiency, making it ideal for battery-powered devices
--- and space-constrained applications requiring reliable real-time performance.
+-- ================================================================================
+-- synergy_s3_interface : Renesas Synergy S3 MCU interface
+-- Based on: ARM Cortex-M4 with FPU (mid-range, balanced peripherals)
+-- Target FPGA : Cyclone III (EP3C16F484C6N)
 --
--- LEARNING OBJECTIVES:
--- 1. Understand Renesas Synergy S3 architecture and capabilities
--- 2. Learn ARM Cortex-M4 interface design for cost-sensitive applications
--- 3. Practice efficient resource utilization and power management
--- 4. Implement essential connectivity and control features
--- 5. Understand low-power design techniques and optimization
--- 6. Learn system integration for embedded applications
+-- The S3 is a mid-range variant with a full peripheral set suitable for
+-- general-purpose embedded applications. It adds SPI to the S2's set.
 --
--- SUPPORTED SYNERGY S3 MICROCONTROLLERS:
--- - R7FS3M1A: Entry-level with essential peripherals and low power
--- - R7FS3M2A: Enhanced connectivity with additional communication interfaces
--- - R7FS3M3A: Advanced features with USB and enhanced timers
--- - R7FS3M4A: Maximum S3 performance with comprehensive peripheral set
+-- Peripheral set (S3 - MID-RANGE):
+--   [Y] GPIO  - 32-bit general purpose I/O
+--   [Y] Timer - 32-bit timer with interrupt
+--   [Y] UART  - Single UART channel
+--   [Y] SPI   - SPI master interface
+--   [Y] I2C   - I2C master interface
+--   [Y] ADC   - 12-bit ADC
+--   [N] DMA/CAN/Ethernet/USB/LCD/Security - Not included
 --
--- ============================================================================
--- SYNERGY S3 ARCHITECTURE OVERVIEW:
--- ============================================================================
--- Core Features:
--- - ARM Cortex-M4 core with FPU running up to 100 MHz
--- - Up to 1MB Flash memory and 256KB SRAM
--- - Essential security features with basic encryption support
--- - Multiple communication interfaces (UART, SPI, I2C, USB)
--- - PWM and timer units for control applications
--- - 12-bit ADC with up to 16 channels
--- - Low-power modes with flexible clock management
--- - Basic safety features for reliable operation
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
+-- AHB-Lite Register Map:
+--   0x00: GPIO_DATA | 0x04: GPIO_DIR | 0x08: TIMER_CTRL | 0x0C: TIMER_LOAD
+--   0x10: UART_DATA | 0x14: UART_STATUS | 0x18: SPI_CTRL | 0x1C: SPI_DATA
+--   0x20: I2C_CTRL  | 0x24: I2C_DATA  | 0x28: ADC_CTRL  | 0x2C: ADC_DATA
+-- ================================================================================
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
 
--- STEP 2: ENTITY DECLARATION
--- ----------------------------------------------------------------------------
--- Entity Requirements:
--- - Name: synergy_s3_interface
--- - Generic parameters for configuration
--- - Clock and reset management
--- - Data and address buses
--- - Control and status signals
--- - Peripheral interface signals
+entity synergy_s3_interface is
+    generic (
+        GPIO_WIDTH : integer := 32  -- S3 has full 32-bit GPIO
+    );
+    port (
+        -- AHB-Lite bus interface (ARM Cortex-M4 with FPU, active-low reset)
+        HCLK, HRESETn, HSEL, HWRITE, HREADY, HMASTLOCK : in std_logic;
+        HTRANS : in std_logic_vector(1 downto 0);
+        HSIZE  : in std_logic_vector(2 downto 0);
+        HPROT  : in std_logic_vector(3 downto 0);
+        HADDR  : in std_logic_vector(31 downto 0);
+        HWDATA : in std_logic_vector(31 downto 0);
+        HRDATA : out std_logic_vector(31 downto 0);
+        HRESP  : out std_logic;
+        HREADYOUT : out std_logic;
+        -- GPIO (32-bit)
+        gpio_in  : in  std_logic_vector(31 downto 0);
+        gpio_out : out std_logic_vector(31 downto 0);
+        gpio_dir : out std_logic_vector(31 downto 0);
+        -- Timer
+        timer_int : out std_logic;
+        -- UART
+        uart_txd : out std_logic;  uart_rxd : in std_logic;  uart_int : out std_logic;
+        -- SPI (present on S3)
+        spi_sclk, spi_mosi : out std_logic;  spi_miso : in std_logic;  spi_int : out std_logic;
+        -- I2C (present on S3)
+        i2c_sda : inout std_logic;  i2c_scl : inout std_logic;  i2c_int : out std_logic;
+        -- ADC (present on S3)
+        adc_in  : in  std_logic_vector(11 downto 0);  adc_int : out std_logic;
+        -- DMA (NOT present on S3)
+        dma_req : out std_logic;  dma_done : in std_logic;
+        -- CAN (NOT present on S3)
+        can_tx : out std_logic;  can_rx : in std_logic;  can_int : out std_logic;
+        -- Ethernet (NOT present on S3)
+        eth_txd : out std_logic_vector(3 downto 0);  eth_rxd : in std_logic_vector(3 downto 0);
+        eth_int : out std_logic;
+        -- USB (NOT present on S3)
+        usb_dp, usb_dm : inout std_logic;  usb_int : out std_logic;
+        -- LCD (NOT present on S3)
+        lcd_data : out std_logic_vector(15 downto 0);
+        lcd_hsync, lcd_vsync, lcd_clk : out std_logic;
+        -- Security (NOT present on S3)
+        trng_valid, secure_boot : out std_logic
+    );
+end entity synergy_s3_interface;
 
--- TODO: Define the entity declaration for synergy_s3_interface
--- entity synergy_s3_interface is
---     generic (
---         -- System Configuration
---         SYSTEM_CLOCK_FREQ   : integer := 100_000_000;  -- 100 MHz system clock
---         BUS_WIDTH          : integer := 32;            -- 32-bit data bus
---         ADDR_WIDTH         : integer := 32;            -- 32-bit address bus
---         
---         -- Memory Configuration
---         FLASH_SIZE         : integer := 1024;          -- Flash size in KB
---         SRAM_SIZE          : integer := 256;           -- SRAM size in KB
---         
---         -- Peripheral Configuration
---         UART_COUNT         : integer := 6;             -- Number of UART channels
---         SPI_COUNT          : integer := 2;             -- Number of SPI channels
---         I2C_COUNT          : integer := 2;             -- Number of I2C channels
---         PWM_CHANNELS       : integer := 16;            -- Number of PWM channels
---         ADC_CHANNELS       : integer := 16;            -- Number of ADC channels
---         
---         -- Feature Configuration
---         USB_ENABLE         : boolean := true;          -- USB interface support
---         CRYPTO_ENABLE      : boolean := false;         -- Basic crypto support
---         
---         -- Power Configuration
---         LOW_POWER_ENABLE   : boolean := true;          -- Low power features
---         CLOCK_GATING       : boolean := true           -- Clock gating support
---     );
--- TODO: Define the port declarations for synergy_s3_interface
---     port (
---         -- Clock and Reset
---         clk                : in  std_logic;
---         reset_n            : in  std_logic;
---         
---         -- System Control
---         system_enable      : in  std_logic;
---         power_mode         : in  std_logic_vector(2 downto 0);
---         clock_config       : in  std_logic_vector(7 downto 0);
---         
---         -- Memory Interface
---         mem_addr           : out std_logic_vector(ADDR_WIDTH-1 downto 0);
---         mem_data_in        : in  std_logic_vector(BUS_WIDTH-1 downto 0);
---         mem_data_out       : out std_logic_vector(BUS_WIDTH-1 downto 0);
---         mem_write_en       : out std_logic;
---         mem_read_en        : out std_logic;
---         mem_byte_en        : out std_logic_vector(3 downto 0);
---         mem_ready          : in  std_logic;
---         
---         -- AHB Bus Interface
---         ahb_haddr          : out std_logic_vector(31 downto 0);
---         ahb_htrans         : out std_logic_vector(1 downto 0);
---         ahb_hwrite         : out std_logic;
---         ahb_hsize          : out std_logic_vector(2 downto 0);
---         ahb_hburst         : out std_logic_vector(2 downto 0);
---         ahb_hwdata         : out std_logic_vector(31 downto 0);
---         ahb_hrdata         : in  std_logic_vector(31 downto 0);
---         ahb_hready         : in  std_logic;
---         ahb_hresp          : in  std_logic;
---         
---         -- Interrupt Controller
---         irq_request        : out std_logic_vector(127 downto 0);
---         irq_acknowledge    : in  std_logic_vector(127 downto 0);
---         irq_priority       : out std_logic_vector(7 downto 0);
---         nmi_request        : out std_logic;
---         
---         -- GPIO Interface
---         gpio_input         : in  std_logic_vector(63 downto 0);
---         gpio_output        : out std_logic_vector(63 downto 0);
---         gpio_direction     : out std_logic_vector(63 downto 0);
---         gpio_pull_up       : out std_logic_vector(63 downto 0);
---         gpio_pull_down     : out std_logic_vector(63 downto 0);
---         
---         -- UART Interface
---         uart_tx            : out std_logic_vector(UART_COUNT-1 downto 0);
---         uart_rx            : in  std_logic_vector(UART_COUNT-1 downto 0);
---         uart_rts           : out std_logic_vector(UART_COUNT-1 downto 0);
---         uart_cts           : in  std_logic_vector(UART_COUNT-1 downto 0);
---         
---         -- SPI Interface
---         spi_sclk           : out std_logic_vector(SPI_COUNT-1 downto 0);
---         spi_mosi           : out std_logic_vector(SPI_COUNT-1 downto 0);
---         spi_miso           : in  std_logic_vector(SPI_COUNT-1 downto 0);
---         spi_cs_n           : out std_logic_vector(SPI_COUNT*4-1 downto 0);
---         
---         -- I2C Interface
---         i2c_scl            : inout std_logic_vector(I2C_COUNT-1 downto 0);
---         i2c_sda            : inout std_logic_vector(I2C_COUNT-1 downto 0);
---         
---         -- USB Interface (if enabled)
---         usb_dp             : inout std_logic;
---         usb_dm             : inout std_logic;
---         usb_vbus           : in  std_logic;
---         usb_id             : in  std_logic;
---         
---         -- PWM Interface
---         pwm_output         : out std_logic_vector(PWM_CHANNELS-1 downto 0);
---         pwm_complementary  : out std_logic_vector(PWM_CHANNELS-1 downto 0);
---         
---         -- ADC Interface
---         adc_input          : in  std_logic_vector(ADC_CHANNELS-1 downto 0);
---         adc_vref_pos       : in  std_logic;
---         adc_vref_neg       : in  std_logic;
---         adc_trigger        : out std_logic;
---         adc_conversion_done: in  std_logic;
---         
---         -- Timer Interface
---         timer_input        : in  std_logic_vector(7 downto 0);
---         timer_output       : out std_logic_vector(7 downto 0);
---         
---         -- Basic Security Interface (if enabled)
---         crypto_data_in     : in  std_logic_vector(127 downto 0);
---         crypto_data_out    : out std_logic_vector(127 downto 0);
---         crypto_operation   : in  std_logic_vector(2 downto 0);
---         crypto_busy        : out std_logic;
---         crypto_done        : out std_logic;
---         
---         -- Power Management
---         power_good         : in  std_logic;
---         low_power_request  : in  std_logic;
---         wake_up_event      : out std_logic;
---         power_consumption  : out std_logic_vector(7 downto 0);
---         
---         -- Debug Interface
---         debug_enable       : in  std_logic;
---         jtag_tck           : in  std_logic;
---         jtag_tms           : in  std_logic;
---         jtag_tdi           : in  std_logic;
---         jtag_tdo           : out std_logic;
---         swd_clk            : in  std_logic;
---         swd_dio            : inout std_logic;
---         
---         -- Status and Control
---         mcu_ready          : out std_logic;
---         mcu_error          : out std_logic;
---         system_status      : out std_logic_vector(7 downto 0);
---         reset_cause        : out std_logic_vector(3 downto 0)
---     );
--- end entity synergy_s3_interface;
+architecture rtl of synergy_s3_interface is
+    -- Peripheral registers
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_ctrl    : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_load    : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_count   : unsigned(31 downto 0) := (others => '0');
+    signal uart_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal uart_status   : std_logic_vector(31 downto 0) := x"00000001";
+    signal spi_ctrl      : std_logic_vector(31 downto 0) := (others => '0'); -- SPI control
+    signal spi_data_reg  : std_logic_vector(31 downto 0) := (others => '0'); -- SPI TX/RX data
+    signal i2c_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal i2c_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal adc_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal adc_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal reg_sel       : integer range 0 to 15;
+begin
 
--- STEP 3: ARCHITECTURE DECLARATION
--- ----------------------------------------------------------------------------
--- TODO: Define the architecture declaration for synergy_s3_interface
--- architecture rtl of synergy_s3_interface is
---     
---     -- Internal Signals and Constants
---     signal system_reset        : std_logic;
---     signal internal_clock      : std_logic;
---     signal power_state         : std_logic_vector(2 downto 0);
---     
---     -- Memory Controller Signals
---     signal mem_controller_busy : std_logic;
---     signal mem_access_valid    : std_logic;
---     signal mem_error_flag      : std_logic;
---     
---     -- Bus Controller Signals
---     signal ahb_state          : std_logic_vector(2 downto 0);
---     signal ahb_transfer_active: std_logic;
---     signal ahb_error          : std_logic;
---     
---     -- Interrupt Controller Signals
---     signal irq_pending        : std_logic_vector(127 downto 0);
---     signal irq_mask           : std_logic_vector(127 downto 0);
---     signal irq_active         : std_logic_vector(127 downto 0);
---     
---     -- Peripheral Controller Signals
---     signal uart_busy          : std_logic_vector(UART_COUNT-1 downto 0);
---     signal spi_busy           : std_logic_vector(SPI_COUNT-1 downto 0);
---     signal i2c_busy           : std_logic_vector(I2C_COUNT-1 downto 0);
---     signal usb_busy           : std_logic;
---     
---     -- Power Management Signals
---     signal power_controller   : std_logic_vector(7 downto 0);
---     signal clock_divider      : unsigned(7 downto 0);
---     signal low_power_mode     : std_logic;
---     signal clock_gate_enable  : std_logic_vector(15 downto 0);
---     
---     -- Security Controller Signals (if enabled)
---     signal crypto_state       : std_logic_vector(2 downto 0);
---     signal crypto_key         : std_logic_vector(127 downto 0);
---     
---     -- System Monitor Signals
---     signal system_health      : std_logic_vector(7 downto 0);
---     signal temperature_status : std_logic_vector(1 downto 0);
---     signal voltage_status     : std_logic_vector(1 downto 0);
---     
---     -- Constants
---     constant RESET_CYCLES     : integer := 10;
---     constant TIMEOUT_CYCLES   : integer := 1000;
---     constant LOW_POWER_THRESHOLD : integer := 50;
+    -- Address decoder: HADDR bits [7:4] select register
+    reg_sel <= to_integer(unsigned(HADDR(7 downto 4)));
 
--- TODO: Implement the begin section with all controller implementations
--- begin
+    -- =========================================================================
+    -- AHB-LITE WRITE PROCESS
+    -- =========================================================================
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            gpio_data_reg <= (others => '0'); gpio_dir_reg <= (others => '0');
+            timer_ctrl <= (others => '0'); timer_load <= (others => '0');
+            timer_count <= (others => '0');
+            uart_data_reg <= (others => '0'); uart_status <= x"00000001";
+            spi_ctrl <= (others => '0'); spi_data_reg <= (others => '0');
+            i2c_ctrl <= (others => '0'); i2c_data_reg <= (others => '0');
+            adc_ctrl <= (others => '0'); adc_data_reg <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if HSEL = '1' and HREADY = '1' and HWRITE = '1' then
+                case reg_sel is
+                    when 0 => gpio_data_reg <= HWDATA;     -- GPIO_DATA
+                    when 1 => gpio_dir_reg  <= HWDATA;     -- GPIO_DIR
+                    when 2 => timer_ctrl    <= HWDATA;     -- TIMER_CTRL
+                    when 3 => timer_load    <= HWDATA;     -- TIMER_LOAD
+                              timer_count   <= unsigned(HWDATA);
+                    when 4 => uart_data_reg <= HWDATA;     -- UART_DATA
+                    when 6 => spi_ctrl      <= HWDATA;     -- SPI_CTRL
+                    when 7 => spi_data_reg  <= HWDATA;     -- SPI_DATA (TX)
+                    when 8 => i2c_ctrl      <= HWDATA;     -- I2C_CTRL
+                    when 9 => i2c_data_reg  <= HWDATA;     -- I2C_DATA
+                    when 10 => adc_ctrl     <= HWDATA;     -- ADC_CTRL
+                    when others => null;
+                end case;
+            end if;
+            -- ADC: capture input when conversion started (ctrl bit0 = start)
+            if adc_ctrl(0) = '1' then
+                adc_data_reg <= x"00000" & adc_in;
+            end if;
+            -- SPI: capture MISO into data register when enabled
+            if spi_ctrl(0) = '1' then
+                spi_data_reg(0) <= spi_miso; -- Simplified: read 1 bit
+            end if;
+            uart_status(0) <= '1';
+        end if;
+    end process;
 
-    -- TODO: Implement Clock and Reset Management
-    -- - Generate internal clocks from system clock
-    -- - Implement reset synchronization and distribution
-    -- - Handle power-on reset and system reset
-    -- - Implement clock domain crossing protection
-    -- - Add clock gating for power optimization
-    
-    -- TODO: Implement Memory Controller
-    -- - Handle memory read/write operations
-    -- - Implement memory protection and access control
-    -- - Add basic error detection
-    -- - Implement memory mapping and address translation
-    -- - Optimize for low-power operation
-    
-    -- TODO: Implement AHB Bus Interface
-    -- - Handle AHB protocol transactions
-    -- - Implement bus arbitration and priority handling
-    -- - Add error detection and recovery mechanisms
-    -- - Implement efficient burst transfer support
-    -- - Optimize for power consumption
-    
-    -- TODO: Implement Interrupt Controller
-    -- - Handle interrupt request prioritization
-    -- - Implement interrupt masking and acknowledgment
-    -- - Add nested interrupt support
-    -- - Implement fast interrupt response
-    -- - Support wake-up from low-power modes
-    
-    -- TODO: Implement GPIO Controller
-    -- - Handle GPIO direction and data control
-    -- - Implement pull-up/pull-down configuration
-    -- - Add interrupt-on-change functionality
-    -- - Implement GPIO alternate function selection
-    -- - Support low-power GPIO operation
-    
-    -- TODO: Implement Communication Interface Controllers
-    -- - UART: Implement baud rate generation, flow control, basic error detection
-    -- - SPI: Implement master/slave modes, multiple chip select support
-    -- - I2C: Implement master/slave modes, clock stretching, arbitration
-    -- - USB: Implement basic USB device functionality (if enabled)
-    
-    -- TODO: Implement PWM Controller
-    -- - Generate PWM signals with configurable duty cycle
-    -- - Implement complementary PWM with dead time
-    -- - Add basic synchronization control
-    -- - Implement fault protection
-    -- - Support low-power PWM operation
-    
-    -- TODO: Implement ADC Controller
-    -- - Handle ADC conversion triggering and sequencing
-    -- - Implement multi-channel scanning
-    -- - Add conversion result processing
-    -- - Implement basic threshold monitoring
-    -- - Optimize for low-power operation
-    
-    -- TODO: Implement Timer Controllers
-    -- - Implement general-purpose timers
-    -- - Add input capture and output compare
-    -- - Implement basic timer synchronization
-    -- - Add event counting capability
-    -- - Support low-power timer operation
-    
-    -- TODO: Implement Basic Security Controller (if enabled)
-    -- - Handle basic encryption/decryption operations
-    -- - Implement simple key management
-    -- - Add basic data protection
-    -- - Implement secure communication support
-    
-    -- TODO: Implement Power Management
-    -- - Handle power mode transitions
-    -- - Implement clock gating and frequency scaling
-    -- - Add wake-up event handling
-    -- - Implement power consumption monitoring
-    -- - Support multiple low-power modes
-    
-    -- TODO: Implement System Monitoring
-    -- - Add basic temperature monitoring
-    -- - Implement voltage level monitoring
-    -- - Add system health status reporting
-    -- - Implement basic fault detection
-    
-    -- TODO: Implement Debug Interface
-    -- - Handle JTAG and SWD debug protocols
-    -- - Implement basic breakpoint support
-    -- - Add trace capabilities
-    -- - Implement debug authentication
+    -- =========================================================================
+    -- AHB-LITE READ MULTIPLEXER
+    -- =========================================================================
+    process(HSEL, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl, timer_load,
+            timer_count, uart_data_reg, uart_status, spi_ctrl, spi_data_reg,
+            i2c_ctrl, i2c_data_reg, adc_ctrl, adc_data_reg, gpio_in)
+    begin
+        if HSEL = '1' then
+            case reg_sel is
+                when 0 => HRDATA <= gpio_data_reg;
+                when 1 => HRDATA <= gpio_dir_reg;
+                when 2 => HRDATA <= timer_ctrl;
+                when 3 => HRDATA <= std_logic_vector(timer_count);
+                when 4 => HRDATA <= uart_data_reg;
+                when 5 => HRDATA <= uart_status;
+                when 6 => HRDATA <= spi_ctrl;
+                when 7 => HRDATA <= spi_data_reg;
+                when 8 => HRDATA <= i2c_ctrl;
+                when 9 => HRDATA <= i2c_data_reg;
+                when 10 => HRDATA <= adc_ctrl;
+                when 11 => HRDATA <= adc_data_reg;
+                when 12 => HRDATA <= gpio_in; -- Full 32-bit GPIO input read
+                when others => HRDATA <= (others => '0');
+            end case;
+        else
+            HRDATA <= (others => '0');
+        end if;
+    end process;
 
--- TODO: End the architecture declaration
--- end architecture rtl;
+    HRESP <= '0'; HREADYOUT <= '1';
 
--- ============================================================================
--- DESIGN CONSIDERATIONS:
--- ============================================================================
--- 1. Timing Analysis:
---    - Ensure all paths meet timing requirements at 100 MHz
---    - Consider clock domain crossing for different peripherals
---    - Implement proper setup and hold time margins
---
--- 2. Reset Strategy:
---    - Implement hierarchical reset distribution
---    - Consider different reset sources and priorities
---    - Ensure proper reset sequencing for peripherals
---
--- 3. Power Optimization:
---    - Implement aggressive clock gating
---    - Use power-aware design techniques
---    - Optimize for battery-powered applications
---
--- 4. Resource Optimization:
---    - Minimize logic and memory usage
---    - Share resources where possible
---    - Optimize for cost-sensitive applications
---
--- 5. Testability Features:
---    - Include basic self-test capabilities
---    - Implement essential observability features
---    - Add controllability for testing
---
--- ============================================================================
--- APPLICATIONS AND USE CASES:
--- ============================================================================
--- - Battery-powered IoT devices and sensors
--- - Home automation and smart appliances
--- - Wearable devices and fitness trackers
--- - Industrial monitoring and control
--- - Consumer electronics and gadgets
--- - Educational and prototyping platforms
--- - Cost-sensitive embedded applications
--- - Portable measurement instruments
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing:
---    - Test individual controller modules
---    - Verify basic timing and protocol compliance
---    - Test essential error handling
---
--- 2. Integration Testing:
---    - Test inter-module communication
---    - Verify system-level functionality
---    - Test power management transitions
---
--- 3. Performance Testing:
---    - Measure basic throughput and latency
---    - Test under normal load conditions
---    - Verify power consumption targets
---
--- 4. Reliability Testing:
---    - Test basic fault detection
---    - Verify system stability
---    - Test temperature and voltage variations
---
--- ============================================================================
--- PERFORMANCE OPTIMIZATION:
--- ============================================================================
--- - Use efficient algorithms and data structures
--- - Implement basic pipelining where beneficial
--- - Optimize memory access patterns
--- - Use clock gating extensively
--- - Implement efficient interrupt handling
--- - Consider basic DMA for data transfers
---
--- ============================================================================
--- ADVANCED FEATURES:
--- ============================================================================
--- 1. Power Management:
---    - Multiple low-power modes
---    - Dynamic voltage and frequency scaling
---    - Wake-up event management
---    - Power consumption monitoring
---
--- 2. Connectivity:
---    - USB device functionality
---    - Wireless communication support
---    - Network protocol stacks
---    - IoT cloud connectivity
---
--- 3. Security:
---    - Basic encryption support
---    - Secure communication protocols
---    - Data protection mechanisms
---    - Authentication features
---
--- ============================================================================
--- VERIFICATION CHECKLIST:
--- ============================================================================
--- [ ] All clock domains properly synchronized
--- [ ] Reset distribution and sequencing verified
--- [ ] Memory interface timing and protocol compliance
--- [ ] AHB bus protocol implementation verified
--- [ ] Interrupt controller priority and masking tested
--- [ ] All peripheral interfaces functionally verified
--- [ ] Power management transitions tested
--- [ ] Basic security features tested (if enabled)
--- [ ] Debug interface functionality confirmed
--- [ ] Performance requirements met
--- [ ] Power consumption within targets
--- [ ] Resource utilization optimized
--- [ ] Synthesis and timing closure achieved
--- [ ] Basic testbench coverage completed
--- [ ] Documentation and comments updated
+    -- GPIO outputs
+    gpio_out <= gpio_data_reg;
+    gpio_dir <= gpio_dir_reg;
+
+    -- Timer (countdown with interrupt)
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            timer_count <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if timer_ctrl(0) = '1' then
+                if timer_count = 0 then timer_count <= unsigned(timer_load);
+                else timer_count <= timer_count - 1; end if;
+            end if;
+        end if;
+    end process;
+    timer_int <= '1' when (timer_ctrl(0) = '1' and timer_ctrl(1) = '1'
+                           and timer_count = 0) else '0';
+
+    -- UART (simplified)
+    uart_txd <= uart_data_reg(0);
+    uart_int <= '1' when (uart_status(1) = '1') else '0';
+
+    -- SPI (simplified: SCLK from ctrl bit1, MOSI from data reg bit0)
+    spi_sclk <= spi_ctrl(1) when spi_ctrl(0) = '1' else '0';
+    spi_mosi <= spi_data_reg(0) when spi_ctrl(0) = '1' else '0';
+    spi_int  <= '1' when spi_ctrl(2) = '1' else '0'; -- Interrupt on completion
+
+    -- I2C (simplified)
+    i2c_scl <= i2c_ctrl(0) when i2c_ctrl(4) = '1' else 'Z';
+    i2c_sda <= i2c_ctrl(1) when i2c_ctrl(4) = '1' else 'Z';
+    i2c_int <= '1' when i2c_ctrl(5) = '1' else '0';
+
+    -- ADC interrupt
+    adc_int <= '1' when (adc_ctrl(0) = '1' and adc_ctrl(1) = '1') else '0';
+
+    -- =========================================================================
+    -- UNUSED PERIPHERAL OUTPUTS (S3 does not have these)
+    -- =========================================================================
+    dma_req <= '0'; can_tx <= '0'; can_int <= '0';
+    eth_txd <= (others => '0'); eth_int <= '0';
+    usb_dp <= 'Z'; usb_dm <= 'Z'; usb_int <= '0';
+    lcd_data <= (others => '0'); lcd_hsync <= '0'; lcd_vsync <= '0'; lcd_clk <= '0';
+    trng_valid <= '0'; secure_boot <= '0';
+
+end architecture rtl;

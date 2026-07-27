@@ -1,392 +1,443 @@
--- ============================================================================
--- ARM CORTEX-M23 TESTBENCH VHDL FILE
--- ============================================================================
--- Project: ARM Cortex-M23 Processor Interface Verification
--- File: cortex_m23_testbench.vhd
--- 
--- Author: [To be filled]
--- Date: [To be filled]
---
--- Description: Testbench for Cortex-M23 processor interface verification
---              Includes protocol compliance checks, functional tests, and
---              security attribute validation for TrustZone-M Baseline
---
--- Learning Objectives:
--- 1. Understand Cortex-M23 interface behavior and timing requirements
--- 2. Learn AHB-Lite protocol verification techniques
--- 3. Verify TrustZone-M Baseline security enforcement
--- 4. Test NVIC interrupt routing and priorities
--- 5. Validate debug interface (SWD) operation
--- 6. Verify low-power mode transitions
--- 7. Test memory protection (MPU/SAU) functionality
--- 8. Perform system-level integration testing
---
--- ============================================================================
--- TESTBENCH ARCHITECTURE
--- ============================================================================
---
--- Test Organization:
--- ┌──────────────────────────────────────────────────────────────────┐
--- │ Cortex-M23 Interface Testbench                                   │
--- ├──────────────────────────────────────────────────────────────────┤
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ Test Environment Setup                                     │  │
--- │ │ • Clock and reset generation                              │  │
--- │ │ • Memory model (Flash and SRAM)                           │  │
--- │ │ • Peripheral device stubs                                 │  │
--- │ │ • Reference monitor for protocol checking                 │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ Test Scenarios                                             │  │
--- │ │ • Boot and initialization sequence                         │  │
--- │ │ • Memory access patterns (read/write)                      │  │
--- │ │ • AHB-Lite protocol compliance                             │  │
--- │ │ • Interrupt handling (Secure/Non-Secure)                  │  │
--- │ │ • Context preservation in privilege transitions           │  │
--- │ │ • Sleep mode entry and exit                               │  │
--- │ │ • Debug interface operation                                │  │
--- │ │ • Security boundary enforcement (M/NS)                    │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ Verification Functions                                     │  │
--- │ │ • AHB transaction monitor                                  │  │
--- │ │ • Security attribute checker                               │  │
--- │ │ • Interrupt sequence validator                             │  │
--- │ │ • Timing analysis and reporting                            │  │
--- │ │ • Coverage collector                                       │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- └──────────────────────────────────────────────────────────────────┘
---
--- ============================================================================
--- TEST SCENARIOS
--- ============================================================================
---
--- Test 1: Power-On Reset and Boot Sequence
--- ├─ Objective: Verify processor comes out of reset correctly
--- ├─ Steps:
--- │  1. Assert reset
--- │  2. Wait for reset period
--- │  3. Deassert reset
--- │  4. Check initial processor state
--- │  5. Verify first instruction fetch
--- └─ Expected: Processor fetches from vector table (0x0000_0000)
---
--- Test 2: AHB-Lite Memory Read Transaction
--- ├─ Objective: Verify AHB read protocol
--- ├─ Steps:
--- │  1. Set up address and read control signals
--- │  2. Wait for HREADY response
--- │  3. Capture HRDATA
--- │  4. Check response (HRESP)
--- └─ Expected: Correct data returned, HRESP = OKAY
---
--- Test 3: AHB-Lite Memory Write Transaction
--- ├─ Objective: Verify AHB write protocol
--- ├─ Steps:
--- │  1. Set up address, data, and write control
--- │  2. Wait for HREADY
--- │  3. Verify write was completed
--- └─ Expected: Data written to memory, HRESP = OKAY
---
--- Test 4: Secure vs Non-Secure Access Distinction
--- ├─ Objective: Verify HNONSEC attribute is set correctly
--- ├─ Steps:
--- │  1. Execute code from Secure region
--- │  2. Check HNONSEC = '0' (Secure)
--- │  3. Execute code from Non-Secure region
--- │  4. Check HNONSEC = '1' (Non-Secure)
--- └─ Expected: HNONSEC reflects execution context
---
--- Test 5: Interrupt Reception and Acknowledgment
--- ├─ Objective: Verify NVIC functionality
--- ├─ Steps:
--- │  1. Enable interrupts
--- │  2. Raise an interrupt request
--- │  3. Wait for processor acknowledgment
--- │  4. Check PC changes to vector address
--- │  5. Execute ISR (simulated)
--- │  6. Return from interrupt
--- └─ Expected: Interrupt serviced, context restored
---
--- Test 6: Secure Interrupt Preempts Non-Secure Code
--- ├─ Objective: Verify security interrupt priority
--- ├─ Steps:
--- │  1. Start executing Non-Secure code
--- │  2. Raise a Secure interrupt
--- │  3. Check immediate interrupt acceptance
--- │  4. Observe HNONSEC = '0' in ISR
--- │  5. Return and resume Non-Secure code
--- └─ Expected: Secure ISR executes immediately
---
--- Test 7: Clock Gating and Sleep Mode
--- ├─ Objective: Verify low-power mode entry/exit
--- ├─ Steps:
--- │  1. Execute WFI (Wait For Interrupt)
--- │  2. Observe clock gating (optional)
--- │  3. Observe status_sleep = '1'
--- │  4. Raise an interrupt
--- │  5. Resume execution
--- └─ Expected: Processor sleeps until interrupt, then awakens
---
--- Test 8: Debug Interface (SWD) Operation
--- ├─ Objective: Verify debug port access
--- ├─ Steps:
--- │  1. Send SWD JTAG-to-SWD sequence
--- │  2. Connect to debug port
--- │  3. Read debug registers
--- │  4. Check breakpoint capability
--- └─ Expected: Successful debug connection
---
--- Test 9: SAU (Security Attribution Unit) Boundary Check
--- ├─ Objective: Verify memory security regions
--- ├─ Steps:
--- │  1. Configure SAU regions
--- │  2. Attempt access to Secure region from NS code (should fail)
--- │  3. Attempt access to NS region from Secure code (should succeed)
--- │  4. Check fault generation
--- └─ Expected: Security violations detected and reported
---
--- Test 10: NVIC Priority and Nesting
--- ├─ Objective: Verify interrupt priority handling
--- ├─ Steps:
--- │  1. Set interrupt priorities (0-3 range)
--- │  2. Raise lower-priority interrupt
--- │  3. During ISR, raise higher-priority interrupt
--- │  4. Check higher-priority ISR preempts lower
--- │  5. Return in nested fashion
--- └─ Expected: Higher-priority preemption works correctly
---
--- ============================================================================
--- PROTOCOL MONITORING AND CHECKING
--- ============================================================================
---
--- AHB-Lite Master Monitor:
--- • Tracks address phase (HADDR, HWRITE, HSIZE, HNONSEC)
--- • Validates data phase timing
--- • Checks response signals (HRDATA, HRESP, HREADY)
--- • Reports protocol violations
--- • Logs all transactions to log file
---
--- Security Attribute Checker:
--- • Verifies HNONSEC matches execution context
--- • Tracks secure/non-secure transitions
--- • Flags unexpected attribute changes
--- • Validates TrustZone-M compliance
---
--- Interrupt Monitor:
--- • Tracks interrupt request/acknowledge sequences
--- • Validates NVIC priority enforcement
--- • Checks secure/non-secure interrupt handling
--- • Monitors interrupt context switches
---
--- ============================================================================
--- TEST BENCH SIGNALS AND ARCHITECTURE
--- ============================================================================
---
--- Testbench Entity:
+-- ================================================================================
+-- cortex_m23_testbench : VHDL-93 testbench for cortex_m23_interface
+-- ================================================================================
+-- Tests:
+--   * HCLK generation (10 ns period)
+--   * HRESETn assertion (2 cycles low, then high)
+--   * 3 AHB-Lite write transactions to different registers
+--   * 3 AHB-Lite read transactions with HRDATA checks
+--   * GPIO input stimulation
+--   * IRQ input stimulation with irq_out checks
+--   * NMI stimulation with irq_out check
+--   * M23 specific: TrustZone (HNONSEC), SAU, secure_fault, 2-bit HRESP
+-- ================================================================================
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
--- Stimuli generation and response monitoring implementation to be added here
--- This section will contain testbench procedures and test control logic
+entity cortex_m23_tb is
+end entity cortex_m23_tb;
 
--- Clock Generation:
--- procedure gen_clock(...) is
---    Generate main processor clock with specified period
---    Typically 40 MHz for M23
---
--- Reset Sequencing:
--- procedure gen_reset(...) is
---    Generate asynchronous assert and synchronous deassert
---
--- AHB Transaction Generation:
--- procedure gen_ahb_write(...) is
---    Set up AHB write transaction with address and data
--- procedure gen_ahb_read(...) is
---    Set up AHB read transaction and return data
---
--- Interrupt Stimulation:
--- procedure gen_interrupt(...) is
---    Raise interrupt request and handle acknowledge
---
--- Expected Output Checking:
--- procedure check_response(...) is
---    Verify processor response against expected behavior
---    Report mismatches and update coverage information
---
--- ============================================================================
--- TEST EXECUTION FLOW
--- ============================================================================
---
--- Initialization:
---   1. Reset testbench signals
---   2. Start clock generation
---   3. Apply system reset to DUT
---   4. Initialize memory models
---   5. Configure interrupt controller
---   6. Set up debug interface
---
--- Test Execution:
---   1. Call individual test procedures
---   2. Monitor response signals
---   3. Log all transactions
---   4. Check protocol compliance
---   5. Update coverage metrics
---
--- Result Reporting:
---   1. Count passed/failed tests
---   2. Report timing violations
---   3. Report coverage achieved
---   4. Generate waveform output
---   5. Write detailed test report
---
--- ============================================================================
--- WAVEFORM ANALYSIS POINTS
--- ============================================================================
---
--- Critical Signals to Observe:
--- • clk: Main processor clock
--- • reset_n: System reset (active low)
--- • haddr[31:0]: AHB address bus
--- • hwdata[31:0]: AHB write data
--- • hrdata[31:0]: AHB read data
--- • hwrite: AHB write enable signal
--- • hready: AHB ready (slave ready)
--- • hresp: AHB response (OKAY/ERROR)
--- • hnonsec: Security attribute (Non-Secure access)
--- • interrupt_req[N-1:0]: Interrupt request lines
--- • interrupt_ack[N-1:0]: Interrupt acknowledge
--- • interrupt_secure[N-1:0]: Per-interrupt security level
--- • status_sleep: Sleep mode indicator
--- • swdio/swdclk: Debug port signals
---
--- ============================================================================
--- EXPECTED TEST COVERAGE
--- ============================================================================
---
--- Functional Coverage:
--- ✓ Boot-up sequence
--- ✓ Memory read/write access patterns
--- ✓ Interrupt generation and handling
--- ✓ Secure/Non-Secure transitions
--- ✓ Sleep mode entry and wake-up
--- ✓ Debug port operations
--- ✓ Error response handling
--- ✓ Priority-based interrupt preemption
--- ✓ Context preservation in exceptions
--- ✓ SAU/MPU boundary enforcement
---
--- Code Coverage:
--- • All state machine states
--- • All conditional paths
--- • Exception handling paths
--- • Error recovery paths
--- • Power management transitions
--- • Debug access control
---
--- ============================================================================
--- VERIFICATION TECHNIQUES USED
--- ============================================================================
---
--- 1. **Directed Testing**:
---    - Specific test scenarios targeting known features
---    - Protocol compliance verification
---    - Boundary condition testing
---
--- 2. **Assertion-Based Verification**:
---    - Real-time property checking
---    - Invariant validation
---    - Timing constraint verification
---
--- 3. **Coverage-Driven Testing**:
---    - Track functional and code coverage
---    - Identify uncovered scenarios
---    - Ensure comprehensive validation
---
--- 4. **Protocol Checking**:
---    - Real-time AHB-Lite transaction monitoring
---    - Security attribute validation
---    - Interrupt sequencing verification
---
--- 5. **Simulation Logging**:
---    - Transaction-level logging
---    - Error annotation
---    - Performance statistics collection
---
--- ============================================================================
--- SIMULATION CONFIGURATION
--- ============================================================================
---
--- Recommended Simulator Settings:
--- • Resolution: 1 ns
--- • Stop Time: Configurable (typically 1-100 ms per test)
--- • Waveform Capture: All signals
--- • Message Level: Warnings and errors
--- • Array Unpacking: Full (for easy debugging)
---
--- Memory Configuration:
--- • Flash Model: 64 KB (0x0000_0000 - 0x0000_FFFF)
--- • SRAM Model: 32 KB (0x2000_0000 - 0x2000_7FFF)
--- • Peripheral Space: Stub responses
---
--- ============================================================================
--- REFERENCES AND DOCUMENTATION
--- ============================================================================
---
--- 1. ARM Cortex-M23 Technical Reference Manual
---    Section 2: System Design
---    Section 3: Memory Model
---    Section 4: Exceptions and Interrupts
---    Section 5: TrustZone-M Baseline
---
--- 2. AMBA AHB-Lite Protocol Specification (v1.0)
---    Basic read/write transactions
---    Wait state handling
---    Response signals
---
--- 3. CoreSight Architecture Specification v8-M
---    Debug interfaces
---    Breakpoint and watchpoint operation
---    Secure debug control
---
--- 4. IEEE 1364 or SystemVerilog Testbench Methodologies
---    Constrained random testing
---    Functional coverage
---    Debug and analysis
---
--- ============================================================================
--- IMPLEMENTATION NOTES
--- ============================================================================
---
--- This testbench template provides a framework for comprehensive M23 interface
--- verification. Each test procedure should:
---
--- 1. Document the test objective
--- 2. Set up pre-conditions
--- 3. Apply test stimuli
--- 4. Monitor responses
--- 5. Verify results against specifications
--- 6. Report pass/fail status
--- 7. Clean up and prepare for next test
---
--- The modular approach allows individual test cases to be developed,
--- verified, and debugged independently before integration.
---
--- For production use, consider:
--- • Extending with constrained random testing
--- • Adding formal property verification
--- • Implementing coverage collection
--- • Creating performance benchmarks
--- • Adding stress tests for robustness
---
--- ============================================================================
+architecture behavior of cortex_m23_tb is
 
--- Entity declaration will be added here
--- Architecture implementation with test procedures to be completed
+    -- Component declaration matching cortex_m23_interface exactly
+    component cortex_m23_interface is
+        port (
+            HCLK, HRESETn, HSEL, HWRITE, HREADY, HMASTLOCK : in std_logic;
+            HTRANS : in std_logic_vector(1 downto 0);
+            HSIZE  : in std_logic_vector(2 downto 0);
+            HPROT  : in std_logic_vector(3 downto 0);
+            HNONSEC: in std_logic;
+            HADDR  : in std_logic_vector(31 downto 0);
+            HWDATA : in std_logic_vector(31 downto 0);
+            HRDATA : out std_logic_vector(31 downto 0);
+            HRESP  : out std_logic_vector(1 downto 0);
+            HREADYOUT : out std_logic;
+            irq_inputs : in std_logic_vector(31 downto 0);
+            nmi        : in std_logic;
+            irq_out    : out std_logic;
+            irq_num    : out std_logic_vector(6 downto 0);
+            mclk        : in std_logic;
+            systick_int : out std_logic;
+            gpio_in   : in  std_logic_vector(31 downto 0);
+            gpio_out  : out std_logic_vector(31 downto 0);
+            gpio_dir  : out std_logic_vector(31 downto 0);
+            sau_violation : out std_logic;
+            secure_fault  : out std_logic;
+            swclk : in std_logic;
+            swdio : inout std_logic;
+            sec_dbgen : in std_logic
+        );
+    end component;
 
--- Implementation to be completed - baseline structure established
+    -- Clock and reset
+    signal HCLK    : std_logic := '0';
+    signal HRESETn : std_logic := '0';
+
+    -- AHB-Lite signals
+    signal HSEL      : std_logic := '0';
+    signal HWRITE    : std_logic := '0';
+    signal HREADY    : std_logic := '1';
+    signal HMASTLOCK : std_logic := '0';
+    signal HTRANS    : std_logic_vector(1 downto 0) := "00";
+    signal HSIZE     : std_logic_vector(2 downto 0) := "010";
+    signal HPROT     : std_logic_vector(3 downto 0) := "0011";
+    signal HNONSEC   : std_logic := '0';  -- 0=secure, 1=non-secure
+    signal HADDR     : std_logic_vector(31 downto 0) := (others => '0');
+    signal HWDATA    : std_logic_vector(31 downto 0) := (others => '0');
+    signal HRDATA    : std_logic_vector(31 downto 0);
+    signal HRESP     : std_logic_vector(1 downto 0);  -- 2-bit for TrustZone
+    signal HREADYOUT : std_logic;
+
+    -- NVIC / IRQ
+    signal irq_inputs : std_logic_vector(31 downto 0) := (others => '0');
+    signal nmi        : std_logic := '0';
+    signal irq_out    : std_logic;
+    signal irq_num    : std_logic_vector(6 downto 0);  -- 7 bits for M23
+
+    -- SysTick
+    signal mclk        : std_logic := '0';
+    signal systick_int : std_logic;
+
+    -- GPIO
+    signal gpio_in  : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_out : std_logic_vector(31 downto 0);
+    signal gpio_dir : std_logic_vector(31 downto 0);
+
+    -- SAU / TrustZone
+    signal sau_violation : std_logic;
+    signal secure_fault  : std_logic;
+
+    -- SWD debug
+    signal swclk     : std_logic := '0';
+    signal swdio     : std_logic := 'Z';
+    signal sec_dbgen : std_logic := '0';
+
+    -- Constants
+    constant CLK_PERIOD : time := 10 ns;
+
+    -- Address constants
+    constant ADDR_GPIO_DATA   : std_logic_vector(31 downto 0) := x"40000000";
+    constant ADDR_GPIO_DIR    : std_logic_vector(31 downto 0) := x"40000004";
+    constant ADDR_GPIO_AFSEL  : std_logic_vector(31 downto 0) := x"40000008";
+    constant ADDR_SYST_CSR    : std_logic_vector(31 downto 0) := x"40000100";
+    constant ADDR_NVIC_ISER   : std_logic_vector(31 downto 0) := x"40000200";
+    constant ADDR_SCB_CPUID   : std_logic_vector(31 downto 0) := x"40000400";
+    constant ADDR_SCB_VTOR    : std_logic_vector(31 downto 0) := x"40000408";
+    constant ADDR_SAU_CTRL    : std_logic_vector(31 downto 0) := x"40000600";
+    constant ADDR_SAU_RNR     : std_logic_vector(31 downto 0) := x"40000604";
+    constant ADDR_MPU_CTRL    : std_logic_vector(31 downto 0) := x"40000804";
+
+    -- Expected CPUID for Cortex-M23
+    constant EXPECTED_CPUID : std_logic_vector(31 downto 0) := x"410FD200";
+
+begin
+
+    -- ============================================================================
+    -- DUT instantiation
+    -- ============================================================================
+    DUT : cortex_m23_interface
+        port map (
+            HCLK            => HCLK,
+            HRESETn         => HRESETn,
+            HSEL            => HSEL,
+            HWRITE          => HWRITE,
+            HREADY          => HREADY,
+            HMASTLOCK       => HMASTLOCK,
+            HTRANS          => HTRANS,
+            HSIZE           => HSIZE,
+            HPROT           => HPROT,
+            HNONSEC         => HNONSEC,
+            HADDR           => HADDR,
+            HWDATA          => HWDATA,
+            HRDATA          => HRDATA,
+            HRESP           => HRESP,
+            HREADYOUT       => HREADYOUT,
+            irq_inputs      => irq_inputs,
+            nmi             => nmi,
+            irq_out         => irq_out,
+            irq_num         => irq_num,
+            mclk            => mclk,
+            systick_int     => systick_int,
+            gpio_in         => gpio_in,
+            gpio_out        => gpio_out,
+            gpio_dir        => gpio_dir,
+            sau_violation   => sau_violation,
+            secure_fault    => secure_fault,
+            swclk           => swclk,
+            swdio           => swdio,
+            sec_dbgen       => sec_dbgen
+        );
+
+    -- ============================================================================
+    -- HCLK clock process: 10 ns period
+    -- ============================================================================
+    clk_proc : process
+    begin
+        HCLK <= '0';
+        wait for CLK_PERIOD / 2;
+        HCLK <= '1';
+        wait for CLK_PERIOD / 2;
+    end process;
+
+    -- ============================================================================
+    -- mclk process
+    -- ============================================================================
+    mclk_proc : process
+    begin
+        mclk <= '0';
+        wait for CLK_PERIOD / 2;
+        mclk <= '1';
+        wait for CLK_PERIOD / 2;
+    end process;
+
+    -- ============================================================================
+    -- Stimulus process
+    -- ============================================================================
+    stim_proc : process
+
+        procedure ahb_write(
+            addr : in std_logic_vector(31 downto 0);
+            data : in std_logic_vector(31 downto 0)
+        ) is
+        begin
+            HSEL      <= '1';
+            HWRITE    <= '1';
+            HREADY    <= '1';
+            HMASTLOCK <= '0';
+            HTRANS    <= "10";
+            HSIZE     <= "010";
+            HPROT     <= "0011";
+            HADDR     <= addr;
+            HWDATA    <= data;
+            wait until rising_edge(HCLK);
+            wait for 1 ns;
+            HSEL   <= '0';
+            HWRITE <= '0';
+            HTRANS <= "00";
+            wait for 1 ns;
+        end procedure;
+
+        procedure ahb_read(
+            addr  : in  std_logic_vector(31 downto 0);
+            rdata : out std_logic_vector(31 downto 0)
+        ) is
+        begin
+            HSEL      <= '1';
+            HWRITE    <= '0';
+            HREADY    <= '1';
+            HMASTLOCK <= '0';
+            HTRANS    <= "10";
+            HSIZE     <= "010";
+            HPROT     <= "0011";
+            HADDR     <= addr;
+            wait until rising_edge(HCLK);
+            wait for 1 ns;
+            rdata := HRDATA;
+            HSEL   <= '0';
+            HTRANS <= "00";
+            wait for 1 ns;
+        end procedure;
+
+        variable read_data : std_logic_vector(31 downto 0);
+
+    begin
+        -- Initialize all inputs
+        HSEL      <= '0';
+        HWRITE    <= '0';
+        HREADY    <= '1';
+        HMASTLOCK <= '0';
+        HTRANS    <= "00";
+        HSIZE     <= "010";
+        HPROT     <= "0011";
+        HNONSEC   <= '0';  -- Start in secure mode
+        HADDR     <= (others => '0');
+        HWDATA    <= (others => '0');
+        irq_inputs <= (others => '0');
+        nmi        <= '0';
+        gpio_in    <= (others => '0');
+        swclk      <= '0';
+        swdio      <= 'Z';
+        sec_dbgen  <= '0';
+
+        -- Reset: HRESETn low for 2 clock cycles
+        HRESETn <= '0';
+        wait for CLK_PERIOD * 2;
+        HRESETn <= '1';
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- Write Transaction 1: GPIO_DIR
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_GPIO_DIR, x"0000FFFF");
+        assert true report "Write 1: GPIO_DIR = 0x0000FFFF completed" severity note;
+
+        -- ----------------------------------------------------------------
+        -- Write Transaction 2: SAU_CTRL (enable SAU)
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_SAU_CTRL, x"00000001");
+        assert true report "Write 2: SAU_CTRL = 0x00000001 (SAU enabled) completed" severity note;
+
+        -- ----------------------------------------------------------------
+        -- Write Transaction 3: NVIC_ISER (enable IRQs 0-7)
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_NVIC_ISER, x"000000FF");
+        assert true report "Write 3: NVIC_ISER = 0x000000FF completed" severity note;
+
+        -- ----------------------------------------------------------------
+        -- Read Transaction 1: GPIO_DIR - expect 0x0000FFFF
+        -- ----------------------------------------------------------------
+        ahb_read(ADDR_GPIO_DIR, read_data);
+        assert read_data = x"0000FFFF"
+            report "Read 1 FAIL: GPIO_DIR expected 0x0000FFFF"
+            severity error;
+        assert read_data = x"0000FFFF"
+            report "Read 1 PASS: GPIO_DIR = 0x0000FFFF"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- Read Transaction 2: SAU_CTRL - expect 0x00000001
+        -- ----------------------------------------------------------------
+        ahb_read(ADDR_SAU_CTRL, read_data);
+        assert read_data = x"00000001"
+            report "Read 2 FAIL: SAU_CTRL expected 0x00000001"
+            severity error;
+        assert read_data = x"00000001"
+            report "Read 2 PASS: SAU_CTRL = 0x00000001 (SAU enabled)"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- Read Transaction 3: SCB_CPUID - expect 0x410FD200 (Cortex-M23)
+        -- ----------------------------------------------------------------
+        ahb_read(ADDR_SCB_CPUID, read_data);
+        assert read_data = EXPECTED_CPUID
+            report "Read 3 FAIL: SCB_CPUID expected 0x410FD200"
+            severity error;
+        assert read_data = EXPECTED_CPUID
+            report "Read 3 PASS: SCB_CPUID = 0x410FD200 (Cortex-M23)"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- M23 specific: TrustZone SAU violation test
+        -- With SAU enabled, a non-secure access (HNONSEC=1) to a valid
+        -- peripheral address should trigger sau_violation and secure_fault
+        -- ----------------------------------------------------------------
+        HNONSEC <= '1';  -- Switch to non-secure
+        HSEL    <= '1';
+        HWRITE  <= '0';
+        HTRANS  <= "10";
+        HADDR   <= ADDR_GPIO_DATA;
+        wait for 1 ns;
+        assert sau_violation = '1'
+            report "SAU violation FAIL: expected '1' for non-secure access with SAU enabled"
+            severity error;
+        assert sau_violation = '1'
+            report "SAU violation PASS: sau_violation asserted for non-secure access"
+            severity note;
+
+        assert secure_fault = '1'
+            report "secure_fault FAIL: expected '1' with SAU violation"
+            severity error;
+        assert secure_fault = '1'
+            report "secure_fault PASS: secure_fault asserted with SAU violation"
+            severity note;
+
+        -- Check HRESP = "01" (EXOKAY for SAU violation)
+        assert HRESP = "01"
+            report "HRESP FAIL: expected 01 (EXOKAY) for SAU violation, got " &
+                   integer'image(to_integer(unsigned(HRESP)))
+            severity error;
+        assert HRESP = "01"
+            report "HRESP PASS: HRESP=01 for SAU violation"
+            severity note;
+
+        HSEL    <= '0';
+        HTRANS  <= "00";
+        HNONSEC <= '0';  -- Back to secure
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- M23 specific: Check HRESP = "00" (OKAY) for valid secure access
+        -- ----------------------------------------------------------------
+        HSEL    <= '1';
+        HWRITE  <= '0';
+        HTRANS  <= "10";
+        HADDR   <= ADDR_GPIO_DATA;
+        wait for 1 ns;
+        assert HRESP = "00"
+            report "HRESP FAIL: expected 00 (OKAY) for valid secure access"
+            severity error;
+        assert HRESP = "00"
+            report "HRESP PASS: HRESP=00 (OKAY) for valid secure access"
+            severity note;
+        HSEL    <= '0';
+        HTRANS  <= "00";
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- M23 specific: Check HRESP = "10" (ERROR) for invalid address
+        -- ----------------------------------------------------------------
+        HSEL    <= '1';
+        HWRITE  <= '0';
+        HTRANS  <= "10";
+        HADDR   <= x"80000000";  -- Invalid: top nibble != 0x4
+        wait for 1 ns;
+        assert HRESP = "10"
+            report "HRESP FAIL: expected 10 (ERROR) for invalid address"
+            severity error;
+        assert HRESP = "10"
+            report "HRESP PASS: HRESP=10 (ERROR) for invalid address"
+            severity note;
+        HSEL    <= '0';
+        HTRANS  <= "00";
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- GPIO input stimulation
+        -- ----------------------------------------------------------------
+        gpio_in <= x"EEEEEEEE";
+        wait for CLK_PERIOD;
+        assert gpio_in = x"EEEEEEEE"
+            report "GPIO input stimulus 1 applied" severity note;
+
+        gpio_in <= x"11111111";
+        wait for CLK_PERIOD;
+        assert gpio_in = x"11111111"
+            report "GPIO input stimulus 2 applied" severity note;
+
+        gpio_in <= (others => '0');
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- IRQ stimulation: assert IRQ 0 (enabled via NVIC_ISER)
+        -- ----------------------------------------------------------------
+        irq_inputs <= x"00000001";
+        wait for CLK_PERIOD;
+        assert irq_out = '1'
+            report "IRQ FAIL: irq_out not asserted for enabled IRQ 0"
+            severity error;
+        assert irq_out = '1'
+            report "IRQ PASS: irq_out asserted for enabled IRQ 0"
+            severity note;
+
+        -- Check irq_num: IRQ 0 => exception 16 (7 bits for M23)
+        assert irq_num = std_logic_vector(to_unsigned(16, 7))
+            report "IRQ num FAIL: expected 16, got " & integer'image(to_integer(unsigned(irq_num)))
+            severity error;
+
+        -- Deassert IRQ
+        irq_inputs <= (others => '0');
+        wait for CLK_PERIOD;
+        assert irq_out = '0'
+            report "IRQ FAIL: irq_out still asserted after clearing IRQs"
+            severity error;
+        assert irq_out = '0'
+            report "IRQ PASS: irq_out deasserted after clearing IRQs"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- NMI stimulation
+        -- ----------------------------------------------------------------
+        nmi <= '1';
+        wait for CLK_PERIOD;
+        assert irq_out = '1'
+            report "NMI FAIL: irq_out not asserted for NMI"
+            severity error;
+        assert irq_out = '1'
+            report "NMI PASS: irq_out asserted for NMI" severity note;
+
+        assert irq_num = std_logic_vector(to_unsigned(2, 7))
+            report "NMI irq_num FAIL: expected 2"
+            severity error;
+
+        nmi <= '0';
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- Test complete
+        -- ----------------------------------------------------------------
+        assert false report "Testbench complete" severity failure;
+
+    end process;
+
+end architecture behavior;

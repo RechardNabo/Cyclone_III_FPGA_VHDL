@@ -1,621 +1,88 @@
 -- ============================================================================
--- GCD Calculator Finite State Machine Implementation - Programming Guidance
+-- GCD Calculator - FSM Controller
+-- States: IDLE, COMPARE, SUBTRACT, SWAP, DONE
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a Greatest Common Divisor (GCD) calculator using
--- a Finite State Machine (FSM) approach in VHDL. This implementation
--- demonstrates structured state machine design for complex arithmetic
--- operations, providing clear separation between control logic and
--- datapath operations. The FSM approach offers better control over
--- timing, resource utilization, and debugging capabilities.
---
--- LEARNING OBJECTIVES:
--- 1. Master FSM design principles for arithmetic operations
--- 2. Understand separation of control and datapath
--- 3. Learn state encoding and optimization techniques
--- 4. Practice timing analysis and control flow design
--- 5. Understand resource allocation in state machines
--- 6. Learn debugging and verification techniques for FSMs
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for state machine utilities
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding FSM-specific packages if available
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the GCD FSM calculator
---
--- Entity Requirements:
--- - Name: gcd_fsm (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - Input operands with appropriate bit widths
--- - Control signals for FSM operation
--- - Status outputs for state monitoring
---
--- Port Specifications:
--- - clk        : in  std_logic (System clock)
--- - reset      : in  std_logic (Asynchronous reset, active high)
--- - start      : in  std_logic (Start calculation signal)
--- - a_in       : in  unsigned(DATA_WIDTH-1 downto 0) (First operand)
--- - b_in       : in  unsigned(DATA_WIDTH-1 downto 0) (Second operand)
--- - algorithm  : in  std_logic_vector(1 downto 0) (Algorithm selection)
--- - gcd_out    : out unsigned(DATA_WIDTH-1 downto 0) (GCD result)
--- - done       : out std_logic (Calculation complete signal)
--- - busy       : out std_logic (Calculation in progress signal)
--- - valid      : out std_logic (Result valid signal)
--- - error      : out std_logic (Error condition signal)
--- - state_out  : out std_logic_vector(3 downto 0) (Current state for debug)
---
--- Generic Parameters:
--- - DATA_WIDTH : integer := 32 (Operand width in bits)
--- - STATE_BITS : integer := 4 (State encoding width)
--- - MAX_CYCLES : integer := 64 (Maximum calculation cycles)
---
--- ============================================================================
--- STEP 3: FSM DESIGN PRINCIPLES
--- ============================================================================
---
--- State Machine Types:
--- 1. Moore FSM: Outputs depend only on current state
--- 2. Mealy FSM: Outputs depend on current state and inputs
--- 3. Hybrid FSM: Combination of Moore and Mealy characteristics
---
--- State Encoding Options:
--- 1. Binary Encoding: Minimum flip-flops, complex decode logic
--- 2. One-Hot Encoding: Simple decode logic, more flip-flops
--- 3. Gray Code: Reduced switching activity, power optimization
--- 4. Custom Encoding: Application-specific optimization
---
--- FSM Structure Components:
--- 1. State Register: Stores current state
--- 2. Next State Logic: Determines state transitions
--- 3. Output Logic: Generates control and data outputs
--- 4. Datapath: Arithmetic and storage operations
---
--- ============================================================================
--- STEP 4: STATE DEFINITIONS
--- ============================================================================
---
--- Primary States:
--- - IDLE: Waiting for start signal, reset condition
--- - LOAD: Input validation and initial setup
--- - INIT: Algorithm-specific initialization
--- - CALCULATE: Main computation loop
--- - SHIFT: Binary algorithm shift operations
--- - SUBTRACT: Binary algorithm subtraction operations
--- - DIVIDE: Euclidean algorithm division operations
--- - CHECK: Termination condition evaluation
--- - DONE: Result ready, output valid
--- - ERROR: Error condition handling
---
--- State Encoding Considerations:
--- - Choose encoding based on target device
--- - Consider power consumption implications
--- - Balance between logic complexity and register usage
--- - Plan for future state additions
---
--- ============================================================================
--- STEP 5: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic Euclidean FSM (Recommended for beginners)
--- - Simple state transitions
--- - Clear algorithmic mapping
--- - Moderate complexity
--- - Good for learning FSM principles
---
--- OPTION 2: Binary GCD FSM (Intermediate)
--- - Hardware-optimized algorithm
--- - More complex state machine
--- - Better performance characteristics
--- - Avoids division operations
---
--- OPTION 3: Multi-Algorithm FSM (Advanced)
--- - Selectable algorithm implementation
--- - Complex state machine with sub-states
--- - Algorithm-specific optimization
--- - Runtime algorithm switching
---
--- OPTION 4: Pipelined FSM (Expert)
--- - Multiple concurrent operations
--- - Complex control and timing
--- - High-throughput capability
--- - Advanced resource management
---
--- ============================================================================
--- STEP 6: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- State Machine Design:
--- - Clear state definitions and purposes
--- - Well-defined transition conditions
--- - Proper reset and initialization
--- - Error state handling and recovery
---
--- Timing Considerations:
--- - Single-cycle vs. multi-cycle operations
--- - Critical path analysis and optimization
--- - Clock domain considerations
--- - Setup and hold time requirements
---
--- Resource Optimization:
--- - Shared arithmetic resources
--- - Register minimization techniques
--- - Logic optimization strategies
--- - Memory usage optimization
---
--- Control Signal Management:
--- - Centralized vs. distributed control
--- - Control signal timing and synchronization
--- - Enable and select signal generation
--- - Status and flag management
---
--- ============================================================================
--- STEP 7: ADVANCED FEATURES
--- ============================================================================
---
--- Multi-Algorithm Support:
--- - Algorithm selection via input control
--- - State machine branching for different algorithms
--- - Performance comparison capabilities
--- - Dynamic algorithm switching
---
--- Performance Monitoring:
--- - Cycle count tracking
--- - State transition monitoring
--- - Performance metrics collection
--- - Real-time analysis capabilities
---
--- Error Detection and Handling:
--- - Input validation states
--- - Overflow and underflow detection
--- - Timeout mechanisms
--- - Comprehensive error reporting
---
--- Debug and Verification Features:
--- - State output for debugging
--- - Internal signal monitoring
--- - Assertion-based verification
--- - Testability enhancements
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Cryptographic Systems: RSA key generation, modular arithmetic
--- 2. Digital Signal Processing: Sample rate conversion, filter design
--- 3. Computer Arithmetic: Fraction reduction, rational arithmetic
--- 4. Error Correction Codes: Reed-Solomon, BCH implementations
--- 5. Number Theory Applications: Mathematical research tools
--- 6. Graphics Processing: Bresenham algorithms, geometric computations
--- 7. Communication Systems: Protocol implementations, timing recovery
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. State Machine Testing: Verify all state transitions
--- 2. Algorithm Verification: Compare with software implementations
--- 3. Corner Case Testing: Zero inputs, maximum values, edge cases
--- 4. Performance Testing: Timing analysis, throughput measurement
--- 5. Error Condition Testing: Invalid inputs, timeout scenarios
--- 6. Stress Testing: Extended operation, thermal cycling
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Define clear state diagram and transition table
--- 2. Implement basic Euclidean algorithm FSM first
--- 3. Add comprehensive error handling and validation
--- 4. Optimize for target hardware platform
--- 5. Add debug and monitoring capabilities
--- 6. Implement advanced algorithms and features
--- 7. Create comprehensive verification environment
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Implement binary GCD algorithm FSM
--- 2. Add extended GCD with Bézout coefficients
--- 3. Create multi-precision GCD calculator
--- 4. Implement LCM calculation capability
--- 5. Add pipelining for higher throughput
--- 6. Create algorithm performance comparison
--- 7. Implement cryptographic applications
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Incomplete state transition coverage
--- 2. Race conditions in state transitions
--- 3. Inadequate reset and initialization
--- 4. Poor error state handling
--- 5. Timing violations in critical paths
--- 6. Insufficient input validation
--- 7. Lack of proper state encoding
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ All states reachable and properly defined
--- □ State transitions complete and correct
--- □ Reset behavior properly implemented
--- □ Error conditions handled appropriately
--- □ Timing requirements satisfied
--- □ Resource utilization optimized
--- □ Debug features implemented and tested
--- □ Comprehensive test coverage achieved
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This GCD FSM demonstrates several key concepts:
--- - Structured state machine design methodology
--- - Control and datapath separation
--- - Algorithmic implementation in hardware
--- - Resource optimization techniques
--- - Verification and debug strategies
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Consider target FPGA architecture
--- - Plan for adequate timing margins
--- - Optimize for power consumption
--- - Consider thermal management requirements
--- - Plan for signal integrity in high-speed designs
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Hierarchical state machine design
--- - Concurrent state machine implementation
--- - Hardware-software co-design integration
--- - Formal verification techniques
--- - High-level synthesis considerations
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Create comprehensive FSM testbenches
--- - Use state coverage analysis tools
--- - Implement assertion-based verification
--- - Test with realistic application scenarios
--- - Validate timing and performance characteristics
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity gcd_fsm is
---     generic (
---         DATA_WIDTH : integer := 32;
---         STATE_BITS : integer := 4;
---         MAX_CYCLES : integer := 64
---     );
---     port (
---         clk        : in  std_logic;
---         reset      : in  std_logic;
---         start      : in  std_logic;
---         a_in       : in  unsigned(DATA_WIDTH-1 downto 0);
---         b_in       : in  unsigned(DATA_WIDTH-1 downto 0);
---         algorithm  : in  std_logic_vector(1 downto 0);
---         gcd_out    : out unsigned(DATA_WIDTH-1 downto 0);
---         done       : out std_logic;
---         busy       : out std_logic;
---         valid      : out std_logic;
---         error      : out std_logic;
---         state_out  : out std_logic_vector(STATE_BITS-1 downto 0)
---     );
--- end entity gcd_fsm;
---
--- architecture fsm_arch of gcd_fsm is
---     -- State type definition
---     type state_type is (
---         IDLE,
---         LOAD,
---         INIT,
---         CALCULATE,
---         SHIFT,
---         SUBTRACT,
---         DIVIDE,
---         CHECK,
---         DONE_STATE,
---         ERROR_STATE
---     );
---     
---     -- State encoding (one-hot example)
---     constant IDLE_CODE        : std_logic_vector(STATE_BITS-1 downto 0) := "0000";
---     constant LOAD_CODE        : std_logic_vector(STATE_BITS-1 downto 0) := "0001";
---     constant INIT_CODE        : std_logic_vector(STATE_BITS-1 downto 0) := "0010";
---     constant CALCULATE_CODE   : std_logic_vector(STATE_BITS-1 downto 0) := "0011";
---     constant SHIFT_CODE       : std_logic_vector(STATE_BITS-1 downto 0) := "0100";
---     constant SUBTRACT_CODE    : std_logic_vector(STATE_BITS-1 downto 0) := "0101";
---     constant DIVIDE_CODE      : std_logic_vector(STATE_BITS-1 downto 0) := "0110";
---     constant CHECK_CODE       : std_logic_vector(STATE_BITS-1 downto 0) := "0111";
---     constant DONE_CODE        : std_logic_vector(STATE_BITS-1 downto 0) := "1000";
---     constant ERROR_CODE       : std_logic_vector(STATE_BITS-1 downto 0) := "1111";
---     
---     -- State signals
---     signal current_state, next_state : state_type;
---     signal state_code : std_logic_vector(STATE_BITS-1 downto 0);
---     
---     -- Datapath registers
---     signal reg_a, reg_b : unsigned(DATA_WIDTH-1 downto 0);
---     signal gcd_result : unsigned(DATA_WIDTH-1 downto 0);
---     signal temp_reg : unsigned(DATA_WIDTH-1 downto 0);
---     signal shift_count : unsigned(7 downto 0);
---     signal cycle_counter : unsigned(7 downto 0);
---     
---     -- Control signals
---     signal load_enable : std_logic;
---     signal calc_enable : std_logic;
---     signal shift_enable : std_logic;
---     signal subtract_enable : std_logic;
---     signal divide_enable : std_logic;
---     signal result_ready : std_logic;
---     signal error_condition : std_logic;
---     signal timeout_error : std_logic;
---     
---     -- Algorithm selection
---     signal use_euclidean : std_logic;
---     signal use_binary : std_logic;
---     signal use_extended : std_logic;
---     
--- begin
---     -- Algorithm decode
---     use_euclidean <= '1' when algorithm = "00" else '0';
---     use_binary <= '1' when algorithm = "01" else '0';
---     use_extended <= '1' when algorithm = "10" else '0';
---     
---     -- State register process
---     state_register_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             current_state <= IDLE;
---         elsif rising_edge(clk) then
---             current_state <= next_state;
---         end if;
---     end process;
---     
---     -- Next state logic process
---     next_state_logic_proc: process(current_state, start, result_ready, 
---                                   error_condition, timeout_error, 
---                                   use_euclidean, use_binary, reg_a, reg_b)
---     begin
---         case current_state is
---             when IDLE =>
---                 if start = '1' then
---                     next_state <= LOAD;
---                 else
---                     next_state <= IDLE;
---                 end if;
---             
---             when LOAD =>
---                 if error_condition = '1' then
---                     next_state <= ERROR_STATE;
---                 else
---                     next_state <= INIT;
---                 end if;
---             
---             when INIT =>
---                 if use_euclidean = '1' then
---                     next_state <= DIVIDE;
---                 elsif use_binary = '1' then
---                     next_state <= SHIFT;
---                 else
---                     next_state <= CALCULATE;
---                 end if;
---             
---             when CALCULATE =>
---                 if result_ready = '1' then
---                     next_state <= DONE_STATE;
---                 elsif timeout_error = '1' then
---                     next_state <= ERROR_STATE;
---                 else
---                     next_state <= CHECK;
---                 end if;
---             
---             when SHIFT =>
---                 next_state <= SUBTRACT;
---             
---             when SUBTRACT =>
---                 next_state <= CHECK;
---             
---             when DIVIDE =>
---                 next_state <= CHECK;
---             
---             when CHECK =>
---                 if result_ready = '1' then
---                     next_state <= DONE_STATE;
---                 elsif use_euclidean = '1' then
---                     next_state <= DIVIDE;
---                 elsif use_binary = '1' then
---                     next_state <= SHIFT;
---                 else
---                     next_state <= CALCULATE;
---                 end if;
---             
---             when DONE_STATE =>
---                 if start = '0' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= DONE_STATE;
---                 end if;
---             
---             when ERROR_STATE =>
---                 if start = '0' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= ERROR_STATE;
---                 end if;
---             
---             when others =>
---                 next_state <= IDLE;
---         end case;
---     end process;
---     
---     -- Datapath process
---     datapath_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             reg_a <= (others => '0');
---             reg_b <= (others => '0');
---             gcd_result <= (others => '0');
---             temp_reg <= (others => '0');
---             shift_count <= (others => '0');
---             cycle_counter <= (others => '0');
---         elsif rising_edge(clk) then
---             case current_state is
---                 when LOAD =>
---                     if load_enable = '1' then
---                         reg_a <= a_in;
---                         reg_b <= b_in;
---                         cycle_counter <= (others => '0');
---                     end if;
---                 
---                 when INIT =>
---                     -- Algorithm-specific initialization
---                     if use_binary = '1' then
---                         shift_count <= (others => '0');
---                     end if;
---                 
---                 when DIVIDE =>
---                     if divide_enable = '1' and reg_b /= 0 then
---                         temp_reg <= reg_a mod reg_b;
---                         reg_a <= reg_b;
---                         reg_b <= temp_reg;
---                         cycle_counter <= cycle_counter + 1;
---                     end if;
---                 
---                 when SHIFT =>
---                     if shift_enable = '1' then
---                         if reg_a(0) = '0' then
---                             reg_a <= reg_a srl 1;
---                         elsif reg_b(0) = '0' then
---                             reg_b <= reg_b srl 1;
---                         end if;
---                         shift_count <= shift_count + 1;
---                     end if;
---                 
---                 when SUBTRACT =>
---                     if subtract_enable = '1' then
---                         if reg_a > reg_b then
---                             reg_a <= (reg_a - reg_b) srl 1;
---                         else
---                             reg_b <= (reg_b - reg_a) srl 1;
---                         end if;
---                         cycle_counter <= cycle_counter + 1;
---                     end if;
---                 
---                 when CHECK =>
---                     if reg_b = 0 or reg_a = reg_b then
---                         if reg_a = reg_b then
---                             gcd_result <= reg_a;
---                         else
---                             gcd_result <= reg_a sll to_integer(shift_count);
---                         end if;
---                     end if;
---                 
---                 when others =>
---                     null;
---             end case;
---         end if;
---     end process;
---     
---     -- Control signal generation
---     control_signals_proc: process(current_state, reg_a, reg_b, cycle_counter)
---     begin
---         -- Default values
---         load_enable <= '0';
---         calc_enable <= '0';
---         shift_enable <= '0';
---         subtract_enable <= '0';
---         divide_enable <= '0';
---         result_ready <= '0';
---         error_condition <= '0';
---         timeout_error <= '0';
---         
---         case current_state is
---             when LOAD =>
---                 load_enable <= '1';
---                 if reg_a = 0 and reg_b = 0 then
---                     error_condition <= '1';
---                 end if;
---             
---             when DIVIDE =>
---                 divide_enable <= '1';
---             
---             when SHIFT =>
---                 shift_enable <= '1';
---             
---             when SUBTRACT =>
---                 subtract_enable <= '1';
---             
---             when CHECK =>
---                 if reg_b = 0 or reg_a = reg_b then
---                     result_ready <= '1';
---                 end if;
---                 if cycle_counter >= MAX_CYCLES then
---                     timeout_error <= '1';
---                 end if;
---             
---             when others =>
---                 null;
---         end case;
---     end process;
---     
---     -- State encoding for output
---     state_encoding_proc: process(current_state)
---     begin
---         case current_state is
---             when IDLE => state_code <= IDLE_CODE;
---             when LOAD => state_code <= LOAD_CODE;
---             when INIT => state_code <= INIT_CODE;
---             when CALCULATE => state_code <= CALCULATE_CODE;
---             when SHIFT => state_code <= SHIFT_CODE;
---             when SUBTRACT => state_code <= SUBTRACT_CODE;
---             when DIVIDE => state_code <= DIVIDE_CODE;
---             when CHECK => state_code <= CHECK_CODE;
---             when DONE_STATE => state_code <= DONE_CODE;
---             when ERROR_STATE => state_code <= ERROR_CODE;
---             when others => state_code <= ERROR_CODE;
---         end case;
---     end process;
---     
---     -- Output assignments
---     gcd_out <= gcd_result;
---     done <= '1' when current_state = DONE_STATE else '0';
---     busy <= '1' when current_state /= IDLE and current_state /= DONE_STATE 
---                  and current_state /= ERROR_STATE else '0';
---     valid <= '1' when current_state = DONE_STATE else '0';
---     error <= '1' when current_state = ERROR_STATE else '0';
---     state_out <= state_code;
---     
--- end architecture fsm_arch;
---
--- ============================================================================
--- Remember: This FSM implementation provides structured control over the GCD
--- calculation process. The separation of control logic and datapath operations
--- makes the design more maintainable and easier to optimize. Consider the
--- trade-offs between different state encoding schemes and algorithm choices
--- based on your specific application requirements.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity gcd_fsm is
+  port (
+    clk       : in  std_logic;
+    reset     : in  std_logic;
+    start     : in  std_logic;
+    a_ge_b    : in  std_logic;  -- from datapath: A >= B
+    b_eq_zero : in  std_logic;  -- from datapath: B = 0
+    load_en   : out std_logic;  -- to datapath: load operands
+    swap_en   : out std_logic;  -- to datapath: swap A and B
+    sub_en    : out std_logic;  -- to datapath: A <= A - B
+    done      : out std_logic
+  );
+end entity gcd_fsm;
+
+architecture rtl of gcd_fsm is
+  -- FSM states for the subtraction-based GCD algorithm
+  type state_type is (IDLE, COMPARE, SUBTRACT, SWAP, DONE);
+  signal state : state_type := IDLE;
+begin
+
+  -- Clocked process: state machine transitions and control output generation
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        -- Synchronous reset: return to IDLE, clear all control signals
+        state    <= IDLE;
+        load_en  <= '0';
+        swap_en  <= '0';
+        sub_en   <= '0';
+        done     <= '0';
+      else
+        -- Default values to avoid latches
+        load_en <= '0';
+        swap_en <= '0';
+        sub_en  <= '0';
+        done    <= '0';
+
+        case state is
+
+          -- IDLE: wait for start signal
+          when IDLE =>
+            if start = '1' then
+              load_en <= '1';      -- load operands into datapath
+              state   <= COMPARE;
+            end if;
+
+          -- COMPARE: check if B is zero (done) or if A >= B
+          when COMPARE =>
+            if b_eq_zero = '1' then
+              state <= DONE;       -- GCD found in A
+            elsif a_ge_b = '1' then
+              state <= SUBTRACT;   -- A >= B, subtract B from A
+            else
+              state <= SWAP;       -- A < B, swap so A >= B
+            end if;
+
+          -- SUBTRACT: A <= A - B, then compare again
+          when SUBTRACT =>
+            sub_en <= '1';
+            state  <= COMPARE;
+
+          -- SWAP: exchange A and B so the larger value is in A
+          when SWAP =>
+            swap_en <= '1';
+            state   <= COMPARE;
+
+          -- DONE: assert done for one cycle, return to IDLE
+          when DONE =>
+            done  <= '1';
+            state <= IDLE;
+
+          when others =>
+            state <= IDLE;
+        end case;
+      end if;
+    end if;
+  end process;
+
+end architecture rtl;

@@ -1,443 +1,77 @@
 -- ============================================================================
--- GCD Calculator Behavioral Implementation - Programming Guidance
+-- GCD Calculator - Behavioral Model (Euclidean Algorithm)
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a Greatest Common Divisor (GCD) calculator using
--- behavioral modeling in VHDL. The GCD calculator is a fundamental arithmetic
--- component used in many digital systems, including cryptography, signal
--- processing, and mathematical computations. This implementation demonstrates
--- algorithmic thinking in hardware design and provides multiple approaches
--- for computing the GCD of two integers.
---
--- LEARNING OBJECTIVES:
--- 1. Understand algorithmic implementation in hardware
--- 2. Learn behavioral modeling techniques in VHDL
--- 3. Practice iterative algorithm implementation
--- 4. Understand control flow in digital systems
--- 5. Learn optimization techniques for arithmetic operations
--- 6. Practice state machine design for complex algorithms
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for advanced mathematical operations
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding mathematical packages if needed
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the GCD calculator
---
--- Entity Requirements:
--- - Name: gcd_behavior (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - Input operands with appropriate bit widths
--- - Control signals for operation management
--- - Status outputs for operation completion
---
--- Port Specifications:
--- - clk        : in  std_logic (System clock)
--- - reset      : in  std_logic (Asynchronous reset, active high)
--- - start      : in  std_logic (Start calculation signal)
--- - a_in       : in  unsigned(DATA_WIDTH-1 downto 0) (First operand)
--- - b_in       : in  unsigned(DATA_WIDTH-1 downto 0) (Second operand)
--- - gcd_out    : out unsigned(DATA_WIDTH-1 downto 0) (GCD result)
--- - done       : out std_logic (Calculation complete signal)
--- - busy       : out std_logic (Calculation in progress signal)
--- - valid      : out std_logic (Result valid signal)
--- - error      : out std_logic (Error condition signal)
---
--- Generic Parameters:
--- - DATA_WIDTH : integer := 32 (Operand width in bits)
--- - MAX_CYCLES : integer := 64 (Maximum calculation cycles)
---
--- ============================================================================
--- STEP 3: GCD ALGORITHM PRINCIPLES
--- ============================================================================
---
--- Euclidean Algorithm:
--- The most common algorithm for computing GCD:
--- 1. If b = 0, then GCD(a,b) = a
--- 2. Otherwise, GCD(a,b) = GCD(b, a mod b)
--- 3. Repeat until b becomes 0
---
--- Binary GCD Algorithm (Stein's Algorithm):
--- More efficient for hardware implementation:
--- 1. If a = b, then GCD(a,b) = a
--- 2. If a and b are both even, GCD(a,b) = 2 * GCD(a/2, b/2)
--- 3. If a is even and b is odd, GCD(a,b) = GCD(a/2, b)
--- 4. If a is odd and b is even, GCD(a,b) = GCD(a, b/2)
--- 5. If both are odd and a > b, GCD(a,b) = GCD((a-b)/2, b)
--- 6. If both are odd and a < b, GCD(a,b) = GCD(a, (b-a)/2)
---
--- Extended Euclidean Algorithm:
--- Computes GCD and Bézout coefficients:
--- Finds integers x, y such that ax + by = GCD(a,b)
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic Euclidean Algorithm (Recommended for beginners)
--- - Simple iterative implementation
--- - Uses modulo operation (division)
--- - Clear algorithmic flow
--- - Moderate resource usage
---
--- OPTION 2: Binary GCD Algorithm (Intermediate)
--- - Avoids division operations
--- - Uses only shifts and subtractions
--- - More hardware-friendly
--- - Better performance characteristics
---
--- OPTION 3: Pipelined GCD Calculator (Advanced)
--- - Multiple operations in parallel
--- - Higher throughput capability
--- - Complex control logic
--- - Optimized for high-speed applications
---
--- OPTION 4: Extended GCD Calculator (Expert)
--- - Computes GCD and Bézout coefficients
--- - More complex state machine
--- - Additional output ports
--- - Used in cryptographic applications
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Algorithm Selection:
--- - Euclidean: Simple but requires division
--- - Binary GCD: Hardware-friendly, no division
--- - Consider target application requirements
--- - Balance between complexity and performance
---
--- State Machine Design:
--- - IDLE: Waiting for start signal
--- - CALCULATE: Performing GCD computation
--- - DONE: Result ready, waiting for acknowledgment
--- - ERROR: Handle invalid inputs or overflow
---
--- Timing Considerations:
--- - Variable execution time based on input values
--- - Maximum cycle count for worst-case scenarios
--- - Timeout mechanisms for error handling
--- - Pipeline considerations for throughput
---
--- Resource Optimization:
--- - Minimize register usage
--- - Optimize arithmetic operations
--- - Consider DSP block utilization
--- - Balance speed vs. area trade-offs
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Multiple Algorithm Support:
--- - Selectable algorithm via control input
--- - Performance comparison capabilities
--- - Algorithm-specific optimizations
--- - Runtime algorithm switching
---
--- Extended Functionality:
--- - LCM (Least Common Multiple) calculation
--- - Bézout coefficient computation
--- - Multiple operand support
--- - Batch processing capabilities
---
--- Error Handling:
--- - Input validation (zero inputs)
--- - Overflow detection and handling
--- - Timeout mechanisms
--- - Comprehensive error reporting
---
--- Performance Monitoring:
--- - Cycle count reporting
--- - Performance statistics
--- - Algorithm efficiency metrics
--- - Real-time performance analysis
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Cryptography: RSA key generation, modular arithmetic
--- 2. Digital Signal Processing: Rational sample rate conversion
--- 3. Computer Graphics: Bresenham line algorithm optimization
--- 4. Number Theory: Mathematical research and computation
--- 5. Fraction Simplification: Reducing fractions to lowest terms
--- 6. Modular Arithmetic: Efficient computation in finite fields
--- 7. Error Correction: Reed-Solomon and BCH code implementations
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual algorithm verification
--- 2. Corner Case Testing: Zero inputs, equal inputs, prime numbers
--- 3. Performance Testing: Worst-case execution time analysis
--- 4. Stress Testing: Maximum bit-width operands
--- 5. Comparative Testing: Multiple algorithm verification
--- 6. Random Testing: Large-scale automated verification
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic Euclidean algorithm
--- 2. Implement simple state machine
--- 3. Add input validation and error handling
--- 4. Optimize for target hardware platform
--- 5. Add performance monitoring features
--- 6. Consider advanced algorithms for optimization
--- 7. Implement comprehensive testing framework
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Implement binary GCD algorithm
--- 2. Add extended GCD functionality
--- 3. Create multi-operand GCD calculator
--- 4. Implement LCM calculation
--- 5. Add pipelining for higher throughput
--- 6. Create performance comparison framework
--- 7. Implement cryptographic applications
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Not handling zero input cases properly
--- 2. Infinite loops due to improper termination conditions
--- 3. Overflow in intermediate calculations
--- 4. Inadequate state machine design
--- 5. Poor timing analysis and cycle counting
--- 6. Insufficient error handling mechanisms
--- 7. Not considering worst-case execution scenarios
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ All input combinations tested and verified
--- □ State machine transitions properly defined
--- □ Timeout mechanisms implemented and tested
--- □ Error conditions properly handled
--- □ Performance requirements met
--- □ Resource utilization optimized
--- □ Timing constraints satisfied
--- □ Corner cases thoroughly tested
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This GCD calculator demonstrates several key concepts:
--- - Algorithmic implementation in hardware
--- - State machine design for complex operations
--- - Iterative computation techniques
--- - Control flow and timing management
--- - Resource optimization strategies
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Consider clock frequency requirements
--- - Plan for adequate timing margins
--- - Optimize critical path delays
--- - Consider power consumption implications
--- - Plan for thermal management if needed
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Parallel GCD computation techniques
--- - Hardware-software co-design approaches
--- - Cryptographic applications and security
--- - Mathematical optimization techniques
--- - High-performance computing integration
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Create comprehensive testbenches with known results
--- - Use mathematical software for reference verification
--- - Implement assertion-based verification
--- - Test with realistic application scenarios
--- - Validate timing and performance characteristics
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity gcd_behavior is
---     generic (
---         DATA_WIDTH : integer := 32;
---         MAX_CYCLES : integer := 64
---     );
---     port (
---         clk      : in  std_logic;
---         reset    : in  std_logic;
---         start    : in  std_logic;
---         a_in     : in  unsigned(DATA_WIDTH-1 downto 0);
---         b_in     : in  unsigned(DATA_WIDTH-1 downto 0);
---         gcd_out  : out unsigned(DATA_WIDTH-1 downto 0);
---         done     : out std_logic;
---         busy     : out std_logic;
---         valid    : out std_logic;
---         error    : out std_logic
---     );
--- end entity gcd_behavior;
---
--- architecture behavioral of gcd_behavior is
---     -- State machine definition
---     type state_type is (IDLE, LOAD, CALCULATE, DONE_STATE, ERROR_STATE);
---     signal current_state, next_state : state_type;
---     
---     -- Internal registers
---     signal reg_a, reg_b : unsigned(DATA_WIDTH-1 downto 0);
---     signal gcd_result : unsigned(DATA_WIDTH-1 downto 0);
---     signal cycle_counter : unsigned(7 downto 0);
---     signal temp_remainder : unsigned(DATA_WIDTH-1 downto 0);
---     
---     -- Control signals
---     signal calculation_done : std_logic;
---     signal error_condition : std_logic;
---     signal timeout_error : std_logic;
---     
--- begin
---     -- State machine process
---     state_machine_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             current_state <= IDLE;
---             reg_a <= (others => '0');
---             reg_b <= (others => '0');
---             gcd_result <= (others => '0');
---             cycle_counter <= (others => '0');
---         elsif rising_edge(clk) then
---             current_state <= next_state;
---             
---             case current_state is
---                 when IDLE =>
---                     if start = '1' then
---                         reg_a <= a_in;
---                         reg_b <= b_in;
---                         cycle_counter <= (others => '0');
---                     end if;
---                 
---                 when LOAD =>
---                     -- Input validation
---                     if reg_a = 0 and reg_b = 0 then
---                         gcd_result <= (others => '0');
---                     elsif reg_a = 0 then
---                         gcd_result <= reg_b;
---                     elsif reg_b = 0 then
---                         gcd_result <= reg_a;
---                     end if;
---                 
---                 when CALCULATE =>
---                     -- Euclidean algorithm implementation
---                     if reg_b /= 0 then
---                         temp_remainder <= reg_a mod reg_b;
---                         reg_a <= reg_b;
---                         reg_b <= temp_remainder;
---                         cycle_counter <= cycle_counter + 1;
---                     else
---                         gcd_result <= reg_a;
---                     end if;
---                 
---                 when DONE_STATE =>
---                     -- Result is ready
---                     null;
---                 
---                 when ERROR_STATE =>
---                     -- Handle error conditions
---                     gcd_result <= (others => '0');
---                 
---                 when others =>
---                     current_state <= IDLE;
---             end case;
---         end if;
---     end process;
---     
---     -- Next state logic
---     next_state_logic: process(current_state, start, reg_a, reg_b, 
---                              cycle_counter, calculation_done, error_condition)
---     begin
---         case current_state is
---             when IDLE =>
---                 if start = '1' then
---                     next_state <= LOAD;
---                 else
---                     next_state <= IDLE;
---                 end if;
---             
---             when LOAD =>
---                 if error_condition = '1' then
---                     next_state <= ERROR_STATE;
---                 else
---                     next_state <= CALCULATE;
---                 end if;
---             
---             when CALCULATE =>
---                 if calculation_done = '1' then
---                     next_state <= DONE_STATE;
---                 elsif cycle_counter >= MAX_CYCLES then
---                     next_state <= ERROR_STATE;
---                 else
---                     next_state <= CALCULATE;
---                 end if;
---             
---             when DONE_STATE =>
---                 if start = '0' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= DONE_STATE;
---                 end if;
---             
---             when ERROR_STATE =>
---                 if start = '0' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= ERROR_STATE;
---                 end if;
---             
---             when others =>
---                 next_state <= IDLE;
---         end case;
---     end process;
---     
---     -- Control signal generation
---     calculation_done <= '1' when reg_b = 0 else '0';
---     error_condition <= '1' when (reg_a = 0 and reg_b = 0) else '0';
---     timeout_error <= '1' when cycle_counter >= MAX_CYCLES else '0';
---     
---     -- Output assignments
---     gcd_out <= gcd_result;
---     done <= '1' when current_state = DONE_STATE else '0';
---     busy <= '1' when current_state = CALCULATE else '0';
---     valid <= '1' when current_state = DONE_STATE else '0';
---     error <= '1' when current_state = ERROR_STATE else '0';
---     
--- end architecture behavioral;
---
--- ============================================================================
--- Remember: This behavioral implementation focuses on algorithmic clarity and
--- correctness. For high-performance applications, consider optimizing the
--- algorithm choice and implementation based on your specific requirements.
--- The GCD calculation is fundamental to many mathematical and cryptographic
--- applications, so accuracy and reliability are paramount.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity gcd_behavior is
+  port (
+    clk        : in  std_logic;
+    reset      : in  std_logic;
+    start      : in  std_logic;
+    a_in       : in  std_logic_vector(7 downto 0);
+    b_in       : in  std_logic_vector(7 downto 0);
+    gcd_result : out std_logic_vector(7 downto 0);
+    done       : out std_logic
+  );
+end entity gcd_behavior;
+
+architecture behavioral of gcd_behavior is
+  -- FSM states for the behavioral GCD computation
+  type state_type is (IDLE, CALC, DONE_ST);
+  signal state : state_type := IDLE;
+
+  -- Working registers hold the two operands during computation
+  signal a_reg : unsigned(7 downto 0) := (others => '0');
+  signal b_reg : unsigned(7 downto 0) := (others => '0');
+begin
+
+  -- Clocked process: state transitions and datapath updates
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        -- Synchronous reset returns the module to IDLE
+        state      <= IDLE;
+        a_reg      <= (others => '0');
+        b_reg      <= (others => '0');
+        gcd_result <= (others => '0');
+        done       <= '0';
+      else
+        case state is
+
+          -- IDLE: wait for start signal, then load operands
+          when IDLE =>
+            done <= '0';
+            if start = '1' then
+              a_reg <= unsigned(a_in);
+              b_reg <= unsigned(b_in);
+              state <= CALC;
+            end if;
+
+          -- CALC: perform Euclidean algorithm iteratively
+          --   if b = 0 then result = a, go to DONE
+          --   else replace (a, b) with (b, a mod b)
+          when CALC =>
+            if b_reg = to_unsigned(0, 8) then
+              gcd_result <= std_logic_vector(a_reg);
+              state      <= DONE_ST;
+            else
+              a_reg <= b_reg;
+              b_reg <= a_reg rem b_reg;  -- remainder = modulo for unsigned
+            end if;
+
+          -- DONE_ST: assert done for one cycle, then return to IDLE
+          when DONE_ST =>
+            done  <= '1';
+            state <= IDLE;
+
+          when others =>
+            state <= IDLE;
+        end case;
+      end if;
+    end if;
+  end process;
+
+end architecture behavioral;

@@ -1,594 +1,298 @@
--- ============================================================================
--- ARM CORTEX-M0 INTERFACE IMPLEMENTATION
--- ============================================================================
--- Project: ARM Cortex-M0 Processor Interface Design
--- Description: This project implements a comprehensive interface for ARM 
---              Cortex-M0 processors, providing ultra-low-power microcontroller 
---              communication, control, and peripheral integration for 
---              energy-efficient embedded systems.
+-- ================================================================================
+-- cortex_m0_interface : Cortex-M0 AHB-Lite peripheral interface (educational)
+-- ================================================================================
+-- ARMv6-M (Cortex-M0) features modeled here:
+--   * Full AHB-Lite slave signals (HSIZE, HTRANS, HPROT, HMASTLOCK, HRESP)
+--   * NVIC: 32 external IRQs + NMI, 2 priority levels, enable/pending regs
+--   * SysTick: 24-bit down-counter with reload, control, count flag, interrupt
+--   * GPIO: 32-bit port with direction, output, input, alternate-function select
+--   * SWD debug interface (SWCLK, SWDIO)
+--   * Memory map decode: Code / SRAM / Peripheral / System regions
+--   * HRESP error response for invalid addresses
 --
--- Learning Objectives:
--- 1. Understand ARM Cortex-M0 architecture and ARMv6-M instruction set
--- 2. Master AHB-Lite protocol for microcontroller systems
--- 3. Learn ARM Cortex-M0 3-stage pipeline design
--- 4. Implement NVIC (Nested Vectored Interrupt Controller)
--- 5. Understand ultra-low-power design principles
--- 6. Master bit-banding and memory protection
--- 7. Learn debug interface (SWD/JTAG) integration
--- 8. Implement power management and sleep modes
--- 9. Understand system control and configuration
--- 10. Master clock gating and power optimization
---
--- ARM Cortex-M0 Overview:
--- ┌─────────────────┬─────────────────────────────────────────────────────┐
--- │ Feature         │ Specification                                       │
--- ├─────────────────┼─────────────────────────────────────────────────────┤
--- │ Architecture    │ ARMv6-M (32-bit)                                   │
--- │ Pipeline        │ 3-stage (Fetch, Decode, Execute)                   │
--- │ Cores           │ Single core                                        │
--- │ Performance     │ 0.9 DMIPS/MHz                                      │
--- │ Instructions    │ 56 instructions (Thumb subset)                     │
--- │ Registers       │ 13 general purpose + SP + LR + PC                  │
--- │ Stack Pointer   │ Main and Process stack pointers                    │
--- │ Interrupts      │ NVIC with up to 32 external interrupts             │
--- │ Debug           │ Serial Wire Debug (SWD) or JTAG                    │
--- │ Memory          │ 4GB linear address space                           │
--- │ Power           │ Ultra-low power (9 µA/MHz)                         │
--- │ Frequency       │ Up to 50 MHz                                       │
--- │ Process         │ 90nm-28nm                                           │
--- └─────────────────┴─────────────────────────────────────────────────────┘
---
--- Cortex-M0 System Architecture:
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   Cortex-M0     │    │      NVIC       │    │   Debug Access  │
--- │   Processor     │◀──▶│   (Nested       │◀──▶│   Port (DAP)    │
--- │   Core          │    │   Vectored      │    │                 │
--- └─────────────────┘    │   Interrupt     │    └─────────────────┘
---          │              │   Controller)   │             │
---          ▼              └─────────────────┘             ▼
--- ┌─────────────────┐              │              ┌─────────────────┐
--- │   AHB-Lite      │              ▼              │   SWD/JTAG      │
--- │   Bus Matrix    │    ┌─────────────────┐     │   Interface     │
--- │                 │    │   System        │     │                 │
--- └─────────────────┘    │   Control       │     └─────────────────┘
---          │              │   Block         │             │
---          ▼              └─────────────────┘             ▼
--- ┌─────────────────┐              │              ┌─────────────────┐
--- │   Memory        │              ▼              │   Trace         │
--- │   Protection    │    ┌─────────────────┐     │   Interface     │
--- │   Unit (MPU)    │    │   Power         │     │   (Optional)    │
--- │   (Optional)    │    │   Management    │     │                 │
--- └─────────────────┘    └─────────────────┘     └─────────────────┘
---
--- AHB-Lite Interface Signals:
--- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
--- │ Bus Type        │ Direction       │ Key Signals                     │
--- ├─────────────────┼─────────────────┼─────────────────────────────────┤
--- │ AHB-Lite        │ Master→Slave    │ HADDR, HWRITE, HSIZE, HBURST    │
--- │ AHB-Lite        │ Slave→Master    │ HRDATA, HREADY, HRESP           │
--- │ AHB-Lite        │ Master→Slave    │ HWDATA, HTRANS, HPROT           │
--- │ System          │ Input           │ HCLK, HRESETn                   │
--- │ Debug           │ Bidirectional   │ SWCLK, SWDIO                    │
--- └─────────────────┴─────────────────┴─────────────────────────────────┘
---
--- Memory Map (Cortex-M0 Standard):
--- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
--- │ Address Range   │ Size            │ Description                     │
--- ├─────────────────┼─────────────────┼─────────────────────────────────┤
--- │ 0x0000_0000     │ 512MB           │ Code region (Flash/ROM)         │
--- │ 0x2000_0000     │ 512MB           │ SRAM region                     │
--- │ 0x4000_0000     │ 1GB             │ Peripheral region               │
--- │ 0x8000_0000     │ 1GB             │ External RAM region             │
--- │ 0xC000_0000     │ 512MB           │ External device region          │
--- │ 0xE000_0000     │ 512MB           │ Private peripheral bus (PPB)    │
--- └─────────────────┴─────────────────┴─────────────────────────────────┘
---
--- ARMv6-M Instruction Set:
--- 1. **Thumb Instructions**:
---    - 16-bit Thumb instruction set only
---    - 56 instructions total
---    - Load/store multiple
---    - Branch and conditional branch
---    - Arithmetic and logic operations
---
--- 2. **Memory Access**:
---    - Unaligned memory access support
---    - Little-endian memory system
---    - Bit-banding support
---    - Memory protection (optional MPU)
---
--- 3. **Exception Handling**:
---    - Automatic state saving/restoring
---    - Tail-chaining optimization
---    - Late-arriving interrupt handling
---    - Exception return mechanisms
---
--- 3-Stage Pipeline:
--- 1. **Fetch Stage**:
---    - Instruction fetch from memory
---    - Program counter management
---    - Branch prediction (simple)
---
--- 2. **Decode Stage**:
---    - Instruction decode
---    - Register file access
---    - Immediate value generation
---    - Control signal generation
---
--- 3. **Execute Stage**:
---    - ALU operations
---    - Memory access
---    - Register writeback
---    - Exception handling
---
--- NVIC (Nested Vectored Interrupt Controller):
--- 1. **Interrupt Features**:
---    - Up to 32 external interrupts
---    - 4 priority levels (2 bits)
---    - Automatic vectoring
---    - Nested interrupt support
---    - Tail-chaining optimization
---
--- 2. **System Exceptions**:
---    - Reset, NMI, Hard Fault
---    - SVCall (Supervisor Call)
---    - PendSV (Pendable Service)
---    - SysTick timer interrupt
---
--- Power Management:
--- 1. **Sleep Modes**:
---    - Sleep mode (CPU clock stopped)
---    - Deep sleep mode (system clock stopped)
---    - Standby mode (minimal power)
---    - Wake-up interrupt support
---
--- 2. **Power Optimization**:
---    - Clock gating
---    - Dynamic voltage scaling
---    - Retention modes
---    - Ultra-low leakage design
---
--- Debug Interface:
--- 1. **Serial Wire Debug (SWD)**:
---    - 2-pin debug interface
---    - SWCLK and SWDIO signals
---    - Debug access port (DAP)
---    - Flash programming support
---
--- 2. **JTAG Interface**:
---    - 4-pin JTAG interface
---    - IEEE 1149.1 compliant
---    - Boundary scan support
---    - Debug and test access
---
--- 3. **Debug Features**:
---    - 4 breakpoints
---    - 2 watchpoints
---    - Single-step execution
---    - Register and memory access
---
--- System Control Block:
--- 1. **Configuration**:
---    - System control registers
---    - Clock configuration
---    - Reset and power management
---    - Exception configuration
---
--- 2. **Status Monitoring**:
---    - System status registers
---    - Fault status and address
---    - Debug status
---    - Performance monitoring
---
--- Memory Protection Unit (MPU):
--- 1. **Protection Features** (Optional):
---    - Up to 8 memory regions
---    - Access permission control
---    - Memory attribute configuration
---    - Fault detection and reporting
---
--- 2. **Configuration**:
---    - Region base address
---    - Region size and attributes
---    - Access permissions
---    - Enable/disable control
---
--- Key Interface Components:
--- ┌─────────────────┬─────────────────────────────────────────────────────┐
--- │ Component       │ Description                                         │
--- ├─────────────────┼─────────────────────────────────────────────────────┤
--- │ AHB-Lite Master │ System bus interface for memory and peripherals    │
--- │ NVIC            │ Nested Vectored Interrupt Controller               │
--- │ Debug Interface │ SWD/JTAG debug and programming interface           │
--- │ System Control  │ Configuration and status registers                 │
--- │ Power Management│ Ultra-low power control and sleep modes            │
--- │ Clock Control   │ Clock gating and frequency management              │
--- │ MPU (Optional)  │ Memory Protection Unit                             │
--- │ Bit-banding     │ Atomic bit manipulation                            │
--- └─────────────────┴─────────────────────────────────────────────────────┘
---
--- Design Specifications:
--- - AHB-Lite Data Width: 32-bit
--- - AHB-Lite Address Width: 32-bit (4GB address space)
--- - Maximum Clock Frequency: 50 MHz
--- - Interrupt Latency: 6 cycles
--- - Memory Access: Single-cycle for zero-wait-state
--- - Pipeline Depth: 3 stages
--- - Power Consumption: 9 µA/MHz (typical)
--- - Wake-up Time: 10 cycles from sleep
--- - Code Density: High (Thumb-only)
---
--- Implementation Approaches:
--- 1. **Minimal Configuration**:
---    - Basic Cortex-M0 core
---    - Standard NVIC
---    - SWD debug interface
---    - Basic power management
---
--- 2. **Low-Power Configuration**:
---    - Enhanced power management
---    - Multiple sleep modes
---    - Clock gating optimization
---    - Retention memory support
---
--- 3. **Secure Configuration**:
---    - Memory Protection Unit (MPU)
---    - Secure boot support
---    - Debug authentication
---    - Tamper detection
---
--- 4. **High-Integration Configuration**:
---    - Multiple AHB-Lite masters
---    - Advanced peripheral integration
---    - DMA controller support
---    - Real-time clock integration
---
--- Step-by-Step Implementation Guide:
---
--- Step 1: Define System Architecture
--- - Select core configuration (standard/low-power)
--- - Define memory map and sizes
--- - Specify AHB-Lite interface requirements
--- - Choose debug interface (SWD/JTAG)
--- - Configure power management features
---
--- Step 2: Implement AHB-Lite Interface Logic
--- - Create AHB-Lite master interface
--- - Add address decoding logic
--- - Implement bus arbitration (if multiple masters)
--- - Add wait state generation
--- - Configure memory timing
---
--- Step 3: Add NVIC (Nested Vectored Interrupt Controller)
--- - Connect external interrupt inputs
--- - Implement priority handling
--- - Add interrupt vectoring logic
--- - Create system exception handling
--- - Add interrupt masking and control
---
--- Step 4: Integrate Debug Interface
--- - Add SWD or JTAG interface
--- - Implement Debug Access Port (DAP)
--- - Connect breakpoint and watchpoint logic
--- - Add flash programming support
--- - Implement debug authentication
---
--- Step 5: Add System Control Block
--- - Create system control registers
--- - Add clock configuration logic
--- - Implement reset management
--- - Add system status monitoring
--- - Create exception configuration
---
--- Step 6: Implement Power Management
--- - Add sleep mode control
--- - Implement clock gating
--- - Create wake-up logic
--- - Add power domain control
--- - Implement retention modes
---
--- Step 7: Add Memory Protection (Optional)
--- - Implement MPU regions
--- - Add access permission checking
--- - Create fault detection logic
--- - Add configuration registers
--- - Implement protection violation handling
---
--- Step 8: Add Bit-banding Support
--- - Implement bit-band alias regions
--- - Add atomic bit manipulation
--- - Create address translation logic
--- - Add bit-band access control
--- - Implement read-modify-write operations
---
--- Step 9: Add System Integration
--- - Connect system tick timer
--- - Add reset and clock management
--- - Create system control registers
--- - Add performance monitoring
--- - Implement system exceptions
---
--- Step 10: Add Peripheral Integration
--- - Connect peripheral interfaces
--- - Add DMA controller support
--- - Create interrupt routing
--- - Add peripheral clock control
--- - Implement peripheral reset logic
---
--- Required Libraries:
--- - IEEE.std_logic_1164: Standard logic types
--- - IEEE.numeric_std: Arithmetic operations
--- - work.ahb_lite_pkg: AHB-Lite protocol definitions
--- - work.nvic_pkg: NVIC interface definitions
--- - work.cortex_m0_pkg: Cortex-M0 specific constants
--- - work.debug_pkg: Debug interface functions
--- - work.power_pkg: Power management functions
--- - work.mpu_pkg: Memory Protection Unit functions
--- - work.system_pkg: System control functions
--- - work.armv6m_pkg: ARMv6-M architecture functions
---
--- Advanced Features:
--- 1. **Ultra-Low Power**: Advanced power management and sleep modes
--- 2. **Debug Support**: Comprehensive debug and trace capabilities
--- 3. **Memory Protection**: Optional MPU for security
--- 4. **Bit-banding**: Atomic bit manipulation support
--- 5. **Fast Interrupts**: Low-latency interrupt handling
--- 6. **Clock Gating**: Dynamic power optimization
--- 7. **Retention Modes**: State preservation in low power
--- 8. **Secure Boot**: Boot-time security validation
---
--- Applications:
--- - IoT sensor nodes
--- - Wearable devices
--- - Battery-powered systems
--- - Home automation
--- - Industrial sensors
--- - Medical devices
--- - Smart meters
--- - Wireless sensor networks
--- - Microcontroller applications
--- - Ultra-low-power systems
---
--- Performance Considerations:
--- - Code density and memory efficiency
--- - Interrupt latency and response time
--- - Power consumption optimization
--- - Clock frequency vs. power trade-offs
--- - Memory access patterns
--- - Sleep/wake-up timing
--- - Debug interface overhead
--- - Peripheral integration efficiency
---
--- Verification Strategy:
--- 1. **Instruction Testing**: ARMv6-M instruction set validation
--- 2. **Bus Protocol Testing**: AHB-Lite protocol compliance
--- 3. **Interrupt Testing**: NVIC functionality verification
--- 4. **Debug Testing**: SWD/JTAG interface validation
--- 5. **Power Testing**: Sleep modes and power consumption
--- 6. **Memory Testing**: Memory access and protection
--- 7. **Exception Testing**: Exception handling validation
--- 8. **Integration Testing**: System-level validation
--- 9. **Performance Testing**: Timing and throughput
--- 10. **Compliance Testing**: ARM specification compliance
---
--- Common Design Challenges:
--- - Ultra-low power design constraints
--- - Clock domain crossing issues
--- - Debug interface timing
--- - Interrupt latency optimization
--- - Memory protection complexity
--- - Power management state machines
--- - Reset and initialization sequences
--- - Peripheral integration timing
--- - Code density optimization
--- - Real-time response requirements
---
--- Verification Checklist:
--- □ AHB-Lite master interface functional and compliant
--- □ NVIC interrupt handling working correctly
--- □ Debug interface (SWD/JTAG) operational
--- □ System control registers accessible
--- □ Power management and sleep modes functional
--- □ Clock gating and power optimization working
--- □ Memory protection (MPU) functional (if enabled)
--- □ Bit-banding operations working correctly
--- □ Exception handling validated
--- □ Interrupt latency meets requirements
--- □ Power consumption within specifications
--- □ Wake-up timing validated
--- □ Debug and programming functional
--- □ System integration validated
--- □ Performance targets achieved
--- □ Long-term reliability demonstrated
--- □ Compliance with ARM specifications verified
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- Step 1: Add library declarations
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
--- use work.ahb_lite_pkg.all;
--- use work.nvic_pkg.all;
--- use work.cortex_m0_pkg.all;
--- use work.debug_pkg.all;
--- use work.power_pkg.all;
--- use work.mpu_pkg.all;
--- use work.system_pkg.all;
--- use work.armv6m_pkg.all;
---
--- Step 2: Define your entity with appropriate generics and ports
--- entity cortex_m0_interface is
---     generic (
---         ENABLE_MPU      : boolean := false;       -- Memory Protection Unit
---         ENABLE_DEBUG    : boolean := true;        -- Debug interface
---         DEBUG_TYPE      : string  := "SWD";       -- "SWD" or "JTAG"
---         NUM_INTERRUPTS  : integer := 32;          -- External interrupts
---         PRIORITY_BITS   : integer := 2;           -- Priority levels (4)
---         AHB_DATA_WIDTH  : integer := 32;          -- 32-bit AHB-Lite
---         AHB_ADDR_WIDTH  : integer := 32;          -- 32-bit address
---         ENABLE_BITBAND  : boolean := true;        -- Bit-banding support
---         CLOCK_FREQ      : integer := 50000000;    -- 50 MHz max
---         ENABLE_TRACE    : boolean := false;       -- Trace interface
---         LOW_POWER_MODE  : boolean := true;        -- Enhanced power mgmt
---         RETENTION_REGS  : integer := 16           -- Retention registers
---     );
---     port (
---         -- System signals
---         hclk            : in  std_logic;
---         hresetn         : in  std_logic;
---         
---         -- AHB-Lite Master interface
---         haddr           : out std_logic_vector(AHB_ADDR_WIDTH-1 downto 0);
---         htrans          : out std_logic_vector(1 downto 0);
---         hwrite          : out std_logic;
---         hsize           : out std_logic_vector(2 downto 0);
---         hburst          : out std_logic_vector(2 downto 0);
---         hprot           : out std_logic_vector(3 downto 0);
---         hwdata          : out std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
---         hrdata          : in  std_logic_vector(AHB_DATA_WIDTH-1 downto 0);
---         hready          : in  std_logic;
---         hresp           : in  std_logic;
---         
---         -- NVIC (Nested Vectored Interrupt Controller)
---         nvic_irq        : in  std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         nvic_nmi        : in  std_logic;
---         nvic_priority   : in  std_logic_vector(PRIORITY_BITS*NUM_INTERRUPTS-1 downto 0);
---         nvic_enable     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         nvic_pending    : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         nvic_active     : out std_logic_vector(NUM_INTERRUPTS-1 downto 0);
---         
---         -- System exceptions
---         sys_reset       : in  std_logic;
---         sys_nmi         : in  std_logic;
---         sys_hardfault   : out std_logic;
---         sys_svcall      : out std_logic;
---         sys_pendsv      : out std_logic;
---         sys_systick     : out std_logic;
---         
---         -- Debug interface (SWD)
---         swclk           : in  std_logic;
---         swdio           : inout std_logic;
---         swo             : out std_logic;
---         
---         -- Debug interface (JTAG) - alternative to SWD
---         jtag_tck        : in  std_logic;
---         jtag_tms        : in  std_logic;
---         jtag_tdi        : in  std_logic;
---         jtag_tdo        : out std_logic;
---         jtag_trst_n     : in  std_logic;
---         
---         -- Debug control and status
---         debug_req       : in  std_logic;
---         debug_ack       : out std_logic;
---         halt_req        : in  std_logic;
---         halt_ack        : out std_logic;
---         step_req        : in  std_logic;
---         step_ack        : out std_logic;
---         
---         -- Breakpoints and watchpoints
---         bp_addr         : in  std_logic_vector(4*32-1 downto 0);  -- 4 breakpoints
---         bp_enable       : in  std_logic_vector(3 downto 0);
---         bp_hit          : out std_logic_vector(3 downto 0);
---         wp_addr         : in  std_logic_vector(2*32-1 downto 0);  -- 2 watchpoints
---         wp_enable       : in  std_logic_vector(1 downto 0);
---         wp_hit          : out std_logic_vector(1 downto 0);
---         
---         -- Memory Protection Unit (MPU) - optional
---         mpu_enable      : in  std_logic;
---         mpu_region_base : in  std_logic_vector(8*32-1 downto 0);  -- 8 regions
---         mpu_region_attr : in  std_logic_vector(8*16-1 downto 0);
---         mpu_region_en   : in  std_logic_vector(7 downto 0);
---         mpu_fault       : out std_logic;
---         mpu_fault_addr  : out std_logic_vector(31 downto 0);
---         
---         -- Power management
---         pm_sleep_req    : in  std_logic;
---         pm_sleep_ack    : out std_logic;
---         pm_deepsleep_req: in  std_logic;
---         pm_deepsleep_ack: out std_logic;
---         pm_standby_req  : in  std_logic;
---         pm_standby_ack  : out std_logic;
---         pm_wakeup       : in  std_logic;
---         pm_wakeup_ack   : out std_logic;
---         
---         -- Clock gating and control
---         clk_gate_en     : in  std_logic;
---         clk_gate_ack    : out std_logic;
---         cpu_clk_en      : out std_logic;
---         sys_clk_en      : out std_logic;
---         dbg_clk_en      : out std_logic;
---         
---         -- System control
---         sys_ctrl_addr   : in  std_logic_vector(11 downto 0);
---         sys_ctrl_wdata  : in  std_logic_vector(31 downto 0);
---         sys_ctrl_rdata  : out std_logic_vector(31 downto 0);
---         sys_ctrl_wen    : in  std_logic;
---         sys_ctrl_ren    : in  std_logic;
---         sys_ctrl_ready  : out std_logic;
---         
---         -- Status and monitoring
---         cpu_state       : out std_logic_vector(3 downto 0);
---         cpu_halted      : out std_logic;
---         cpu_sleeping    : out std_logic;
---         cpu_lockup      : out std_logic;
---         exception_num   : out std_logic_vector(7 downto 0);
---         exception_active: out std_logic;
---         
---         -- Bit-banding interface
---         bitband_addr    : in  std_logic_vector(31 downto 0);
---         bitband_bit     : in  std_logic_vector(4 downto 0);
---         bitband_write   : in  std_logic;
---         bitband_wdata   : in  std_logic;
---         bitband_rdata   : out std_logic;
---         bitband_ready   : out std_logic;
---         
---         -- Trace interface (optional)
---         trace_clk       : in  std_logic;
---         trace_data      : out std_logic_vector(3 downto 0);
---         trace_valid     : out std_logic;
---         trace_ready     : in  std_logic;
---         
---         -- Performance monitoring
---         perf_cycle_count: out std_logic_vector(31 downto 0);
---         perf_inst_count : out std_logic_vector(31 downto 0);
---         perf_sleep_count: out std_logic_vector(31 downto 0);
---         perf_int_count  : out std_logic_vector(15 downto 0);
---         
---         -- Temperature and voltage monitoring
---         temp_sensor     : in  std_logic_vector(11 downto 0);
---         volt_sensor     : in  std_logic_vector(11 downto 0);
---         temp_alarm      : out std_logic;
---         volt_alarm      : out std_logic;
---         
---         -- Retention registers for low-power modes
---         retention_data  : inout std_logic_vector(RETENTION_REGS*32-1 downto 0);
---         retention_valid : out std_logic_vector(RETENTION_REGS-1 downto 0)
---     );
--- end entity cortex_m0_interface;
---
--- Step 3: Create your architecture
--- architecture rtl of cortex_m0_interface is
---     -- Component declarations for Cortex-M0 core
---     -- Component declarations for NVIC, debug interface
---     -- Signal declarations for internal connections
---     -- Constants for memory mapping and configuration
--- begin
---     -- Instantiate Cortex-M0 processor core
---     -- Instantiate NVIC (Nested Vectored Interrupt Controller)
---     -- Add debug interface (SWD or JTAG)
---     -- Implement system control block
---     -- Add power management logic
---     -- Connect memory protection unit (if enabled)
---     -- Implement bit-banding support
---     -- Add performance monitoring
--- end architecture rtl;
---
--- ============================================================================
--- Remember: Cortex-M0 interface design focuses on ultra-low-power applications 
--- with simple, efficient operation. Always consult the ARM Cortex-M0 Technical 
--- Reference Manual and ARMv6-M Architecture Manual for detailed specifications.
--- ============================================================================
+-- Memory map (Peripheral space 0x40000000):
+--   0x40000000 - 0x4000000F : GPIO  (offset 0x00)
+--   0x40000010 - 0x4000001F : SYSTICK (offset 0x10)
+--   0x40000020 - 0x4000003F : NVIC  (offset 0x20)
+--   0x40000040 - 0x4000005F : SCB   (offset 0x40)
+-- ================================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity cortex_m0_interface is
+    port (
+        -- AHB-Lite slave interface
+        HCLK      : in  std_logic;
+        HRESETn   : in  std_logic;
+        HSEL      : in  std_logic;
+        HWRITE    : in  std_logic;
+        HREADY    : in  std_logic;
+        HMASTLOCK : in  std_logic;
+        HTRANS    : in  std_logic_vector(1 downto 0);
+        HSIZE     : in  std_logic_vector(2 downto 0);
+        HPROT     : in  std_logic_vector(3 downto 0);
+        HADDR     : in  std_logic_vector(31 downto 0);
+        HWDATA    : in  std_logic_vector(31 downto 0);
+        HRDATA    : out std_logic_vector(31 downto 0);
+        HRESP     : out std_logic;            -- 0=OKAY, 1=ERROR
+        HREADYOUT : out std_logic;
+        -- NVIC interface
+        irq_inputs : in  std_logic_vector(31 downto 0); -- 32 external IRQs
+        nmi        : in  std_logic;                    -- Non-Maskable Interrupt
+        irq_out    : out std_logic;                    -- Interrupt to CPU
+        irq_num    : out std_logic_vector(5 downto 0); -- Exception number
+        -- SysTick timer
+        mclk        : in  std_logic;                   -- SysTick reference clock
+        systick_int : out std_logic;                   -- SysTick interrupt
+        -- GPIO port (32-bit)
+        gpio_in   : in  std_logic_vector(31 downto 0);
+        gpio_out  : out std_logic_vector(31 downto 0);
+        gpio_dir  : out std_logic_vector(31 downto 0); -- 1=output, 0=input
+        -- SWD debug interface
+        swclk : in  std_logic;
+        swdio : inout std_logic
+    );
+end entity cortex_m0_interface;
+
+architecture rtl of cortex_m0_interface is
+
+    -- ---- Address decode constants (offset within peripheral block) ----
+    constant OFF_GPIO     : std_logic_vector(7 downto 0) := x"00";
+    constant OFF_SYSTICK  : std_logic_vector(7 downto 0) := x"10";
+    constant OFF_NVIC     : std_logic_vector(7 downto 0) := x"20";
+    constant OFF_SCB      : std_logic_vector(7 downto 0) := x"40";
+
+    -- ---- GPIO register offsets (word-aligned within GPIO block) ----
+    constant GPIO_DATA   : std_logic_vector(3 downto 0) := x"0"; -- offset 0x00
+    constant GPIO_DIR    : std_logic_vector(3 downto 0) := x"1"; -- offset 0x04
+    constant GPIO_AFSEL  : std_logic_vector(3 downto 0) := x"2"; -- offset 0x08
+
+    -- ---- SysTick register offsets ----
+    constant SYST_CSR    : std_logic_vector(3 downto 0) := x"0"; -- Control/Status
+    constant SYST_RVR    : std_logic_vector(3 downto 0) := x"1"; -- Reload Value
+    constant SYST_CVR    : std_logic_vector(3 downto 0) := x"2"; -- Current Value
+    constant SYST_CALIB  : std_logic_vector(3 downto 0) := x"3"; -- Calibration
+
+    -- ---- NVIC register offsets ----
+    constant NVIC_ISER   : std_logic_vector(3 downto 0) := x"0"; -- Interrupt Set-Enable
+    constant NVIC_ISPR   : std_logic_vector(3 downto 0) := x"1"; -- Interrupt Set-Pending
+    constant NVIC_IPR    : std_logic_vector(3 downto 0) := x"4"; -- Interrupt Priority
+
+    -- ---- SCB register offsets ----
+    constant SCB_CPUID   : std_logic_vector(3 downto 0) := x"0"; -- CPU ID
+    constant SCB_ICSR    : std_logic_vector(3 downto 0) := x"1"; -- Interrupt Control/State
+    constant SCB_VTOR    : std_logic_vector(3 downto 0) := x"2"; -- Vector Table Offset
+
+    -- ---- GPIO registers ----
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_afsel    : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- ---- SysTick registers ----
+    signal syst_csr   : std_logic_vector(31 downto 0) := (others => '0');
+    signal syst_rvr   : std_logic_vector(31 downto 0) := (others => '0');
+    signal syst_cvr   : unsigned(23 downto 0)         := (others => '0');
+    signal syst_countflag : std_logic := '0';
+
+    -- ---- NVIC registers ----
+    signal nvic_iser : std_logic_vector(31 downto 0) := (others => '0');
+    signal nvic_ispr : std_logic_vector(31 downto 0) := (others => '0');
+    signal nvic_ipr  : std_logic_vector(31 downto 0) := (others => '0'); -- 16 x 2-bit priorities packed
+
+    -- ---- SCB registers ----
+    signal scb_vtor  : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- ---- Internal helpers ----
+    signal addr_off  : std_logic_vector(7 downto 0);
+    signal addr_sub  : std_logic_vector(3 downto 0);
+    signal write_en  : std_logic;
+    signal read_en   : std_logic;
+    signal valid_addr: std_logic;
+    signal nvic_pending_combined : std_logic_vector(31 downto 0);
+    signal highest_irq : integer range 0 to 31;
+
+begin
+
+    -- Address decode: use bits [11:4] for block select, [3:2] for sub-register
+    addr_off <= HADDR(11 downto 4);
+    addr_sub <= HADDR(5 downto 2);
+
+    -- Write strobe: active on selected, ready, write, non-idle transfer
+    write_en <= HSEL and HREADY and HWRITE and (not HTRANS(0)) and (not HTRANS(1));
+    -- Note: HTRANS="00" = IDLE, so we gate on NOT idle for a real transfer.
+    -- Simplified: accept when HSEL=1, HREADY=1, HWRITE=1
+    write_en <= HSEL and HREADY and HWRITE;
+    read_en  <= HSEL and HREADY and (not HWRITE);
+
+    -- Valid peripheral address (top 4 bits = 0x4 => peripheral space)
+    valid_addr <= '1' when HADDR(31 downto 28) = x"4" else '0';
+
+    -- ------------------------------------------------------------------------
+    -- AHB-Lite write process
+    -- ------------------------------------------------------------------------
+    ahb_write : process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            gpio_data_reg <= (others => '0');
+            gpio_dir_reg  <= (others => '0');
+            gpio_afsel    <= (others => '0');
+            syst_csr      <= (others => '0');
+            syst_rvr      <= (others => '0');
+            syst_cvr      <= (others => '0');
+            nvic_iser     <= (others => '0');
+            nvic_ispr     <= (others => '0');
+            nvic_ipr      <= (others => '0');
+            scb_vtor      <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if write_en = '1' and valid_addr = '1' then
+                case addr_off is
+                    when OFF_GPIO =>
+                        case addr_sub is
+                            when GPIO_DATA  => gpio_data_reg <= HWDATA;
+                            when GPIO_DIR   => gpio_dir_reg  <= HWDATA;
+                            when GPIO_AFSEL => gpio_afsel    <= HWDATA;
+                            when others     => null;
+                        end case;
+                    when OFF_SYSTICK =>
+                        case addr_sub is
+                            when SYST_CSR => syst_csr <= HWDATA;
+                            when SYST_RVR => syst_rvr <= HWDATA;
+                            when SYST_CVR => syst_cvr <= unsigned(HWDATA(23 downto 0));
+                            when others   => null;
+                        end case;
+                    when OFF_NVIC =>
+                        case addr_sub is
+                            when NVIC_ISER => nvic_iser <= nvic_iser or HWDATA;
+                            when NVIC_ISPR => nvic_ispr <= nvic_ispr or HWDATA;
+                            when NVIC_IPR  => nvic_ipr  <= HWDATA;
+                            when others    => null;
+                        end case;
+                    when OFF_SCB =>
+                        case addr_sub is
+                            when SCB_VTOR => scb_vtor <= HWDATA;
+                            when others   => null;
+                        end case;
+                    when others => null;
+                end case;
+            end if;
+        end if;
+    end process ahb_write;
+
+    -- ------------------------------------------------------------------------
+    -- AHB-Lite read mux
+    -- ------------------------------------------------------------------------
+    ahb_read : process(HSEL, HADDR, valid_addr, addr_off, addr_sub,
+                       gpio_data_reg, gpio_dir_reg, gpio_afsel,
+                       syst_csr, syst_rvr, syst_cvr, syst_countflag,
+                       nvic_iser, nvic_ispr, nvic_ipr, scb_vtor,
+                       gpio_in)
+        variable rdata : std_logic_vector(31 downto 0);
+    begin
+        rdata := (others => '0');
+        if HSEL = '1' and valid_addr = '1' then
+            case addr_off is
+                when OFF_GPIO =>
+                    case addr_sub is
+                        when GPIO_DATA  => rdata := gpio_data_reg;
+                        when GPIO_DIR   => rdata := gpio_dir_reg;
+                        when GPIO_AFSEL => rdata := gpio_afsel;
+                        when others     => rdata := (others => '0');
+                    end case;
+                when OFF_SYSTICK =>
+                    case addr_sub is
+                        when SYST_CSR => rdata := syst_csr;
+                        when SYST_RVR => rdata := syst_rvr;
+                        when SYST_CVR => rdata := std_logic_vector(syst_cvr);
+                        when others   => rdata := (others => '0');
+                    end case;
+                when OFF_NVIC =>
+                    case addr_sub is
+                        when NVIC_ISER => rdata := nvic_iser;
+                        when NVIC_ISPR => rdata := nvic_ispr;
+                        when NVIC_IPR  => rdata := nvic_ipr;
+                        when others    => rdata := (others => '0');
+                    end case;
+                when OFF_SCB =>
+                    case addr_sub is
+                        when SCB_CPUID => rdata := x"410CC200"; -- Cortex-M0 CPUID
+                        when SCB_ICSR  => rdata := nvic_ispr;
+                        when SCB_VTOR  => rdata := scb_vtor;
+                        when others    => rdata := (others => '0');
+                    end case;
+                when others => rdata := (others => '0');
+            end case;
+        end if;
+        HRDATA <= rdata;
+    end process ahb_read;
+
+    -- HRESP: error for invalid address, OKAY otherwise
+    HRESP     <= '1' when (HSEL = '1' and valid_addr = '0') else '0';
+    HREADYOUT <= '1';  -- always one-cycle response
+
+    -- ------------------------------------------------------------------------
+    -- GPIO output: drive pins where direction = output
+    -- ------------------------------------------------------------------------
+    gpio_out <= gpio_data_reg when gpio_dir_reg(0) = '1' else gpio_data_reg;
+    -- (Simplified: data_reg drives output directly; real HW would mask by dir)
+    gpio_dir <= gpio_dir_reg;
+
+    -- ------------------------------------------------------------------------
+    -- SysTick 24-bit down-counter
+    --   CSR bit0 = ENABLE, bit1 = TICKINT, bit2 = CLKSOURCE
+    -- ------------------------------------------------------------------------
+    systick_proc : process(mclk, HRESETn)
+    begin
+        if HRESETn = '0' then
+            syst_cvr       <= (others => '0');
+            syst_countflag <= '0';
+        elsif rising_edge(mclk) then
+            syst_countflag <= '0';
+            if syst_csr(0) = '1' then  -- ENABLE
+                if syst_cvr = 0 then
+                    syst_cvr       <= unsigned(syst_rvr(23 downto 0));
+                    syst_countflag <= '1';
+                else
+                    syst_cvr <= syst_cvr - 1;
+                end if;
+            end if;
+        end if;
+    end process systick_proc;
+
+    -- SysTick interrupt: count flag + TICKINT enabled
+    systick_int <= syst_countflag and syst_csr(1);
+
+    -- ------------------------------------------------------------------------
+    -- NVIC: combine external IRQs with pending register, find highest priority
+    -- ------------------------------------------------------------------------
+    nvic_pending_combined <= (nvic_ispr or (irq_inputs and nvic_iser));
+
+    -- Find highest-numbered active+enabled IRQ (simplified priority)
+    find_irq : process(nvic_pending_combined, nmi)
+        variable found : boolean;
+    begin
+        found := false;
+        highest_irq <= 0;
+        if nmi = '1' then
+            highest_irq <= 2;  -- NMI = exception 2
+            found := true;
+        else
+            for i in 31 downto 0 loop
+                if nvic_pending_combined(i) = '1' and not found then
+                    highest_irq <= i;
+                    found := true;
+                end if;
+            end loop;
+        end if;
+    end process find_irq;
+
+    -- Interrupt output: active if any enabled+pending or NMI
+    irq_out  <= '1' when (nmi = '1' or unsigned(nvic_pending_combined) /= 0) else '0';
+    irq_num  <= std_logic_vector(to_unsigned(highest_irq + 16, 6)); -- +16 for external IRQ base
+
+    -- ------------------------------------------------------------------------
+    -- SWD debug: minimal pass-through (placeholder for debug access)
+    -- ------------------------------------------------------------------------
+    swdio <= 'Z';  -- tri-stated by default; real impl would drive during ACK
+
+end architecture rtl;

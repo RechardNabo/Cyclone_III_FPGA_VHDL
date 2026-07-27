@@ -1,272 +1,256 @@
--- =====================================================================================
--- RENESAS SYNERGY S1 MICROCONTROLLER INTERFACE - PROGRAMMING GUIDANCE
--- =====================================================================================
--- 
--- OVERVIEW:
--- The Renesas Synergy S1 series is a family of ultra-low-power 32-bit ARM Cortex-M23
--- microcontrollers designed for IoT and battery-powered applications. Built on the
--- Synergy Platform, these MCUs combine hardware, software, tools, and support to
--- accelerate development and reduce time-to-market for embedded applications.
+-- ================================================================================
+-- synergy_s1_interface : Renesas Synergy S1 MCU interface
+-- Based on: ARM Cortex-M0+ (ultra-low-power, minimal peripherals)
+-- Target FPGA : Cyclone III (EP3C16F484C6N)
 --
--- KEY FEATURES:
--- • ARM Cortex-M23 core with TrustZone security technology
--- • Operating frequency: up to 32 MHz
--- • Ultra-low power consumption: 32 µA/MHz active, 0.22 µA standby
--- • Flash memory: 32KB to 256KB
--- • SRAM: 4KB to 32KB
--- • Data Flash: 1KB to 8KB for EEPROM emulation
--- • Advanced security features with TrustZone and cryptographic acceleration
--- • Comprehensive peripheral set optimized for IoT applications
--- • Synergy Software Package (SSP) with ThreadX RTOS
--- • Capacitive touch sensing unit (CTSU2)
--- • Low-power analog comparators and operational amplifiers
--- • Multiple communication interfaces: UART, SPI, I2C
--- • Advanced timer units with PWM generation
--- • 12-bit ADC with up to 16 channels
--- • Package options: 20-pin to 64-pin
+-- The S1 is the entry-level Synergy variant designed for ultra-low-power
+-- applications. It has a minimal peripheral set: GPIO, a simple timer, and
+-- one UART. This makes it ideal for battery-powered sensor nodes.
 --
--- PROGRAMMING GUIDANCE FOR FPGA IMPLEMENTATION:
+-- Peripheral set (S1 - MINIMAL):
+--   [Y] GPIO  - 16-bit general purpose I/O (reduced width for low power)
+--   [Y] Timer - Basic 16-bit timer with interrupt
+--   [Y] UART  - Single UART channel
+--   [N] SPI   - Not included (drive spi_* outputs to '0')
+--   [N] I2C   - Not included
+--   [N] ADC   - Not included
+--   [N] DMA   - Not included
+--   [N] CAN   - Not included
+--   [N] Ethernet - Not included
+--   [N] USB   - Not included
+--   [N] LCD   - Not included
+--   [N] Security - Not included
 --
--- 1. CORE ARCHITECTURE SETUP:
---    - Implement ARM Cortex-M23 core with ARMv8-M baseline architecture
---    - Configure 32-bit RISC processor with 2-stage pipeline
---    - Set up TrustZone security extensions for secure/non-secure partitioning
---    - Implement Memory Protection Unit (MPU) with 8 regions
---    - Configure Nested Vectored Interrupt Controller (NVIC)
---
--- 2. MEMORY SYSTEM CONFIGURATION:
---    - Code Flash: 32KB to 256KB with ECC protection
---    - SRAM: 4KB to 32KB with optional retention in standby
---    - Data Flash: 1KB to 8KB for parameter storage and EEPROM emulation
---    - Option Setting Memory (OSM): Configuration and security settings
---    - Memory protection and access control via TrustZone
---
--- 3. CLOCK SYSTEM IMPLEMENTATION:
---    - High-Speed On-Chip Oscillator (HOCO): 24/32/48/64 MHz
---    - Middle-Speed On-Chip Oscillator (MOCO): 8 MHz
---    - Low-Speed On-Chip Oscillator (LOCO): 32.768 kHz
---    - Sub-Clock Oscillator: 32.768 kHz crystal oscillator
---    - Main Clock Oscillator: External crystal/resonator (1-20 MHz)
---    - Phase-Locked Loop (PLL) for frequency multiplication
---    - Clock generation circuit with multiple clock domains
---
--- 4. POWER MANAGEMENT SYSTEM:
---    - Normal Mode: Full operation with configurable clock speeds
---    - Sleep Mode: CPU stopped, peripherals active
---    - Software Standby Mode: Ultra-low power with limited wake-up sources
---    - Deep Software Standby Mode: Minimum power consumption
---    - Snooze Mode: Autonomous peripheral operation without CPU
---    - Low Voltage Detection (LVD) and Power-On Reset (POR)
---
--- 5. SECURITY FEATURES:
---    - TrustZone technology for secure/non-secure partitioning
---    - Secure Crypto Engine (SCE9) with AES, SHA, TRNG
---    - Secure boot and firmware authentication
---    - Key management and secure key storage
---    - Tamper detection and countermeasures
---    - Debug access control and protection
---
--- 6. PERIPHERAL INTEGRATION:
---    - General Purpose Timer (GPT): 32-bit timers with PWM
---    - Asynchronous General Purpose Timer (AGT): Low-power timing
---    - Serial Communication Interface (SCI): UART functionality
---    - Serial Peripheral Interface (SPI): High-speed serial communication
---    - I2C Bus Interface (IIC): Multi-master I2C communication
---    - Analog-to-Digital Converter (ADC): 12-bit, up to 16 channels
---    - Digital-to-Analog Converter (DAC): 8-bit or 12-bit output
---    - Comparators (ACMPHS/ACMPLP): High-speed and low-power variants
---    - Operational Amplifiers (OPAMP): Programmable gain amplifiers
---    - Capacitive Touch Sensing Unit (CTSU2): Advanced touch interface
---
--- 7. I/O SYSTEM:
---    - General Purpose I/O (GPIO) with configurable functions
---    - Port Function Select (PFS) for pin multiplexing
---    - Input/output control with pull-up/pull-down resistors
---    - Interrupt capability on external pins
---    - Drive strength and slew rate control
---
--- 8. INTERRUPT SYSTEM:
---    - Nested Vectored Interrupt Controller (NVIC) with 32 interrupts
---    - 4 priority levels with configurable preemption
---    - External interrupt pins with edge/level detection
---    - Peripheral interrupt sources with individual enable/disable
---    - Non-Maskable Interrupt (NMI) support
---    - Wake-up capability from low-power modes
---
--- 9. DEBUG AND TRACE:
---    - Serial Wire Debug (SWD) interface
---    - Debug Access Port (DAP) with authentication
---    - Hardware breakpoints and watchpoints
---    - Real-time trace capabilities
---    - Secure debug access control
---
--- IMPLEMENTATION TEMPLATE:
---
--- entity synergy_s1_interface is
---     generic (
---         -- Core Configuration
---         VARIANT             : string := "R7FA1A1AB";      -- Synergy S1 variant
---         FREQUENCY_MHZ       : integer := 32;              -- Maximum frequency
---         FLASH_SIZE_KB       : integer := 256;             -- Flash memory size
---         SRAM_SIZE_KB        : integer := 32;              -- SRAM size
---         DATA_FLASH_KB       : integer := 8;               -- Data Flash size
---         
---         -- Security Configuration
---         TRUSTZONE_ENABLE    : boolean := true;            -- TrustZone support
---         SCE_ENABLE          : boolean := true;            -- Crypto engine
---         SECURE_BOOT         : boolean := true;            -- Secure boot
---         
---         -- Peripheral Configuration
---         GPT_CHANNELS        : integer := 6;               -- GPT timer channels
---         AGT_CHANNELS        : integer := 2;               -- AGT timer channels
---         SCI_CHANNELS        : integer := 2;               -- UART channels
---         SPI_CHANNELS        : integer := 1;               -- SPI channels
---         IIC_CHANNELS        : integer := 1;               -- I2C channels
---         ADC_CHANNELS        : integer := 16;              -- ADC input channels
---         DAC_CHANNELS        : integer := 1;               -- DAC output channels
---         ACMP_CHANNELS       : integer := 2;               -- Comparator channels
---         OPAMP_CHANNELS      : integer := 2;               -- Op-amp channels
---         CTSU_ENABLE         : boolean := true;            -- Touch sensing
---         
---         -- Package Configuration
---         PACKAGE_PINS        : integer := 64;              -- Package pin count
---         GPIO_PORTS          : integer := 4                -- Number of GPIO ports
---     );
---     port (
---         -- Clock and Reset
---         xtal                : in  std_logic;              -- Main crystal input
---         extal               : out std_logic;              -- Main crystal output
---         xcin                : in  std_logic;              -- Sub-clock crystal input
---         xcout               : out std_logic;              -- Sub-clock crystal output
---         res_n               : in  std_logic;              -- Reset input
---         
---         -- Power Supply
---         vcc                 : in  std_logic;              -- Main supply
---         vss                 : in  std_logic;              -- Ground
---         vbatt               : in  std_logic;              -- Backup supply
---         vcl                 : out std_logic;              -- Internal regulator
---         
---         -- GPIO Ports
---         port0               : inout std_logic_vector(7 downto 0);
---         port1               : inout std_logic_vector(7 downto 0);
---         port2               : inout std_logic_vector(7 downto 0);
---         port3               : inout std_logic_vector(7 downto 0);
---         
---         -- Analog Interfaces
---         -- ADC Inputs
---         an000               : in  std_logic;              -- ADC channel 0
---         an001               : in  std_logic;              -- ADC channel 1
---         an002               : in  std_logic;              -- ADC channel 2
---         an003               : in  std_logic;              -- ADC channel 3
---         an004               : in  std_logic;              -- ADC channel 4
---         an005               : in  std_logic;              -- ADC channel 5
---         an006               : in  std_logic;              -- ADC channel 6
---         an007               : in  std_logic;              -- ADC channel 7
---         
---         -- Reference Voltages
---         vrefh               : in  std_logic;              -- ADC high reference
---         vrefl               : in  std_logic;              -- ADC low reference
---         
---         -- DAC Output
---         da0                 : out std_logic;              -- DAC output 0
---         
---         -- Comparator Inputs
---         ivcmp0              : in  std_logic;              -- Comparator 0 input
---         ivcmp1              : in  std_logic;              -- Comparator 1 input
---         ivref0              : in  std_logic;              -- Comparator 0 reference
---         ivref1              : in  std_logic;              -- Comparator 1 reference
---         
---         -- Communication Interfaces
---         -- SCI (UART)
---         txd0                : out std_logic;              -- UART0 transmit
---         rxd0                : in  std_logic;              -- UART0 receive
---         txd1                : out std_logic;              -- UART1 transmit
---         rxd1                : in  std_logic;              -- UART1 receive
---         
---         -- SPI
---         rspck0              : out std_logic;              -- SPI clock
---         mosi0               : out std_logic;              -- SPI master out
---         miso0               : in  std_logic;              -- SPI master in
---         ssl0                : out std_logic;              -- SPI slave select
---         
---         -- I2C
---         scl0                : inout std_logic;            -- I2C clock
---         sda0                : inout std_logic;            -- I2C data
---         
---         -- Timer Outputs
---         gtioc0a             : out std_logic;              -- GPT0 output A
---         gtioc0b             : out std_logic;              -- GPT0 output B
---         gtioc1a             : out std_logic;              -- GPT1 output A
---         gtioc1b             : out std_logic;              -- GPT1 output B
---         
---         -- External Interrupts
---         irq0                : in  std_logic;              -- External interrupt 0
---         irq1                : in  std_logic;              -- External interrupt 1
---         irq2                : in  std_logic;              -- External interrupt 2
---         irq3                : in  std_logic;              -- External interrupt 3
---         
---         -- Capacitive Touch
---         ts0                 : inout std_logic;            -- Touch sensor 0
---         ts1                 : inout std_logic;            -- Touch sensor 1
---         ts2                 : inout std_logic;            -- Touch sensor 2
---         ts3                 : inout std_logic;            -- Touch sensor 3
---         tscap               : out std_logic;              -- Touch sensor cap
---         
---         -- Debug Interface
---         swdio               : inout std_logic;            -- Serial Wire Debug I/O
---         swclk               : in  std_logic;              -- Serial Wire Debug Clock
---         
---         -- Status and Control
---         cpu_status          : out std_logic_vector(7 downto 0);
---         power_mode          : out std_logic_vector(2 downto 0);
---         security_state      : out std_logic;              -- Secure/Non-secure
---         interrupt_pending   : out std_logic
---     );
--- end synergy_s1_interface;
---
--- POWER OPTIMIZATION STRATEGIES:
--- • Utilize Snooze mode for autonomous peripheral operation
--- • Configure clock gating for unused peripherals
--- • Use appropriate low-power modes based on application requirements
--- • Optimize oscillator selection for power vs. performance
--- • Implement efficient wake-up strategies from standby modes
--- • Use data retention features in SRAM during standby
--- • Configure LVD for optimal power management
---
--- SECURITY IMPLEMENTATION:
--- • Configure TrustZone partitioning for secure/non-secure regions
--- • Implement secure boot sequence with firmware authentication
--- • Use SCE9 for cryptographic operations (AES, SHA, TRNG)
--- • Configure secure key storage and management
--- • Implement tamper detection and countermeasures
--- • Control debug access based on security requirements
---
--- PERFORMANCE OPTIMIZATION:
--- • Utilize DMA for data transfer operations
--- • Optimize memory access patterns for cache efficiency
--- • Use appropriate clock frequencies for different operation modes
--- • Implement efficient interrupt service routines
--- • Configure peripheral clocks independently for power efficiency
--- • Use hardware accelerators for cryptographic operations
---
--- PERIPHERAL CONFIGURATION GUIDELINES:
--- • Configure GPT timers for precise PWM generation
--- • Set up ADC with appropriate sampling rates and references
--- • Configure communication interfaces for required protocols
--- • Implement proper touch sensing calibration and filtering
--- • Use comparators and op-amps for analog signal conditioning
--- • Configure GPIO with appropriate drive strength and pull resistors
---
--- DEBUGGING RECOMMENDATIONS:
--- • Use SWD interface for comprehensive debugging capabilities
--- • Implement secure debug authentication when required
--- • Enable hardware breakpoints for real-time debugging
--- • Use trace capabilities for performance analysis
--- • Monitor power consumption during development
--- • Implement proper error handling and recovery mechanisms
---
--- =====================================================================================
-
+-- AHB-Lite Register Map (word-aligned, offset from base address):
+--   0x00: GPIO_DATA  - GPIO output data register (read/write)
+--   0x04: GPIO_DIR   - GPIO direction register (1=output, 0=input)
+--   0x08: TIMER_CTRL - Timer control: bit0=enable, bit1=interrupt enable
+--   0x0C: TIMER_LOAD - Timer load value (counts down from this)
+--   0x10: UART_DATA  - UART transmit/receive data register
+--   0x14: UART_STATUS- UART status: bit0=tx_ready, bit1=rx_ready
+-- ================================================================================
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity synergy_s1_interface is
+    generic (
+        GPIO_WIDTH : integer := 16  -- S1 has reduced GPIO width (ultra-low-power)
+    );
+    port (
+        -- AHB-Lite bus interface (slave side, ARM Cortex-M0+ compatible)
+        HCLK      : in  std_logic;                     -- AHB bus clock
+        HRESETn   : in  std_logic;                     -- AHB active-low reset (ARM style)
+        HSEL      : in  std_logic;                     -- AHB slave select
+        HWRITE    : in  std_logic;                     -- 1=write, 0=read
+        HREADY    : in  std_logic;                     -- Bus ready from master
+        HMASTLOCK : in  std_logic;                     -- Master lock (atomic access)
+        HTRANS    : in  std_logic_vector(1 downto 0);  -- Transfer type
+        HSIZE     : in  std_logic_vector(2 downto 0);  -- Transfer size
+        HPROT     : in  std_logic_vector(3 downto 0);  -- Protection control
+        HADDR     : in  std_logic_vector(31 downto 0); -- AHB address bus
+        HWDATA    : in  std_logic_vector(31 downto 0); -- AHB write data bus
+        HRDATA    : out std_logic_vector(31 downto 0); -- AHB read data bus
+        HRESP     : out std_logic;                     -- AHB response (0=OK, 1=ERROR)
+        HREADYOUT : out std_logic;                     -- Slave ready output
+
+        -- GPIO interface (16-bit for S1 ultra-low-power variant)
+        gpio_in  : in  std_logic_vector(31 downto 0);  -- GPIO input pins (upper bits unused)
+        gpio_out : out std_logic_vector(31 downto 0);  -- GPIO output pins
+        gpio_dir : out std_logic_vector(31 downto 0);  -- GPIO direction (1=output)
+
+        -- Timer interface
+        timer_int : out std_logic;                     -- Timer interrupt output
+
+        -- UART interface (single channel)
+        uart_txd : out std_logic;                      -- UART transmit data
+        uart_rxd : in  std_logic;                      -- UART receive data
+        uart_int : out std_logic;                      -- UART interrupt
+
+        -- SPI interface (NOT present on S1 - drive outputs to '0')
+        spi_sclk : out std_logic;
+        spi_mosi : out std_logic;
+        spi_miso : in  std_logic;
+        spi_int  : out std_logic;
+
+        -- I2C interface (NOT present on S1)
+        i2c_sda : inout std_logic;
+        i2c_scl : inout std_logic;
+        i2c_int : out std_logic;
+
+        -- ADC interface (NOT present on S1)
+        adc_in  : in  std_logic_vector(11 downto 0);
+        adc_int : out std_logic;
+
+        -- DMA interface (NOT present on S1)
+        dma_req : out std_logic;
+        dma_done: in  std_logic;
+
+        -- CAN interface (NOT present on S1)
+        can_tx  : out std_logic;
+        can_rx  : in  std_logic;
+        can_int : out std_logic;
+
+        -- Ethernet interface (NOT present on S1)
+        eth_txd : out std_logic_vector(3 downto 0);
+        eth_rxd : in  std_logic_vector(3 downto 0);
+        eth_int : out std_logic;
+
+        -- USB interface (NOT present on S1)
+        usb_dp  : inout std_logic;
+        usb_dm  : inout std_logic;
+        usb_int : out std_logic;
+
+        -- LCD interface (NOT present on S1)
+        lcd_data : out std_logic_vector(15 downto 0);
+        lcd_hsync: out std_logic;
+        lcd_vsync: out std_logic;
+        lcd_clk  : out std_logic;
+
+        -- Security interface (NOT present on S1)
+        trng_valid  : out std_logic;
+        secure_boot : out std_logic
+    );
+end entity synergy_s1_interface;
+
+architecture rtl of synergy_s1_interface is
+
+    -- Peripheral register storage signals
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0'); -- GPIO output data
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0'); -- GPIO direction
+    signal timer_ctrl    : std_logic_vector(31 downto 0) := (others => '0'); -- Timer control
+    signal timer_load    : std_logic_vector(31 downto 0) := (others => '0'); -- Timer load value
+    signal timer_count   : unsigned(31 downto 0) := (others => '0');         -- Timer counter
+    signal uart_data_reg : std_logic_vector(31 downto 0) := (others => '0'); -- UART data buffer
+    signal uart_status   : std_logic_vector(31 downto 0) := x"00000001";    -- UART status (tx_ready=1)
+
+    -- Address decode helper: top 8 bits of address select the register
+    signal reg_sel : integer range 0 to 15;
+begin
+
+    -- Address decoder: map HADDR bits [7:4] to register index (16 word-aligned regs)
+    -- This gives us 16 x 32-bit registers at 16-byte spacing
+    reg_sel <= to_integer(unsigned(HADDR(7 downto 4)));
+
+    -- =========================================================================
+    -- AHB-LITE SLAVE REGISTER INTERFACE
+    -- Handles read and write transactions on the AHB-Lite bus.
+    -- On write: decode address and store HWDATA to the selected register.
+    -- On read: return the selected register value on HRDATA.
+    -- =========================================================================
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            -- ARM-style active-low reset: clear all registers
+            gpio_data_reg <= (others => '0');
+            gpio_dir_reg  <= (others => '0');
+            timer_ctrl    <= (others => '0');
+            timer_load    <= (others => '0');
+            timer_count   <= (others => '0');
+            uart_data_reg <= (others => '0');
+            uart_status   <= x"00000001"; -- tx_ready=1 after reset
+        elsif rising_edge(HCLK) then
+            -- Write transaction: HSEL=1, HREADY=1, HWRITE=1
+            if HSEL = '1' and HREADY = '1' and HWRITE = '1' then
+                case reg_sel is
+                    when 0 => gpio_data_reg <= HWDATA;     -- 0x00: GPIO_DATA
+                    when 1 => gpio_dir_reg  <= HWDATA;     -- 0x04: GPIO_DIR
+                    when 2 => timer_ctrl    <= HWDATA;     -- 0x08: TIMER_CTRL
+                    when 3 => timer_load    <= HWDATA;     -- 0x0C: TIMER_LOAD
+                              timer_count   <= unsigned(HWDATA); -- Load counter
+                    when 4 => uart_data_reg <= HWDATA;     -- 0x10: UART_DATA (write=TX)
+                              uart_status(1) <= '0';       -- Clear rx_ready on write
+                    when others => null;                   -- Unmapped: ignore
+                end case;
+            end if;
+
+            -- Simulate UART receive: set rx_ready when data arrives
+            -- (In real hardware this would be driven by a baud-rate sampler)
+            uart_status(0) <= '1'; -- tx_ready always ready in this model
+        end if;
+    end process;
+
+    -- =========================================================================
+    -- AHB-LITE READ DATA MULTIPLEXER
+    -- Returns the selected register value on HRDATA during read transactions
+    -- =========================================================================
+    process(HSEL, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl,
+            timer_load, timer_count, uart_data_reg, uart_status, gpio_in)
+    begin
+        if HSEL = '1' then
+            case reg_sel is
+                when 0 => HRDATA <= gpio_data_reg;              -- Read GPIO output data
+                when 1 => HRDATA <= gpio_dir_reg;               -- Read GPIO direction
+                when 2 => HRDATA <= timer_ctrl;                 -- Read timer control
+                when 3 => HRDATA <= std_logic_vector(timer_count); -- Read timer counter
+                when 4 => HRDATA <= uart_data_reg;              -- Read UART data (RX)
+                when 5 => HRDATA <= uart_status;                -- Read UART status
+                when 6 => HRDATA <= x"0000" & gpio_in(15 downto 0); -- Read GPIO inputs
+                when others => HRDATA <= (others => '0');       -- Unmapped: return 0
+            end case;
+        else
+            HRDATA <= (others => '0'); -- Not selected: return zeros
+        end if;
+    end process;
+
+    -- AHB-Lite response: always OK (no error conditions in this simple model)
+    HRESP     <= '0';       -- 0 = OKAY response
+    HREADYOUT <= '1';       -- Always ready (single-cycle access)
+
+    -- =========================================================================
+    -- GPIO PERIPHERAL OUTPUT
+    -- Drive GPIO output pins from the data register (only for enabled width)
+    -- Upper bits beyond GPIO_WIDTH are driven to 0
+    -- =========================================================================
+    gpio_out <= gpio_data_reg;
+    gpio_dir <= gpio_dir_reg;
+
+    -- =========================================================================
+    -- TIMER PERIPHERAL
+    -- Simple countdown timer: when enabled, counts down from load value.
+    -- When counter reaches 0, generates an interrupt and reloads.
+    -- =========================================================================
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            timer_count <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if timer_ctrl(0) = '1' then -- Timer enabled (bit 0 of control reg)
+                if timer_count = 0 then
+                    timer_count <= unsigned(timer_load); -- Reload from load value
+                else
+                    timer_count <= timer_count - 1;      -- Decrement counter
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- Timer interrupt: assert when counter reaches 0 and interrupt enable is set
+    timer_int <= '1' when (timer_ctrl(0) = '1' and timer_ctrl(1) = '1'
+                           and timer_count = 0) else '0';
+
+    -- =========================================================================
+    -- UART PERIPHERAL (simplified model)
+    -- TX: serializes data from uart_data_reg (model: txd = bit 0 of data reg)
+    -- RX: captures rxd into uart_data_reg (model: status bit 1 = rx_ready)
+    -- In a real implementation, a baud-rate generator and shift register
+    -- would handle proper serial communication.
+    -- =========================================================================
+    uart_txd <= uart_data_reg(0); -- Simplified: drive LSB of TX data
+    uart_int <= '1' when (uart_status(1) = '1') else '0'; -- Interrupt on RX ready
+
+    -- =========================================================================
+    -- UNUSED PERIPHERAL OUTPUTS (S1 does not have these)
+    -- Drive all unused peripheral outputs to '0' to avoid floating signals
+    -- =========================================================================
+    spi_sclk <= '0';  spi_mosi <= '0';  spi_int <= '0';
+    i2c_sda <= 'Z';   i2c_scl <= 'Z';   i2c_int <= '0';
+    adc_int <= '0';
+    dma_req <= '0';
+    can_tx  <= '0';   can_int <= '0';
+    eth_txd <= (others => '0'); eth_int <= '0';
+    usb_dp <= 'Z';    usb_dm <= 'Z';    usb_int <= '0';
+    lcd_data <= (others => '0'); lcd_hsync <= '0'; lcd_vsync <= '0'; lcd_clk <= '0';
+    trng_valid <= '0'; secure_boot <= '0';
+
+end architecture rtl;

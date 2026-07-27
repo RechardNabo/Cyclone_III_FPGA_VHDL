@@ -1,653 +1,80 @@
 -- ============================================================================
--- GCD Calculator Datapath Implementation - Programming Guidance
+-- GCD Calculator - Datapath
+-- Registers for A and B, subtractor, comparator, muxes for swap/subtract
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements the datapath component of a Greatest Common Divisor (GCD)
--- calculator using structural VHDL design methodology. The datapath contains
--- all the functional units, registers, and data routing logic required for
--- GCD computation. This implementation demonstrates the separation of control
--- and datapath in digital system design, following established computer
--- architecture principles.
---
--- LEARNING OBJECTIVES:
--- 1. Understand datapath design principles and methodology
--- 2. Learn structural VHDL modeling techniques
--- 3. Practice component instantiation and interconnection
--- 4. Understand register file and functional unit design
--- 5. Learn data routing and multiplexer design
--- 6. Practice arithmetic unit implementation
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for component declarations
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding work library for custom components
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the GCD datapath
---
--- Entity Requirements:
--- - Name: gcd_datapath (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - Control signals from the FSM controller
--- - Data inputs and outputs for operands and results
--- - Status outputs for condition flags
---
--- Port Specifications:
--- Clock and Control:
--- - clk : in std_logic (System clock)
--- - reset : in std_logic (Asynchronous reset, active high)
--- - enable : in std_logic (Datapath enable signal)
---
--- Control Interface (from FSM):
--- - load_a : in std_logic (Load operand A)
--- - load_b : in std_logic (Load operand B)
--- - load_result : in std_logic (Load result register)
--- - sel_a : in std_logic_vector(1 downto 0) (A input multiplexer select)
--- - sel_b : in std_logic_vector(1 downto 0) (B input multiplexer select)
--- - alu_op : in std_logic_vector(2 downto 0) (ALU operation select)
--- - sub_enable : in std_logic (Subtraction enable)
--- - swap_enable : in std_logic (Swap operands enable)
---
--- Data Interface:
--- - data_a : in unsigned(DATA_WIDTH-1 downto 0) (Input operand A)
--- - data_b : in unsigned(DATA_WIDTH-1 downto 0) (Input operand B)
--- - result : out unsigned(DATA_WIDTH-1 downto 0) (GCD result)
---
--- Status Interface (to FSM):
--- - a_zero : out std_logic (A register is zero)
--- - b_zero : out std_logic (B register is zero)
--- - a_greater : out std_logic (A > B)
--- - b_greater : out std_logic (B > A)
--- - equal : out std_logic (A = B)
--- - ready : out std_logic (Result ready)
---
--- ============================================================================
--- STEP 3: GCD DATAPATH PRINCIPLES
--- ============================================================================
---
--- Datapath Architecture:
--- 1. Register File
---    - A register for first operand
---    - B register for second operand
---    - Result register for final GCD
---    - Temporary registers for intermediate values
---
--- 2. Functional Units
---    - Arithmetic Logic Unit (ALU)
---    - Comparator unit
---    - Subtractor unit
---    - Multiplexers for data routing
---
--- 3. Control Logic
---    - Load enable signals for registers
---    - Multiplexer select signals
---    - Operation control signals
---    - Status flag generation
---
--- 4. Data Flow
---    - Input data routing
---    - Register-to-register transfers
---    - ALU input/output connections
---    - Result output routing
---
--- GCD Algorithm Implementation:
--- The datapath supports multiple GCD algorithms:
--- 1. Euclidean Algorithm: GCD(a,b) = GCD(b, a mod b)
--- 2. Binary GCD Algorithm: Optimized for hardware
--- 3. Subtraction-based Algorithm: GCD(a,b) = GCD(a-b, b) if a>b
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Simple Datapath (Recommended for beginners)
--- - Basic register file with A, B, and result registers
--- - Simple ALU with subtraction and comparison
--- - Minimal multiplexing logic
--- - Direct control signal interface
---
--- OPTION 2: Enhanced Datapath (Intermediate)
--- - Extended register file with temporary storage
--- - Full-featured ALU with multiple operations
--- - Comprehensive multiplexer network
--- - Status flag generation and monitoring
---
--- OPTION 3: Optimized Datapath (Advanced)
--- - Pipeline-friendly register organization
--- - Parallel functional units
--- - Advanced data routing capabilities
--- - Performance monitoring and optimization
---
--- OPTION 4: Configurable Datapath (Expert)
--- - Parameterizable data widths and operations
--- - Multiple algorithm support
--- - Dynamic reconfiguration capabilities
--- - Built-in test and debug features
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Register Design:
--- - Synchronous load and reset behavior
--- - Enable signals for conditional updates
--- - Proper initialization values
--- - Clock domain considerations
---
--- ALU Design:
--- - Operation encoding and decoding
--- - Arithmetic and logic operations
--- - Flag generation (zero, carry, overflow)
--- - Timing optimization
---
--- Multiplexer Design:
--- - Input source selection
--- - Control signal encoding
--- - Propagation delay optimization
--- - Resource utilization
---
--- Comparator Design:
--- - Magnitude comparison operations
--- - Equality detection
--- - Status flag generation
--- - Timing considerations
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Performance Optimization:
--- - Pipeline register insertion
--- - Parallel operation support
--- - Critical path optimization
--- - Resource sharing strategies
---
--- Debug and Monitoring:
--- - Internal signal observation
--- - Register content visibility
--- - Operation tracing
--- - Performance counters
---
--- Error Detection:
--- - Input validation
--- - Overflow detection
--- - Invalid operation handling
--- - Graceful error recovery
---
--- Configurability:
--- - Parameterizable data widths
--- - Selectable algorithms
--- - Optional features enable/disable
--- - Test mode support
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Cryptography: RSA key generation, modular arithmetic
--- 2. Digital Signal Processing: Rational sample rate conversion
--- 3. Computer Graphics: Bresenham line algorithm optimization
--- 4. Number Theory: Mathematical computations and proofs
--- 5. Compiler Design: Optimization algorithms
--- 6. Network Protocols: Hash function implementations
--- 7. Error Correction: Reed-Solomon and BCH codes
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual component validation
--- 2. Integration Testing: Datapath-controller interface
--- 3. Algorithm Testing: GCD correctness verification
--- 4. Performance Testing: Timing and throughput analysis
--- 5. Stress Testing: Edge case and boundary conditions
--- 6. Regression Testing: Change impact verification
--- 7. Hardware Testing: FPGA implementation validation
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic register file implementation
--- 2. Add simple ALU with subtraction and comparison
--- 3. Implement basic multiplexer network
--- 4. Add status flag generation logic
--- 5. Integrate all components with proper interconnections
--- 6. Add advanced features and optimizations
--- 7. Implement comprehensive testing and validation
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Add support for signed integer GCD computation
--- 2. Implement multiple GCD algorithms in same datapath
--- 3. Add pipeline stages for high-speed operation
--- 4. Implement extended Euclidean algorithm support
--- 5. Add built-in performance monitoring
--- 6. Implement configurable data width support
--- 7. Add hardware debugging and trace capabilities
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Improper register enable signal handling
--- 2. Missing or incorrect reset initialization
--- 3. Multiplexer select signal timing issues
--- 4. ALU operation encoding conflicts
--- 5. Status flag generation logic errors
--- 6. Clock domain crossing violations
--- 7. Inadequate testing of edge cases
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ All registers properly initialized and controlled
--- □ ALU operations function correctly
--- □ Multiplexer routing verified
--- □ Status flags generate correctly
--- □ Control interface timing verified
--- □ Data flow paths validated
--- □ Reset behavior confirmed
--- □ Performance requirements met
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This GCD datapath implementation demonstrates several key concepts:
--- - Separation of control and datapath
--- - Structural VHDL design methodology
--- - Component-based system architecture
--- - Register transfer level design
--- - Functional unit integration
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Consider register placement for timing optimization
--- - Plan multiplexer implementation for resource efficiency
--- - Account for ALU complexity in area estimation
--- - Consider clock distribution for large datapaths
--- - Plan for signal routing congestion
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Datapath synthesis and optimization
--- - Register allocation and scheduling
--- - Functional unit binding and sharing
--- - Pipeline design and hazard handling
--- - Power optimization techniques
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Use comprehensive test vectors
--- - Verify all control signal combinations
--- - Test boundary conditions and edge cases
--- - Validate timing relationships
--- - Check resource utilization
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity gcd_datapath is
---     generic (
---         DATA_WIDTH      : integer := 32;        -- Data width in bits
---         REG_COUNT       : integer := 4;         -- Number of registers
---         ALU_OP_WIDTH    : integer := 3;         -- ALU operation width
---         MUX_SEL_WIDTH   : integer := 2;         -- Multiplexer select width
---         ENABLE_PIPELINE : boolean := false;     -- Enable pipeline registers
---         ENABLE_DEBUG    : boolean := false      -- Enable debug features
---     );
---     port (
---         -- Clock and Reset
---         clk             : in  std_logic;
---         reset           : in  std_logic;
---         enable          : in  std_logic;
---         
---         -- Control Interface (from FSM)
---         load_a          : in  std_logic;
---         load_b          : in  std_logic;
---         load_result     : in  std_logic;
---         load_temp       : in  std_logic;
---         sel_a           : in  std_logic_vector(MUX_SEL_WIDTH-1 downto 0);
---         sel_b           : in  std_logic_vector(MUX_SEL_WIDTH-1 downto 0);
---         sel_result      : in  std_logic_vector(MUX_SEL_WIDTH-1 downto 0);
---         alu_op          : in  std_logic_vector(ALU_OP_WIDTH-1 downto 0);
---         sub_enable      : in  std_logic;
---         swap_enable     : in  std_logic;
---         clear_regs      : in  std_logic;
---         
---         -- Data Interface
---         data_a          : in  unsigned(DATA_WIDTH-1 downto 0);
---         data_b          : in  unsigned(DATA_WIDTH-1 downto 0);
---         result          : out unsigned(DATA_WIDTH-1 downto 0);
---         
---         -- Status Interface (to FSM)
---         a_zero          : out std_logic;
---         b_zero          : out std_logic;
---         a_greater       : out std_logic;
---         b_greater       : out std_logic;
---         equal           : out std_logic;
---         ready           : out std_logic;
---         valid           : out std_logic;
---         
---         -- Debug Interface (optional)
---         debug_reg_a     : out unsigned(DATA_WIDTH-1 downto 0);
---         debug_reg_b     : out unsigned(DATA_WIDTH-1 downto 0);
---         debug_reg_temp  : out unsigned(DATA_WIDTH-1 downto 0);
---         debug_alu_out   : out unsigned(DATA_WIDTH-1 downto 0);
---         debug_flags     : out std_logic_vector(7 downto 0)
---     );
--- end entity gcd_datapath;
---
--- architecture structural of gcd_datapath is
---     -- Component declarations
---     component register_n is
---         generic (
---             WIDTH : integer := DATA_WIDTH
---         );
---         port (
---             clk    : in  std_logic;
---             reset  : in  std_logic;
---             enable : in  std_logic;
---             d      : in  unsigned(WIDTH-1 downto 0);
---             q      : out unsigned(WIDTH-1 downto 0)
---         );
---     end component;
---     
---     component alu_gcd is
---         generic (
---             WIDTH : integer := DATA_WIDTH
---         );
---         port (
---             a      : in  unsigned(WIDTH-1 downto 0);
---             b      : in  unsigned(WIDTH-1 downto 0);
---             op     : in  std_logic_vector(ALU_OP_WIDTH-1 downto 0);
---             result : out unsigned(WIDTH-1 downto 0);
---             flags  : out std_logic_vector(3 downto 0)
---         );
---     end component;
---     
---     component mux_4to1 is
---         generic (
---             WIDTH : integer := DATA_WIDTH
---         );
---         port (
---             sel : in  std_logic_vector(1 downto 0);
---             in0 : in  unsigned(WIDTH-1 downto 0);
---             in1 : in  unsigned(WIDTH-1 downto 0);
---             in2 : in  unsigned(WIDTH-1 downto 0);
---             in3 : in  unsigned(WIDTH-1 downto 0);
---             out_data : out unsigned(WIDTH-1 downto 0)
---         );
---     end component;
---     
---     component comparator is
---         generic (
---             WIDTH : integer := DATA_WIDTH
---         );
---         port (
---             a       : in  unsigned(WIDTH-1 downto 0);
---             b       : in  unsigned(WIDTH-1 downto 0);
---             equal   : out std_logic;
---             greater : out std_logic;
---             less    : out std_logic
---         );
---     end component;
---     
---     -- Internal signals
---     signal reg_a_out        : unsigned(DATA_WIDTH-1 downto 0);
---     signal reg_b_out        : unsigned(DATA_WIDTH-1 downto 0);
---     signal reg_result_out   : unsigned(DATA_WIDTH-1 downto 0);
---     signal reg_temp_out     : unsigned(DATA_WIDTH-1 downto 0);
---     
---     signal mux_a_out        : unsigned(DATA_WIDTH-1 downto 0);
---     signal mux_b_out        : unsigned(DATA_WIDTH-1 downto 0);
---     signal mux_result_out   : unsigned(DATA_WIDTH-1 downto 0);
---     
---     signal alu_result       : unsigned(DATA_WIDTH-1 downto 0);
---     signal alu_flags        : std_logic_vector(3 downto 0);
---     
---     signal comp_equal       : std_logic;
---     signal comp_a_greater   : std_logic;
---     signal comp_b_greater   : std_logic;
---     
---     signal reg_a_zero       : std_logic;
---     signal reg_b_zero       : std_logic;
---     signal result_ready     : std_logic;
---     signal data_valid       : std_logic;
---     
---     -- Pipeline registers (if enabled)
---     signal pipe_reg_a       : unsigned(DATA_WIDTH-1 downto 0);
---     signal pipe_reg_b       : unsigned(DATA_WIDTH-1 downto 0);
---     signal pipe_alu_out     : unsigned(DATA_WIDTH-1 downto 0);
---     signal pipe_valid       : std_logic;
---     
---     -- Debug signals
---     signal debug_counter    : unsigned(15 downto 0);
---     signal debug_state      : std_logic_vector(3 downto 0);
---     
--- begin
---     -- Register A instantiation
---     reg_a_inst: register_n
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             clk    => clk,
---             reset  => reset or clear_regs,
---             enable => load_a and enable,
---             d      => mux_a_out,
---             q      => reg_a_out
---         );
---     
---     -- Register B instantiation
---     reg_b_inst: register_n
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             clk    => clk,
---             reset  => reset or clear_regs,
---             enable => load_b and enable,
---             d      => mux_b_out,
---             q      => reg_b_out
---         );
---     
---     -- Result register instantiation
---     reg_result_inst: register_n
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             clk    => clk,
---             reset  => reset or clear_regs,
---             enable => load_result and enable,
---             d      => mux_result_out,
---             q      => reg_result_out
---         );
---     
---     -- Temporary register instantiation
---     reg_temp_inst: register_n
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             clk    => clk,
---             reset  => reset or clear_regs,
---             enable => load_temp and enable,
---             d      => alu_result,
---             q      => reg_temp_out
---         );
---     
---     -- Multiplexer A instantiation
---     mux_a_inst: mux_4to1
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             sel      => sel_a,
---             in0      => data_a,
---             in1      => reg_b_out,
---             in2      => alu_result,
---             in3      => reg_temp_out,
---             out_data => mux_a_out
---         );
---     
---     -- Multiplexer B instantiation
---     mux_b_inst: mux_4to1
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             sel      => sel_b,
---             in0      => data_b,
---             in1      => reg_a_out,
---             in2      => alu_result,
---             in3      => reg_temp_out,
---             out_data => mux_b_out
---         );
---     
---     -- Result multiplexer instantiation
---     mux_result_inst: mux_4to1
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             sel      => sel_result,
---             in0      => reg_a_out,
---             in1      => reg_b_out,
---             in2      => alu_result,
---             in3      => reg_temp_out,
---             out_data => mux_result_out
---         );
---     
---     -- ALU instantiation
---     alu_inst: alu_gcd
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             a      => reg_a_out,
---             b      => reg_b_out,
---             op     => alu_op,
---             result => alu_result,
---             flags  => alu_flags
---         );
---     
---     -- Comparator instantiation
---     comp_inst: comparator
---         generic map (
---             WIDTH => DATA_WIDTH
---         )
---         port map (
---             a       => reg_a_out,
---             b       => reg_b_out,
---             equal   => comp_equal,
---             greater => comp_a_greater,
---             less    => comp_b_greater
---         );
---     
---     -- Status flag generation
---     status_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             reg_a_zero <= '0';
---             reg_b_zero <= '0';
---             result_ready <= '0';
---             data_valid <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 -- Zero detection
---                 reg_a_zero <= '1' when reg_a_out = 0 else '0';
---                 reg_b_zero <= '1' when reg_b_out = 0 else '0';
---                 
---                 -- Result ready detection
---                 result_ready <= load_result;
---                 
---                 -- Data valid signal
---                 data_valid <= load_a or load_b or load_result;
---             end if;
---         end if;
---     end process;
---     
---     -- Pipeline registers (conditional generation)
---     pipeline_gen: if ENABLE_PIPELINE generate
---         pipeline_proc: process(clk, reset)
---         begin
---             if reset = '1' then
---                 pipe_reg_a <= (others => '0');
---                 pipe_reg_b <= (others => '0');
---                 pipe_alu_out <= (others => '0');
---                 pipe_valid <= '0';
---             elsif rising_edge(clk) then
---                 if enable = '1' then
---                     pipe_reg_a <= reg_a_out;
---                     pipe_reg_b <= reg_b_out;
---                     pipe_alu_out <= alu_result;
---                     pipe_valid <= data_valid;
---                 end if;
---             end if;
---         end process;
---     end generate;
---     
---     -- Debug logic (conditional generation)
---     debug_gen: if ENABLE_DEBUG generate
---         debug_proc: process(clk, reset)
---         begin
---             if reset = '1' then
---                 debug_counter <= (others => '0');
---                 debug_state <= (others => '0');
---             elsif rising_edge(clk) then
---                 if enable = '1' then
---                     debug_counter <= debug_counter + 1;
---                     debug_state <= load_a & load_b & load_result & load_temp;
---                 end if;
---             end if;
---         end process;
---         
---         -- Debug output assignments
---         debug_reg_a <= reg_a_out;
---         debug_reg_b <= reg_b_out;
---         debug_reg_temp <= reg_temp_out;
---         debug_alu_out <= alu_result;
---         debug_flags <= std_logic_vector(debug_counter(7 downto 0));
---     end generate;
---     
---     -- Output assignments
---     result <= reg_result_out;
---     a_zero <= reg_a_zero;
---     b_zero <= reg_b_zero;
---     a_greater <= comp_a_greater;
---     b_greater <= comp_b_greater;
---     equal <= comp_equal;
---     ready <= result_ready;
---     valid <= data_valid;
---     
--- end architecture structural;
---
--- ============================================================================
--- Remember: This GCD datapath implementation provides a solid foundation
--- for building complex arithmetic systems. Ensure proper verification of
--- all data paths, control signals, and timing relationships. The design
--- can be extended and optimized based on specific requirements.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity gcd_datapath is
+  port (
+    clk         : in  std_logic;
+    reset       : in  std_logic;
+    a_in        : in  std_logic_vector(7 downto 0);
+    b_in        : in  std_logic_vector(7 downto 0);
+    load_en     : in  std_logic;  -- load operands into A and B
+    swap_en     : in  std_logic;  -- swap A and B
+    sub_en      : in  std_logic;  -- A <= A - B
+    a_out       : out std_logic_vector(7 downto 0);
+    b_out       : out std_logic_vector(7 downto 0);
+    a_ge_b      : out std_logic;  -- '1' when A >= B
+    b_eq_zero   : out std_logic   -- '1' when B = 0
+  );
+end entity gcd_datapath;
+
+architecture rtl of gcd_datapath is
+  signal a_reg : unsigned(7 downto 0) := (others => '0');
+  signal b_reg : unsigned(7 downto 0) := (others => '0');
+
+  -- Subtractor result: A - B (used when A >= B)
+  signal sub_result : unsigned(7 downto 0);
+
+  -- Mux outputs: select next value for A and B
+  signal a_next : unsigned(7 downto 0);
+  signal b_next : unsigned(7 downto 0);
+begin
+
+  -- Subtractor computes A - B
+  sub_result <= a_reg - b_reg;
+
+  -- Comparator: A >= B and B = 0
+  a_ge_b    <= '1' when a_reg >= b_reg else '0';
+  b_eq_zero <= '1' when b_reg = to_unsigned(0, 8) else '0';
+
+  -- Mux for A register next value
+  --   load_en  : load external a_in
+  --   swap_en  : take current B value
+  --   sub_en   : take subtraction result (A - B)
+  --   default  : hold current A
+  a_next <= unsigned(a_in) when load_en = '1' else
+            b_reg          when swap_en = '1' else
+            sub_result     when sub_en  = '1' else
+            a_reg;
+
+  -- Mux for B register next value
+  --   load_en  : load external b_in
+  --   swap_en  : take current A value
+  --   default  : hold current B
+  b_next <= unsigned(b_in) when load_en = '1' else
+            a_reg          when swap_en = '1' else
+            b_reg;
+
+  -- Clocked register updates
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        a_reg <= (others => '0');
+        b_reg <= (others => '0');
+      else
+        a_reg <= a_next;
+        b_reg <= b_next;
+      end if;
+    end if;
+  end process;
+
+  -- Drive outputs from the registers
+  a_out <= std_logic_vector(a_reg);
+  b_out <= std_logic_vector(b_reg);
+
+end architecture rtl;

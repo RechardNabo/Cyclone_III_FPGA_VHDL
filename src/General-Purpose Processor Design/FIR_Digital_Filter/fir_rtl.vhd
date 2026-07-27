@@ -1,707 +1,108 @@
 -- ============================================================================
--- FIR Filter RTL Implementation - Programming Guidance
+-- FIR Filter - RTL (Register Transfer Level) Model
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a Finite Impulse Response (FIR) digital filter using
--- Register Transfer Level (RTL) design methodology. RTL implementation provides
--- precise control over timing, resource utilization, and performance optimization.
--- This approach is ideal for high-performance DSP applications where cycle-accurate
--- behavior and efficient hardware utilization are critical requirements.
+-- This RTL model implements the same 8-tap FIR filter as the other two files
+-- but with a more structured, pipelined approach suitable for synthesis.
 --
--- LEARNING OBJECTIVES:
--- 1. Understand RTL design methodology for DSP applications
--- 2. Learn synchronous design principles and clocking strategies
--- 3. Practice state machine design for filter control
--- 4. Implement efficient memory management for delay lines
--- 5. Understand pipelining and parallel processing techniques
--- 6. Learn resource optimization and timing closure strategies
+-- FIR filter basics:
+--   * A "tap" is one coefficient + one delayed sample + one multiplier.
+--   * The "delay line" is a shift register that stores past input samples.
+--   * "MAC" stands for Multiply-Accumulate: multiply each tap and sum them.
+--   * The output y[n] = sum of h[k]*x[n-k] for k = 0..7.
 --
+-- Pipeline: Stage 0 captures the input and updates the delay line.
+--           Stage 1 registers the MAC sum so the adder tree has a full clock
+--           period to settle, improving timing (fmax) on the FPGA.
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for advanced DSP operations
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding DSP library for optimized operations
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the RTL FIR filter
---
--- Entity Requirements:
--- - Name: fir_rtl (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - Data input and output with appropriate bit widths
--- - Control signals for filter operation and configuration
--- - Status outputs for monitoring and debugging
---
--- Port Specifications:
--- Clock and Control:
--- - clk : in std_logic (System clock)
--- - reset : in std_logic (Asynchronous reset, active high)
--- - enable : in std_logic (Filter enable signal)
--- - load_coeff : in std_logic (Load new coefficients)
---
--- Data Interface:
--- - data_in : in signed(DATA_WIDTH-1 downto 0) (Input data samples)
--- - data_valid : in std_logic (Input data valid signal)
--- - data_out : out signed(OUTPUT_WIDTH-1 downto 0) (Filtered output)
--- - data_ready : out std_logic (Output data ready signal)
---
--- Configuration Interface:
--- - coeff_addr : in unsigned(COEFF_ADDR_WIDTH-1 downto 0) (Coefficient address)
--- - coeff_data : in signed(COEFF_WIDTH-1 downto 0) (Coefficient data)
--- - coeff_we : in std_logic (Coefficient write enable)
---
--- Status Interface:
--- - filter_busy : out std_logic (Filter processing status)
--- - overflow : out std_logic (Arithmetic overflow flag)
--- - underflow : out std_logic (Arithmetic underflow flag)
---
--- ============================================================================
--- STEP 3: FIR FILTER RTL PRINCIPLES
--- ============================================================================
---
--- RTL Design Methodology:
--- 1. Synchronous Design
---    - All operations synchronized to clock edges
---    - Proper reset handling and initialization
---    - Pipeline register insertion for timing
---
--- 2. State Machine Control
---    - Idle, Load, Process, Output states
---    - Proper state transitions and conditions
---    - Error handling and recovery
---
--- 3. Memory Management
---    - Efficient delay line implementation
---    - Coefficient storage and access
---    - Data buffering and flow control
---
--- 4. Arithmetic Implementation
---    - Fixed-point arithmetic precision
---    - Multiply-accumulate (MAC) operations
---    - Overflow/underflow detection
---
--- FIR Filter Equation:
--- y[n] = Σ(k=0 to N-1) h[k] * x[n-k]
--- Where:
--- - y[n] is the output at time n
--- - h[k] are the filter coefficients
--- - x[n-k] are the delayed input samples
--- - N is the filter order (number of taps)
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Direct Form FIR (Recommended for beginners)
--- - Simple delay line implementation
--- - Sequential MAC operations
--- - Minimal resource usage
--- - Lower throughput
---
--- OPTION 2: Parallel FIR (Intermediate)
--- - Multiple MAC units
--- - Higher throughput
--- - Increased resource usage
--- - Complex timing requirements
---
--- OPTION 3: Pipelined FIR (Advanced)
--- - Pipeline stages for high-speed operation
--- - Balanced resource and performance
--- - Complex control logic
--- - Optimal for high-frequency applications
---
--- OPTION 4: Systolic Array FIR (Expert)
--- - Highly parallel architecture
--- - Maximum throughput
--- - Significant resource requirements
--- - Complex design and verification
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Timing and Clocking:
--- - Single clock domain design
--- - Proper setup and hold time margins
--- - Clock enable for power optimization
--- - Reset synchronization and release
---
--- Data Precision:
--- - Input data width selection
--- - Coefficient precision requirements
--- - Accumulator width calculation
--- - Output quantization and rounding
---
--- Memory Architecture:
--- - Delay line implementation (shift register vs. RAM)
--- - Coefficient storage (ROM vs. RAM)
--- - Data buffering strategies
--- - Memory access optimization
---
--- Control Logic:
--- - State machine design
--- - Handshaking protocols
--- - Error detection and handling
--- - Configuration interface
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Performance Optimization:
--- - Pipeline insertion for timing closure
--- - Parallel processing implementation
--- - Resource sharing strategies
--- - Power optimization techniques
---
--- Configurability:
--- - Runtime coefficient loading
--- - Variable filter length
--- - Multiple filter configurations
--- - Bypass and test modes
---
--- Error Handling:
--- - Overflow/underflow detection
--- - Coefficient validation
--- - Input data validation
--- - Graceful error recovery
---
--- Debug and Monitoring:
--- - Internal signal observation
--- - Performance counters
--- - Status reporting
--- - Test pattern generation
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Audio Processing: Anti-aliasing, equalization, noise reduction
--- 2. Communications: Channel filtering, pulse shaping, matched filtering
--- 3. Image Processing: Edge detection, smoothing, sharpening
--- 4. Control Systems: Signal conditioning, feedback filtering
--- 5. Instrumentation: Data acquisition filtering, measurement processing
--- 6. Radar/Sonar: Signal processing, target detection
--- 7. Medical Devices: Biomedical signal processing, filtering
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual component validation
--- 2. Integration Testing: System-level functionality
--- 3. Performance Testing: Timing and throughput validation
--- 4. Stress Testing: Extreme condition validation
--- 5. Regression Testing: Change impact verification
--- 6. Compliance Testing: Specification conformance
--- 7. Hardware Testing: FPGA implementation validation
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic direct form implementation
--- 2. Implement delay line and coefficient storage
--- 3. Add MAC operation and accumulator
--- 4. Implement control state machine
--- 5. Add configuration and status interfaces
--- 6. Implement error detection and handling
--- 7. Optimize for performance and resources
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Add support for multiple filter configurations
--- 2. Implement adaptive filtering capabilities
--- 3. Add real-time coefficient calculation
--- 4. Implement multi-rate filtering (decimation/interpolation)
--- 5. Add support for complex-valued filtering
--- 6. Implement cascaded filter structures
--- 7. Add built-in test pattern generation
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Insufficient precision in accumulator width
--- 2. Improper reset handling and initialization
--- 3. Missing overflow/underflow detection
--- 4. Inadequate timing constraints
--- 5. Poor memory access patterns
--- 6. Missing input data validation
--- 7. Inadequate testing of edge cases
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ Clock and reset functionality verified
--- □ Data path timing meets requirements
--- □ Coefficient loading works correctly
--- □ Filter response matches specification
--- □ Overflow/underflow detection functional
--- □ State machine operates correctly
--- □ All control signals function properly
--- □ Performance requirements are met
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This FIR filter RTL implementation demonstrates several key concepts:
--- - Synchronous digital design methodology
--- - State machine design and control
--- - Fixed-point arithmetic implementation
--- - Memory management and optimization
--- - Pipeline design for performance
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Consider DSP block utilization in target FPGA
--- - Optimize for available memory resources
--- - Plan for timing closure at target frequency
--- - Consider power consumption optimization
--- - Account for routing congestion in large filters
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Polyphase filter implementations
--- - Frequency domain filtering (FFT-based)
--- - Adaptive filter algorithms (LMS, RLS)
--- - Multi-rate signal processing
--- - Filter bank implementations
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Use appropriate simulation time resolution
--- - Include realistic input signal models
--- - Verify filter frequency response
--- - Test with various coefficient sets
--- - Validate timing relationships
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity fir_rtl is
---     generic (
---         DATA_WIDTH      : integer := 16;        -- Input data width
---         COEFF_WIDTH     : integer := 16;        -- Coefficient width
---         OUTPUT_WIDTH    : integer := 32;        -- Output data width
---         FILTER_ORDER    : integer := 63;        -- Filter order (N-1)
---         COEFF_ADDR_WIDTH: integer := 6;         -- Coefficient address width
---         PIPELINE_STAGES : integer := 3;         -- Pipeline depth
---         ENABLE_OVERFLOW : boolean := true;      -- Enable overflow detection
---         ENABLE_ROUNDING : boolean := true       -- Enable output rounding
---     );
---     port (
---         -- Clock and Reset
---         clk             : in  std_logic;
---         reset           : in  std_logic;
---         enable          : in  std_logic;
---         
---         -- Data Interface
---         data_in         : in  signed(DATA_WIDTH-1 downto 0);
---         data_valid      : in  std_logic;
---         data_out        : out signed(OUTPUT_WIDTH-1 downto 0);
---         data_ready      : out std_logic;
---         
---         -- Configuration Interface
---         coeff_addr      : in  unsigned(COEFF_ADDR_WIDTH-1 downto 0);
---         coeff_data      : in  signed(COEFF_WIDTH-1 downto 0);
---         coeff_we        : in  std_logic;
---         load_coeff      : in  std_logic;
---         
---         -- Control Interface
---         filter_reset    : in  std_logic;
---         bypass_mode     : in  std_logic;
---         test_mode       : in  std_logic;
---         
---         -- Status Interface
---         filter_busy     : out std_logic;
---         overflow        : out std_logic;
---         underflow       : out std_logic;
---         coeff_loaded    : out std_logic;
---         filter_ready    : out std_logic
---     );
--- end entity fir_rtl;
---
--- architecture rtl of fir_rtl is
---     -- Constants
---     constant ACCUMULATOR_WIDTH : integer := DATA_WIDTH + COEFF_WIDTH + 
---                                           integer(ceil(log2(real(FILTER_ORDER + 1))));
---     constant MAX_COEFF_ADDR    : integer := FILTER_ORDER;
---     constant PIPELINE_DELAY    : integer := PIPELINE_STAGES + 2;
---     
---     -- Type definitions
---     type delay_line_type is array (0 to FILTER_ORDER) of signed(DATA_WIDTH-1 downto 0);
---     type coeff_array_type is array (0 to FILTER_ORDER) of signed(COEFF_WIDTH-1 downto 0);
---     type mac_array_type is array (0 to FILTER_ORDER) of signed(ACCUMULATOR_WIDTH-1 downto 0);
---     type state_type is (IDLE, LOAD_COEFFS, PROCESS, OUTPUT, ERROR);
---     
---     -- State machine signals
---     signal current_state    : state_type := IDLE;
---     signal next_state       : state_type;
---     signal state_counter    : unsigned(7 downto 0) := (others => '0');
---     
---     -- Data path signals
---     signal delay_line       : delay_line_type := (others => (others => '0'));
---     signal coefficients     : coeff_array_type := (others => (others => '0'));
---     signal mac_results      : mac_array_type := (others => (others => '0'));
---     signal accumulator      : signed(ACCUMULATOR_WIDTH-1 downto 0) := (others => '0');
---     signal final_result     : signed(OUTPUT_WIDTH-1 downto 0) := (others => '0');
---     
---     -- Control signals
---     signal data_in_reg      : signed(DATA_WIDTH-1 downto 0) := (others => '0');
---     signal data_valid_reg   : std_logic := '0';
---     signal processing       : std_logic := '0';
---     signal mac_enable       : std_logic := '0';
---     signal output_valid     : std_logic := '0';
---     signal coeff_load_done  : std_logic := '0';
---     signal filter_init_done : std_logic := '0';
---     
---     -- Pipeline registers
---     type pipeline_data_type is array (0 to PIPELINE_STAGES-1) of signed(ACCUMULATOR_WIDTH-1 downto 0);
---     signal pipeline_data    : pipeline_data_type := (others => (others => '0'));
---     signal pipeline_valid   : std_logic_vector(PIPELINE_STAGES-1 downto 0) := (others => '0');
---     
---     -- Status and error signals
---     signal overflow_flag    : std_logic := '0';
---     signal underflow_flag   : std_logic := '0';
---     signal busy_flag        : std_logic := '0';
---     signal ready_flag       : std_logic := '0';
---     signal error_flag       : std_logic := '0';
---     
---     -- Configuration signals
---     signal coeff_addr_reg   : unsigned(COEFF_ADDR_WIDTH-1 downto 0) := (others => '0');
---     signal coeff_data_reg   : signed(COEFF_WIDTH-1 downto 0) := (others => '0');
---     signal coeff_we_reg     : std_logic := '0';
---     signal coeff_count      : unsigned(COEFF_ADDR_WIDTH downto 0) := (others => '0');
---     
---     -- Debug and monitoring signals
---     signal mac_count        : unsigned(7 downto 0) := (others => '0');
---     signal sample_count     : unsigned(31 downto 0) := (others => '0');
---     signal cycle_count      : unsigned(31 downto 0) := (others => '0');
---     
--- begin
---     -- State machine process
---     state_machine_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             current_state <= IDLE;
---             state_counter <= (others => '0');
---             busy_flag <= '0';
---             ready_flag <= '0';
---             error_flag <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 current_state <= next_state;
---                 
---                 case current_state is
---                     when IDLE =>
---                         busy_flag <= '0';
---                         ready_flag <= '1';
---                         state_counter <= (others => '0');
---                         
---                     when LOAD_COEFFS =>
---                         busy_flag <= '1';
---                         ready_flag <= '0';
---                         if coeff_load_done = '1' then
---                             state_counter <= (others => '0');
---                         else
---                             state_counter <= state_counter + 1;
---                         end if;
---                         
---                     when PROCESS =>
---                         busy_flag <= '1';
---                         ready_flag <= '0';
---                         if mac_count = FILTER_ORDER then
---                             state_counter <= (others => '0');
---                         else
---                             state_counter <= state_counter + 1;
---                         end if;
---                         
---                     when OUTPUT =>
---                         busy_flag <= '0';
---                         ready_flag <= '1';
---                         state_counter <= (others => '0');
---                         
---                     when ERROR =>
---                         busy_flag <= '0';
---                         ready_flag <= '0';
---                         error_flag <= '1';
---                         
---                     when others =>
---                         current_state <= IDLE;
---                 end case;
---             end if;
---         end if;
---     end process;
---     
---     -- Next state logic
---     next_state_logic_proc: process(current_state, load_coeff, data_valid, coeff_load_done, 
---                                   processing, output_valid, filter_reset, error_flag)
---     begin
---         case current_state is
---             when IDLE =>
---                 if filter_reset = '1' then
---                     next_state <= IDLE;
---                 elsif load_coeff = '1' then
---                     next_state <= LOAD_COEFFS;
---                 elsif data_valid = '1' and coeff_load_done = '1' then
---                     next_state <= PROCESS;
---                 else
---                     next_state <= IDLE;
---                 end if;
---                 
---             when LOAD_COEFFS =>
---                 if coeff_load_done = '1' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= LOAD_COEFFS;
---                 end if;
---                 
---             when PROCESS =>
---                 if processing = '0' then
---                     next_state <= OUTPUT;
---                 else
---                     next_state <= PROCESS;
---                 end if;
---                 
---             when OUTPUT =>
---                 if output_valid = '1' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= OUTPUT;
---                 end if;
---                 
---             when ERROR =>
---                 if filter_reset = '1' then
---                     next_state <= IDLE;
---                 else
---                     next_state <= ERROR;
---                 end if;
---                 
---             when others =>
---                 next_state <= IDLE;
---         end case;
---     end process;
---     
---     -- Coefficient loading process
---     coeff_load_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             coefficients <= (others => (others => '0'));
---             coeff_load_done <= '0';
---             coeff_count <= (others => '0');
---             coeff_addr_reg <= (others => '0');
---             coeff_data_reg <= (others => '0');
---             coeff_we_reg <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 -- Register coefficient interface signals
---                 coeff_addr_reg <= coeff_addr;
---                 coeff_data_reg <= coeff_data;
---                 coeff_we_reg <= coeff_we;
---                 
---                 if current_state = LOAD_COEFFS then
---                     if coeff_we_reg = '1' and coeff_addr_reg <= MAX_COEFF_ADDR then
---                         coefficients(to_integer(coeff_addr_reg)) <= coeff_data_reg;
---                         coeff_count <= coeff_count + 1;
---                     end if;
---                     
---                     if coeff_count = FILTER_ORDER + 1 then
---                         coeff_load_done <= '1';
---                     end if;
---                 elsif current_state = IDLE and load_coeff = '1' then
---                     coeff_load_done <= '0';
---                     coeff_count <= (others => '0');
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- Data input and delay line process
---     data_input_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             delay_line <= (others => (others => '0'));
---             data_in_reg <= (others => '0');
---             data_valid_reg <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 data_in_reg <= data_in;
---                 data_valid_reg <= data_valid;
---                 
---                 if current_state = PROCESS and data_valid_reg = '1' then
---                     -- Shift delay line
---                     for i in FILTER_ORDER downto 1 loop
---                         delay_line(i) <= delay_line(i-1);
---                     end loop;
---                     delay_line(0) <= data_in_reg;
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- MAC operation process
---     mac_proc: process(clk, reset)
---         variable temp_accumulator : signed(ACCUMULATOR_WIDTH-1 downto 0);
---     begin
---         if reset = '1' then
---             mac_results <= (others => (others => '0'));
---             accumulator <= (others => '0');
---             mac_count <= (others => '0');
---             processing <= '0';
---             mac_enable <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 if current_state = PROCESS then
---                     processing <= '1';
---                     mac_enable <= '1';
---                     
---                     -- Perform MAC operations
---                     temp_accumulator := (others => '0');
---                     for i in 0 to FILTER_ORDER loop
---                         mac_results(i) <= delay_line(i) * coefficients(i);
---                         temp_accumulator := temp_accumulator + mac_results(i);
---                     end loop;
---                     
---                     accumulator <= temp_accumulator;
---                     mac_count <= mac_count + 1;
---                     
---                     if mac_count = FILTER_ORDER then
---                         processing <= '0';
---                         mac_enable <= '0';
---                         mac_count <= (others => '0');
---                     end if;
---                 else
---                     processing <= '0';
---                     mac_enable <= '0';
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- Output processing and pipeline
---     output_proc: process(clk, reset)
---         variable rounded_result : signed(OUTPUT_WIDTH-1 downto 0);
---         variable overflow_check : signed(ACCUMULATOR_WIDTH-1 downto 0);
---     begin
---         if reset = '1' then
---             final_result <= (others => '0');
---             output_valid <= '0';
---             pipeline_data <= (others => (others => '0'));
---             pipeline_valid <= (others => '0');
---             overflow_flag <= '0';
---             underflow_flag <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 if current_state = OUTPUT and processing = '0' then
---                     -- Pipeline the accumulator result
---                     pipeline_data(0) <= accumulator;
---                     pipeline_valid(0) <= '1';
---                     
---                     -- Shift pipeline
---                     for i in 1 to PIPELINE_STAGES-1 loop
---                         pipeline_data(i) <= pipeline_data(i-1);
---                         pipeline_valid(i) <= pipeline_valid(i-1);
---                     end loop;
---                     
---                     -- Output stage
---                     if pipeline_valid(PIPELINE_STAGES-1) = '1' then
---                         overflow_check := pipeline_data(PIPELINE_STAGES-1);
---                         
---                         -- Check for overflow/underflow
---                         if ENABLE_OVERFLOW then
---                             if overflow_check > (2**(OUTPUT_WIDTH-1) - 1) then
---                                 overflow_flag <= '1';
---                                 rounded_result := to_signed(2**(OUTPUT_WIDTH-1) - 1, OUTPUT_WIDTH);
---                             elsif overflow_check < -(2**(OUTPUT_WIDTH-1)) then
---                                 underflow_flag <= '1';
---                                 rounded_result := to_signed(-(2**(OUTPUT_WIDTH-1)), OUTPUT_WIDTH);
---                             else
---                                 overflow_flag <= '0';
---                                 underflow_flag <= '0';
---                                 if ENABLE_ROUNDING then
---                                     -- Round to nearest
---                                     rounded_result := resize(overflow_check + 
---                                                     2**(ACCUMULATOR_WIDTH-OUTPUT_WIDTH-1), OUTPUT_WIDTH);
---                                 else
---                                     -- Truncate
---                                     rounded_result := resize(overflow_check, OUTPUT_WIDTH);
---                                 end if;
---                             end if;
---                         else
---                             if ENABLE_ROUNDING then
---                                 rounded_result := resize(overflow_check + 
---                                                 2**(ACCUMULATOR_WIDTH-OUTPUT_WIDTH-1), OUTPUT_WIDTH);
---                             else
---                                 rounded_result := resize(overflow_check, OUTPUT_WIDTH);
---                             end if;
---                         end if;
---                         
---                         final_result <= rounded_result;
---                         output_valid <= '1';
---                     else
---                         output_valid <= '0';
---                     end if;
---                 else
---                     output_valid <= '0';
---                     pipeline_valid <= (others => '0');
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- Performance monitoring
---     performance_monitor_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             sample_count <= (others => '0');
---             cycle_count <= (others => '0');
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 cycle_count <= cycle_count + 1;
---                 
---                 if output_valid = '1' then
---                     sample_count <= sample_count + 1;
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- Output assignments
---     data_out <= final_result when bypass_mode = '0' else 
---                 resize(data_in_reg, OUTPUT_WIDTH);
---     data_ready <= output_valid when bypass_mode = '0' else data_valid_reg;
---     filter_busy <= busy_flag;
---     overflow <= overflow_flag;
---     underflow <= underflow_flag;
---     coeff_loaded <= coeff_load_done;
---     filter_ready <= ready_flag and coeff_load_done;
---     
--- end architecture rtl;
---
--- ============================================================================
--- Remember: This FIR filter RTL implementation provides precise control over
--- timing and resources. Ensure proper verification of all operating modes,
--- timing requirements, and error conditions. The design can be customized
--- for specific performance and resource requirements.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity fir_rtl is
+    generic (
+        NUM_TAPS   : integer := 8;   -- Number of filter taps
+        DATA_WIDTH : integer := 8    -- Bit width of input/output samples
+    );
+    port (
+        clk        : in  std_logic;                                -- System clock
+        reset      : in  std_logic;                                -- Async reset (active high)
+        valid_in   : in  std_logic;                                -- Input sample valid strobe
+        data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Input sample
+        valid_out  : out std_logic;                                -- Output sample valid strobe
+        data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0)   -- Filtered output sample
+    );
+end entity fir_rtl;
+
+architecture rtl of fir_rtl is
+
+    -- -------------------------------------------------------------------------
+    -- Coefficients: the filter's impulse response (8 integer values).
+    -- Feeding an impulse input makes the output sequence equal to these.
+    -- -------------------------------------------------------------------------
+    type coeff_array is array (0 to 7) of integer;
+    constant COEFFS : coeff_array := (1, 2, 3, 4, 4, 3, 2, 1);
+
+    -- Delay line: shift register of std_logic_vector holding past samples.
+    type shift_reg_t is array (0 to NUM_TAPS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal delay_line : shift_reg_t;
+
+    -- Stage-1 pipeline register for the MAC result
+    signal mac_reg   : signed(31 downto 0);
+    -- Pipeline registers for the valid handshake (2 clocks of latency)
+    signal valid_s1  : std_logic;
+    signal valid_s2  : std_logic;
+
+begin
+
+    ---------------------------------------------------------------------------
+    -- Pipeline Stage 0: Shift-register delay line.
+    -- Accepts a new sample when valid_in is high and shifts the history.
+    ---------------------------------------------------------------------------
+    process (clk, reset)
+    begin
+        if reset = '1' then
+            for i in 0 to NUM_TAPS-1 loop
+                delay_line(i) <= (others => '0');
+            end loop;
+            valid_s1 <= '0';
+        elsif rising_edge(clk) then
+            if valid_in = '1' then
+                delay_line(0) <= data_in;
+                for i in 1 to NUM_TAPS-1 loop
+                    delay_line(i) <= delay_line(i-1);
+                end loop;
+            end if;
+            valid_s1 <= valid_in;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Pipeline Stage 1: Multiply-Accumulate (MAC).
+    -- Each tap multiplies its delayed sample by its coefficient; the products
+    -- are summed combinationally and then registered in mac_reg. This gives
+    -- the adder tree a full clock period, improving achievable clock speed.
+    ---------------------------------------------------------------------------
+    process (clk, reset)
+        variable sum : signed(31 downto 0);
+    begin
+        if reset = '1' then
+            mac_reg  <= (others => '0');
+            valid_s2 <= '0';
+        elsif rising_edge(clk) then
+            sum := (others => '0');
+            for k in 0 to NUM_TAPS-1 loop
+                sum := sum + signed(delay_line(k)) * to_signed(COEFFS(k), 16);
+            end loop;
+            mac_reg  <= sum;
+            valid_s2 <= valid_s1;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Output: lower DATA_WIDTH bits of the registered MAC result.
+    -- valid_out is delayed by 2 clocks to match the pipeline depth.
+    ---------------------------------------------------------------------------
+    data_out  <= std_logic_vector(mac_reg(DATA_WIDTH-1 downto 0));
+    valid_out <= valid_s2;
+
+end architecture rtl;

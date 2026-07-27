@@ -1,411 +1,106 @@
 -- ============================================================================
--- FIR Filter Implementation - Programming Guidance
+-- FIR Filter - Top-Level Module
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a Finite Impulse Response (FIR) digital filter, which
--- is a fundamental component in digital signal processing (DSP) applications.
--- FIR filters are widely used for signal conditioning, noise reduction,
--- anti-aliasing, and frequency shaping in digital systems. This implementation
--- provides a configurable FIR filter that can be customized for various
--- filtering requirements and optimized for FPGA implementation.
+-- A Finite Impulse Response (FIR) filter computes:
+--     y[n] = h[0]*x[n] + h[1]*x[n-1] + ... + h[7]*x[n-7]
+-- where h[k] are the filter coefficients (the impulse response) and x[n-k]
+-- are past input samples stored in a shift register (the "delay line").
 --
--- LEARNING OBJECTIVES:
--- 1. Understand digital signal processing fundamentals
--- 2. Learn FIR filter theory and implementation techniques
--- 3. Practice fixed-point arithmetic and precision management
--- 4. Implement efficient multiply-accumulate (MAC) operations
--- 5. Understand filter coefficient design and optimization
--- 6. Learn pipelining techniques for high-speed DSP
---
+-- This is the top-level design with a simple valid_in / valid_out handshake.
+-- When valid_in is high, the input sample on data_in is clocked into the
+-- delay line and a new output is produced one clock later on data_out with
+-- valid_out high.
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for DSP operations
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Consider adding DSP library for optimized operations
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the FIR filter
---
--- Entity Requirements:
--- - Name: fir_filter (maintain current naming convention)
--- - Clock and reset inputs for synchronous operation
--- - Data input and output with appropriate bit widths
--- - Control signals for filter operation
--- - Configuration inputs for filter parameters
---
--- Port Specifications:
--- - clk           : in  std_logic (System clock)
--- - reset         : in  std_logic (Asynchronous reset, active high)
--- - data_in       : in  signed(DATA_WIDTH-1 downto 0) (Input data samples)
--- - data_valid_in : in  std_logic (Input data valid signal)
--- - data_out      : out signed(OUTPUT_WIDTH-1 downto 0) (Filtered output data)
--- - data_valid_out: out std_logic (Output data valid signal)
--- - filter_enable : in  std_logic (Filter enable control)
--- - coeff_load    : in  std_logic (Coefficient loading enable)
--- - coeff_addr    : in  unsigned(COEFF_ADDR_WIDTH-1 downto 0) (Coefficient address)
--- - coeff_data    : in  signed(COEFF_WIDTH-1 downto 0) (Coefficient data)
---
--- Generic Parameters:
--- - DATA_WIDTH      : integer := 16 (Input data width in bits)
--- - COEFF_WIDTH     : integer := 16 (Coefficient width in bits)
--- - OUTPUT_WIDTH    : integer := 32 (Output data width in bits)
--- - NUM_TAPS        : integer := 64 (Number of filter taps)
--- - COEFF_ADDR_WIDTH: integer := 6  (Address width for coefficients)
---
--- ============================================================================
--- STEP 3: FIR FILTER OPERATION PRINCIPLES
--- ============================================================================
---
--- FIR Filter Equation:
--- y[n] = Σ(k=0 to N-1) h[k] * x[n-k]
--- Where:
--- - y[n] is the output at time n
--- - h[k] are the filter coefficients (impulse response)
--- - x[n-k] are the delayed input samples
--- - N is the number of filter taps
---
--- Filter Structure Options:
--- 1. Direct Form (Transversal): Traditional delay line with taps
--- 2. Systolic Array: Pipelined structure for high throughput
--- 3. Distributed Arithmetic: ROM-based implementation
--- 4. Polyphase: Efficient for decimation/interpolation
---
--- Key Concepts:
--- - Tap Delay Line: Shift register storing input history
--- - Multiply-Accumulate (MAC): Core DSP operation
--- - Coefficient Storage: ROM or RAM for filter coefficients
--- - Precision Management: Fixed-point arithmetic considerations
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic Direct Form FIR Filter (Recommended for beginners)
--- - Simple shift register for delay line
--- - Sequential MAC operations
--- - Fixed coefficients stored in ROM
--- - Basic control and timing
---
--- OPTION 2: Pipelined FIR Filter (Intermediate)
--- - Pipeline stages for high-speed operation
--- - Parallel MAC units for improved throughput
--- - Configurable coefficients via memory interface
--- - Enhanced control and status signals
---
--- OPTION 3: Systolic Array FIR Filter (Advanced)
--- - Fully pipelined systolic architecture
--- - Maximum throughput with minimal latency
--- - Optimized for FPGA DSP blocks
--- - Advanced coefficient management
---
--- OPTION 4: Adaptive FIR Filter (Expert)
--- - Runtime coefficient adaptation
--- - LMS or RLS adaptation algorithms
--- - Dynamic filter response adjustment
--- - Complex control and monitoring systems
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Fixed-Point Arithmetic:
--- - Choose appropriate bit widths for data and coefficients
--- - Consider growth in accumulator width
--- - Implement proper rounding and saturation
--- - Manage quantization noise and overflow
---
--- Memory Organization:
--- - Coefficient storage: ROM, RAM, or distributed memory
--- - Data buffer: Shift register or circular buffer
--- - Address generation for coefficient access
--- - Memory bandwidth considerations
---
--- Timing and Performance:
--- - Pipeline depth vs. latency trade-offs
--- - Clock frequency limitations
--- - Resource utilization optimization
--- - Power consumption considerations
---
--- DSP Block Utilization:
--- - Leverage FPGA DSP blocks for MAC operations
--- - Optimize for target FPGA architecture
--- - Consider DSP block limitations and features
--- - Balance between DSP blocks and logic resources
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Multi-Rate Processing:
--- - Decimation filters for sample rate reduction
--- - Interpolation filters for sample rate increase
--- - Polyphase filter implementations
--- - Efficient multi-rate architectures
---
--- Adaptive Filtering:
--- - Least Mean Squares (LMS) adaptation
--- - Recursive Least Squares (RLS) adaptation
--- - Normalized LMS (NLMS) algorithms
--- - Variable step-size adaptation
---
--- Filter Banks:
--- - Multiple parallel filters
--- - Channelized processing
--- - Perfect reconstruction filter banks
--- - Efficient implementation techniques
---
--- Advanced Architectures:
--- - Distributed arithmetic implementation
--- - Frequency-domain filtering using FFT
--- - Overlap-add and overlap-save methods
--- - Block processing techniques
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Audio Processing: Equalizers, noise reduction, audio effects
--- 2. Communications: Anti-aliasing, channel filtering, pulse shaping
--- 3. Image Processing: Edge detection, smoothing, enhancement
--- 4. Biomedical: ECG/EEG filtering, signal conditioning
--- 5. Radar/Sonar: Matched filtering, clutter rejection
--- 6. Control Systems: Sensor signal conditioning, noise filtering
--- 7. Software Defined Radio: Channel selection, interference rejection
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual component verification
--- 2. Impulse Response: Verify filter coefficients implementation
--- 3. Frequency Response: Validate filter characteristics
--- 4. Precision Testing: Fixed-point accuracy verification
--- 5. Performance Testing: Throughput and latency measurement
--- 6. Corner Case Testing: Overflow, underflow, and edge conditions
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic direct form implementation
--- 2. Implement fixed coefficients and simple control
--- 3. Add pipelining for performance improvement
--- 4. Implement configurable coefficients
--- 5. Optimize for target FPGA resources
--- 6. Add advanced features as needed
--- 7. Validate with comprehensive testing
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Implement different filter types (lowpass, highpass, bandpass)
--- 2. Add coefficient symmetry optimization
--- 3. Create multi-channel filter implementation
--- 4. Implement adaptive filtering algorithms
--- 5. Add frequency domain filtering option
--- 6. Create filter design tools and coefficient generation
--- 7. Implement polyphase filter structures
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Insufficient accumulator width leading to overflow
--- 2. Poor coefficient quantization causing filter distortion
--- 3. Inadequate pipeline design reducing performance
--- 4. Incorrect fixed-point scaling and rounding
--- 5. Inefficient memory usage and bandwidth
--- 6. Poor timing closure in high-speed implementations
--- 7. Neglecting DSP block optimization opportunities
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ Filter frequency response meets specifications
--- □ Fixed-point precision analysis completed
--- □ Pipeline timing verified at target frequency
--- □ Resource utilization optimized
--- □ DSP block usage maximized
--- □ Coefficient loading mechanism tested
--- □ Edge cases and overflow conditions handled
--- □ Power consumption analyzed
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This FIR filter demonstrates several key digital design concepts:
--- - Digital signal processing fundamentals
--- - Fixed-point arithmetic implementation
--- - Pipeline design for high-performance systems
--- - Memory organization and access patterns
--- - DSP block utilization and optimization
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Utilize FPGA DSP blocks for optimal performance
--- - Consider clock domain crossing for multi-rate systems
--- - Plan memory bandwidth for coefficient and data access
--- - Optimize placement and routing for timing closure
--- - Consider power optimization techniques
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Multi-rate signal processing techniques
--- - Adaptive filtering algorithms and convergence
--- - Filter design theory and optimization
--- - Distributed arithmetic and ROM-based filtering
--- - Frequency-domain filtering using FFT/IFFT
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Create comprehensive testbenches with known signals
--- - Use MATLAB/Python for reference model comparison
--- - Implement fixed-point vs. floating-point verification
--- - Test with realistic signal conditions and noise
--- - Validate filter performance across frequency range
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity fir_filter is
---     generic (
---         DATA_WIDTH       : integer := 16;
---         COEFF_WIDTH      : integer := 16;
---         OUTPUT_WIDTH     : integer := 32;
---         NUM_TAPS         : integer := 64;
---         COEFF_ADDR_WIDTH : integer := 6
---     );
---     port (
---         clk             : in  std_logic;
---         reset           : in  std_logic;
---         data_in         : in  signed(DATA_WIDTH-1 downto 0);
---         data_valid_in   : in  std_logic;
---         data_out        : out signed(OUTPUT_WIDTH-1 downto 0);
---         data_valid_out  : out std_logic;
---         filter_enable   : in  std_logic;
---         coeff_load      : in  std_logic;
---         coeff_addr      : in  unsigned(COEFF_ADDR_WIDTH-1 downto 0);
---         coeff_data      : in  signed(COEFF_WIDTH-1 downto 0)
---     );
--- end entity fir_filter;
---
--- architecture behavioral of fir_filter is
---     -- Constants
---     constant ACCUMULATOR_WIDTH : integer := DATA_WIDTH + COEFF_WIDTH + 
---                                           integer(ceil(log2(real(NUM_TAPS))));
---     
---     -- Coefficient memory
---     type coeff_array_type is array (0 to NUM_TAPS-1) of 
---          signed(COEFF_WIDTH-1 downto 0);
---     signal coefficients : coeff_array_type := (others => (others => '0'));
---     
---     -- Data delay line (shift register)
---     type data_array_type is array (0 to NUM_TAPS-1) of 
---          signed(DATA_WIDTH-1 downto 0);
---     signal data_delay_line : data_array_type := (others => (others => '0'));
---     
---     -- Internal signals
---     signal accumulator : signed(ACCUMULATOR_WIDTH-1 downto 0);
---     signal mac_result  : signed(DATA_WIDTH + COEFF_WIDTH - 1 downto 0);
---     signal tap_counter : unsigned(COEFF_ADDR_WIDTH-1 downto 0);
---     signal filter_state : std_logic_vector(1 downto 0);
---     signal data_valid_reg : std_logic;
---     
---     -- Pipeline registers for high-speed operation
---     signal pipeline_stage1 : signed(OUTPUT_WIDTH-1 downto 0);
---     signal pipeline_stage2 : signed(OUTPUT_WIDTH-1 downto 0);
---     signal valid_pipeline1 : std_logic;
---     signal valid_pipeline2 : std_logic;
---     
--- begin
---     -- Coefficient loading process
---     coeff_load_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             coefficients <= (others => (others => '0'));
---         elsif rising_edge(clk) then
---             if coeff_load = '1' then
---                 coefficients(to_integer(coeff_addr)) <= coeff_data;
---             end if;
---         end if;
---     end process;
---     
---     -- Main filter process
---     filter_proc: process(clk, reset)
---         variable temp_accumulator : signed(ACCUMULATOR_WIDTH-1 downto 0);
---     begin
---         if reset = '1' then
---             data_delay_line <= (others => (others => '0'));
---             accumulator <= (others => '0');
---             tap_counter <= (others => '0');
---             data_valid_reg <= '0';
---             pipeline_stage1 <= (others => '0');
---             pipeline_stage2 <= (others => '0');
---             valid_pipeline1 <= '0';
---             valid_pipeline2 <= '0';
---         elsif rising_edge(clk) then
---             if filter_enable = '1' then
---                 -- Input data handling
---                 if data_valid_in = '1' then
---                     -- Shift delay line
---                     for i in NUM_TAPS-1 downto 1 loop
---                         data_delay_line(i) <= data_delay_line(i-1);
---                     end loop;
---                     data_delay_line(0) <= data_in;
---                     
---                     -- Reset accumulator for new calculation
---                     temp_accumulator := (others => '0');
---                     
---                     -- Perform MAC operations (can be pipelined)
---                     for i in 0 to NUM_TAPS-1 loop
---                         temp_accumulator := temp_accumulator + 
---                             (data_delay_line(i) * coefficients(i));
---                     end loop;
---                     
---                     accumulator <= temp_accumulator;
---                     data_valid_reg <= '1';
---                 else
---                     data_valid_reg <= '0';
---                 end if;
---                 
---                 -- Pipeline stages for output
---                 pipeline_stage1 <= accumulator(ACCUMULATOR_WIDTH-1 downto 
---                                               ACCUMULATOR_WIDTH-OUTPUT_WIDTH);
---                 pipeline_stage2 <= pipeline_stage1;
---                 valid_pipeline1 <= data_valid_reg;
---                 valid_pipeline2 <= valid_pipeline1;
---             end if;
---         end if;
---     end process;
---     
---     -- Output assignment
---     data_out <= pipeline_stage2;
---     data_valid_out <= valid_pipeline2;
---     
--- end architecture behavioral;
---
--- ============================================================================
--- Remember: This is a template and guide. FIR filters can be implemented in
--- many different ways depending on performance requirements, resource
--- constraints, and application needs. Start with a simple implementation
--- and optimize based on your specific requirements.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity fir_filter is
+    generic (
+        NUM_TAPS   : integer := 8;   -- Number of filter taps
+        DATA_WIDTH : integer := 8    -- Bit width of input and output samples
+    );
+    port (
+        clk        : in  std_logic;                                -- System clock
+        reset      : in  std_logic;                                -- Async reset (active high)
+        valid_in   : in  std_logic;                                -- New input sample valid
+        data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Input sample
+        valid_out  : out std_logic;                                -- Output sample valid
+        data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0)   -- Filtered output
+    );
+end entity fir_filter;
+
+architecture rtl of fir_filter is
+
+    -- -------------------------------------------------------------------------
+    -- Coefficient array type and constant values.
+    -- These 8 integers are the filter's impulse response. Feeding an impulse
+    -- (a single 1 followed by zeros) into the filter makes the output equal
+    -- to these coefficients, one per clock - a great way to test the filter!
+    -- -------------------------------------------------------------------------
+    type coeff_array is array (0 to 7) of integer;
+    constant COEFFS : coeff_array := (1, 2, 3, 4, 4, 3, 2, 1);
+
+    -- Shift register delay line storing the last NUM_TAPS input samples.
+    -- delay_line(0) is the newest sample; delay_line(7) is the oldest.
+    type shift_reg_t is array (0 to NUM_TAPS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal delay_line : shift_reg_t;
+
+    -- Accumulator for the multiply-accumulate (MAC) sum.
+    -- Width is generous to avoid overflow during accumulation.
+    signal acc : signed(31 downto 0);
+
+    -- Pipeline register for the valid handshake (1 clock of latency)
+    signal valid_pipe : std_logic;
+
+begin
+
+    ---------------------------------------------------------------------------
+    -- Shift register: on each valid input, shift the new sample in and push
+    -- older samples down the line. This maintains the x[n-k] history.
+    ---------------------------------------------------------------------------
+    process (clk, reset)
+    begin
+        if reset = '1' then
+            for i in 0 to NUM_TAPS-1 loop
+                delay_line(i) <= (others => '0');
+            end loop;
+            valid_pipe <= '0';
+        elsif rising_edge(clk) then
+            if valid_in = '1' then
+                delay_line(0) <= data_in;                -- accept newest sample
+                for i in 1 to NUM_TAPS-1 loop
+                    delay_line(i) <= delay_line(i-1);    -- shift older samples
+                end loop;
+            end if;
+            -- Keep valid_out aligned with the registered output
+            valid_pipe <= valid_in;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Multiply-Accumulate (MAC): for each tap, multiply the delayed sample by
+    -- its coefficient and add them all together. This is the core DSP math.
+    ---------------------------------------------------------------------------
+    process (clk, reset)
+        variable sum : signed(31 downto 0);
+    begin
+        if reset = '1' then
+            acc <= (others => '0');
+        elsif rising_edge(clk) then
+            sum := (others => '0');
+            for k in 0 to NUM_TAPS-1 loop
+                -- signed(data) * coefficient, then accumulate
+                sum := sum + signed(delay_line(k)) * to_signed(COEFFS(k), 16);
+            end loop;
+            acc <= sum;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Output: present the lower DATA_WIDTH bits of the accumulator.
+    ---------------------------------------------------------------------------
+    data_out  <= std_logic_vector(acc(DATA_WIDTH-1 downto 0));
+    valid_out <= valid_pipe;
+
+end architecture rtl;

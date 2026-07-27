@@ -1,452 +1,228 @@
 -- ============================================================================
--- HD6402 UART Controller Implementation - Programming Guidance
+-- HD6402 Compatible UART Controller
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements the HD6402 Universal Asynchronous Receiver Transmitter
--- (UART) controller, a classic and widely-used UART IC that provides complete
--- serial communication functionality. The HD6402 is a full-duplex UART that
--- handles both transmission and reception with built-in baud rate generation,
--- parity checking, and framing error detection. This implementation recreates
--- the functionality of the original HD6402 chip in VHDL for FPGA applications.
---
--- LEARNING OBJECTIVES:
--- 1. Understand classic UART controller architecture and operation
--- 2. Learn complete serial communication system implementation
--- 3. Practice complex finite state machine design for dual operation
--- 4. Implement comprehensive error detection and status reporting
--- 5. Understand legacy IC interface compatibility
--- 6. Learn baud rate generation and timing control
---
+-- Inspired by the Intel 8251 / Signetics 2662 / HD6402 UART chip.
+-- Provides both transmit and receive paths with status flags:
+--   TX_READY  : transmitter can accept a new byte
+--   RX_READY  : a received byte is available
+--   FRAMING_ERROR : stop bit was not '1'
+--   PARITY_ERROR  : parity check failed (even parity used here)
+-- Beginner-friendly, synthesizable VHDL for the Cyclone III FPGA.
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - Consider additional packages for advanced timing features
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the HD6402 UART controller
---
--- Entity Requirements:
--- - Name: hd6402 (maintain current naming convention)
--- - Complete HD6402 pin-compatible interface
--- - Clock and reset inputs for synchronous operation
--- - Transmitter and receiver data paths
--- - Control and status signals
--- - Baud rate control inputs
---
--- Port Specifications (HD6402 Compatible):
--- Data Interface:
--- - TBR       : in  std_logic_vector(7 downto 0) (Transmit Buffer Register)
--- - RBR       : out std_logic_vector(7 downto 0) (Receive Buffer Register)
---
--- Control Inputs:
--- - TBRL      : in  std_logic (Transmit Buffer Register Load)
--- - RRD       : in  std_logic (Receiver Register Disable)
--- - SFD       : in  std_logic (Status Flag Disable)
--- - PI        : in  std_logic (Parity Inhibit)
--- - EPE       : in  std_logic (Even Parity Enable)
--- - NB1       : in  std_logic (Number of Bits 1)
--- - NB2       : in  std_logic (Number of Bits 2)
--- - TSB       : in  std_logic (Two Stop Bits)
--- - CLS1      : in  std_logic (Character Length Select 1)
--- - CLS2      : in  std_logic (Character Length Select 2)
---
--- Clock and Reset:
--- - RCP       : in  std_logic (Receiver Clock Pulse)
--- - TCP       : in  std_logic (Transmitter Clock Pulse)
--- - MR        : in  std_logic (Master Reset)
---
--- Serial Interface:
--- - RRI       : in  std_logic (Receiver Register Input)
--- - TRO       : out std_logic (Transmitter Register Output)
---
--- Status Outputs:
--- - TBRE      : out std_logic (Transmit Buffer Register Empty)
--- - TSRE      : out std_logic (Transmit Shift Register Empty)
--- - DR        : out std_logic (Data Ready)
--- - OE        : out std_logic (Overrun Error)
--- - FE        : out std_logic (Framing Error)
--- - PE        : out std_logic (Parity Error)
---
--- ============================================================================
--- STEP 3: HD6402 OPERATION PRINCIPLES
--- ============================================================================
---
--- HD6402 Architecture:
--- 1. Transmitter Section:
---    - Transmit Buffer Register (TBR) - Parallel data input
---    - Transmit Shift Register (TSR) - Serial data conversion
---    - Transmit Control Logic - State machine and timing
---
--- 2. Receiver Section:
---    - Receive Shift Register (RSR) - Serial data capture
---    - Receive Buffer Register (RBR) - Parallel data output
---    - Receive Control Logic - State machine and error detection
---
--- 3. Control Logic:
---    - Baud rate timing generation
---    - Parity generation and checking
---    - Error detection and status reporting
---    - Configuration control
---
--- Character Format Configuration:
--- - Character Length: 5, 6, 7, or 8 bits (CLS1, CLS2)
--- - Parity: None, Even, or Odd (PI, EPE)
--- - Stop Bits: 1, 1.5, or 2 bits (TSB, character length dependent)
---
--- Timing and Clocking:
--- - Separate transmit and receive clocks (TCP, RCP)
--- - 16x oversampling for receiver timing recovery
--- - Precise bit timing for transmitter
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic HD6402 Implementation (Recommended for beginners)
--- - Core transmit and receive functionality
--- - Basic error detection (framing, parity, overrun)
--- - Standard character formats (5-8 bits)
--- - Simple status reporting
---
--- OPTION 2: Complete HD6402 Implementation (Intermediate)
--- - Full pin-compatible interface
--- - All character length and parity combinations
--- - Comprehensive error detection and reporting
--- - Accurate timing and clock handling
---
--- OPTION 3: Enhanced HD6402 with Modern Features (Advanced)
--- - Original HD6402 compatibility plus enhancements
--- - FIFO buffering for transmit and receive
--- - Interrupt generation capabilities
--- - Enhanced status and diagnostic features
---
--- OPTION 4: Multi-Channel HD6402 System (Expert)
--- - Multiple HD6402 instances with shared resources
--- - Advanced clocking and timing management
--- - System-level error handling and recovery
--- - Performance optimization for high-speed operation
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Timing and Synchronization:
--- - Implement precise 16x oversampling for receiver
--- - Ensure accurate bit timing for transmitter
--- - Handle clock domain crossing between TCP and RCP
--- - Maintain HD6402 timing specifications
---
--- Error Detection and Handling:
--- - Framing Error: Invalid stop bit detection
--- - Parity Error: Parity bit mismatch detection
--- - Overrun Error: Data overwrite before read
--- - Status flag management and clearing
---
--- Character Format Support:
--- - 5-bit: 1.5 stop bits, 6-8 bit: 1 or 2 stop bits
--- - Parity generation: Even, Odd, or None
--- - Proper bit ordering (LSB first)
--- - Start bit detection and generation
---
--- Performance Optimization:
--- - Efficient state machine implementation
--- - Minimal logic depth for high-speed operation
--- - Resource sharing between transmit and receive paths
--- - Power optimization for low-power applications
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Enhanced Error Detection:
--- - Break detection and generation
--- - Noise detection on receive line
--- - Character timeout detection
--- - Advanced framing error analysis
---
--- FIFO Integration:
--- - Configurable depth transmit and receive FIFOs
--- - FIFO status and threshold detection
--- - Automatic flow control based on FIFO levels
--- - DMA interface compatibility
---
--- Interrupt Generation:
--- - Data ready interrupt
--- - Transmit buffer empty interrupt
--- - Error condition interrupts
--- - Programmable interrupt enables
---
--- Modern Interface Enhancements:
--- - Wishbone or AXI bus interface
--- - Register-based configuration
--- - Enhanced status and diagnostic registers
--- - Backward compatibility mode
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Legacy System Replacement: Direct HD6402 IC replacement in existing designs
--- 2. Embedded Systems: Serial communication in microprocessor systems
--- 3. Industrial Control: Data communication in automation systems
--- 4. Test Equipment: Serial interface for instrument control
--- 5. Communication Systems: UART functionality in larger communication systems
--- 6. Educational Projects: Learning classic UART controller operation
--- 7. Retro Computing: Authentic UART functionality for vintage computer systems
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual transmitter and receiver verification
--- 2. Integration Testing: Complete HD6402 system functionality
--- 3. Compatibility Testing: Verification against original HD6402 specifications
--- 4. Timing Testing: Clock timing and baud rate accuracy
--- 5. Error Testing: All error conditions and recovery scenarios
--- 6. Stress Testing: Continuous operation and high data rate scenarios
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic transmitter implementation
--- 2. Add receiver functionality with error detection
--- 3. Implement character format configuration
--- 4. Add comprehensive status reporting
--- 5. Verify HD6402 timing compatibility
--- 6. Add enhanced features as needed
--- 7. Optimize for target FPGA resources
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Add FIFO buffering to transmit and receive paths
--- 2. Implement break detection and generation
--- 3. Create multi-channel HD6402 system
--- 4. Add modern bus interface (AXI, Wishbone)
--- 5. Implement interrupt generation system
--- 6. Create HD6402 with DMA support
--- 7. Add advanced diagnostic and debug features
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Incorrect 16x oversampling implementation for receiver
--- 2. Wrong character length and stop bit combinations
--- 3. Improper parity calculation and checking
--- 4. Inadequate error flag management and clearing
--- 5. Poor clock domain crossing between TCP and RCP
--- 6. Incorrect HD6402 pin interface implementation
--- 7. Missing or incorrect status flag timing
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ All character formats tested and verified
--- □ Error detection mechanisms validated
--- □ HD6402 timing specifications met
--- □ Pin compatibility with original HD6402 verified
--- □ Clock domain crossing properly implemented
--- □ Status flags operate correctly
--- □ Resource utilization optimized
--- □ Power consumption analyzed
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This HD6402 implementation demonstrates several key digital design concepts:
--- - Legacy IC interface compatibility
--- - Complex dual-path state machine design
--- - Timing-critical communication protocols
--- - Comprehensive error detection systems
--- - Clock domain crossing techniques
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Ensure proper I/O standards for HD6402 interface compatibility
--- - Consider signal integrity for high-speed serial lines
--- - Implement appropriate clock distribution for TCP and RCP
--- - Plan for electromagnetic compatibility in serial interfaces
--- - Use proper termination for long serial connections
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Legacy IC interface design principles
--- - Dual-clock domain UART implementation
--- - Comprehensive error detection algorithms
--- - Classic communication protocol timing
--- - System-level UART integration techniques
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Create testbenches that verify HD6402 compatibility
--- - Use timing-accurate models for clock generation
--- - Implement comprehensive error injection testing
--- - Validate all character format combinations
--- - Test clock domain crossing scenarios
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity hd6402 is
---     port (
---         -- Data Interface
---         TBR     : in  std_logic_vector(7 downto 0);  -- Transmit Buffer Register
---         RBR     : out std_logic_vector(7 downto 0);  -- Receive Buffer Register
---         
---         -- Control Inputs
---         TBRL    : in  std_logic;  -- Transmit Buffer Register Load
---         RRD     : in  std_logic;  -- Receiver Register Disable
---         SFD     : in  std_logic;  -- Status Flag Disable
---         PI      : in  std_logic;  -- Parity Inhibit
---         EPE     : in  std_logic;  -- Even Parity Enable
---         NB1     : in  std_logic;  -- Number of Bits 1
---         NB2     : in  std_logic;  -- Number of Bits 2
---         TSB     : in  std_logic;  -- Two Stop Bits
---         CLS1    : in  std_logic;  -- Character Length Select 1
---         CLS2    : in  std_logic;  -- Character Length Select 2
---         
---         -- Clock and Reset
---         RCP     : in  std_logic;  -- Receiver Clock Pulse
---         TCP     : in  std_logic;  -- Transmitter Clock Pulse
---         MR      : in  std_logic;  -- Master Reset
---         
---         -- Serial Interface
---         RRI     : in  std_logic;  -- Receiver Register Input
---         TRO     : out std_logic;  -- Transmitter Register Output
---         
---         -- Status Outputs
---         TBRE    : out std_logic;  -- Transmit Buffer Register Empty
---         TSRE    : out std_logic;  -- Transmit Shift Register Empty
---         DR      : out std_logic;  -- Data Ready
---         OE      : out std_logic;  -- Overrun Error
---         FE      : out std_logic;  -- Framing Error
---         PE      : out std_logic   -- Parity Error
---     );
--- end entity hd6402;
---
--- architecture behavioral of hd6402 is
---     -- Character length calculation
---     function get_char_length(cls1, cls2 : std_logic) return integer is
---     begin
---         case (cls2 & cls1) is
---             when "00" => return 5;
---             when "01" => return 6;
---             when "10" => return 7;
---             when "11" => return 8;
---             when others => return 8;
---         end case;
---     end function;
---     
---     -- Stop bits calculation
---     function get_stop_bits(tsb : std_logic; char_len : integer) return real is
---     begin
---         if char_len = 5 then
---             if tsb = '1' then
---                 return 2.0;
---             else
---                 return 1.5;
---             end if;
---         else
---             if tsb = '1' then
---                 return 2.0;
---             else
---                 return 1.0;
---             end if;
---         end if;
---     end function;
---     
---     -- Transmitter state machine
---     type tx_state_type is (TX_IDLE, TX_START, TX_DATA, TX_PARITY, TX_STOP);
---     signal tx_state : tx_state_type;
---     
---     -- Receiver state machine
---     type rx_state_type is (RX_IDLE, RX_START, RX_DATA, RX_PARITY, RX_STOP);
---     signal rx_state : rx_state_type;
---     
---     -- Internal signals
---     signal char_length : integer range 5 to 8;
---     signal tx_shift_reg : std_logic_vector(7 downto 0);
---     signal rx_shift_reg : std_logic_vector(7 downto 0);
---     signal tx_bit_count : unsigned(3 downto 0);
---     signal rx_bit_count : unsigned(3 downto 0);
---     signal rx_sample_count : unsigned(3 downto 0);
---     
---     -- Status flags
---     signal tbre_int : std_logic;
---     signal tsre_int : std_logic;
---     signal dr_int   : std_logic;
---     signal oe_int   : std_logic;
---     signal fe_int   : std_logic;
---     signal pe_int   : std_logic;
---     
--- begin
---     -- Character length calculation
---     char_length <= get_char_length(CLS1, CLS2);
---     
---     -- Transmitter process
---     transmitter_proc: process(TCP, MR)
---     begin
---         if MR = '1' then
---             tx_state <= TX_IDLE;
---             TRO <= '1';
---             tbre_int <= '1';
---             tsre_int <= '1';
---             tx_bit_count <= (others => '0');
---         elsif rising_edge(TCP) then
---             -- TODO: Implement transmitter state machine
---         end if;
---     end process;
---     
---     -- Receiver process
---     receiver_proc: process(RCP, MR)
---     begin
---         if MR = '1' then
---             rx_state <= RX_IDLE;
---             dr_int <= '0';
---             oe_int <= '0';
---             fe_int <= '0';
---             pe_int <= '0';
---             rx_bit_count <= (others => '0');
---             rx_sample_count <= (others => '0');
---         elsif rising_edge(RCP) then
---             -- TODO: Implement receiver state machine with 16x oversampling
---         end if;
---     end process;
---     
---     -- Status output assignment
---     TBRE <= tbre_int when SFD = '0' else '0';
---     TSRE <= tsre_int when SFD = '0' else '0';
---     DR   <= dr_int   when SFD = '0' else '0';
---     OE   <= oe_int   when SFD = '0' else '0';
---     FE   <= fe_int   when SFD = '0' else '0';
---     PE   <= pe_int   when SFD = '0' else '0';
---     
--- end architecture behavioral;
---
--- ============================================================================
--- Remember: This is a template and guide. The HD6402 is a complex UART
--- controller with precise timing requirements. Implement incrementally,
--- starting with basic functionality and adding features while maintaining
--- compatibility with the original HD6402 specifications.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity hd6402 is
+    generic (
+        BAUD_RATE : integer := 9600;
+        CLK_FREQ  : integer := 50000000
+    );
+    port (
+        clk           : in  std_logic;
+        reset         : in  std_logic;
+        -- CPU interface (parallel side)
+        data_in       : in  std_logic_vector(7 downto 0); -- byte to transmit
+        tx_load       : in  std_logic;  -- pulse high to load data_in for TX
+        rx_read       : in  std_logic;  -- pulse high to read received byte
+        data_out      : out std_logic_vector(7 downto 0); -- received byte
+        -- Status flags
+        tx_ready      : out std_logic;
+        rx_ready      : out std_logic;
+        framing_error : out std_logic;
+        parity_error  : out std_logic;
+        -- Serial side
+        serial_in     : in  std_logic;
+        serial_out    : out std_logic
+    );
+end entity hd6402;
+
+architecture rtl of hd6402 is
+    constant CLK_PER_BIT : integer := CLK_FREQ / BAUD_RATE;
+
+    -- ---- TX state machine ----
+    type tx_state_t is (TX_IDLE, TX_START, TX_DATA, TX_PARITY, TX_STOP);
+    signal tx_state : tx_state_t := TX_IDLE;
+    signal tx_clk_count : integer range 0 to CLK_PER_BIT - 1 := 0;
+    signal tx_bit_index : integer range 0 to 7 := 0;
+    signal tx_data_reg  : std_logic_vector(7 downto 0) := (others => '0');
+    signal tx_parity    : std_logic := '0';
+    signal tx_rdy       : std_logic := '1';
+
+    -- ---- RX state machine ----
+    type rx_state_t is (RX_IDLE, RX_START, RX_DATA, RX_PARITY, RX_STOP);
+    signal rx_state : rx_state_t := RX_IDLE;
+    signal rx_clk_count : integer range 0 to CLK_PER_BIT - 1 := 0;
+    signal rx_bit_index : integer range 0 to 7 := 0;
+    signal rx_data_reg  : std_logic_vector(7 downto 0) := (others => '0');
+    signal rx_parity    : std_logic := '0';
+    signal rx_rdy       : std_logic := '0';
+    signal rx_ferr      : std_logic := '0';
+    signal rx_perr      : std_logic := '0';
+begin
+
+    -- =================== Transmitter ===================
+    tx_proc : process(clk, reset)
+    begin
+        if reset = '1' then
+            tx_state     <= TX_IDLE;
+            serial_out   <= '1';
+            tx_rdy       <= '1';
+            tx_clk_count <= 0;
+            tx_bit_index <= 0;
+            tx_data_reg  <= (others => '0');
+            tx_parity    <= '0';
+        elsif rising_edge(clk) then
+            case tx_state is
+                when TX_IDLE =>
+                    serial_out <= '1';
+                    tx_rdy     <= '1';
+                    if tx_load = '1' then
+                        tx_data_reg <= data_in;
+                        -- Compute even parity (XOR of all data bits)
+                        tx_parity   <= data_in(0) xor data_in(1) xor data_in(2) xor
+                                       data_in(3) xor data_in(4) xor data_in(5) xor
+                                       data_in(6) xor data_in(7);
+                        tx_rdy      <= '0';
+                        tx_state    <= TX_START;
+                        tx_clk_count<= 0;
+                    end if;
+
+                when TX_START =>
+                    serial_out <= '0';  -- start bit
+                    if tx_clk_count = CLK_PER_BIT - 1 then
+                        tx_clk_count <= 0;
+                        tx_bit_index <= 0;
+                        tx_state     <= TX_DATA;
+                    else
+                        tx_clk_count <= tx_clk_count + 1;
+                    end if;
+
+                when TX_DATA =>
+                    serial_out <= tx_data_reg(tx_bit_index);
+                    if tx_clk_count = CLK_PER_BIT - 1 then
+                        tx_clk_count <= 0;
+                        if tx_bit_index = 7 then
+                            tx_state <= TX_PARITY;
+                        else
+                            tx_bit_index <= tx_bit_index + 1;
+                        end if;
+                    else
+                        tx_clk_count <= tx_clk_count + 1;
+                    end if;
+
+                when TX_PARITY =>
+                    serial_out <= tx_parity;
+                    if tx_clk_count = CLK_PER_BIT - 1 then
+                        tx_clk_count <= 0;
+                        tx_state     <= TX_STOP;
+                    else
+                        tx_clk_count <= tx_clk_count + 1;
+                    end if;
+
+                when TX_STOP =>
+                    serial_out <= '1';  -- stop bit
+                    if tx_clk_count = CLK_PER_BIT - 1 then
+                        tx_clk_count <= 0;
+                        tx_rdy       <= '1';
+                        tx_state     <= TX_IDLE;
+                    else
+                        tx_clk_count <= tx_clk_count + 1;
+                    end if;
+            end case;
+        end if;
+    end process tx_proc;
+
+    tx_ready <= tx_rdy;
+
+    -- =================== Receiver ===================
+    rx_proc : process(clk, reset)
+    begin
+        if reset = '1' then
+            rx_state     <= RX_IDLE;
+            rx_rdy       <= '0';
+            rx_ferr      <= '0';
+            rx_perr      <= '0';
+            rx_clk_count <= 0;
+            rx_bit_index <= 0;
+            rx_data_reg  <= (others => '0');
+            rx_parity    <= '0';
+            data_out     <= (others => '0');
+        elsif rising_edge(clk) then
+            if rx_read = '1' then
+                rx_rdy <= '0';  -- CPU read the byte, clear ready
+            end if;
+
+            case rx_state is
+                when RX_IDLE =>
+                    if serial_in = '0' then  -- start bit
+                        rx_state     <= RX_START;
+                        rx_clk_count <= 0;
+                    end if;
+
+                when RX_START =>
+                    -- Verify start bit at the middle
+                    if rx_clk_count = (CLK_PER_BIT / 2) - 1 then
+                        if serial_in = '0' then
+                            rx_clk_count <= 0;
+                            rx_bit_index <= 0;
+                            rx_parity    <= '0';
+                            rx_state     <= RX_DATA;
+                        else
+                            rx_state <= RX_IDLE;  -- false start
+                        end if;
+                    else
+                        rx_clk_count <= rx_clk_count + 1;
+                    end if;
+
+                when RX_DATA =>
+                    if rx_clk_count = CLK_PER_BIT - 1 then
+                        rx_clk_count <= 0;
+                        rx_data_reg(rx_bit_index) <= serial_in;
+                        rx_parity <= rx_parity xor serial_in;
+                        if rx_bit_index = 7 then
+                            rx_state <= RX_PARITY;
+                        else
+                            rx_bit_index <= rx_bit_index + 1;
+                        end if;
+                    else
+                        rx_clk_count <= rx_clk_count + 1;
+                    end if;
+
+                when RX_PARITY =>
+                    if rx_clk_count = CLK_PER_BIT - 1 then
+                        rx_clk_count <= 0;
+                        -- Even parity: XOR of all bits + parity bit = 0
+                        if (rx_parity xor serial_in) = '0' then
+                            rx_perr <= '0';
+                        else
+                            rx_perr <= '1';
+                        end if;
+                        rx_state <= RX_STOP;
+                    else
+                        rx_clk_count <= rx_clk_count + 1;
+                    end if;
+
+                when RX_STOP =>
+                    if rx_clk_count = CLK_PER_BIT - 1 then
+                        rx_clk_count <= 0;
+                        if serial_in = '1' then
+                            rx_ferr <= '0';  -- valid stop bit
+                        else
+                            rx_ferr <= '1';  -- framing error
+                        end if;
+                        data_out <= rx_data_reg;
+                        rx_rdy   <= '1';
+                        rx_state <= RX_IDLE;
+                    else
+                        rx_clk_count <= rx_clk_count + 1;
+                    end if;
+            end case;
+        end if;
+    end process rx_proc;
+
+    rx_ready      <= rx_rdy;
+    framing_error <= rx_ferr;
+    parity_error  <= rx_perr;
+
+end architecture rtl;

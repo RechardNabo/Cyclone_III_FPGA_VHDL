@@ -1,41 +1,48 @@
 -- ============================================================================
--- Peripheral: Switches (Board Basics) — Documentation-Only
+-- Slide Switches Reader with Synchronization
 -- Target: Altera/Intel Cyclone III FPGA
--- Purpose:
---   This file documents how to interface on-board slide/toggle switches.
---   No VHDL code is implemented here by request.
---
--- Overview:
--- - Switches present static ON/OFF states but are asynchronous to clock.
--- - Polarity depends on wiring (active-high vs active-low).
--- - Mechanical noise is usually negligible for static reads; debounce
---   is commonly unnecessary compared to push-buttons.
---
--- Pin Assignments (example; adjust to your board):
---   set_location_assignment PIN_<N> -to sw_in[0]
---   set_location_assignment PIN_<N> -to sw_in[1]
---   ... (match switch count)
---
--- Recommended HDL Structure (not implemented):
--- - Generic: SW_COUNT, ACTIVE_HIGH
--- - Ports:  clk, sw_in (board pins), sw (synchronized outputs)
--- - Logic:  two-flop synchronizer; polarity correction
---           sw_raw <= sw_in when ACTIVE_HIGH else not sw_in;
---           sync1 <= sw_raw; sync2 <= sync1; sw <= sync2;
---
--- Usage Notes:
--- - Always synchronize raw switch signals to your system clock before use.
--- - Confirm polarity; avoid inverted logic causing unexpected behavior.
--- - If crossing domains, add CDC constraints or synchronizers per domain.
---
--- Bring-Up Checklist:
--- □ Pin mapping complete in .qsf or Pin Planner
--- □ Polarity verified against schematic
--- □ Synchronization to clock domain implemented in your design
--- □ Width (SW_COUNT) matches physical switches
---
--- TODOs:
--- - Create your own switch interface entity/architecture.
--- - Update constraints to exact pinout and I/O standards.
--- - Integrate signals into configuration or mode-select logic.
+-- Reads 10 slide switches and outputs them as a 10-bit vector.
+-- Includes a 2-flip-flop synchronizer to avoid metastability.
 -- ============================================================================
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity switches is
+    generic (
+        SYNC_ENABLE : boolean := true  -- Enable 2-FF synchronizer
+    );
+    port (
+        clk    : in  std_logic;                    -- System clock
+        sw_in  : in  std_logic_vector(9 downto 0); -- Raw switch inputs
+        sw_out : out std_logic_vector(9 downto 0)  -- Synchronized outputs
+    );
+end entity switches;
+
+architecture rtl of switches is
+    -- Stage 1 of synchronizer (direct or first FF)
+    signal sync1 : std_logic_vector(9 downto 0) := (others => '0');
+    -- Stage 2 of synchronizer (second FF)
+    signal sync2 : std_logic_vector(9 downto 0) := (others => '0');
+begin
+
+    sync_proc : process(clk)
+    begin
+        if rising_edge(clk) then
+            if SYNC_ENABLE then
+                -- Two flip-flop synchronizer for each switch
+                sync1 <= sw_in;
+                sync2 <= sync1;
+            else
+                -- Bypass synchronizer (direct pass-through)
+                sync1 <= sw_in;
+                sync2 <= sync1;
+            end if;
+        end if;
+    end process sync_proc;
+
+    -- Output the synchronized switch values
+    sw_out <= sync2;
+
+end architecture rtl;

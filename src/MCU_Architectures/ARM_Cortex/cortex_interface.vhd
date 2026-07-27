@@ -1,303 +1,185 @@
--- ============================================================================
--- ARM CORTEX INTERFACE IMPLEMENTATION
--- ============================================================================
--- Project: ARM Cortex Processor Interface Design
--- Description: This project implements a comprehensive interface for ARM Cortex 
---              processors, providing FPGA-based communication and control 
---              capabilities for various Cortex-A, Cortex-M, and Cortex-R series 
---              processors.
+-- ================================================================================
+-- cortex_interface : Generic configurable AHB-Lite peripheral controller
+-- ================================================================================
+-- This is a GENERIC Cortex-style interface (not variant-specific).
+-- It provides a parameterizable register file, GPIO, and interrupt aggregator
+-- that can be used as a building block for any ARM Cortex-M peripheral.
 --
--- Learning Objectives:
--- 1. Understand ARM Cortex processor architectures and interfaces
--- 2. Master AMBA bus protocols (AHB, APB, AXI)
--- 3. Learn ARM processor boot and initialization sequences
--- 4. Implement memory-mapped peripheral interfaces
--- 5. Understand interrupt controller integration (GIC, NVIC)
--- 6. Master debug and trace interface implementation
--- 7. Learn power management and clock control
--- 8. Implement secure and non-secure world interfaces
+-- Generics:
+--   NUM_REGS   : number of 32-bit registers in the register file (default 8)
+--   GPIO_WIDTH : width of the GPIO port (default 32)
+--   NUM_IRQ    : number of interrupt inputs to aggregate (default 16)
 --
--- Supported ARM Cortex Processors:
--- ┌─────────────────┬─────────────┬─────────────────────────────────────┐
--- │ Processor       │ Series      │ Key Features                        │
--- ├─────────────────┼─────────────┼─────────────────────────────────────┤
--- │ Cortex-M0       │ M-Series    │ Ultra-low power, minimal area      │
--- │ Cortex-M0+      │ M-Series    │ Enhanced M0 with additional features│
--- │ Cortex-M3       │ M-Series    │ Full Thumb-2, MPU, advanced debug  │
--- │ Cortex-M4       │ M-Series    │ DSP extensions, FPU optional       │
--- │ Cortex-M7       │ M-Series    │ High performance, cache, TCM        │
--- │ Cortex-A5       │ A-Series    │ Low power application processor     │
--- │ Cortex-A7       │ A-Series    │ Energy efficient, virtualization   │
--- │ Cortex-A8       │ A-Series    │ High performance, NEON, VFP        │
--- │ Cortex-A9       │ A-Series    │ Multi-core, out-of-order execution │
--- │ Cortex-A15      │ A-Series    │ High performance, big.LITTLE ready │
--- │ Cortex-A53      │ A-Series    │ ARMv8-A, 64-bit, energy efficient │
--- │ Cortex-A57      │ A-Series    │ ARMv8-A, 64-bit, high performance │
--- │ Cortex-A72      │ A-Series    │ ARMv8-A, improved performance      │
--- │ Cortex-A76      │ A-Series    │ ARMv8.2-A, DynamIQ technology     │
--- │ Cortex-R4       │ R-Series    │ Real-time, MPU, cache              │
--- │ Cortex-R5       │ R-Series    │ Enhanced real-time, dual-core      │
--- │ Cortex-R7       │ R-Series    │ High performance real-time         │
--- │ Cortex-R8       │ R-Series    │ Advanced real-time features        │
--- │ Cortex-R52      │ R-Series    │ ARMv8-R, virtualization           │
--- │ Cortex-R82      │ R-Series    │ ARMv8-R, 64-bit real-time         │
--- └─────────────────┴─────────────┴─────────────────────────────────────┘
---
--- AMBA Bus Protocols:
--- 1. **AHB (Advanced High-performance Bus)**:
---    - High-performance system bus
---    - Single clock edge operation
---    - Burst transfers and split transactions
---    - Used for high-bandwidth peripherals
---
--- 2. **APB (Advanced Peripheral Bus)**:
---    - Low-power peripheral bus
---    - Simple interface protocol
---    - Non-pipelined operation
---    - Used for low-bandwidth peripherals
---
--- 3. **AXI (Advanced eXtensible Interface)**:
---    - High-performance, high-frequency system interconnect
---    - Separate address/control and data phases
---    - Out-of-order transaction completion
---    - Multiple outstanding transactions
---
--- Interface Architecture:
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │   ARM Cortex    │◀──▶│  FPGA Bridge    │◀──▶│   Peripheral    │
--- │   Processor     │    │   Interface     │    │   Controllers   │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---          │                       │                       │
---          ▼                       ▼                       ▼
--- ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
--- │  Debug/Trace    │    │  Clock/Reset    │    │    Memory       │
--- │   Interface     │    │   Management    │    │   Controller    │
--- └─────────────────┘    └─────────────────┘    └─────────────────┘
---
--- Key Interface Components:
--- ┌─────────────────┬─────────────────────────────────────────────────────┐
--- │ Component       │ Description                                         │
--- ├─────────────────┼─────────────────────────────────────────────────────┤
--- │ Bus Bridge      │ Protocol conversion between AMBA and FPGA          │
--- │ Address Decoder │ Memory map and peripheral selection                 │
--- │ Interrupt Ctrl  │ Interrupt aggregation and routing                  │
--- │ Clock Manager   │ Clock generation and distribution                   │
--- │ Reset Controller│ System reset sequencing and control                │
--- │ Debug Interface │ JTAG, SWD, and trace port implementation          │
--- │ Power Manager   │ Power domain control and monitoring                 │
--- │ Security Module │ TrustZone and secure boot support                  │
--- └─────────────────┴─────────────────────────────────────────────────────┘
---
--- Memory Map Example (Cortex-M Series):
--- ┌─────────────────┬─────────────────┬─────────────────────────────────┐
--- │ Address Range   │ Region          │ Description                     │
--- ├─────────────────┼─────────────────┼─────────────────────────────────┤
--- │ 0x00000000      │ Code            │ Flash memory, ROM               │
--- │ 0x20000000      │ SRAM            │ Static RAM                      │
--- │ 0x40000000      │ Peripheral      │ APB/AHB peripherals             │
--- │ 0x60000000      │ External RAM    │ External memory interface       │
--- │ 0xA0000000      │ External Device │ External device interface       │
--- │ 0xE0000000      │ Private Periph  │ NVIC, SysTick, debug            │
--- └─────────────────┴─────────────────┴─────────────────────────────────┘
---
--- Design Specifications:
--- - Bus Width: 32-bit (AHB/APB), 64-bit (AXI4)
--- - Address Width: 32-bit (configurable)
--- - Clock Frequency: Up to 200 MHz (processor dependent)
--- - Reset: Asynchronous assert, synchronous deassert
--- - Endianness: Little-endian (configurable)
--- - Memory Protection: MPU support for applicable cores
--- - Debug: JTAG, SWD, ETM, ITM support
--- - Power Management: Clock gating, power islands
---
--- Implementation Approaches:
--- 1. **Direct Interface**:
---    - Direct connection to processor pins
---    - Minimal latency and overhead
---    - Limited flexibility and scalability
---
--- 2. **Bus Bridge Interface**:
---    - Protocol conversion layer
---    - Better isolation and flexibility
---    - Moderate complexity and latency
---
--- 3. **System-on-Chip Integration**:
---    - Full SoC implementation
---    - Maximum integration and performance
---    - High complexity and resource usage
---
--- Step-by-Step Implementation Guide:
---
--- Step 1: Define Processor Configuration
--- - Select target Cortex processor variant
--- - Define memory map and peripheral set
--- - Specify clock and reset requirements
--- - Choose debug and trace features
---
--- Step 2: Implement Bus Interface
--- - Create AMBA protocol controllers
--- - Add address decoding logic
--- - Implement data path multiplexing
--- - Add bus arbitration if needed
---
--- Step 3: Design Clock and Reset System
--- - Implement clock generation and distribution
--- - Add reset sequencing logic
--- - Create power management controls
--- - Add clock domain crossing logic
---
--- Step 4: Create Interrupt Controller
--- - Implement interrupt aggregation
--- - Add priority and masking logic
--- - Create interrupt vector table
--- - Add nested interrupt support
---
--- Step 5: Add Debug and Trace Support
--- - Implement JTAG/SWD interface
--- - Add trace port functionality
--- - Create debug register access
--- - Add breakpoint and watchpoint support
---
--- Step 6: Implement Memory Controllers
--- - Add external memory interfaces
--- - Implement cache controllers if needed
--- - Add memory protection logic
--- - Create DMA controllers
---
--- Step 7: Add Peripheral Interfaces
--- - Implement standard peripherals (UART, SPI, I2C)
--- - Add GPIO and timer controllers
--- - Create custom peripheral interfaces
--- - Add peripheral clock and reset control
---
--- Step 8: Integrate Security Features
--- - Implement TrustZone support (if applicable)
--- - Add secure boot functionality
--- - Create cryptographic accelerators
--- - Add secure key storage
---
--- Required Libraries:
--- - IEEE.std_logic_1164: Standard logic types
--- - IEEE.numeric_std: Arithmetic operations
--- - work.amba_pkg: AMBA protocol definitions
--- - work.cortex_pkg: Cortex-specific constants and types
---
--- Advanced Features:
--- 1. **Multi-Core Support**: SMP and AMP configurations
--- 2. **Virtualization**: Hypervisor support for A-series
--- 3. **Cache Coherency**: ACE protocol implementation
--- 4. **Performance Monitoring**: PMU integration
--- 5. **Thermal Management**: Temperature monitoring and control
--- 6. **Fault Tolerance**: Error detection and correction
--- 7. **Real-Time Features**: Deterministic interrupt latency
--- 8. **Low Power Modes**: Sleep, deep sleep, standby modes
---
--- Applications:
--- - Embedded system controllers
--- - IoT device interfaces
--- - Industrial automation systems
--- - Automotive ECU interfaces
--- - Medical device controllers
--- - Aerospace and defense systems
--- - Consumer electronics
--- - Smart home devices
---
--- Performance Considerations:
--- - Bus bandwidth optimization
--- - Interrupt latency minimization
--- - Memory access optimization
--- - Cache hit rate maximization
--- - Power consumption reduction
--- - Thermal management
--- - Real-time response guarantees
--- - Security overhead minimization
---
--- Verification Strategy:
--- 1. **Protocol Compliance**: AMBA protocol checker
--- 2. **Functional Testing**: Processor boot and operation
--- 3. **Performance Testing**: Bandwidth and latency measurement
--- 4. **Power Testing**: Current consumption analysis
--- 5. **Security Testing**: Attack resistance validation
--- 6. **Stress Testing**: Extended operation validation
--- 7. **Compatibility Testing**: Multiple processor variants
--- 8. **Integration Testing**: Full system validation
---
--- Common Design Challenges:
--- - Clock domain crossing issues
--- - Reset synchronization problems
--- - Bus protocol violations
--- - Interrupt timing issues
--- - Memory coherency problems
--- - Power sequencing errors
--- - Debug interface conflicts
--- - Security vulnerability exposure
---
--- Verification Checklist:
--- □ Bus protocol compliance verified
--- □ Processor boot sequence successful
--- □ Memory map correctly implemented
--- □ Interrupt handling functional
--- □ Debug interface operational
--- □ Clock and reset timing correct
--- □ Power management working
--- □ Security features validated
--- □ Performance targets met
--- □ Thermal limits respected
--- □ EMC compliance achieved
--- □ Safety standards met
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- Step 1: Add library declarations
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
--- use work.amba_pkg.all;
--- use work.cortex_pkg.all;
---
--- Step 2: Define your entity with appropriate generics and ports
--- entity cortex_interface is
---     generic (
---         PROCESSOR_TYPE  : string := "CORTEX_M4";
---         DATA_WIDTH      : integer := 32;
---         ADDR_WIDTH      : integer := 32;
---         CLOCK_FREQ      : integer := 100_000_000
---     );
---     port (
---         -- System signals
---         clk             : in  std_logic;
---         reset_n         : in  std_logic;
---         
---         -- Processor interface
---         -- Add AMBA bus signals (AHB/APB/AXI)
---         -- Add interrupt signals
---         -- Add debug interface signals
---         
---         -- FPGA interface
---         -- Add peripheral control signals
---         -- Add memory interface signals
---         -- Add status and control registers
---     );
--- end entity cortex_interface;
---
--- Step 3: Create your architecture
--- architecture rtl of cortex_interface is
---     -- Component declarations for bus bridges, controllers
---     -- Signal declarations for internal connections
---     -- Constants for memory map and configuration
--- begin
---     -- Instantiate bus interface components
---     -- Add clock and reset management
---     -- Connect interrupt controller
---     -- Add debug interface logic
---     -- Implement peripheral interfaces
--- end architecture rtl;
---
--- ============================================================================
--- Remember: ARM Cortex interface design requires careful attention to bus
--- protocols, timing requirements, and processor-specific features. Always
--- consult the processor technical reference manual for detailed specifications.
--- ============================================================================
+-- Memory map (Peripheral 0x40000000):
+--   0x40000000 - 0x400000xx : Register file (NUM_REGS x 4 bytes)
+--   0x40000100 - 0x4000010F : GPIO (data, dir, afsel)
+--   0x40000200 - 0x4000020F : Interrupt aggregator (enable, pending, status)
+-- ================================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity cortex_interface is
+    generic (
+        NUM_REGS   : integer := 8;
+        GPIO_WIDTH : integer := 32;
+        NUM_IRQ    : integer := 16
+    );
+    port (
+        HCLK, HRESETn, HSEL, HWRITE, HREADY, HMASTLOCK : in std_logic;
+        HTRANS : in std_logic_vector(1 downto 0);
+        HSIZE  : in std_logic_vector(2 downto 0);
+        HPROT  : in std_logic_vector(3 downto 0);
+        HADDR  : in std_logic_vector(31 downto 0);
+        HWDATA : in std_logic_vector(31 downto 0);
+        HRDATA : out std_logic_vector(31 downto 0);
+        HRESP  : out std_logic;
+        HREADYOUT : out std_logic;
+        -- Interrupt aggregator
+        irq_inputs : in  std_logic_vector(NUM_IRQ-1 downto 0);
+        irq_out    : out std_logic;
+        -- GPIO
+        gpio_in   : in  std_logic_vector(GPIO_WIDTH-1 downto 0);
+        gpio_out  : out std_logic_vector(GPIO_WIDTH-1 downto 0);
+        gpio_dir  : out std_logic_vector(GPIO_WIDTH-1 downto 0)
+    );
+end entity cortex_interface;
+
+architecture rtl of cortex_interface is
+
+    -- Address block selects (bits [11:8])
+    constant BLK_REGS : std_logic_vector(3 downto 0) := x"0"; -- 0x40000000
+    constant BLK_GPIO : std_logic_vector(3 downto 0) := x"1"; -- 0x40000100
+    constant BLK_IRQ  : std_logic_vector(3 downto 0) := x"2"; -- 0x40000200
+
+    -- GPIO sub-register selects (bits [5:2])
+    constant GPIO_DATA  : std_logic_vector(3 downto 0) := x"0";
+    constant GPIO_DIR   : std_logic_vector(3 downto 0) := x"1";
+    constant GPIO_AFSEL : std_logic_vector(3 downto 0) := x"2";
+
+    -- IRQ sub-register selects
+    constant IRQ_ENABLE  : std_logic_vector(3 downto 0) := x"0";
+    constant IRQ_PENDING : std_logic_vector(3 downto 0) := x"1";
+    constant IRQ_STATUS  : std_logic_vector(3 downto 0) := x"2";
+
+    -- Register file storage
+    type reg_file_array is array(0 to NUM_REGS-1) of std_logic_vector(31 downto 0);
+    signal reg_file : reg_file_array := (others => (others => '0'));
+
+    -- GPIO registers (extended to 32 bits internally, masked on output)
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_afsel    : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- Interrupt aggregator registers
+    signal irq_enable  : std_logic_vector(31 downto 0) := (others => '0');
+    signal irq_pending : std_logic_vector(31 downto 0) := (others => '0');
+
+    -- Address decode
+    signal addr_blk  : std_logic_vector(3 downto 0);
+    signal addr_sub  : std_logic_vector(3 downto 0);
+    signal reg_index : integer range 0 to NUM_REGS-1;
+    signal write_en  : std_logic;
+    signal valid_addr: std_logic;
+    signal irq_combined : std_logic_vector(31 downto 0);
+
+begin
+
+    addr_blk <= HADDR(11 downto 8);
+    addr_sub <= HADDR(5 downto 2);
+    reg_index <= to_integer(unsigned(HADDR(7 downto 2))) when
+                 to_integer(unsigned(HADDR(7 downto 2))) < NUM_REGS else 0;
+    write_en <= HSEL and HREADY and HWRITE;
+    valid_addr <= '1' when HADDR(31 downto 28) = x"4" else '0';
+
+    -- ------------------------------------------------------------------------
+    -- AHB-Lite write process
+    -- ------------------------------------------------------------------------
+    ahb_write : process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            reg_file       <= (others => (others => '0'));
+            gpio_data_reg  <= (others => '0');
+            gpio_dir_reg   <= (others => '0');
+            gpio_afsel     <= (others => '0');
+            irq_enable     <= (others => '0');
+            irq_pending    <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if write_en = '1' and valid_addr = '1' then
+                case addr_blk is
+                    when BLK_REGS =>
+                        if to_integer(unsigned(HADDR(7 downto 2))) < NUM_REGS then
+                            reg_file(reg_index) <= HWDATA;
+                        end if;
+                    when BLK_GPIO =>
+                        case addr_sub is
+                            when GPIO_DATA  => gpio_data_reg <= HWDATA;
+                            when GPIO_DIR   => gpio_dir_reg  <= HWDATA;
+                            when GPIO_AFSEL => gpio_afsel    <= HWDATA;
+                            when others     => null;
+                        end case;
+                    when BLK_IRQ =>
+                        case addr_sub is
+                            when IRQ_ENABLE  => irq_enable  <= irq_enable or HWDATA;
+                            when IRQ_PENDING => irq_pending <= irq_pending or HWDATA;
+                            when IRQ_STATUS  => irq_pending <= irq_pending and not HWDATA; -- clear
+                            when others      => null;
+                        end case;
+                    when others => null;
+                end case;
+            end if;
+        end if;
+    end process ahb_write;
+
+    -- ------------------------------------------------------------------------
+    -- AHB-Lite read mux
+    -- ------------------------------------------------------------------------
+    ahb_read : process(HSEL, HADDR, valid_addr, addr_blk, addr_sub,
+                       reg_file, gpio_data_reg, gpio_dir_reg, gpio_afsel,
+                       irq_enable, irq_pending, irq_combined, reg_index)
+        variable rdata : std_logic_vector(31 downto 0);
+    begin
+        rdata := (others => '0');
+        if HSEL = '1' and valid_addr = '1' then
+            case addr_blk is
+                when BLK_REGS =>
+                    if to_integer(unsigned(HADDR(7 downto 2))) < NUM_REGS then
+                        rdata := reg_file(reg_index);
+                    end if;
+                when BLK_GPIO =>
+                    case addr_sub is
+                        when GPIO_DATA  => rdata := gpio_data_reg;
+                        when GPIO_DIR   => rdata := gpio_dir_reg;
+                        when GPIO_AFSEL => rdata := gpio_afsel;
+                        when others     => null;
+                    end case;
+                when BLK_IRQ =>
+                    case addr_sub is
+                        when IRQ_ENABLE  => rdata := irq_enable;
+                        when IRQ_PENDING => rdata := irq_pending;
+                        when IRQ_STATUS  => rdata := irq_combined;
+                        when others      => null;
+                    end case;
+                when others => null;
+            end case;
+        end if;
+        HRDATA <= rdata;
+    end process ahb_read;
+
+    HRESP     <= '1' when (HSEL = '1' and valid_addr = '0') else '0';
+    HREADYOUT <= '1';
+
+    -- GPIO outputs (masked to GPIO_WIDTH)
+    gpio_out <= gpio_data_reg(GPIO_WIDTH-1 downto 0);
+    gpio_dir <= gpio_dir_reg(GPIO_WIDTH-1 downto 0);
+
+    -- ------------------------------------------------------------------------
+    -- Interrupt aggregator: combine external IRQs with pending, mask by enable
+    -- ------------------------------------------------------------------------
+    irq_combined(31 downto 0) <= (irq_pending(31 downto 0) or
+                                   (irq_inputs & x"0000"(NUM_IRQ-1 downto 0))) and
+                                  irq_enable(31 downto 0);
+
+    irq_out <= '1' when unsigned(irq_combined) /= 0 else '0';
+
+end architecture rtl;

@@ -1,348 +1,74 @@
 -- ============================================================================
--- Random Number Generator (RNG) - Programming Guidance
+-- Random Number Generator (RNG) - LFSR Based
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file outlines the implementation of a Random Number Generator (RNG)
--- for FPGA-based systems. RNGs are crucial for cryptographic applications,
--- secure communication, and various other digital systems requiring
--- unpredictable or statistically random sequences. This design focuses on
--- a hardware-efficient approach suitable for FPGA synthesis.
+-- A Linear Feedback Shift Register (LFSR) is a simple pseudo-random number
+-- generator. It shifts bits and XORs specific "tap" positions back into the
+-- input. With the right taps, the sequence has a long period before repeating.
 --
--- LEARNING OBJECTIVES:
--- 1. Understand different types of RNGs (TRNG, PRNG)
--- 2. Learn principles of Linear Feedback Shift Registers (LFSRs)
--- 3. Explore techniques for generating high-quality random numbers
--- 4. Practice designing and implementing sequential logic
--- 5. Understand methods for testing randomness (e.g., NIST tests)
+-- This 32-bit LFSR uses taps at positions 32, 22, 2, 1 (a maximal-length
+-- polynomial) giving a period of 2^32 - 1 before repeating.
 --
+-- LEARNING CONCEPTS:
+-- 1. Pseudo-random vs true random numbers
+-- 2. Shift registers and feedback logic
+-- 3. Why tap positions matter (maximal-length sequence)
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations (recommended)
---
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all; (for arithmetic operations if needed)
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the Random Number Generator.
---
--- Entity Requirements:
--- - Name: rng (maintain current naming convention)
--- - Inputs: Clock, Reset, Enable, Seed (for PRNGs)
--- - Outputs: Random_Output, Valid_Output (indicating new random number)
---
--- Port Specifications:
--- - clk : in std_logic (System clock)
--- - rst : in std_logic (Asynchronous or synchronous reset)
--- - en : in std_logic (Enable signal to start/pause generation)
--- - seed_in : in std_logic_vector(N-1 downto 0) (Initial seed for PRNG - optional)
--- - random_out : out std_logic_vector(N-1 downto 0) (Generated random number)
--- - valid_out : out std_logic (Indicates when random_out is valid)
---
--- TODO: Declare entity with appropriate port names and bit widths
--- TODO: Add detailed port comments
--- TODO: Consider generic parameters for bit width (N) and LFSR taps
---
--- ============================================================================
--- STEP 3: ARCHITECTURE IMPLEMENTATION OPTIONS
--- ============================================================================
---
--- OPTION 1: LINEAR FEEDBACK SHIFT REGISTER (PRNG)
--- ----------------------------------------------------------------------------
--- A common and efficient method for pseudo-random number generation.
---
--- Implementation Approach:
--- - Use a shift register with XOR feedback taps
--- - Select appropriate primitive polynomial for maximum length sequence
--- - Implement a state register to hold the current LFSR value
--- - Generate new random bits on each clock cycle when enabled
---
--- Example Structure (for a 4-bit LFSR with taps at [4,3]):
--- signal lfsr_reg : std_logic_vector(3 downto 0);
---
--- process(clk, rst)
--- begin
---     if rst = '1' then
---         lfsr_reg <= "0001"; -- Initial seed (cannot be all zeros)
---     elsif rising_edge(clk) then
---         if en = '1' then
---             lfsr_reg <= lfsr_reg(2 downto 0) & (lfsr_reg(3) xor lfsr_reg(2));
---         end if;
---     end if;
--- end process;
---
--- random_out <= lfsr_reg;
--- valid_out <= en; -- Or based on a more complex generation scheme
---
--- TODO: Implement LFSR with configurable bit width and tap positions
--- TODO: Research primitive polynomials for various LFSR lengths
--- TODO: Add logic for seeding the LFSR (if required)
--- TODO: Consider multiple LFSRs for better randomness properties
---
--- OPTION 2: TRUE RANDOM NUMBER GENERATOR (TRNG) - ENTROPY SOURCE
--- ----------------------------------------------------------------------------
--- TRNGs rely on physical random phenomena (entropy sources).
---
--- Implementation Approach:
--- - Utilize jitter in ring oscillators or metastable flip-flops
--- - Implement a post-processing stage (e.g., Von Neumann corrector) to improve randomness
--- - Requires careful analog/mixed-signal design considerations
--- - Often combined with PRNGs for robustness (hybrid RNGs)
---
--- Considerations:
--- - Jitter source: Ring oscillators, free-running clocks, thermal noise
--- - Sampling: High-frequency sampling of the entropy source
--- - Post-processing: Whitening, decorrelation, bias removal
--- - Security: Protection against physical attacks and environmental influences
---
--- TODO: Research FPGA-specific TRNG techniques (e.g., using uninitialized BRAMs)
--- TODO: Design a simple ring oscillator and sample its output
--- TODO: Implement a Von Neumann corrector or similar post-processing
--- TODO: Consider integrating a TRNG as a seed source for a PRNG
---
--- OPTION 3: CRYPTOGRAPHICALLY SECURE PRNG (CSPRNG)
--- ----------------------------------------------------------------------------
--- CSPRNGs are PRNGs designed to meet cryptographic security requirements.
---
--- Implementation Approach:
--- - Often based on cryptographic primitives like block ciphers (e.g., AES in counter mode)
--- - Requires a high-quality seed from a TRNG
--- - More complex and resource-intensive than basic LFSRs
---
--- Considerations:
--- - Seed management: Secure generation, storage, and loading of seeds
--- - Cryptographic primitive: Selection of a robust and well-vetted algorithm
--- - Output whitening: Ensuring statistical properties of the output
--- - Side-channel attack resistance: Protecting against power analysis, EM leakage
---
--- TODO: Research existing hardware-accelerated cryptographic primitives
--- TODO: Design a secure seeding mechanism
--- TODO: Implement a block cipher in a suitable mode for PRNG
--- TODO: Analyze security properties and potential vulnerabilities
---
--- ============================================================================
--- STEP 4: RANDOMNESS TESTING AND VALIDATION
--- ============================================================================
---
--- Importance:
--- - Essential for ensuring the quality and security of the generated numbers
--- - Statistical tests help identify biases, correlations, and patterns
---
--- Common Test Suites:
--- - NIST SP 800-22 (Statistical Test Suite for Random and Pseudorandom Number Generators)
--- - Dieharder Test Suite
--- - TestU01 (BigCrush, SmallCrush, Crush)
---
--- Metrics:
--- - Monobit test (proportion of ones and zeros)
--- - Frequency test (runs of identical bits)
--- - Longest run of ones test
--- - Binary matrix rank test
--- - Discrete Fourier Transform (DFT) test
--- - Non-overlapping and Overlapping template matching tests
--- - Universal statistical test
--- - Linear complexity test
--- - Serial test
--- - Approximate entropy test
--- - Cumulative sums test
--- - Random excursions test
--- - Random excursions variant test
---
--- TODO: Develop a testbench to collect large samples of random numbers
--- TODO: Integrate a software-based randomness testing suite (e.g., Python with `random` module, or dedicated tools)
--- TODO: Analyze test results and refine RNG design if necessary
--- TODO: Document the testing methodology and results
---
--- ============================================================================
--- COMMON DESIGN CONSIDERATIONS:
--- ============================================================================
---
--- SEEDING MECHANISMS:
--- - For PRNGs, a good seed is critical for security
--- - Use a TRNG or a secure external source for seeding
--- - Ensure seed is truly random and sufficiently long
---
--- ENTROPY SOURCES:
--- - Physical noise (thermal, jitter, metastable events)
--- - Environmental factors (user input timings, sensor noise)
--- - Securely harvest and process entropy
--- - Securely harvest and process entropy
---
--- POST-PROCESSING:
--- - Whitening functions (e.g., XORing, hashing)
--- - Decorrelation techniques
--- - Bias removal (e.g., Von Neumann corrector)
---
--- RESISTANCE TO ATTACKS:
--- - Side-channel attacks (power analysis, electromagnetic analysis)
--- - Fault injection attacks
--- - Statistical attacks
--- - Prediction attacks (for PRNGs)
---
--- PERFORMANCE METRICS:
--- - Throughput (bits per second)
--- - Latency (time to generate first random number)
--- - Area utilization (LUTs, registers)
--- - Power consumption
--- - Randomness quality (statistical test pass rates)
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
---
--- □ Entity declaration includes all required ports
--- □ RNG type (PRNG/TRNG/CSPRNG) is clearly defined
--- □ Seed mechanism is secure and robust (if applicable)
--- □ Entropy source is reliable and unpredictable (if applicable)
--- □ Post-processing improves randomness (if applicable)
--- □ Statistical tests confirm randomness quality
--- □ Resistance to known attacks considered
--- □ Throughput and latency meet requirements
--- □ Area and power consumption are within limits
--- □ Code follows project VHDL style guidelines
--- □ Testbench provides comprehensive coverage
--- □ Documentation clearly explains all operations
--- □ Design is portable across different FPGA families
--- □ Performance meets or exceeds specifications
--- □ Power consumption is within acceptable limits
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
---
--- CRYPTOGRAPHIC APPLICATIONS:
--- - Key generation for encryption/decryption
--- - Nonces and initialization vectors (IVs)
--- - Digital signatures and authentication
--- - Secure boot and firmware updates
--- - Challenge-response protocols
---
--- SECURITY PROTOCOLS:
--- - TLS/SSL handshakes
--- - VPN connections
--- - Secure communication channels
--- - Hardware security modules (HSMs)
--- - Trusted Platform Modules (TPMs)
---
--- SYSTEM-ON-CHIP INTEGRATION:
--- - Secure element integration
--- - Hardware accelerators for cryptography
--- - Random number generation as a shared resource
--- - Secure memory access control
--- - Tamper detection and response
---
--- PERFORMANCE OPTIMIZATION:
--- - High-throughput random number generation
--- - Low-latency seed generation
--- - Efficient hardware implementation of LFSRs
--- - Parallel processing for multiple random streams
--- - Optimized post-processing algorithms
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
---
--- FPGA RESOURCE UTILIZATION:
--- - Logic Elements: Dependent on LFSR length, post-processing complexity
--- - Registers: For LFSR state and output buffering
--- - Memory: Minimal, unless large lookup tables are used
--- - Routing: Moderate, for feedback paths and output distribution
---
--- TIMING CHARACTERISTICS:
--- - Combinational Delay: For feedback logic and XOR gates
--- - Critical Path: Through LFSR feedback path
--- - Setup Time: Input signal requirements
--- - Hold Time: Input signal stability
--- - Clock-to-Output: For registered outputs
---
--- POWER CONSUMPTION:
--- - Static Power: FPGA leakage current
--- - Dynamic Power: Switching activity of LFSR and logic
--- - Clock Power: For clock distribution network
--- - I/O Power: Interface signal switching
---
--- DESIGN CONSTRAINTS:
--- - Timing constraints for clock frequency and data paths
--- - Area constraints for resource utilization
--- - Power constraints for thermal management
--- - Security constraints for randomness quality
--- - Environmental constraints for TRNG entropy sources
---
--- ============================================================================
--- ADVANCED RNG CONCEPTS:
--- ============================================================================
---
--- ENTROPY ACCUMULATION:
--- - Collecting entropy from multiple sources
--- - Combining entropy to increase unpredictability
--- - Entropy pooling and conditioning
--- - Health monitoring of entropy sources
---
--- POST-PROCESSING ALGORITHMS:
--- - Cryptographic hash functions (SHA-3)
--- - Block ciphers in counter mode (AES-CTR)
--- - Deterministic Random Bit Generators (DRBGs)
--- - Statistical whitening techniques
---
--- HARDWARE SECURITY MODULES (HSMs):
--- - Dedicated hardware for cryptographic operations
--- - Secure storage of keys and seeds
--- - Tamper-resistant packaging
--- - Certified random number generators
---
--- QUANTUM RANDOM NUMBER GENERATORS (QRNGs):
--- - Utilizing quantum phenomena for true randomness
--- - High-quality entropy source
--- - Emerging technology with high security potential
--- - Integration challenges with classical FPGAs
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
---
--- TESTBENCH ARCHITECTURE:
--- - Stimulus generation for clock, reset, enable, and seed
--- - Output capture for random_out and valid_out
--- - Statistical analysis of generated sequences
--- - Coverage analysis for LFSR states
---
--- VERIFICATION METHODOLOGY:
--- - Directed testing for specific LFSR sequences
--- - Random testing for statistical properties
--- - Formal verification for security properties
--- - Assertion-based verification for continuous checking
---
--- DEBUGGING TECHNIQUES:
--- - Waveform analysis of LFSR state and feedback
--- - Breakpoint debugging in simulation
--- - Signal tracing through post-processing stages
--- - Entropy source monitoring
---
--- PERFORMANCE ANALYSIS:
--- - Throughput measurement (bits/cycle)
--- - Latency measurement
--- - Resource utilization analysis
--- - Power estimation for different configurations
--- - Randomness quality assessment
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
---
--- [Add your library declarations here]
---
--- [Add your entity declaration here]
---
--- [Add your architecture implementation here]
---
--- ============================================================================
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity rng is
+    port (
+        clk     : in  std_logic;                      -- Clock signal
+        reset   : in  std_logic;                      -- Asynchronous reset (active high)
+        enable  : in  std_logic;                      -- Enable the RNG when high
+        seed    : in  std_logic_vector(31 downto 0);  -- Initial seed value
+        load    : in  std_logic;                      -- Load seed into register when high
+        rnd_out : out std_logic_vector(31 downto 0)   -- Current random value
+    );
+end entity rng;
+
+architecture rtl of rng is
+    -- The shift register holding the current random state.
+    -- We use variable/signal to hold the 32-bit LFSR state.
+    signal lfsr_reg : std_logic_vector(31 downto 0) := (others => '1');
+
+begin
+
+    ----------------------------------------------------------------------------
+    -- LFSR Process: On each clock, shift left and feed back XOR of taps.
+    -- Taps at positions 32, 22, 2, 1 (1-indexed from the left).
+    -- In VHDL bit indexing (0-indexed from right), these map to bits 31, 21, 1, 0.
+    ----------------------------------------------------------------------------
+    process(clk, reset)
+        variable feedback : std_logic;
+    begin
+        if reset = '1' then
+            -- Reset to a non-zero default (all ones) so the LFSR is never zero.
+            -- An all-zero LFSR would stay zero forever (degenerate case).
+            lfsr_reg <= (others => '1');
+        elsif rising_edge(clk) then
+            if load = '1' then
+                -- Load the seed. A seed of all zeros is invalid for an LFSR,
+                -- so we force at least one bit high to avoid the stuck state.
+                if seed = x"00000000" then
+                    lfsr_reg <= (0 => '1', others => '0');
+                else
+                    lfsr_reg <= seed;
+                end if;
+            elsif enable = '1' then
+                -- XOR the tap bits together to form the feedback bit.
+                -- Taps: bit 31, bit 21, bit 1, bit 0
+                feedback := lfsr_reg(31) xor lfsr_reg(21)
+                            xor lfsr_reg(1) xor lfsr_reg(0);
+                -- Shift the register left by one and insert feedback at bit 0.
+                lfsr_reg <= lfsr_reg(30 downto 0) & feedback;
+            end if;
+        end if;
+    end process;
+
+    -- Output the current LFSR value continuously.
+    rnd_out <= lfsr_reg;
+
+end architecture rtl;

@@ -1,84 +1,77 @@
 -- ============================================================================
--- Programming Guidance: Serial Adder Control FSM (Cyclone III / VHDL)
--- ----------------------------------------------------------------------------
--- Project Overview
--- - Sequencer for a serial N-bit adder datapath. Orchestrates loading
---   operands, bit-wise addition, and completion signaling.
--- - Designed to interface cleanly with enables/status flags from datapath.
---
--- Learning Objectives
--- - Design a simple, robust FSM with clearly defined handshakes.
--- - Manage mutually exclusive operations: LOAD vs RUN.
--- - Provide start/done/busy protocol for clean integration.
---
--- Implementation Guide (FSM)
--- 1) Libraries (TODO)
---    -- library ieee;
---    -- use ieee.std_logic_1164.all;
---
--- 2) Entity Interface (suggested)
---    - ports:
---      clk, rst_n           : in  std_logic
---      start_i              : in  std_logic  -- pulse/level to begin operation
---      width_i              : in  unsigned  -- optional: number of bits to add
---      done_o               : out std_logic
---      busy_o               : out std_logic
---      load_o               : out std_logic
---      shift_en_o           : out std_logic
---      -- optional datapath feedbacks:
---      bit_done_i           : in  std_logic  -- tick per bit processed
---      all_done_i           : in  std_logic  -- asserted by datapath when done
---
--- 3) State Set (example)
---    type state_t is (S_IDLE, S_LOAD, S_RUN, S_DONE);
---
--- 4) State Actions (typical)
---    - S_IDLE: busy_o='0', done_o='0', load_o='0', shift_en_o='0'
---              wait for start_i='1'
---    - S_LOAD: assert load_o for one cycle, initialize counters
---              transition to S_RUN
---    - S_RUN : busy_o='1', shift_en_o='1' for each bit
---              advance with each bit_done_i tick or internal counter
---              when all_done_i='1' -> S_DONE
---    - S_DONE: busy_o='0', done_o='1' for one cycle or until ack
---              then return to S_IDLE
---
--- 5) Design Notes
---    - Avoid lingering in S_LOAD; keep it one-cycle unless backpressure needed.
---    - If using a width_i generic/port, compute remaining bits internally.
---    - Tie busy_o high during RUN; drop it in DONE/IDLE.
---    - Ensure start_i is synchronized if coming from external logic.
---
--- 6) Verification Considerations
---    - Exercise start bounce/noise: ensure single operation per request.
---    - Validate RUN length matches configured width and datapath counters.
---    - Confirm clean deassertion of control enables when DONE.
---
--- TODOs for You
---    - Instantiate your chosen state encoding and transition logic.
---    - Connect datapath feedbacks (bit_done_i/all_done_i) or implement counters.
---    - Define done_o pulse-width policy (one cycle vs level until ack).
--- ----------------------------------------------------------------------------
--- Recommended Starting Skeleton (commented)
--- ----------------------------------------------------------------------------
--- entity serial_adder_fsm is
---   port (
---     clk        : in  std_logic;
---     rst_n      : in  std_logic;
---     start_i    : in  std_logic;
---     done_o     : out std_logic;
---     busy_o     : out std_logic;
---     load_o     : out std_logic;
---     shift_en_o : out std_logic
---   );
--- end entity;
---
--- architecture rtl of serial_adder_fsm is
---   type state_t is (S_IDLE, S_LOAD, S_RUN, S_DONE);
---   signal state, next : state_t;
--- begin
---   -- state register
---   -- next-state logic
---   -- output decode
--- end architecture;
+-- Serial Adder - FSM Controller
+-- States: IDLE, SHIFTING (8 cycles), DONE
 -- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity serial_adder_fsm is
+  port (
+    clk      : in  std_logic;
+    reset    : in  std_logic;
+    start    : in  std_logic;
+    load_en  : out std_logic;  -- command datapath to load operands
+    shift_en : out std_logic;  -- command datapath to shift one bit
+    done     : out std_logic
+  );
+end entity serial_adder_fsm;
+
+architecture rtl of serial_adder_fsm is
+  -- FSM states for the serial adder
+  type state_type is (IDLE, SHIFTING, DONE);
+  signal state : state_type := IDLE;
+
+  -- Bit counter tracks how many bits have been processed (0 to 7)
+  signal bit_cnt : unsigned(3 downto 0) := (others => '0');
+  constant WIDTH : integer := 8;
+begin
+
+  -- Clocked process: state transitions and control signal generation
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        -- Synchronous reset: return to IDLE
+        state     <= IDLE;
+        bit_cnt   <= (others => '0');
+        load_en   <= '0';
+        shift_en  <= '0';
+        done      <= '0';
+      else
+        -- Default control values
+        load_en  <= '0';
+        shift_en <= '0';
+        done     <= '0';
+
+        case state is
+
+          -- IDLE: wait for start signal, then load operands
+          when IDLE =>
+            if start = '1' then
+              load_en <= '1';       -- load operands into datapath
+              bit_cnt <= (others => '0');
+              state   <= SHIFTING;
+            end if;
+
+          -- SHIFTING: shift one bit per cycle for 8 cycles
+          when SHIFTING =>
+            shift_en <= '1';
+            bit_cnt  <= bit_cnt + 1;
+            if bit_cnt = to_unsigned(WIDTH - 1, 4) then
+              state <= DONE;        -- all 8 bits processed
+            end if;
+
+          -- DONE: assert done for one cycle, return to IDLE
+          when DONE =>
+            done  <= '1';
+            state <= IDLE;
+
+          when others =>
+            state <= IDLE;
+        end case;
+      end if;
+    end if;
+  end process;
+
+end architecture rtl;

@@ -1,332 +1,417 @@
--- ============================================================================
--- ARM CORTEX-M1 TESTBENCH VHDL FILE
--- ============================================================================
--- Project: ARM Cortex-M1 Processor Interface Verification
--- File: cortex_m1_testbench.vhd
--- 
--- Author: [To be filled]
--- Date: [To be filled]
---
--- Description: Testbench for Cortex-M1 processor interface verification
---              Includes FPGA-optimized protocol compliance checks and
---              functional tests for cost-effective embedded systems
---
--- Learning Objectives:
--- 1. Understand Cortex-M1 FPGA-optimized architecture
--- 2. Learn AHB-Lite protocol verification for simple systems
--- 3. Test NVIC interrupt routing and priorities
--- 4. Validate debug interface operation
--- 5. Verify low-power mode transitions
--- 6. Test memory access patterns
--- 7. Perform FPGA resource efficiency analysis
--- 8. Verify system-level integration
---
--- ============================================================================
--- TESTBENCH ARCHITECTURE
--- ============================================================================
---
--- Test Organization:
--- ┌──────────────────────────────────────────────────────────────────┐
--- │ Cortex-M1 Interface Testbench                                    │
--- ├──────────────────────────────────────────────────────────────────┤
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ Test Environment Setup                                     │  │
--- │ │ • Clock and reset generation                              │  │
--- │ │ • Memory model (Flash and SRAM)                           │  │
--- │ │ • Peripheral device stubs                                 │  │
--- │ │ • FPGA resource monitors                                  │  │
--- │ │ • Reference NVIC model                                    │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ Test Scenarios                                             │  │
--- │ │ • ARMv6-M instruction execution                            │  │
--- │ │ • Boot and initialization sequence                         │  │
--- │ │ • Memory access patterns (read/write)                      │  │
--- │ │ • AHB-Lite protocol compliance                             │  │
--- │ │ • Interrupt handling and nesting                           │  │
--- │ │ • Context preservation                                     │  │
--- │ │ • Sleep mode entry and exit                                │  │
--- │ │ • Debug interface operation                                │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ Verification Functions                                     │  │
--- │ │ • AHB transaction monitor (FPGA optimized)                 │  │
--- │ │ • ARMv6-M instruction validator                            │  │
--- │ │ • Interrupt sequence validator                             │  │
--- │ │ • FPGA resource usage analyzer                             │  │
--- │ │ • Timing and coverage collection                           │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- │ ┌────────────────────────────────────────────────────────────┐  │
--- │ │ FPGA Optimization Checks                                   │  │
--- │ │ • Minimal LUT usage                                        │  │
--- │ │ • RAM utilization efficiency                               │  │
--- │ │ • Distributed RAM usage (if applicable)                    │  │
--- │ │ • Clock tree optimization                                  │  │
--- │ └────────────────────────────────────────────────────────────┘  │
--- │                                                                  │
--- └──────────────────────────────────────────────────────────────────┘
---
--- ============================================================================
--- TEST SCENARIOS
--- ============================================================================
---
--- Test 1: Power-On Reset and Boot Sequence
--- ├─ Objective: Verify processor comes out of reset correctly
--- ├─ Steps:
--- │  1. Assert reset
--- │  2. Wait for reset period
--- │  3. Deassert reset
--- │  4. Check initial processor state
--- │  5. Verify first instruction fetch from 0x0000_0000
--- └─ Expected: Processor begins execution from reset vector
---
--- Test 2: ARMv6-M Instruction Execution
--- ├─ Objective: Verify Thumb instruction execution
--- ├─ Steps:
--- │  1. Load test program into memory
--- │  2. Execute various instruction types
--- │  3. Verify register updates
--- │  4. Check status register (PSR) updates
--- └─ Expected: All instructions execute correctly
---
--- Test 3: AHB-Lite Memory Read Transaction
--- ├─ Objective: Verify AHB read protocol
--- ├─ Steps:
--- │  1. Set up address and read control signals
--- │  2. Wait for HREADY response
--- │  3. Capture HRDATA
--- │  4. Check response (HRESP)
--- └─ Expected: Correct data returned, HRESP = OKAY
---
--- Test 4: AHB-Lite Memory Write Transaction
--- ├─ Objective: Verify AHB write protocol
--- ├─ Steps:
--- │  1. Set up address, data, and write control
--- │  2. Wait for HREADY
--- │  3. Verify write was completed
--- └─ Expected: Data written correctly, HRESP = OKAY
---
--- Test 5: Interrupt Generation and NVIC Response
--- ├─ Objective: Verify interrupt handling
--- ├─ Steps:
--- │  1. Enable interrupts in processor
--- │  2. Raise an interrupt request
--- │  3. Wait for processor acknowledgment
--- │  4. Check PC changes to interrupt vector
--- │  5. Execute ISR (simulated)
--- │  6. Return from interrupt
--- └─ Expected: Interrupt serviced, context restored
---
--- Test 6: Interrupt Nesting
--- ├─ Objective: Verify nested interrupt handling
--- ├─ Steps:
--- │  1. Raise interrupt A (lower priority)
--- │  2. Start executing ISR A
--- │  3. Raise interrupt B (higher priority)
--- │  4. Check ISR B executes immediately
--- │  5. Complete ISR B and return to ISR A
--- │  6. Complete ISR A and return to main code
--- └─ Expected: Higher priority preempts lower priority
---
--- Test 7: Sleep Mode Entry and Exit
--- ├─ Objective: Verify low-power operation
--- ├─ Steps:
--- │  1. Execute WFI (Wait For Interrupt)
--- │  2. Verify processor state changes to sleep
--- │  3. Raise interrupt during sleep
--- │  4. Verify processor wakes and handles interrupt
--- │  5. Resume execution
--- └─ Expected: Processor efficiently enters and exits sleep
---
--- Test 8: Debug Interface (JTAG) Operation
--- ├─ Objective: Verify debug access
--- ├─ Steps:
--- │  1. Send JTAG sequences to processor
--- │  2. Access debug registers
--- │  3. Read processor state
--- │  4. Set breakpoints (if supported)
--- └─ Expected: Successful debug connection and access
---
--- Test 9: Load/Store Multiple Instructions
--- ├─ Objective: Verify block memory operations
--- ├─ Steps:
--- │  1. Set up register list
--- │  2. Execute LDM (Load Multiple)
--- │  3. Verify all registers updated
--- │  4. Execute STM (Store Multiple)
--- │  5. Verify memory contains correct values
--- └─ Expected: Block operations complete correctly
---
--- Test 10: Context Preservation in Exception
--- ├─ Objective: Verify automatic context save/restore
--- ├─ Steps:
--- │  1. Set up R0-R3 and R12 with known values
--- │  2. Generate exception
--- │  3. Check that context was saved to stack
--- │  4. Modify some saved values in ISR
--- │  5. Return from exception
--- │  6. Verify original context (except modified) is restored
--- └─ Expected: Context automatically preserved and restored
---
--- ============================================================================
--- FPGA-SPECIFIC CONSIDERATIONS
--- ============================================================================
---
--- Cortex-M1 is specifically designed for FPGA implementation:
---
--- Resource Efficiency:
--- • Optimized pipeline for synthesis
--- • Minimal memory footprint
--- • Distributed memory support
--- • Efficient use of FPGA primitives
---
--- Clock Management:
--- • Single clock domain
--- • No complex clock generation needed
--- • Simple reset sequencing
--- • Direct PLL support
---
--- Implementation Tests:
--- • Verify synthesis compiles without warnings
--- • Check timing closure at target frequency (40-50 MHz)
--- • Monitor resource utilization (should be 2.5-4K LEs)
--- • Validate FPGA placement and routing
---
--- ============================================================================
--- PROTOCOL MONITORING AND CHECKING
--- ============================================================================
---
--- AHB-Lite Master Monitor:
--- • Tracks address phase (HADDR, HWRITE, HSIZE)
--- • Validates data phase timing
--- • Checks response signals (HRDATA, HRESP, HREADY)
--- • Optimized for M1 bus access patterns
--- • Reports protocol violations
---
--- NVIC Priority Monitor:
--- • Tracks interrupt priority levels
--- • Validates preemption rules
--- • Monitors exception return sequences
--- • Detects priority errors
---
--- Performance Metrics:
--- • Interrupt latency measurement
--- • Memory access timing analysis
--- • Context switch overhead
--- • Power consumption estimation
---
--- ============================================================================
--- TEST BENCH SIGNALS AND ARCHITECTURE
--- ============================================================================
---
--- Testbench Interface:
+-- ================================================================================
+-- cortex_m1_testbench : VHDL-93 testbench for cortex_m1_interface
+-- ================================================================================
+-- Tests:
+--   * HCLK generation (10 ns period)
+--   * HRESETn assertion (2 cycles low, then high)
+--   * 3 AHB-Lite write transactions to different registers
+--   * 3 AHB-Lite read transactions with HRDATA checks
+--   * GPIO input stimulation
+--   * IRQ input stimulation with irq_out checks
+--   * NMI stimulation with irq_out check
+--   * M1 specific: MPU, TCM, JTAG (tdo=tdi loopback)
+-- ================================================================================
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
--- Clock Generation:
--- procedure gen_clock(clk: out std_logic; period: time) is
---    Generate main processor clock with specified period
---    Typical M1 clock: 50 MHz (20 ns period)
---
--- Reset Sequencing:
--- procedure gen_reset(reset_n: out std_logic; duration: time) is
---    Generate asynchronous assert and synchronous deassert
---
--- AHB Transaction Generation:
--- procedure gen_ahb_write(haddr, hwdata: in std_logic_vector) is
---    Set up AHB write transaction
--- procedure gen_ahb_read(haddr: in std_logic_vector; hrdata: out std_logic_vector) is
---    Set up AHB read transaction
---
--- Interrupt Stimulation:
--- procedure gen_interrupt(irq_num: in integer) is
---    Raise numbered interrupt
---
--- Result Checking:
--- procedure check_response(...) is
---    Verify response against expected behavior
---
--- ============================================================================
--- TEST EXECUTION FLOW
--- ============================================================================
---
--- Initialization:
---   1. Reset all testbench signals
---   2. Start clock generation (50 MHz)
---   3. Apply system reset
---   4. Initialize memory models
---   5. Set up interrupt vectors
---   6. Configure NVIC
---
--- Functional Testing:
---   1. Verify boot sequence
---   2. Test instruction execution
---   3. Test memory access patterns
---   4. Test interrupt handling
---   5. Test debug interface
---
--- Performance Testing:
---   1. Measure interrupt latency
---   2. Analyze memory access cycles
---   3. Check context switch overhead
---   4. Verify timing margins
---
--- Result Reporting:
---   1. Report test pass/fail status
---   2. Generate performance statistics
---   3. Estimate FPGA resource usage
---   4. Provide optimization recommendations
---
--- ============================================================================
--- WAVEFORM ANALYSIS POINTS
--- ============================================================================
---
--- Critical Signals:
--- • clk: Processor clock (50 MHz)
--- • reset_n: System reset
--- • haddr[31:0]: AHB address bus
--- • hwdata[31:0]: AHB write data
--- • hrdata[31:0]: AHB read data
--- • hwrite: AHB write control
--- • hsize[2:0]: AHB transfer size
--- • hready: AHB ready signal
--- • hresp: AHB response
--- • interrupt_req[31:0]: Interrupt requests
--- • interrupt_ack[31:0]: Interrupt acknowledge
---
--- ============================================================================
--- FPGA RESOURCE TRACKING
--- ============================================================================
---
--- Expected Resource Usage:
--- • LUTs: 2,500-4,000 (single LE = 4-6 LUTs)
--- • BRAMs: 0-1 (for optional local TCM)
--- • DSPs: 0 (no multipliers needed)
--- • I/O: ~50-100 pins
---
--- Resource Breakdown:
--- • CPU Core: ~1,500-2,000 LEs
--- • Memory Interface: ~400-600 LEs
--- • NVIC: ~300-400 LEs
--- • Debug/Misc: ~300-500 LEs
---
--- ============================================================================
--- REFERENCES
--- ============================================================================
---
--- 1. ARM Cortex-M1 Technical Reference Manual
--- 2. AMBA AHB-Lite Protocol Specification
--- 3. FPGA Design Guidelines (Altera/Intel or Xilinx specific)
--- 4. ARMv6-M Instruction Set Architecture
---
--- ============================================================================
+entity cortex_m1_tb is
+end entity cortex_m1_tb;
 
--- Entity declaration will be added here
--- Architecture implementation with test procedures to be completed
+architecture behavior of cortex_m1_tb is
 
--- Implementation to be completed - baseline structure established
+    -- Component declaration matching cortex_m1_interface exactly
+    component cortex_m1_interface is
+        port (
+            HCLK      : in  std_logic;
+            HRESETn   : in  std_logic;
+            HSEL      : in  std_logic;
+            HWRITE    : in  std_logic;
+            HREADY    : in  std_logic;
+            HMASTLOCK : in  std_logic;
+            HTRANS    : in  std_logic_vector(1 downto 0);
+            HSIZE     : in  std_logic_vector(2 downto 0);
+            HPROT     : in  std_logic_vector(3 downto 0);
+            HADDR     : in  std_logic_vector(31 downto 0);
+            HWDATA    : in  std_logic_vector(31 downto 0);
+            HRDATA    : out std_logic_vector(31 downto 0);
+            HRESP     : out std_logic;
+            HREADYOUT : out std_logic;
+            irq_inputs : in  std_logic_vector(31 downto 0);
+            nmi        : in  std_logic;
+            irq_out    : out std_logic;
+            irq_num    : out std_logic_vector(5 downto 0);
+            mclk        : in  std_logic;
+            systick_int : out std_logic;
+            gpio_in   : in  std_logic_vector(31 downto 0);
+            gpio_out  : out std_logic_vector(31 downto 0);
+            gpio_dir  : out std_logic_vector(31 downto 0);
+            tck : in  std_logic;
+            tms : in  std_logic;
+            tdi : in  std_logic;
+            tdo : out std_logic;
+            itcm_addr  : out std_logic_vector(31 downto 0);
+            itcm_data  : in  std_logic_vector(31 downto 0);
+            dtcm_addr  : out std_logic_vector(31 downto 0);
+            dtcm_rdata : in  std_logic_vector(31 downto 0);
+            dtcm_wdata : out std_logic_vector(31 downto 0);
+            dtcm_we   : out std_logic
+        );
+    end component;
+
+    -- Clock and reset
+    signal HCLK    : std_logic := '0';
+    signal HRESETn : std_logic := '0';
+
+    -- AHB-Lite signals
+    signal HSEL      : std_logic := '0';
+    signal HWRITE    : std_logic := '0';
+    signal HREADY    : std_logic := '1';
+    signal HMASTLOCK : std_logic := '0';
+    signal HTRANS    : std_logic_vector(1 downto 0) := "00";
+    signal HSIZE     : std_logic_vector(2 downto 0) := "010";
+    signal HPROT     : std_logic_vector(3 downto 0) := "0011";
+    signal HADDR     : std_logic_vector(31 downto 0) := (others => '0');
+    signal HWDATA    : std_logic_vector(31 downto 0) := (others => '0');
+    signal HRDATA    : std_logic_vector(31 downto 0);
+    signal HRESP     : std_logic;
+    signal HREADYOUT : std_logic;
+
+    -- NVIC / IRQ
+    signal irq_inputs : std_logic_vector(31 downto 0) := (others => '0');
+    signal nmi        : std_logic := '0';
+    signal irq_out    : std_logic;
+    signal irq_num    : std_logic_vector(5 downto 0);
+
+    -- SysTick
+    signal mclk        : std_logic := '0';
+    signal systick_int : std_logic;
+
+    -- GPIO
+    signal gpio_in  : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_out : std_logic_vector(31 downto 0);
+    signal gpio_dir : std_logic_vector(31 downto 0);
+
+    -- JTAG debug
+    signal tck : std_logic := '0';
+    signal tms : std_logic := '0';
+    signal tdi : std_logic := '0';
+    signal tdo : std_logic;
+
+    -- TCM interfaces
+    signal itcm_addr  : std_logic_vector(31 downto 0);
+    signal itcm_data  : std_logic_vector(31 downto 0) := (others => '0');
+    signal dtcm_addr  : std_logic_vector(31 downto 0);
+    signal dtcm_rdata : std_logic_vector(31 downto 0) := (others => '0');
+    signal dtcm_wdata : std_logic_vector(31 downto 0);
+    signal dtcm_we    : std_logic;
+
+    -- Constants
+    constant CLK_PERIOD : time := 10 ns;
+
+    -- Address constants
+    constant ADDR_GPIO_DATA   : std_logic_vector(31 downto 0) := x"40000000";
+    constant ADDR_GPIO_DIR    : std_logic_vector(31 downto 0) := x"40000004";
+    constant ADDR_GPIO_AFSEL  : std_logic_vector(31 downto 0) := x"40000008";
+    constant ADDR_SYST_CSR    : std_logic_vector(31 downto 0) := x"40000100";
+    constant ADDR_NVIC_ISER   : std_logic_vector(31 downto 0) := x"40000200";
+    constant ADDR_SCB_CPUID   : std_logic_vector(31 downto 0) := x"40000400";
+    constant ADDR_SCB_VTOR    : std_logic_vector(31 downto 0) := x"40000408";
+    constant ADDR_MPU_CTRL    : std_logic_vector(31 downto 0) := x"40000604";
+    constant ADDR_MPU_RNR     : std_logic_vector(31 downto 0) := x"40000608";
+    constant ADDR_MPU_RBAR    : std_logic_vector(31 downto 0) := x"4000060C";
+    constant ADDR_TCM_CTRL    : std_logic_vector(31 downto 0) := x"40000800";
+
+    -- Expected CPUID for Cortex-M1
+    constant EXPECTED_CPUID : std_logic_vector(31 downto 0) := x"410CC200";
+
+begin
+
+    -- ============================================================================
+    -- DUT instantiation
+    -- ============================================================================
+    DUT : cortex_m1_interface
+        port map (
+            HCLK        => HCLK,
+            HRESETn     => HRESETn,
+            HSEL        => HSEL,
+            HWRITE      => HWRITE,
+            HREADY      => HREADY,
+            HMASTLOCK   => HMASTLOCK,
+            HTRANS      => HTRANS,
+            HSIZE       => HSIZE,
+            HPROT       => HPROT,
+            HADDR       => HADDR,
+            HWDATA      => HWDATA,
+            HRDATA      => HRDATA,
+            HRESP       => HRESP,
+            HREADYOUT   => HREADYOUT,
+            irq_inputs  => irq_inputs,
+            nmi         => nmi,
+            irq_out     => irq_out,
+            irq_num     => irq_num,
+            mclk        => mclk,
+            systick_int => systick_int,
+            gpio_in     => gpio_in,
+            gpio_out    => gpio_out,
+            gpio_dir    => gpio_dir,
+            tck         => tck,
+            tms         => tms,
+            tdi         => tdi,
+            tdo         => tdo,
+            itcm_addr   => itcm_addr,
+            itcm_data   => itcm_data,
+            dtcm_addr   => dtcm_addr,
+            dtcm_rdata  => dtcm_rdata,
+            dtcm_wdata  => dtcm_wdata,
+            dtcm_we     => dtcm_we
+        );
+
+    -- ============================================================================
+    -- HCLK clock process: 10 ns period
+    -- ============================================================================
+    clk_proc : process
+    begin
+        HCLK <= '0';
+        wait for CLK_PERIOD / 2;
+        HCLK <= '1';
+        wait for CLK_PERIOD / 2;
+    end process;
+
+    -- ============================================================================
+    -- mclk process
+    -- ============================================================================
+    mclk_proc : process
+    begin
+        mclk <= '0';
+        wait for CLK_PERIOD / 2;
+        mclk <= '1';
+        wait for CLK_PERIOD / 2;
+    end process;
+
+    -- ============================================================================
+    -- Stimulus process
+    -- ============================================================================
+    stim_proc : process
+
+        procedure ahb_write(
+            addr : in std_logic_vector(31 downto 0);
+            data : in std_logic_vector(31 downto 0)
+        ) is
+        begin
+            HSEL      <= '1';
+            HWRITE    <= '1';
+            HREADY    <= '1';
+            HMASTLOCK <= '0';
+            HTRANS    <= "10";
+            HSIZE     <= "010";
+            HPROT     <= "0011";
+            HADDR     <= addr;
+            HWDATA    <= data;
+            wait until rising_edge(HCLK);
+            wait for 1 ns;
+            HSEL   <= '0';
+            HWRITE <= '0';
+            HTRANS <= "00";
+            wait for 1 ns;
+        end procedure;
+
+        procedure ahb_read(
+            addr  : in  std_logic_vector(31 downto 0);
+            rdata : out std_logic_vector(31 downto 0)
+        ) is
+        begin
+            HSEL      <= '1';
+            HWRITE    <= '0';
+            HREADY    <= '1';
+            HMASTLOCK <= '0';
+            HTRANS    <= "10";
+            HSIZE     <= "010";
+            HPROT     <= "0011";
+            HADDR     <= addr;
+            wait until rising_edge(HCLK);
+            wait for 1 ns;
+            rdata := HRDATA;
+            HSEL   <= '0';
+            HTRANS <= "00";
+            wait for 1 ns;
+        end procedure;
+
+        variable read_data : std_logic_vector(31 downto 0);
+
+    begin
+        -- Initialize all inputs
+        HSEL      <= '0';
+        HWRITE    <= '0';
+        HREADY    <= '1';
+        HMASTLOCK <= '0';
+        HTRANS    <= "00";
+        HSIZE     <= "010";
+        HPROT     <= "0011";
+        HADDR     <= (others => '0');
+        HWDATA    <= (others => '0');
+        irq_inputs <= (others => '0');
+        nmi        <= '0';
+        gpio_in    <= (others => '0');
+        tck        <= '0';
+        tms        <= '0';
+        tdi        <= '0';
+        itcm_data  <= (others => '0');
+        dtcm_rdata <= (others => '0');
+
+        -- Reset: HRESETn low for 2 clock cycles
+        HRESETn <= '0';
+        wait for CLK_PERIOD * 2;
+        HRESETn <= '1';
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- Write Transaction 1: GPIO_DIR
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_GPIO_DIR, x"0000FFFF");
+        assert true report "Write 1: GPIO_DIR = 0x0000FFFF completed" severity note;
+
+        -- ----------------------------------------------------------------
+        -- Write Transaction 2: MPU_CTRL (enable MPU)
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_MPU_CTRL, x"00000001");
+        assert true report "Write 2: MPU_CTRL = 0x00000001 (MPU enabled) completed" severity note;
+
+        -- ----------------------------------------------------------------
+        -- Write Transaction 3: NVIC_ISER (enable IRQs 0-7)
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_NVIC_ISER, x"000000FF");
+        assert true report "Write 3: NVIC_ISER = 0x000000FF completed" severity note;
+
+        -- ----------------------------------------------------------------
+        -- Read Transaction 1: GPIO_DIR - expect 0x0000FFFF
+        -- ----------------------------------------------------------------
+        ahb_read(ADDR_GPIO_DIR, read_data);
+        assert read_data = x"0000FFFF"
+            report "Read 1 FAIL: GPIO_DIR expected 0x0000FFFF"
+            severity error;
+        assert read_data = x"0000FFFF"
+            report "Read 1 PASS: GPIO_DIR = 0x0000FFFF"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- Read Transaction 2: MPU_CTRL - expect 0x00000001
+        -- ----------------------------------------------------------------
+        ahb_read(ADDR_MPU_CTRL, read_data);
+        assert read_data = x"00000001"
+            report "Read 2 FAIL: MPU_CTRL expected 0x00000001"
+            severity error;
+        assert read_data = x"00000001"
+            report "Read 2 PASS: MPU_CTRL = 0x00000001 (MPU enabled)"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- Read Transaction 3: SCB_CPUID - expect 0x410CC200 (Cortex-M1)
+        -- ----------------------------------------------------------------
+        ahb_read(ADDR_SCB_CPUID, read_data);
+        assert read_data = EXPECTED_CPUID
+            report "Read 3 FAIL: SCB_CPUID expected 0x410CC200"
+            severity error;
+        assert read_data = EXPECTED_CPUID
+            report "Read 3 PASS: SCB_CPUID = 0x410CC200 (Cortex-M1)"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- M1 specific: TCM control - enable ITCM and DTCM
+        -- ----------------------------------------------------------------
+        ahb_write(ADDR_TCM_CTRL, x"00000003");
+        assert true report "Write 4: TCM_CTRL = 0x00000003 (ITCM+DTCM enabled)" severity note;
+
+        ahb_read(ADDR_TCM_CTRL, read_data);
+        assert read_data = x"00000003"
+            report "TCM_CTRL FAIL: expected 0x00000003"
+            severity error;
+        assert read_data = x"00000003"
+            report "TCM_CTRL PASS: ITCM+DTCM enabled"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- M1 specific: JTAG loopback test (tdo = tdi)
+        -- ----------------------------------------------------------------
+        tdi <= '1';
+        wait for 1 ns;
+        assert tdo = '1'
+            report "JTAG FAIL: tdo not equal to tdi (expected loopback)"
+            severity error;
+        assert tdo = '1'
+            report "JTAG PASS: tdo = tdi (loopback)"
+            severity note;
+        tdi <= '0';
+        wait for 1 ns;
+        assert tdo = '0'
+            report "JTAG FAIL: tdo not 0 when tdi=0"
+            severity error;
+
+        -- ----------------------------------------------------------------
+        -- GPIO input stimulation
+        -- ----------------------------------------------------------------
+        gpio_in <= x"AAAAAAAA";
+        wait for CLK_PERIOD;
+        assert gpio_in = x"AAAAAAAA"
+            report "GPIO input stimulus 1 applied" severity note;
+
+        gpio_in <= x"55555555";
+        wait for CLK_PERIOD;
+        assert gpio_in = x"55555555"
+            report "GPIO input stimulus 2 applied" severity note;
+
+        gpio_in <= (others => '0');
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- IRQ stimulation: assert IRQ 0 (enabled via NVIC_ISER)
+        -- ----------------------------------------------------------------
+        irq_inputs <= x"00000001";
+        wait for CLK_PERIOD;
+        assert irq_out = '1'
+            report "IRQ FAIL: irq_out not asserted for enabled IRQ 0"
+            severity error;
+        assert irq_out = '1'
+            report "IRQ PASS: irq_out asserted for enabled IRQ 0"
+            severity note;
+
+        assert irq_num = std_logic_vector(to_unsigned(16, 6))
+            report "IRQ num FAIL: expected 16, got " & integer'image(to_integer(unsigned(irq_num)))
+            severity error;
+
+        -- Deassert IRQ
+        irq_inputs <= (others => '0');
+        wait for CLK_PERIOD;
+        assert irq_out = '0'
+            report "IRQ FAIL: irq_out still asserted after clearing IRQs"
+            severity error;
+        assert irq_out = '0'
+            report "IRQ PASS: irq_out deasserted after clearing IRQs"
+            severity note;
+
+        -- ----------------------------------------------------------------
+        -- NMI stimulation
+        -- ----------------------------------------------------------------
+        nmi <= '1';
+        wait for CLK_PERIOD;
+        assert irq_out = '1'
+            report "NMI FAIL: irq_out not asserted for NMI"
+            severity error;
+        assert irq_out = '1'
+            report "NMI PASS: irq_out asserted for NMI" severity note;
+
+        assert irq_num = std_logic_vector(to_unsigned(2, 6))
+            report "NMI irq_num FAIL: expected 2"
+            severity error;
+
+        nmi <= '0';
+        wait for CLK_PERIOD;
+
+        -- ----------------------------------------------------------------
+        -- Test complete
+        -- ----------------------------------------------------------------
+        assert false report "Testbench complete" severity failure;
+
+    end process;
+
+end architecture behavior;

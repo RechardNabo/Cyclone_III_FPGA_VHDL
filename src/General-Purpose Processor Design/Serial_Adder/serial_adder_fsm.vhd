@@ -1,43 +1,77 @@
 -- ============================================================================
--- Serial Adder Control FSM - Programming Guidance
+-- Serial Adder - FSM Controller
+-- States: IDLE, SHIFTING (8 cycles), DONE
 -- ============================================================================
---
--- PROJECT OVERVIEW:
--- This header documents the control FSM for a serial adder. The FSM sequences
--- load/shift operations, manages bit counting, and gates datapath enables.
--- It handles initialization, iterative addition, and completion.
---
--- LEARNING OBJECTIVES:
--- - Build simple iterative control for arithmetic datapaths
--- - Use counters and flags to terminate operations cleanly
--- - Keep outputs registered to avoid glitches
---
--- IMPLEMENTATION GUIDE:
--- 1) LIBRARIES
---    TODO: library IEEE;
---    TODO: use IEEE.std_logic_1164.all;
---    TODO: use IEEE.numeric_std.all;
---
--- 2) ENTITY (CONTROL INTERFACE)
---    Suggested ports:
---    - clk, reset : in std_logic
---    - start      : in std_logic
---    - width      : in unsigned(INDEX_WIDTH-1 downto 0)
---    - shift_en, load_en, add_en : out std_logic
---    - done, valid : out std_logic
---
--- 3) STATE SET (EXAMPLE)
---    IDLE → LOAD → ADD_SHIFT(loop) → DONE → IDLE
---
--- 4) DESIGN NOTES
---    - Gate enables with current state and counter
---    - Use synchronous reset to clear all registers
---    - Provide default assignments in combinational logic
---
--- 5) VERIFICATION
---    - Counter limits: width coverage and off-by-one checks
---    - Start/Done handshakes under repeated operations
---
--- Implement state register and next-state/output logic, then connect to the
--- datapath described in the companion file.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity serial_adder_fsm is
+  port (
+    clk      : in  std_logic;
+    reset    : in  std_logic;
+    start    : in  std_logic;
+    load_en  : out std_logic;  -- command datapath to load operands
+    shift_en : out std_logic;  -- command datapath to shift one bit
+    done     : out std_logic
+  );
+end entity serial_adder_fsm;
+
+architecture rtl of serial_adder_fsm is
+  -- FSM states for the serial adder
+  type state_type is (IDLE, SHIFTING, DONE);
+  signal state : state_type := IDLE;
+
+  -- Bit counter tracks how many bits have been processed (0 to 7)
+  signal bit_cnt : unsigned(3 downto 0) := (others => '0');
+  constant WIDTH : integer := 8;
+begin
+
+  -- Clocked process: state transitions and control signal generation
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        -- Synchronous reset: return to IDLE
+        state     <= IDLE;
+        bit_cnt   <= (others => '0');
+        load_en   <= '0';
+        shift_en  <= '0';
+        done      <= '0';
+      else
+        -- Default control values
+        load_en  <= '0';
+        shift_en <= '0';
+        done     <= '0';
+
+        case state is
+
+          -- IDLE: wait for start signal, then load operands
+          when IDLE =>
+            if start = '1' then
+              load_en <= '1';       -- load operands into datapath
+              bit_cnt <= (others => '0');
+              state   <= SHIFTING;
+            end if;
+
+          -- SHIFTING: shift one bit per cycle for 8 cycles
+          when SHIFTING =>
+            shift_en <= '1';
+            bit_cnt  <= bit_cnt + 1;
+            if bit_cnt = to_unsigned(WIDTH - 1, 4) then
+              state <= DONE;        -- all 8 bits processed
+            end if;
+
+          -- DONE: assert done for one cycle, return to IDLE
+          when DONE =>
+            done  <= '1';
+            state <= IDLE;
+
+          when others =>
+            state <= IDLE;
+        end case;
+      end if;
+    end if;
+  end process;
+
+end architecture rtl;

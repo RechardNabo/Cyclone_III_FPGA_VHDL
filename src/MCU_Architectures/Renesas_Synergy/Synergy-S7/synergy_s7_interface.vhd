@@ -1,356 +1,267 @@
--- =====================================================================================
--- RENESAS SYNERGY S7 MICROCONTROLLER INTERFACE - PROGRAMMING GUIDANCE
--- =====================================================================================
--- 
--- OVERVIEW:
--- The Renesas Synergy S7 series is a family of high-performance 32-bit ARM Cortex-M4F
--- microcontrollers designed for advanced embedded applications requiring DSP capabilities,
--- connectivity, and real-time performance. Built on the Synergy Platform, these MCUs
--- provide comprehensive hardware, software, tools, and support for rapid development.
+-- ================================================================================
+-- synergy_s7_interface : Renesas Synergy S7 MCU interface
+-- Based on: ARM Cortex-M23 with TrustZone (secure variant)
+-- Target FPGA : Cyclone III (EP3C16F484C6N)
 --
--- KEY FEATURES:
--- • ARM Cortex-M4F core with single-precision FPU and DSP instructions
--- • Operating frequency: up to 240 MHz
--- • Flash memory: 512KB to 4MB
--- • SRAM: 384KB to 640KB with ECC
--- • Data Flash: 32KB for EEPROM emulation
--- • Advanced security features with TrustZone and cryptographic acceleration
--- • High-speed connectivity: Ethernet, USB 2.0 HS, CAN-FD
--- • Advanced analog peripherals: 24-bit Sigma-Delta ADC, 16-bit SAR ADC
--- • Graphics capabilities with 2D drawing engine and LCD controller
--- • Audio processing with I2S and digital filters
--- • Motor control peripherals with advanced PWM generation
--- • Synergy Software Package (SSP) with ThreadX RTOS and middleware
--- • Package options: 100-pin to 224-pin BGA/LQFP
+-- The S7 is the secure variant featuring ARM TrustZone technology and a
+-- True Random Number Generator (TRNG). It is designed for applications
+-- requiring hardware-level security such as IoT authentication and secure boot.
 --
--- PROGRAMMING GUIDANCE FOR FPGA IMPLEMENTATION:
+-- Peripheral set (S7 - SECURE):
+--   [Y] GPIO  - 32-bit | [Y] Timer | [Y] UART | [Y] SPI | [Y] I2C | [Y] ADC
+--   [Y] Security - TrustZone secure/non-secure partitioning
+--   [Y] TRNG    - True Random Number Generator for cryptographic keys
+--   [N] DMA/CAN/Ethernet/USB/LCD - Not included
 --
--- 1. CORE ARCHITECTURE SETUP:
---    - Implement ARM Cortex-M4F core with ARMv7E-M architecture
---    - Configure 32-bit RISC processor with 3-stage pipeline
---    - Set up single-precision Floating Point Unit (FPU)
---    - Implement DSP instruction extensions (SIMD, MAC, saturated arithmetic)
---    - Configure Memory Protection Unit (MPU) with 8 regions
---    - Set up Nested Vectored Interrupt Controller (NVIC) with 16 priority levels
---
--- 2. MEMORY SYSTEM CONFIGURATION:
---    - Code Flash: 512KB to 4MB with ECC protection and dual bank operation
---    - SRAM: 384KB to 640KB with ECC and configurable wait states
---    - Data Flash: 32KB for parameter storage and EEPROM emulation
---    - Option Setting Memory (OSM): Configuration and security settings
---    - Cache system: Instruction cache and data cache for performance
---    - Memory protection and access control
---
--- 3. CLOCK SYSTEM IMPLEMENTATION:
---    - High-Speed On-Chip Oscillator (HOCO): 16/18/20 MHz
---    - Main Clock Oscillator: External crystal/resonator (4-24 MHz)
---    - Sub-Clock Oscillator: 32.768 kHz crystal oscillator
---    - Phase-Locked Loop (PLL): Up to 240 MHz system clock
---    - USB Clock: Dedicated 48 MHz for USB operations
---    - Peripheral clocks: Independent clock domains for peripherals
---    - Clock generation circuit with multiple clock sources and dividers
---
--- 4. POWER MANAGEMENT SYSTEM:
---    - Normal Mode: Full operation with configurable performance levels
---    - Sleep Mode: CPU stopped, peripherals active
---    - Software Standby Mode: Ultra-low power with limited wake-up sources
---    - Deep Software Standby Mode: Minimum power consumption
---    - Snooze Mode: Autonomous peripheral operation without CPU
---    - Dynamic voltage and frequency scaling (DVFS)
---    - Low Voltage Detection (LVD) and Power-On Reset (POR)
---
--- 5. SECURITY FEATURES:
---    - TrustZone technology for secure/non-secure partitioning
---    - Secure Crypto Engine (SCE9) with AES, SHA, RSA, ECC, TRNG
---    - Secure boot and firmware authentication
---    - Key management and secure key storage
---    - Tamper detection and countermeasures
---    - Debug access control and protection
---    - Memory protection and isolation
---
--- 6. CONNECTIVITY PERIPHERALS:
---    - Ethernet MAC with IEEE 1588 PTP support
---    - USB 2.0 High-Speed Host/Device/OTG controller
---    - CAN-FD controller with flexible data rate
---    - UART with FIFO and DMA support (up to 10 channels)
---    - SPI with quad mode support (up to 2 channels)
---    - I2C with fast mode plus support (up to 3 channels)
---    - SDHI for SD/MMC card interface
---    - QSPI for external Flash memory interface
---
--- 7. ANALOG PERIPHERALS:
---    - 24-bit Sigma-Delta ADC for precision measurements
---    - 16-bit SAR ADC with up to 28 channels and sample & hold
---    - 12-bit DAC with up to 2 channels
---    - Analog comparators with programmable references
---    - Operational amplifiers with programmable gain
---    - Temperature sensor and voltage reference
---
--- 8. TIMER AND PWM SYSTEMS:
---    - General Purpose Timer (GPT): 32-bit timers with advanced PWM
---    - Asynchronous General Purpose Timer (AGT): Low-power timing
---    - Multi-Function Timer Pulse Unit 3 (MTU3): Motor control PWM
---    - Port Output Enable for 3-Phase (POE3): Motor control safety
---    - Real-Time Clock (RTC) with calendar and alarm functions
---    - Watchdog Timer (WDT) and Independent Watchdog Timer (IWDT)
---
--- 9. GRAPHICS AND DISPLAY:
---    - 2D Drawing Engine (DRW) for graphics acceleration
---    - LCD Controller (LCDC) with RGB and MIPI DSI interfaces
---    - JPEG Codec Unit (JCU) for image compression/decompression
---    - Graphics LCD Controller (GLCDC) with multiple layers
---
--- 10. AUDIO PROCESSING:
---     - I2S Audio Interface with multiple channels
---     - Serial Sound Interface (SSI) for audio streaming
---     - Digital Filter (DFILTER) for audio processing
---     - Audio Clock Generator for precise timing
---
--- 11. MOTOR CONTROL:
---     - Three-Phase PWM Motor Control Timer (MTU3)
---     - Port Output Enable for 3-Phase (POE3) safety functions
---     - Encoder Interface for position feedback
---     - Advanced PWM generation with dead time insertion
---
--- IMPLEMENTATION TEMPLATE:
---
--- entity synergy_s7_interface is
---     generic (
---         -- Core Configuration
---         VARIANT             : string := "R7FA7M7AH";       -- Synergy S7 variant
---         FREQUENCY_MHZ       : integer := 240;              -- Maximum frequency
---         FLASH_SIZE_KB       : integer := 4096;             -- Flash memory size
---         SRAM_SIZE_KB        : integer := 640;              -- SRAM size
---         DATA_FLASH_KB       : integer := 32;               -- Data Flash size
---         
---         -- Security Configuration
---         TRUSTZONE_ENABLE    : boolean := true;             -- TrustZone support
---         SCE_ENABLE          : boolean := true;             -- Crypto engine
---         SECURE_BOOT         : boolean := true;             -- Secure boot
---         
---         -- Connectivity Configuration
---         ETHERNET_ENABLE     : boolean := true;             -- Ethernet MAC
---         USB_HS_ENABLE       : boolean := true;             -- USB 2.0 HS
---         CANFD_CHANNELS      : integer := 2;                -- CAN-FD channels
---         UART_CHANNELS       : integer := 10;               -- UART channels
---         SPI_CHANNELS        : integer := 2;                -- SPI channels
---         I2C_CHANNELS        : integer := 3;                -- I2C channels
---         SDHI_ENABLE         : boolean := true;             -- SD/MMC interface
---         QSPI_ENABLE         : boolean := true;             -- Quad SPI
---         
---         -- Analog Configuration
---         SIGMA_DELTA_ADC     : boolean := true;             -- 24-bit SD ADC
---         SAR_ADC_CHANNELS    : integer := 28;               -- SAR ADC channels
---         DAC_CHANNELS        : integer := 2;                -- DAC channels
---         ACMP_CHANNELS       : integer := 6;                -- Comparators
---         OPAMP_CHANNELS      : integer := 4;                -- Op-amps
---         
---         -- Graphics Configuration
---         GRAPHICS_2D         : boolean := true;             -- 2D drawing engine
---         LCD_CONTROLLER      : boolean := true;             -- LCD controller
---         JPEG_CODEC          : boolean := true;             -- JPEG codec
---         
---         -- Audio Configuration
---         I2S_CHANNELS        : integer := 2;                -- I2S channels
---         SSI_CHANNELS        : integer := 2;                -- SSI channels
---         AUDIO_FILTER        : boolean := true;             -- Digital filter
---         
---         -- Motor Control Configuration
---         MTU3_ENABLE         : boolean := true;             -- Motor control timer
---         POE3_ENABLE         : boolean := true;             -- 3-phase output enable
---         ENCODER_CHANNELS    : integer := 2;                -- Encoder interfaces
---         
---         -- Package Configuration
---         PACKAGE_PINS        : integer := 224;              -- Package pin count
---         GPIO_PORTS          : integer := 11                -- Number of GPIO ports
---     );
---     port (
---         -- Clock and Reset
---         xtal                : in  std_logic;               -- Main crystal input
---         extal               : out std_logic;               -- Main crystal output
---         xcin                : in  std_logic;               -- Sub-clock crystal input
---         xcout               : out std_logic;               -- Sub-clock crystal output
---         res_n               : in  std_logic;               -- Reset input
---         
---         -- Power Supply
---         vcc                 : in  std_logic;               -- Main supply
---         vss                 : in  std_logic;               -- Ground
---         vbatt               : in  std_logic;               -- Backup supply
---         vcl                 : out std_logic;               -- Internal regulator
---         vccusb              : in  std_logic;               -- USB supply
---         
---         -- GPIO Ports (simplified representation)
---         port0               : inout std_logic_vector(7 downto 0);
---         port1               : inout std_logic_vector(7 downto 0);
---         port2               : inout std_logic_vector(7 downto 0);
---         port3               : inout std_logic_vector(7 downto 0);
---         port4               : inout std_logic_vector(7 downto 0);
---         port5               : inout std_logic_vector(7 downto 0);
---         port6               : inout std_logic_vector(7 downto 0);
---         port7               : inout std_logic_vector(7 downto 0);
---         port8               : inout std_logic_vector(7 downto 0);
---         port9               : inout std_logic_vector(7 downto 0);
---         porta               : inout std_logic_vector(7 downto 0);
---         
---         -- Ethernet Interface
---         eth_mdc             : out std_logic;               -- MDIO clock
---         eth_mdio            : inout std_logic;             -- MDIO data
---         eth_txd             : out std_logic_vector(3 downto 0);  -- Transmit data
---         eth_txen            : out std_logic;               -- Transmit enable
---         eth_txclk           : in  std_logic;               -- Transmit clock
---         eth_rxd             : in  std_logic_vector(3 downto 0);  -- Receive data
---         eth_rxdv            : in  std_logic;               -- Receive data valid
---         eth_rxclk           : in  std_logic;               -- Receive clock
---         eth_rxer            : in  std_logic;               -- Receive error
---         eth_crs             : in  std_logic;               -- Carrier sense
---         eth_col             : in  std_logic;               -- Collision detect
---         
---         -- USB 2.0 High-Speed Interface
---         usb_dp              : inout std_logic;             -- USB D+
---         usb_dm              : inout std_logic;             -- USB D-
---         usb_id              : in  std_logic;               -- USB ID (OTG)
---         usb_vbus            : in  std_logic;               -- USB VBUS detect
---         
---         -- CAN-FD Interface
---         can0_tx             : out std_logic;               -- CAN0 transmit
---         can0_rx             : in  std_logic;               -- CAN0 receive
---         can1_tx             : out std_logic;               -- CAN1 transmit
---         can1_rx             : in  std_logic;               -- CAN1 receive
---         
---         -- UART Interfaces (primary channels)
---         txd0                : out std_logic;               -- UART0 transmit
---         rxd0                : in  std_logic;               -- UART0 receive
---         txd1                : out std_logic;               -- UART1 transmit
---         rxd1                : in  std_logic;               -- UART1 receive
---         
---         -- SPI Interfaces
---         rspck0              : out std_logic;               -- SPI0 clock
---         mosi0               : out std_logic;               -- SPI0 master out
---         miso0               : in  std_logic;               -- SPI0 master in
---         ssl00               : out std_logic;               -- SPI0 slave select 0
---         
---         -- I2C Interfaces
---         scl0                : inout std_logic;             -- I2C0 clock
---         sda0                : inout std_logic;             -- I2C0 data
---         
---         -- SDHI Interface
---         sd_clk              : out std_logic;               -- SD clock
---         sd_cmd              : inout std_logic;             -- SD command
---         sd_dat              : inout std_logic_vector(3 downto 0);  -- SD data
---         sd_cd               : in  std_logic;               -- SD card detect
---         sd_wp               : in  std_logic;               -- SD write protect
---         
---         -- QSPI Interface
---         qspi_spclk          : out std_logic;               -- QSPI clock
---         qspi_io             : inout std_logic_vector(3 downto 0);  -- QSPI I/O
---         qspi_ssl            : out std_logic;               -- QSPI slave select
---         
---         -- Analog Interfaces
---         -- SAR ADC Inputs (subset)
---         an000               : in  std_logic;               -- ADC channel 0
---         an001               : in  std_logic;               -- ADC channel 1
---         an002               : in  std_logic;               -- ADC channel 2
---         an003               : in  std_logic;               -- ADC channel 3
---         
---         -- Sigma-Delta ADC
---         dsad0p              : in  std_logic;               -- SD ADC0 positive
---         dsad0n              : in  std_logic;               -- SD ADC0 negative
---         dsad1p              : in  std_logic;               -- SD ADC1 positive
---         dsad1n              : in  std_logic;               -- SD ADC1 negative
---         
---         -- DAC Outputs
---         da0                 : out std_logic;               -- DAC0 output
---         da1                 : out std_logic;               -- DAC1 output
---         
---         -- Reference Voltages
---         vrefh               : in  std_logic;               -- ADC high reference
---         vrefl               : in  std_logic;               -- ADC low reference
---         
---         -- Motor Control PWM Outputs
---         mtioc0a             : out std_logic;               -- MTU0 output A
---         mtioc0b             : out std_logic;               -- MTU0 output B
---         mtioc0c             : out std_logic;               -- MTU0 output C
---         mtioc0d             : out std_logic;               -- MTU0 output D
---         
---         -- Graphics and Display
---         lcd_clk             : out std_logic;               -- LCD pixel clock
---         lcd_data            : out std_logic_vector(23 downto 0);  -- LCD RGB data
---         lcd_hsync           : out std_logic;               -- LCD horizontal sync
---         lcd_vsync           : out std_logic;               -- LCD vertical sync
---         lcd_de              : out std_logic;               -- LCD data enable
---         
---         -- Audio Interfaces
---         i2s_lrck            : out std_logic;               -- I2S L/R clock
---         i2s_bclk            : out std_logic;               -- I2S bit clock
---         i2s_sdata           : inout std_logic;             -- I2S serial data
---         
---         -- Debug Interface
---         swdio               : inout std_logic;             -- Serial Wire Debug I/O
---         swclk               : in  std_logic;               -- Serial Wire Debug Clock
---         
---         -- Status and Control
---         cpu_status          : out std_logic_vector(7 downto 0);
---         power_mode          : out std_logic_vector(2 downto 0);
---         security_state      : out std_logic;               -- Secure/Non-secure
---         interrupt_pending   : out std_logic;
---         ethernet_link       : out std_logic;               -- Ethernet link status
---         usb_connected       : out std_logic                -- USB connection status
---     );
--- end synergy_s7_interface;
---
--- POWER OPTIMIZATION STRATEGIES:
--- • Implement dynamic voltage and frequency scaling (DVFS)
--- • Use clock gating for unused peripherals and domains
--- • Configure appropriate low-power modes based on application requirements
--- • Optimize peripheral clock frequencies for power efficiency
--- • Use Snooze mode for autonomous peripheral operation
--- • Implement efficient wake-up strategies from standby modes
--- • Configure power domains for selective power-down
---
--- SECURITY IMPLEMENTATION:
--- • Configure TrustZone partitioning for secure/non-secure regions
--- • Implement secure boot sequence with firmware authentication
--- • Use SCE9 for cryptographic operations (AES, SHA, RSA, ECC, TRNG)
--- • Configure secure key storage and management
--- • Implement tamper detection and countermeasures
--- • Control debug access based on security requirements
--- • Secure communication protocols for network interfaces
---
--- PERFORMANCE OPTIMIZATION:
--- • Utilize instruction and data caches for memory performance
--- • Configure DMA for high-throughput data transfers
--- • Use FPU and DSP instructions for mathematical operations
--- • Optimize memory access patterns and bus utilization
--- • Configure peripheral clocks for optimal performance
--- • Use hardware accelerators (2D graphics, JPEG, crypto)
--- • Implement efficient interrupt handling and prioritization
---
--- CONNECTIVITY CONFIGURATION:
--- • Configure Ethernet MAC for required network protocols
--- • Set up USB controller for host/device/OTG operations
--- • Configure CAN-FD for automotive and industrial communication
--- • Optimize UART, SPI, I2C for required data rates
--- • Use QSPI for high-speed external memory access
--- • Configure SDHI for SD card and eMMC interfaces
---
--- GRAPHICS AND MULTIMEDIA:
--- • Configure 2D drawing engine for graphics acceleration
--- • Set up LCD controller for display requirements
--- • Use JPEG codec for image compression/decompression
--- • Configure audio interfaces for required sample rates
--- • Implement efficient graphics memory management
--- • Optimize display refresh rates and color depth
---
--- DEBUGGING RECOMMENDATIONS:
--- • Use SWD interface for comprehensive debugging capabilities
--- • Implement secure debug authentication when required
--- • Enable hardware breakpoints and watchpoints
--- • Use trace capabilities for performance analysis
--- • Monitor power consumption and thermal characteristics
--- • Implement comprehensive error handling and recovery
---
--- =====================================================================================
-
+-- AHB-Lite Register Map:
+--   0x00: GPIO_DATA | 0x04: GPIO_DIR | 0x08: TIMER_CTRL | 0x0C: TIMER_LOAD
+--   0x10: UART_DATA | 0x14: UART_STATUS | 0x18: SPI_CTRL | 0x1C: SPI_DATA
+--   0x20: I2C_CTRL  | 0x24: I2C_DATA  | 0x28: ADC_CTRL  | 0x2C: ADC_DATA
+--   0x30: SEC_CTRL  | 0x34: TRNG_DATA | 0x38: SEC_STATUS
+-- ================================================================================
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity synergy_s7_interface is
+    generic (
+        GPIO_WIDTH : integer := 32
+    );
+    port (
+        -- AHB-Lite bus interface (ARM Cortex-M23 with TrustZone, active-low reset)
+        -- HPROT bit 1 indicates secure vs non-secure access (TrustZone)
+        HCLK, HRESETn, HSEL, HWRITE, HREADY, HMASTLOCK : in std_logic;
+        HTRANS : in std_logic_vector(1 downto 0);
+        HSIZE  : in std_logic_vector(2 downto 0);
+        HPROT  : in std_logic_vector(3 downto 0);  -- bit1=secure access indicator
+        HADDR  : in std_logic_vector(31 downto 0);
+        HWDATA : in std_logic_vector(31 downto 0);
+        HRDATA : out std_logic_vector(31 downto 0);
+        HRESP  : out std_logic;
+        HREADYOUT : out std_logic;
+        -- GPIO
+        gpio_in  : in  std_logic_vector(31 downto 0);
+        gpio_out : out std_logic_vector(31 downto 0);
+        gpio_dir : out std_logic_vector(31 downto 0);
+        -- Timer
+        timer_int : out std_logic;
+        -- UART
+        uart_txd : out std_logic;  uart_rxd : in std_logic;  uart_int : out std_logic;
+        -- SPI (present on S7)
+        spi_sclk, spi_mosi : out std_logic;  spi_miso : in std_logic;  spi_int : out std_logic;
+        -- I2C (present on S7)
+        i2c_sda : inout std_logic;  i2c_scl : inout std_logic;  i2c_int : out std_logic;
+        -- ADC (present on S7)
+        adc_in  : in  std_logic_vector(11 downto 0);  adc_int : out std_logic;
+        -- DMA (NOT present on S7)
+        dma_req : out std_logic;  dma_done : in std_logic;
+        -- CAN (NOT present on S7)
+        can_tx : out std_logic;  can_rx : in std_logic;  can_int : out std_logic;
+        -- Ethernet (NOT present on S7)
+        eth_txd : out std_logic_vector(3 downto 0);  eth_rxd : in std_logic_vector(3 downto 0);
+        eth_int : out std_logic;
+        -- USB (NOT present on S7)
+        usb_dp, usb_dm : inout std_logic;  usb_int : out std_logic;
+        -- LCD (NOT present on S7)
+        lcd_data : out std_logic_vector(15 downto 0);
+        lcd_hsync, lcd_vsync, lcd_clk : out std_logic;
+        -- Security (present on S7 - TrustZone + TRNG)
+        trng_valid  : out std_logic;  -- TRNG data valid (new random number ready)
+        secure_boot : out std_logic   -- Secure boot status (1=boot verified)
+    );
+end entity synergy_s7_interface;
+
+architecture rtl of synergy_s7_interface is
+    -- Peripheral registers
+    signal gpio_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal gpio_dir_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_ctrl    : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_load    : std_logic_vector(31 downto 0) := (others => '0');
+    signal timer_count   : unsigned(31 downto 0) := (others => '0');
+    signal uart_data_reg : std_logic_vector(31 downto 0) := (others => '0');
+    signal uart_status   : std_logic_vector(31 downto 0) := x"00000001";
+    signal spi_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal spi_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal i2c_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal i2c_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal adc_ctrl      : std_logic_vector(31 downto 0) := (others => '0');
+    signal adc_data_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal sec_ctrl      : std_logic_vector(31 downto 0) := (others => '0'); -- Security ctrl
+    signal trng_data     : std_logic_vector(31 downto 0) := (others => '0'); -- TRNG output
+    signal trng_lfsr     : unsigned(31 downto 0) := x"A5A5A5A5";             -- LFSR state
+    signal sec_status    : std_logic_vector(31 downto 0) := (others => '0'); -- Security status
+    signal reg_sel       : integer range 0 to 15;
+begin
+
+    reg_sel <= to_integer(unsigned(HADDR(7 downto 4)));
+
+    -- =========================================================================
+    -- AHB-LITE WRITE PROCESS
+    -- TrustZone: HPROT(1) = 1 indicates secure access. Non-secure accesses
+    -- to security registers (0x30-0x38) are blocked and return error.
+    -- =========================================================================
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then
+            gpio_data_reg <= (others => '0'); gpio_dir_reg <= (others => '0');
+            timer_ctrl <= (others => '0'); timer_load <= (others => '0');
+            timer_count <= (others => '0');
+            uart_data_reg <= (others => '0'); uart_status <= x"00000001";
+            spi_ctrl <= (others => '0'); spi_data_reg <= (others => '0');
+            i2c_ctrl <= (others => '0'); i2c_data_reg <= (others => '0');
+            adc_ctrl <= (others => '0'); adc_data_reg <= (others => '0');
+            sec_ctrl <= (others => '0'); trng_data <= (others => '0');
+            sec_status <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if HSEL = '1' and HREADY = '1' and HWRITE = '1' then
+                -- TrustZone access control: security regs require secure access
+                if reg_sel >= 12 and HPROT(1) = '0' then
+                    -- Non-secure access to security registers: BLOCKED
+                    -- (In real hardware, this would trigger a security fault)
+                    null;
+                else
+                    case reg_sel is
+                        when 0 => gpio_data_reg <= HWDATA;     -- GPIO_DATA
+                        when 1 => gpio_dir_reg  <= HWDATA;     -- GPIO_DIR
+                        when 2 => timer_ctrl    <= HWDATA;     -- TIMER_CTRL
+                        when 3 => timer_load    <= HWDATA; timer_count <= unsigned(HWDATA);
+                        when 4 => uart_data_reg <= HWDATA;     -- UART_DATA
+                        when 6 => spi_ctrl      <= HWDATA;     -- SPI_CTRL
+                        when 7 => spi_data_reg  <= HWDATA;     -- SPI_DATA
+                        when 8 => i2c_ctrl      <= HWDATA;     -- I2C_CTRL
+                        when 9 => i2c_data_reg  <= HWDATA;     -- I2C_DATA
+                        when 10 => adc_ctrl     <= HWDATA;     -- ADC_CTRL
+                        when 12 => sec_ctrl     <= HWDATA;     -- SEC_CTRL (secure only)
+                        when others => null;
+                    end case;
+                end if;
+            end if;
+            -- ADC capture
+            if adc_ctrl(0) = '1' then adc_data_reg <= x"00000" & adc_in; end if;
+            -- SPI capture
+            if spi_ctrl(0) = '1' then spi_data_reg(0) <= spi_miso; end if;
+            uart_status(0) <= '1';
+        end if;
+    end process;
+
+    -- =========================================================================
+    -- TRNG (True Random Number Generator) - simplified LFSR-based model
+    -- Uses a 32-bit Linear Feedback Shift Register to generate pseudo-random
+    -- numbers. In real hardware, this would use thermal noise or other
+    -- physical entropy sources. The LFSR advances each clock cycle when
+    -- enabled (sec_ctrl bit0 = TRNG enable).
+    -- =========================================================================
+    process(HCLK, HRESETn)
+        variable feedback : std_logic;
+    begin
+        if HRESETn = '0' then
+            trng_lfsr <= x"A5A5A5A5"; -- Non-zero seed (must not be all zeros)
+            trng_data <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if sec_ctrl(0) = '1' then -- TRNG enabled
+                -- Galois LFSR: XOR feedback from taps at positions 31, 21, 1, 0
+                feedback := trng_lfsr(0) xor trng_lfsr(1) xor
+                            trng_lfsr(21) xor trng_lfsr(31);
+                trng_lfsr <= trng_lfsr(30 downto 0) & feedback;
+                trng_data <= std_logic_vector(trng_lfsr); -- Output current random value
+            end if;
+        end if;
+    end process;
+
+    -- TRNG valid: high when a new random number is available
+    trng_valid <= sec_ctrl(0);
+
+    -- Secure boot status: bit0 of sec_ctrl enables secure boot verification
+    -- In this model, secure_boot is asserted when sec_ctrl(1) is set
+    secure_boot <= sec_ctrl(1);
+
+    -- Security status: bit0=TRNG ready, bit1=secure boot verified, bit2=TrustZone active
+    sec_status(0) <= sec_ctrl(0);
+    sec_status(1) <= sec_ctrl(1);
+    sec_status(2) <= '1'; -- TrustZone always active in S7
+
+    -- =========================================================================
+    -- AHB-LITE READ MULTIPLEXER
+    -- Security registers require secure access (HPROT(1) = 1)
+    -- =========================================================================
+    process(HSEL, reg_sel, HPROT, gpio_data_reg, gpio_dir_reg, timer_ctrl,
+            timer_load, timer_count, uart_data_reg, uart_status, spi_ctrl,
+            spi_data_reg, i2c_ctrl, i2c_data_reg, adc_ctrl, adc_data_reg,
+            sec_ctrl, trng_data, sec_status, gpio_in)
+    begin
+        if HSEL = '1' then
+            -- TrustZone: block non-secure reads of security registers
+            if reg_sel >= 12 and HPROT(1) = '0' then
+                HRDATA <= (others => '0'); -- Return zeros for non-secure access
+            else
+                case reg_sel is
+                    when 0 => HRDATA <= gpio_data_reg;
+                    when 1 => HRDATA <= gpio_dir_reg;
+                    when 2 => HRDATA <= timer_ctrl;
+                    when 3 => HRDATA <= std_logic_vector(timer_count);
+                    when 4 => HRDATA <= uart_data_reg;
+                    when 5 => HRDATA <= uart_status;
+                    when 6 => HRDATA <= spi_ctrl;
+                    when 7 => HRDATA <= spi_data_reg;
+                    when 8 => HRDATA <= i2c_ctrl;
+                    when 9 => HRDATA <= i2c_data_reg;
+                    when 10 => HRDATA <= adc_ctrl;
+                    when 11 => HRDATA <= adc_data_reg;
+                    when 12 => HRDATA <= sec_ctrl;    -- SEC_CTRL (secure only)
+                    when 13 => HRDATA <= trng_data;   -- TRNG_DATA (secure only)
+                    when 14 => HRDATA <= sec_status;  -- SEC_STATUS (secure only)
+                    when others => HRDATA <= (others => '0');
+                end case;
+            end if;
+        else
+            HRDATA <= (others => '0');
+        end if;
+    end process;
+
+    -- AHB response: return error for blocked non-secure access to security regs
+    HRESP <= '1' when (HSEL = '1' and reg_sel >= 12 and HPROT(1) = '0')
+             else '0';
+    HREADYOUT <= '1';
+
+    gpio_out <= gpio_data_reg; gpio_dir <= gpio_dir_reg;
+
+    -- Timer
+    process(HCLK, HRESETn)
+    begin
+        if HRESETn = '0' then timer_count <= (others => '0');
+        elsif rising_edge(HCLK) then
+            if timer_ctrl(0) = '1' then
+                if timer_count = 0 then timer_count <= unsigned(timer_load);
+                else timer_count <= timer_count - 1; end if;
+            end if;
+        end if;
+    end process;
+    timer_int <= '1' when (timer_ctrl(0) = '1' and timer_ctrl(1) = '1'
+                           and timer_count = 0) else '0';
+
+    -- UART
+    uart_txd <= uart_data_reg(0);
+    uart_int <= '1' when (uart_status(1) = '1') else '0';
+
+    -- SPI
+    spi_sclk <= spi_ctrl(1) when spi_ctrl(0) = '1' else '0';
+    spi_mosi <= spi_data_reg(0) when spi_ctrl(0) = '1' else '0';
+    spi_int  <= '1' when spi_ctrl(2) = '1' else '0';
+
+    -- I2C
+    i2c_scl <= i2c_ctrl(0) when i2c_ctrl(4) = '1' else 'Z';
+    i2c_sda <= i2c_ctrl(1) when i2c_ctrl(4) = '1' else 'Z';
+    i2c_int <= '1' when i2c_ctrl(5) = '1' else '0';
+
+    -- ADC
+    adc_int <= '1' when (adc_ctrl(0) = '1' and adc_ctrl(1) = '1') else '0';
+
+    -- =========================================================================
+    -- UNUSED PERIPHERAL OUTPUTS (S7 does not have DMA, CAN, Ethernet, USB, LCD)
+    -- =========================================================================
+    dma_req <= '0'; can_tx <= '0'; can_int <= '0';
+    eth_txd <= (others => '0'); eth_int <= '0';
+    usb_dp <= 'Z'; usb_dm <= 'Z'; usb_int <= '0';
+    lcd_data <= (others => '0'); lcd_hsync <= '0'; lcd_vsync <= '0'; lcd_clk <= '0';
+
+end architecture rtl;

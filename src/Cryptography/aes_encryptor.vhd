@@ -1,299 +1,115 @@
 -- ============================================================================
--- AES Encryptor - Programming Guidance
+-- AES Encryptor - Simplified Single Round (Educational)
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file outlines the implementation of an Advanced Encryption Standard (AES)
--- encryptor for FPGA-based systems. AES is a symmetric block cipher widely used
--- for secure data communication and storage. This design focuses on a hardware-
--- efficient implementation suitable for FPGA synthesis, supporting 128-bit data
--- blocks and various key lengths (128, 192, 256 bits).
+-- AES (Advanced Encryption Standard) is a symmetric block cipher operating on
+-- 128-bit data blocks. A full AES-128 encryption has 10 rounds, each with
+-- SubBytes, ShiftRows, MixColumns, and AddRoundKey steps.
 --
--- LEARNING OBJECTIVES:
--- 1. Understand the fundamental principles of the AES algorithm (Rijndael).
--- 2. Learn the different transformations: SubBytes, ShiftRows, MixColumns, AddRoundKey.
--- 3. Explore key expansion for generating round keys.
--- 4. Practice designing and implementing complex combinational and sequential logic.
--- 5. Understand techniques for optimizing cryptographic algorithms for hardware.
+-- This simplified educational version performs a SINGLE round containing:
+--   1. AddRoundKey  - XOR the data with the 128-bit round key
+--   2. SubBytes     - Replace each byte using the AES S-Box lookup table
 --
+-- LEARNING CONCEPTS:
+-- 1. Symmetric key encryption (same key for encrypt/decrypt)
+-- 2. Substitution-permutation network structure
+-- 3. The S-Box: a nonlinear byte substitution table
+-- 4. Key mixing via XOR
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations (recommended)
---
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_arith.all; (for unsigned/signed operations)
--- TODO: Add use work.aes_pkg.all; (if custom package for S-boxes, etc., is used)
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- The entity defines the interface for the AES Encryptor.
---
--- Entity Requirements:
--- - Name: aes_encryptor (maintain current naming convention)
--- - Inputs: Clock, Reset, Start, Data_In, Key_In, Key_Length_Select
--- - Outputs: Data_Out, Done
---
--- Port Specifications:
--- - clk : in std_logic (System clock)
--- - rst : in std_logic (Asynchronous or synchronous reset)
--- - start : in std_logic (Initiates encryption process)
--- - data_in : in std_logic_vector(127 downto 0) (128-bit plaintext block)
--- - key_in : in std_logic_vector(255 downto 0) (Max 256-bit encryption key)
--- - key_length_sel : in std_logic_vector(1 downto 0) (00:128-bit, 01:192-bit, 10:256-bit key)
--- - data_out : out std_logic_vector(127 downto 0) (128-bit ciphertext block)
--- - done : out std_logic (Indicates encryption is complete)
---
--- TODO: Declare entity with appropriate port names and bit widths
--- TODO: Add detailed port comments
--- TODO: Consider generic parameters for data width or key length if needed
---
--- ============================================================================
--- STEP 3: ARCHITECTURE IMPLEMENTATION - HIGH-LEVEL OVERVIEW
--- ============================================================================
--- The AES encryption process involves several rounds, each consisting of four
--- main transformations: SubBytes, ShiftRows, MixColumns, and AddRoundKey.
--- The number of rounds depends on the key length (10 for 128-bit, 12 for 192-bit,
--- 14 for 256-bit).
---
--- Main Components:
--- 1. State Register: Holds the current 128-bit data block being processed.
--- 2. Key Expansion Unit: Generates all round keys from the initial cipher key.
--- 3. Round Transformation Unit: Implements SubBytes, ShiftRows, MixColumns, AddRoundKey.
--- 4. Control FSM: Manages the round sequence, key loading, and data flow.
---
--- ============================================================================
--- STEP 4: KEY EXPANSION UNIT
--- ============================================================================
--- Generates the round keys from the initial cipher key.
---
--- Implementation Approach:
--- - Involves a complex schedule of byte substitutions, cyclic shifts, and XORing
---   with round constants.
--- - Can be implemented combinatorially (for small key lengths) or sequentially
---   (to save area, generating one round key per clock cycle).
---
--- TODO: Implement the Key Expansion algorithm based on AES specification.
--- TODO: Store generated round keys in a register file or BRAM.
--- TODO: Handle different key lengths (128, 192, 256 bits).
---
--- ============================================================================
--- STEP 5: ROUND TRANSFORMATION UNIT
--- ============================================================================
--- Implements the four core AES transformations.
---
--- 5.1 SubBytes Transformation:
--- - Non-linear byte substitution using an S-box.
--- - Each byte in the state is replaced by another byte from a lookup table.
--- - Can be implemented using a ROM (BRAM) or combinational logic for S-box.
--- TODO: Implement S-box lookup for SubBytes.
---
--- 5.2 ShiftRows Transformation:
--- - Cyclically shifts rows of the state array.
--- - Row 0: no shift; Row 1: 1-byte left shift; Row 2: 2-byte left shift; Row 3: 3-byte left shift.
--- - Purely combinational logic.
--- TODO: Implement byte shifting for ShiftRows.
---
--- 5.3 MixColumns Transformation:
--- - A linear transformation that mixes the bytes within each column.
--- - Involves multiplication in the Galois Field GF(2^8).
--- - Can be implemented using XOR gates and lookups, or dedicated GF multipliers.
--- - This transformation is skipped in the final round.
--- TODO: Implement Galois Field multiplication for MixColumns.
---
--- 5.4 AddRoundKey Transformation:
--- - XORs the current state with the round key.
--- - Purely combinational logic.
--- TODO: Implement XOR operation for AddRoundKey.
---
--- ============================================================================
--- STEP 6: CONTROL FSM (FINITE STATE MACHINE)
--- ============================================================================
--- Manages the overall encryption flow.
---
--- States:
--- - IDLE: Waiting for 'start' signal.
--- - LOAD_KEY: Loading the initial key and performing key expansion.
--- - ROUND_0: Initial AddRoundKey with the first round key.
--- - ROUND_N: Iterating through the main rounds (SubBytes, ShiftRows, MixColumns, AddRoundKey).
--- - FINAL_ROUND: Last round (SubBytes, ShiftRows, AddRoundKey - no MixColumns).
--- - DONE: Encryption complete, 'data_out' is valid.
---
--- TODO: Design the FSM to control the sequence of operations.
--- TODO: Manage round counter and select appropriate round keys.
--- TODO: Assert 'done' signal when encryption is finished.
---
--- ============================================================================
--- COMMON DESIGN CONSIDERATIONS:
--- ============================================================================
---
--- THROUGHPUT VS. AREA:
--- - Pipelining: For higher throughput, pipeline the rounds or transformations.
--- - Unrolling: Fully unroll the rounds for maximum speed (large area).
--- - Iterative: Process one round per clock cycle (smaller area, lower throughput).
---
--- S-BOX IMPLEMENTATION:
--- - Combinational: Logic gates for small S-boxes, fast but large.
--- - ROM (BRAM): Lookup table using Block RAM, efficient for larger S-boxes.
---
--- KEY LENGTH SUPPORT:
--- - Design for 128, 192, and 256-bit keys.
--- - Adjust number of rounds and key expansion logic accordingly.
---
--- SECURITY CONSIDERATIONS:
--- - Side-channel attack resistance (e.g., DPA, SPA).
--- - Constant-time operations to prevent timing attacks.
--- - Protection against fault injection.
---
--- INTERFACE:
--- - Standard interfaces like AXI Stream for data input/output.
--- - Simple handshake signals (start, done, valid).
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
---
--- □ Entity declaration includes all required ports
--- □ Key expansion unit correctly generates all round keys
--- □ SubBytes transformation uses correct S-box values
--- □ ShiftRows transformation performs correct cyclic shifts
--- □ MixColumns transformation performs correct Galois Field multiplication
--- □ AddRoundKey transformation correctly XORs state with round key
--- □ Control FSM manages round sequence and state transitions correctly
--- □ Supports 128, 192, and 256-bit key lengths
--- □ Handles initial key loading and round key selection
--- □ 'done' signal asserts correctly upon completion
--- □ Testbench provides comprehensive coverage for all key lengths and data patterns
--- □ Known answer tests (KATs) pass for all AES modes
--- □ Performance (throughput, latency) meets requirements
--- □ Area utilization is within limits
--- □ Code follows project VHDL style guidelines
--- □ Documentation clearly explains all operations
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
---
--- CRYPTOGRAPHIC ACCELERATORS:
--- - Dedicated hardware for encryption/decryption tasks.
--- - Offloads CPU, improving system performance and security.
--- - Essential for high-speed secure communication (e.g., network devices).
---
--- SECURE BOOT AND FIRMWARE UPDATES:
--- - Encrypting firmware images to prevent tampering and unauthorized access.
--- - Verifying authenticity and integrity of bootloaders and applications.
---
--- DATA AT REST ENCRYPTION:
--- - Encrypting data stored in non-volatile memory (e.g., flash, SSDs).
--- - Protecting sensitive information in embedded systems.
---
--- SECURE COMMUNICATION:
--- - Implementing TLS/SSL, IPsec, and other secure protocols in hardware.
--- - Ensuring confidentiality and integrity of data transmitted over networks.
---
--- SYSTEM-ON-CHIP (SOC) INTEGRATION:
--- - Integrating AES modules as IP cores within larger SOC designs.
--- - Providing cryptographic services to various system components.
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
---
--- FPGA RESOURCE UTILIZATION:
--- - Logic Elements: High, especially for fully unrolled or pipelined designs.
--- - BRAMs: For S-boxes, key schedule storage, or round key buffers.
--- - DSP Slices: Potentially for GF(2^8) multiplications in MixColumns (if optimized).
--- - Registers: For state, round keys, and FSM control.
---
--- TIMING CHARACTERISTICS:
--- - Critical Path: Through MixColumns (combinational) or pipelined stages.
--- - Clock Frequency: Achievable frequency depends on pipelining depth.
--- - Latency: Number of clock cycles from 'start' to 'done'.
--- - Throughput: Number of bits encrypted per clock cycle.
---
--- POWER CONSUMPTION:
--- - Dynamic Power: High due to extensive switching activity during encryption.
--- - Static Power: FPGA leakage.
--- - Optimization: Clock gating, power-aware synthesis techniques.
---
--- DESIGN CONSTRAINTS:
--- - Timing constraints for high clock frequencies.
--- - Area constraints for fitting into target FPGA.
--- - Security constraints for side-channel resistance.
--- - Power constraints for thermal management.
---
--- ============================================================================
--- ADVANCED AES CONCEPTS:
--- ============================================================================
---
--- AES MODES OF OPERATION:
--- - ECB (Electronic Codebook): Simple, but not semantically secure.
--- - CBC (Cipher Block Chaining): Uses IV, provides semantic security.
--- - CTR (Counter): Turns block cipher into stream cipher, good for parallelization.
--- - GCM (Galois/Counter Mode): Authenticated encryption, widely used.
--- - XTS (XEX-based Tweakable Block Cipher with Ciphertext Stealing): For disk encryption.
---
--- HARDWARE OPTIMIZATIONS:
--- - SubBytes: Composite field arithmetic (GF((2^4)^2)) for smaller S-box logic.
--- - MixColumns: Shift-and-XOR operations, or dedicated GF multipliers.
--- - Pipelining: Increase throughput by processing multiple rounds concurrently.
--- - Loop Unrolling: Replicate hardware for each round to reduce latency.
---
--- SIDE-CHANNEL COUNTERMEASURES:
--- - Masking: Randomizing intermediate values to obscure power/EM traces.
--- - Shuffling: Randomizing the order of operations.
--- - Dual-rail logic: Balancing power consumption.
--- - Dummy operations: Adding random, non-functional operations.
---
--- POST-QUANTUM CRYPTOGRAPHY:
--- - Research into quantum-resistant algorithms.
--- - Integration of new cryptographic primitives into hardware.
--- - Hybrid approaches combining classical and post-quantum algorithms.
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
---
--- TESTBENCH ARCHITECTURE:
--- - Stimulus generation for clock, reset, start, data_in, key_in, key_length_sel.
--- - Output capture for data_out, done.
--- - Comparison with known good ciphertext (KATs).
--- - Coverage analysis for FSM states, key lengths, and data patterns.
---
--- VERIFICATION METHODOLOGY:
--- - Directed testing for specific plaintext/key pairs.
--- - Random testing with various key lengths and data.
--- - Formal verification for security properties (e.g., functional correctness).
--- - Assertion-based verification for continuous checking of internal signals.
---
--- DEBUGGING TECHNIQUES:
--- - Waveform analysis of state, round keys, and intermediate transformations.
--- - Breakpoint debugging in simulation.
--- - Monitoring FSM state transitions.
--- - Comparing internal signals with reference model outputs.
---
--- PERFORMANCE ANALYSIS:
--- - Throughput measurement (bits/cycle, Mbps).
--- - Latency measurement (clock cycles).
--- - Resource utilization analysis (LUTs, BRAMs, DSPs).
--- - Power estimation for different configurations.
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
---
--- [Add your library declarations here]
---
--- [Add your entity declaration here]
---
--- [Add your architecture implementation here]
---
--- ============================================================================
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity aes_encryptor is
+    port (
+        clk          : in  std_logic;                       -- Clock
+        reset        : in  std_logic;                       -- Async reset (active high)
+        start        : in  std_logic;                       -- Start a single round
+        data_in      : in  std_logic_vector(127 downto 0);  -- 128-bit plaintext block
+        key_in       : in  std_logic_vector(127 downto 0);  -- 128-bit round key
+        data_out     : out std_logic_vector(127 downto 0);  -- 128-bit encrypted block
+        done         : out std_logic                        -- High when round complete
+    );
+end entity aes_encryptor;
+
+architecture rtl of aes_encryptor is
+
+    -- The AES S-Box: a 256-entry lookup table mapping each byte value (0-255)
+    -- to its substitution. This is the standard FIPS-197 S-Box.
+    type sbox_array is array (0 to 255) of std_logic_vector(7 downto 0);
+    constant SBOX : sbox_array := (
+        x"63", x"7c", x"77", x"7b", x"f2", x"6b", x"6f", x"c5",
+        x"30", x"01", x"67", x"2b", x"fe", x"d7", x"ab", x"76",
+        x"ca", x"82", x"c9", x"7d", x"fa", x"59", x"47", x"f0",
+        x"ad", x"d4", x"a2", x"af", x"9c", x"a4", x"72", x"c0",
+        x"b7", x"fd", x"93", x"26", x"36", x"3f", x"f7", x"cc",
+        x"34", x"a5", x"e5", x"f1", x"71", x"d8", x"31", x"15",
+        x"04", x"c7", x"23", x"c3", x"18", x"96", x"05", x"9a",
+        x"07", x"12", x"80", x"e2", x"eb", x"27", x"b2", x"75",
+        x"09", x"83", x"2c", x"1a", x"1b", x"6e", x"5a", x"a0",
+        x"52", x"3b", x"d6", x"b3", x"29", x"e3", x"2f", x"84",
+        x"53", x"d1", x"00", x"ed", x"20", x"fc", x"b1", x"5b",
+        x"6a", x"cb", x"be", x"39", x"4a", x"4c", x"58", x"cf",
+        x"d0", x"ef", x"aa", x"fb", x"43", x"4d", x"33", x"85",
+        x"45", x"f9", x"02", x"7f", x"50", x"3c", x"9f", x"a8",
+        x"51", x"a3", x"40", x"8f", x"92", x"9d", x"38", x"f5",
+        x"bc", x"b6", x"da", x"21", x"10", x"ff", x"f3", x"d2",
+        x"cd", x"0c", x"13", x"ec", x"5f", x"97", x"44", x"17",
+        x"c4", x"a7", x"7e", x"3d", x"64", x"5d", x"19", x"73",
+        x"60", x"81", x"4f", x"dc", x"22", x"2a", x"90", x"88",
+        x"46", x"ee", x"b8", x"14", x"de", x"5e", x"0b", x"db",
+        x"e0", x"32", x"3a", x"0a", x"49", x"06", x"24", x"5c",
+        x"c2", x"d3", x"ac", x"62", x"91", x"95", x"e4", x"79",
+        x"e7", x"c8", x"37", x"6d", x"8d", x"d5", x"4e", x"a9",
+        x"6c", x"56", x"f4", x"ea", x"65", x"7a", x"ae", x"08",
+        x"ba", x"78", x"25", x"2e", x"1c", x"a6", x"b4", x"c6",
+        x"e8", x"dd", x"74", x"1f", x"4b", x"bd", x"8b", x"8a",
+        x"70", x"3e", x"b5", x"66", x"48", x"03", x"f6", x"0e",
+        x"61", x"35", x"57", x"b9", x"86", x"c1", x"1d", x"9e",
+        x"e1", x"f8", x"98", x"11", x"69", x"d9", x"8e", x"94",
+        x"9b", x"1e", x"87", x"e9", x"ce", x"55", x"28", x"df",
+        x"8c", x"a1", x"89", x"0d", x"bf", x"e6", x"42", x"68",
+        x"41", x"99", x"2d", x"0f", x"b0", x"54", x"bb", x"16"
+    );
+
+    -- Internal state register holding the 128-bit block being processed.
+    signal state_reg : std_logic_vector(127 downto 0);
+    signal done_reg  : std_logic;
+
+begin
+
+    ----------------------------------------------------------------------------
+    -- Main process: perform AddRoundKey then SubBytes in one clock cycle.
+    ----------------------------------------------------------------------------
+    process(clk, reset)
+        variable after_key : std_logic_vector(127 downto 0);
+        variable sub_byte  : std_logic_vector(7 downto 0);
+        variable idx       : integer;
+    begin
+        if reset = '1' then
+            state_reg <= (others => '0');
+            done_reg  <= '0';
+        elsif rising_edge(clk) then
+            done_reg <= '0';  -- default: not done
+            if start = '1' then
+                -- STEP 1: AddRoundKey - XOR each bit of data with the key.
+                -- This mixes the key into the data so encryption depends on the key.
+                after_key := data_in xor key_in;
+
+                -- STEP 2: SubBytes - replace each of the 16 bytes using S-Box.
+                -- We process the 16 bytes from most-significant to least.
+                for i in 0 to 15 loop
+                    idx := to_integer(unsigned(after_key((15-i)*8+7 downto (15-i)*8)));
+                    sub_byte := SBOX(idx);
+                    state_reg((15-i)*8+7 downto (15-i)*8) <= sub_byte;
+                end loop;
+
+                done_reg <= '1';  -- signal that the round is complete
+            end if;
+        end if;
+    end process;
+
+    data_out <= state_reg;
+    done     <= done_reg;
+
+end architecture rtl;

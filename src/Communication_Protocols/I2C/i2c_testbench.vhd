@@ -1,302 +1,118 @@
--- ============================================================================
--- I2C Master/Slave Testbench Implementation - Programming Guidance
--- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a comprehensive testbench for I2C master and slave
--- controllers in VHDL. The testbench validates protocol compliance, timing
--- requirements, data integrity, and error handling capabilities of I2C
--- implementations. It supports both standard and fast mode testing.
---
--- LEARNING OBJECTIVES:
--- 1. Understand I2C protocol testing methodologies
--- 2. Learn comprehensive testbench design patterns
--- 3. Master timing verification techniques
--- 4. Practice protocol compliance validation
--- 5. Understand error injection and recovery testing
--- 6. Learn automated test sequence generation
---
--- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - std.textio for file I/O operations
--- - IEEE.std_logic_textio for std_logic file operations
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
--- TODO: Add use std.textio.all;
--- TODO: Add use IEEE.std_logic_textio.all;
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- Define the I2C testbench entity (typically no ports for testbench)
---
--- The testbench entity is usually empty as it's self-contained:
--- - No input/output ports required
--- - All signals generated internally
--- - Test results reported via assertions or file output
---
--- ============================================================================
--- STEP 3: I2C TESTBENCH PRINCIPLES
--- ============================================================================
---
--- I2C Testbench Components:
--- 1. Device Under Test (DUT) Instantiation:
---    - I2C master controller instance
---    - I2C slave controller instance
---    - Bus interface connections
---    - Clock and reset generation
---
--- 2. Test Vector Generation:
---    - Address patterns (7-bit, 10-bit)
---    - Data patterns (sequential, random, boundary)
---    - Timing variations (standard, fast mode)
---    - Error conditions (bus faults, timeouts)
---
--- 3. Protocol Monitoring:
---    - START/STOP condition detection
---    - Address phase validation
---    - Data phase verification
---    - ACK/NACK signal checking
---
--- 4. Timing Verification:
---    - Setup and hold time validation
---    - Clock frequency compliance
---    - Bus timing parameter checking
---    - Glitch detection and filtering
---
--- Test Scenarios:
--- - Basic read/write operations
--- - Multi-byte transfers
--- - Address scanning
--- - Error recovery testing
--- - Performance benchmarking
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic Testbench (Recommended for beginners)
--- - Simple master-slave communication test
--- - Basic read/write verification
--- - Minimal timing checks
--- - Manual test vector generation
---
--- OPTION 2: Comprehensive Testbench (Intermediate)
--- - Complete protocol compliance testing
--- - Automated test vector generation
--- - Timing parameter validation
--- - Error injection and recovery
---
--- OPTION 3: Advanced Testbench (Advanced)
--- - Multi-master testing scenarios
--- - Bus arbitration validation
--- - Performance characterization
--- - Statistical analysis
---
--- OPTION 4: System-Level Testbench (Expert)
--- - Real-world device simulation
--- - Power consumption analysis
--- - EMI/EMC compliance testing
--- - Interoperability validation
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Clock Generation:
--- - System clock for DUT operation
--- - I2C bus clock generation
--- - Clock domain crossing validation
--- - Jitter and phase noise simulation
---
--- Reset Strategy:
--- - Power-on reset simulation
--- - Controlled reset sequences
--- - Reset recovery validation
--- - Asynchronous reset testing
---
--- Bus Modeling:
--- - Open-drain bus simulation
--- - Pull-up resistor modeling
--- - Capacitive loading effects
--- - Signal integrity considerations
---
--- Test Data Management:
--- - Test vector file reading
--- - Result logging and reporting
--- - Pass/fail criteria definition
--- - Coverage analysis
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- Protocol Analysis:
--- - Automatic protocol decoding
--- - Timing parameter extraction
--- - Error detection and classification
--- - Performance metrics calculation
---
--- Error Injection:
--- - Bus fault simulation
--- - Clock stretching scenarios
--- - Arbitration loss conditions
--- - Timeout and recovery testing
---
--- Coverage Analysis:
--- - Functional coverage metrics
--- - Code coverage analysis
--- - Corner case identification
--- - Regression test automation
---
--- Real-Time Monitoring:
--- - Live protocol analysis
--- - Waveform capture and analysis
--- - Performance profiling
--- - Debug trace generation
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Design Verification: I2C controller validation
--- 2. Compliance Testing: I2C specification adherence
--- 3. Interoperability: Multi-vendor device testing
--- 4. Performance Analysis: Speed and efficiency validation
--- 5. Regression Testing: Automated test execution
--- 6. Debug Support: Protocol analysis and troubleshooting
--- 7. Characterization: Timing and electrical parameter validation
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual component validation
--- 2. Integration Testing: Master-slave interaction
--- 3. System Testing: Complete system validation
--- 4. Stress Testing: Boundary condition validation
--- 5. Regression Testing: Automated test execution
--- 6. Compliance Testing: Specification adherence
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic master-slave communication
--- 2. Add comprehensive test vector generation
--- 3. Implement timing verification
--- 4. Add error injection and recovery testing
--- 5. Implement automated test execution
--- 6. Add coverage analysis and reporting
--- 7. Optimize for performance and maintainability
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Add multi-master arbitration testing
--- 2. Implement SMBus protocol testing
--- 3. Add power management testing
--- 4. Implement real-time performance analysis
--- 5. Add statistical test analysis
--- 6. Implement automated regression testing
--- 7. Add hardware-in-the-loop testing
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Insufficient timing margin validation
--- 2. Missing edge case testing
--- 3. Inadequate error condition coverage
--- 4. Poor test vector organization
--- 5. Insufficient result validation
--- 6. Missing protocol compliance checks
--- 7. Inadequate documentation
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ All test scenarios execute successfully
--- □ Timing requirements are validated
--- □ Protocol compliance is verified
--- □ Error conditions are properly handled
--- □ Coverage goals are achieved
--- □ Results are properly documented
--- □ Regression tests pass consistently
--- □ Performance requirements are met
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This I2C testbench demonstrates several key concepts:
--- - Comprehensive verification methodology
--- - Protocol compliance validation
--- - Timing analysis and verification
--- - Error injection and recovery testing
--- - Automated test execution and analysis
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Model realistic bus loading conditions
--- - Include signal integrity effects
--- - Consider temperature and voltage variations
--- - Account for process variations
--- - Model real-world noise conditions
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Universal Verification Methodology (UVM)
--- - Constrained random testing
--- - Formal verification techniques
--- - Hardware-software co-verification
--- - System-level validation
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Use appropriate simulation time resolution
--- - Enable comprehensive waveform capture
--- - Implement efficient test execution
--- - Use proper assertion-based verification
--- - Document all test scenarios thoroughly
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your testbench implementation:
---
--- Step 1: Add library declarations
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
--- use IEEE.std_logic_textio.all;
---
--- Step 2: Define your testbench entity (typically no ports)
--- entity i2c_testbench is
---     -- Testbench entity typically has no ports
--- end entity i2c_testbench;
---
--- Step 3: Create your testbench architecture
--- architecture behavioral of i2c_testbench is
---     -- Add your signal declarations, constants, and component declarations here
---     -- Include clock signals, reset signals, and DUT interface signals
---     -- Add test vectors and expected results
--- begin
---     -- Add your concurrent statements and processes here
---     -- Include clock generation, reset generation, stimulus generation
---     -- Add DUT instantiation and result checking processes
--- end architecture behavioral;
---
--- ============================================================================
--- Remember: Create comprehensive test cases covering normal operation, edge
--- cases, and error conditions. Verify timing requirements and protocol
--- compliance. Use assertions and file I/O for automated verification.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity i2c_testbench is
+end entity i2c_testbench;
+
+architecture sim of i2c_testbench is
+    signal clk       : std_logic := '0';
+    signal reset     : std_logic := '1';
+    signal start_cmd : std_logic := '0';
+    signal rw        : std_logic := '0';
+    signal addr      : std_logic_vector(6 downto 0) := (others => '0');
+    signal data_in   : std_logic_vector(7 downto 0) := (others => '0');
+    signal data_out  : std_logic_vector(7 downto 0);
+    signal done      : std_logic;
+    signal ack_error : std_logic;
+    signal sda       : std_logic := 'H';  -- pull-up
+    signal scl       : std_logic := 'H';  -- pull-up
+
+    signal sda_low_seen : boolean := false;
+    signal scl_low_seen : boolean := false;
+begin
+    clk <= not clk after 10 ns;
+
+    dut : entity work.i2c_master
+        generic map (
+            CLK_FREQ => 50000000,
+            I2C_FREQ => 1000000  -- 1 MHz for faster simulation
+        )
+        port map (
+            clk       => clk,
+            reset     => reset,
+            start_cmd => start_cmd,
+            rw        => rw,
+            addr      => addr,
+            data_in   => data_in,
+            data_out  => data_out,
+            done      => done,
+            ack_error => ack_error,
+            sda       => sda,
+            scl       => scl
+        );
+
+    -- Monitor bus for activity
+    monitor : process(sda, scl)
+    begin
+        if sda = '0' then
+            sda_low_seen <= true;
+        end if;
+        if scl = '0' then
+            scl_low_seen <= true;
+        end if;
+    end process;
+
+    -- Simple slave ACK model: pull SDA low during ACK slots
+    slave_model : process
+    begin
+        sda <= 'H';
+        -- Wait for START condition (SDA falls while SCL high)
+        wait until sda = '0' and scl = 'H';
+
+        -- Wait for 8 SCL edges (address bits) then provide ACK
+        -- Since the master's SCL behavior is simplified, just wait
+        -- a fixed time and then pull SDA low for ACK
+        wait for 200 ns;
+        sda <= '0';   -- ACK the address
+        wait for 100 ns;
+        sda <= 'H';   -- release
+
+        -- Wait for 8 data bits then ACK
+        wait for 200 ns;
+        sda <= '0';   -- ACK the data
+        wait for 100 ns;
+        sda <= 'H';   -- release
+
+        wait;
+    end process;
+
+    stim : process
+    begin
+        -- Reset
+        reset <= '1';
+        wait for 40 ns;
+        reset <= '0';
+        wait for 20 ns;
+
+        -- Write 0xAB to slave address 0x50
+        addr      <= "1010000";  -- 0x50
+        data_in   <= x"AB";
+        rw        <= '0';        -- write
+        start_cmd <= '1';
+        wait until rising_edge(clk);
+        start_cmd <= '0';
+
+        -- Wait for transaction to complete
+        -- DIV = 50000000/(1000000*4) = 12, ~7 states * 12 * 20ns = ~1.7 us
+        wait until done = '1' for 10 us;
+
+        -- Verify done asserted
+        assert done = '1'
+            report "FAIL: done signal not asserted, I2C transaction incomplete"
+            severity error;
+
+        -- Verify SDA had activity (went low = START condition)
+        assert sda_low_seen
+            report "FAIL: SDA never went low, no I2C bus activity on SDA"
+            severity error;
+
+        -- Verify SCL had activity (went low)
+        assert scl_low_seen
+            report "FAIL: SCL never went low, no I2C bus activity on SCL"
+            severity error;
+
+        report "ALL TESTS PASSED" severity note;
+        wait;
+    end process;
+end architecture sim;

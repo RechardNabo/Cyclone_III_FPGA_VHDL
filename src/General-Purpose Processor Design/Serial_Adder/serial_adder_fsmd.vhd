@@ -1,49 +1,50 @@
 -- ============================================================================
--- Serial Adder FSMD (FSM + Datapath) - Programming Guidance
+-- Serial Adder - FSMD Top-Level
+-- Integrates serial_adder_fsm + serial_adder_datapath
 -- ============================================================================
---
--- PROJECT OVERVIEW:
--- This header documents an integrated FSMD approach for the serial adder.
--- The state machine orchestrates bit-serial transfers while the datapath
--- performs 1-bit addition and carry propagation, producing a compact and
--- readable implementation.
---
--- LEARNING OBJECTIVES:
--- - Integrate iterative control with minimal arithmetic datapaths
--- - Express state-driven register transfers cleanly
--- - Maintain defaults to avoid unintended latches
---
--- IMPLEMENTATION GUIDE:
--- 1) LIBRARIES
---    TODO: library IEEE;
---    TODO: use IEEE.std_logic_1164.all;
---    TODO: use IEEE.numeric_std.all;
---
--- 2) ENTITY (FSMD INTERFACE)
---    Typical ports:
---    - clk, reset : in std_logic
---    - start      : in std_logic
---    - a_in, b_in : in unsigned(WIDTH-1 downto 0)
---    - result_out : out unsigned(WIDTH-1 downto 0)
---    - carry_out  : out std_logic
---    - done, valid: out std_logic
---    Generics: WIDTH := 32
---
--- 3) STATE/ACTION EXAMPLE
---    - IDLE: defaults
---    - LOAD: a_in,b_in → reg_a,reg_b; clear carry
---    - ADD_SHIFT: serial add LSBs, shift registers, update result
---    - DONE: present result and flags
---
--- 4) CODING STYLE
---    - Clocked state register; combinational next-state/control
---    - Datapath updates gated by current state
---    - Provide explicit defaults in combinational logic
---
--- 5) TESTING NOTES
---    - Carry chain propagation across all bits
---    - Boundary cases (0+0, max+max)
---
--- Use this header as a blueprint and add concrete signals, counters, and
--- exact transfer statements required by your design.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity serial_adder_fsmd is
+  port (
+    clk   : in  std_logic;
+    reset : in  std_logic;
+    start : in  std_logic;
+    a     : in  std_logic_vector(7 downto 0);
+    b     : in  std_logic_vector(7 downto 0);
+    sum   : out std_logic_vector(7 downto 0);
+    done  : out std_logic
+  );
+end entity serial_adder_fsmd;
+
+architecture rtl of serial_adder_fsmd is
+  -- Control signals from FSM to datapath
+  signal load_en  : std_logic;
+  signal shift_en : std_logic;
+begin
+
+  -- FSM controller instance
+  u_fsm : entity work.serial_adder_fsm
+    port map (
+      clk      => clk,
+      reset    => reset,
+      start    => start,
+      load_en  => load_en,
+      shift_en => shift_en,
+      done     => done
+    );
+
+  -- Datapath instance
+  u_datapath : entity work.serial_adder_datapath
+    port map (
+      clk      => clk,
+      reset    => reset,
+      a_in     => a,
+      b_in     => b,
+      load_en  => load_en,
+      shift_en => shift_en,
+      sum_out  => sum
+    );
+
+end architecture rtl;

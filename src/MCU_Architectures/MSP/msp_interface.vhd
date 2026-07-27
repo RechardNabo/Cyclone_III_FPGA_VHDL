@@ -1,239 +1,346 @@
--- =====================================================================================
--- MSP430 MICROCONTROLLER INTERFACE - PROGRAMMING GUIDANCE
--- =====================================================================================
--- 
--- OVERVIEW:
--- The MSP430 is a family of ultra-low-power 16-bit microcontrollers from Texas Instruments
--- designed for battery-powered and energy-harvesting applications. It features an efficient
--- RISC architecture, multiple low-power modes, and integrated peripherals optimized for
--- minimal power consumption.
+-- ================================================================================
+-- msp_interface : MSP430-style 16-bit peripheral bus interface model
+-- Educational bus interface model -- not a full MSP430 CPU core.  Target: Cyclone III.
 --
--- KEY FEATURES:
--- • 16-bit RISC architecture with orthogonal instruction set
--- • Operating frequency: 1 MHz to 25 MHz (depending on variant)
--- • Ultra-low power consumption: 0.1 µA in standby mode
--- • Multiple low-power modes (LPM0-LPM4) with fast wake-up
--- • Unified memory architecture (Von Neumann)
--- • 16-bit address bus supporting up to 64KB memory space
--- • Integrated peripherals: Timers, ADC, UART, SPI, I2C
--- • Flexible clock system with multiple oscillator sources
--- • Interrupt-driven architecture with vectored interrupts
--- • In-system programmable Flash memory
--- • Built-in hardware multiplier (on select variants)
--- • Supply voltage range: 1.8V to 3.6V
+-- Models MSP430 peripherals: Port 1/2 with full interrupt support, Timer_A
+-- (16-bit with CCR0/CCR1), ADC12, Watchdog Timer, and Status Register (LPM).
 --
--- PROGRAMMING GUIDANCE FOR FPGA IMPLEMENTATION:
---
--- 1. CORE ARCHITECTURE SETUP:
---    - Implement 16-bit RISC CPU with orthogonal instruction set
---    - Configure unified memory architecture (program and data in same space)
---    - Set up 16-bit address bus and 16-bit data bus
---    - Implement efficient instruction fetch and decode pipeline
---
--- 2. MEMORY SYSTEM CONFIGURATION:
---    - Flash Memory: 1KB to 512KB (depending on variant)
---    - RAM: 128B to 66KB (depending on variant)
---    - Information Memory: 256B for calibration data
---    - Memory-mapped I/O for peripheral access
---    - Implement memory protection for critical areas
---
--- 3. CLOCK SYSTEM IMPLEMENTATION:
---    - Master Clock (MCLK): CPU and high-speed peripherals
---    - Sub-system Master Clock (SMCLK): Medium-speed peripherals
---    - Auxiliary Clock (ACLK): Low-speed peripherals (typically 32kHz)
---    - Multiple oscillator sources: DCO, LFXT1, XT2 (on select variants)
---    - Clock dividers and multiplexers for flexible configuration
---
--- 4. POWER MANAGEMENT SYSTEM:
---    - Active Mode (AM): CPU and all clocks active
---    - Low Power Mode 0 (LPM0): CPU off, MCLK off, SMCLK and ACLK active
---    - Low Power Mode 1 (LPM1): CPU off, MCLK off, DCO off, SMCLK and ACLK active
---    - Low Power Mode 2 (LPM2): CPU off, MCLK off, SMCLK off, DCO off, ACLK active
---    - Low Power Mode 3 (LPM3): CPU off, MCLK off, SMCLK off, DCO off, ACLK active
---    - Low Power Mode 4 (LPM4): CPU and all clocks off
---    - Fast wake-up from interrupts (typically < 1 µs)
---
--- 5. INTERRUPT SYSTEM:
---    - Vectored interrupt system with priority handling
---    - 16 interrupt vectors (including reset)
---    - Automatic context saving and restoration
---    - Interrupt enable/disable control
---    - Wake-up capability from all low-power modes
---
--- 6. PERIPHERAL INTEGRATION:
---    - Timer modules (Timer_A, Timer_B) with capture/compare
---    - Analog-to-Digital Converter (ADC10/ADC12)
---    - Universal Serial Communication Interface (USCI) for UART/SPI/I2C
---    - Digital I/O ports with interrupt capability
---    - Watchdog Timer for system reliability
---    - Hardware multiplier (on select variants)
---
--- 7. INSTRUCTION SET IMPLEMENTATION:
---    - 27 core instructions with 7 addressing modes
---    - Single-cycle execution for most instructions
---    - Efficient bit manipulation instructions
---    - Jump and branch instructions with relative addressing
---    - Emulated instructions for enhanced functionality
---
--- 8. DEBUG AND PROGRAMMING INTERFACE:
---    - JTAG interface for debugging and programming
---    - Spy-Bi-Wire (2-wire JTAG) for reduced pin count
---    - Bootstrap Loader (BSL) for in-system programming
---    - Hardware breakpoints and single-step debugging
---
--- IMPLEMENTATION TEMPLATE:
---
--- entity msp430_interface is
---     generic (
---         -- Core Configuration
---         VARIANT             : string := "MSP430F2274";  -- MSP430 variant
---         FREQUENCY_MHZ       : integer := 16;            -- Maximum frequency
---         
---         -- Memory Configuration
---         FLASH_SIZE_KB       : integer := 32;            -- Flash memory size
---         RAM_SIZE_KB         : integer := 1;             -- RAM size
---         INFO_MEM_SIZE       : integer := 256;           -- Information memory
---         
---         -- Peripheral Configuration
---         TIMER_A_COUNT       : integer := 1;             -- Number of Timer_A modules
---         TIMER_B_COUNT       : integer := 0;             -- Number of Timer_B modules
---         USCI_A_COUNT        : integer := 1;             -- Number of USCI_A modules
---         USCI_B_COUNT        : integer := 1;             -- Number of USCI_B modules
---         ADC_RESOLUTION      : integer := 10;            -- ADC resolution (10 or 12)
---         IO_PORTS            : integer := 4;             -- Number of I/O ports
---         
---         -- Feature Configuration
---         HW_MULTIPLIER       : boolean := true;          -- Hardware multiplier
---         WATCHDOG_ENABLE     : boolean := true;          -- Watchdog timer
---         BSL_ENABLE          : boolean := true;          -- Bootstrap loader
---         JTAG_ENABLE         : boolean := true           -- JTAG interface
---     );
---     port (
---         -- Clock and Reset
---         mclk                : in  std_logic;            -- Master clock
---         smclk               : in  std_logic;            -- Sub-system master clock
---         aclk                : in  std_logic;            -- Auxiliary clock
---         reset_n             : in  std_logic;            -- Reset (active low)
---         por_n               : in  std_logic;            -- Power-on reset
---         
---         -- External Oscillators
---         lfxt1_in            : in  std_logic;            -- Low-frequency crystal input
---         lfxt1_out           : out std_logic;            -- Low-frequency crystal output
---         xt2_in              : in  std_logic;            -- High-frequency crystal input
---         xt2_out             : out std_logic;            -- High-frequency crystal output
---         
---         -- Memory Interface
---         mem_addr            : out std_logic_vector(15 downto 0);
---         mem_data_out        : out std_logic_vector(15 downto 0);
---         mem_data_in         : in  std_logic_vector(15 downto 0);
---         mem_we              : out std_logic;            -- Write enable
---         mem_oe              : out std_logic;            -- Output enable
---         mem_ce              : out std_logic;            -- Chip enable
---         mem_byte_en         : out std_logic_vector(1 downto 0);
---         
---         -- Digital I/O Ports
---         port1_in            : in  std_logic_vector(7 downto 0);
---         port1_out           : out std_logic_vector(7 downto 0);
---         port1_dir           : out std_logic_vector(7 downto 0);
---         port1_sel           : out std_logic_vector(7 downto 0);
---         port2_in            : in  std_logic_vector(7 downto 0);
---         port2_out           : out std_logic_vector(7 downto 0);
---         port2_dir           : out std_logic_vector(7 downto 0);
---         port2_sel           : out std_logic_vector(7 downto 0);
---         
---         -- USCI_A (UART/SPI) Interface
---         uca_txd             : out std_logic;            -- UART transmit
---         uca_rxd             : in  std_logic;            -- UART receive
---         uca_sclk            : out std_logic;            -- SPI clock
---         uca_simo            : out std_logic;            -- SPI master out
---         uca_somi            : in  std_logic;            -- SPI master in
---         uca_ste             : in  std_logic;            -- SPI slave select
---         
---         -- USCI_B (I2C/SPI) Interface
---         ucb_sda             : inout std_logic;          -- I2C data
---         ucb_scl             : inout std_logic;          -- I2C clock
---         ucb_sclk            : out std_logic;            -- SPI clock
---         ucb_simo            : out std_logic;            -- SPI master out
---         ucb_somi            : in  std_logic;            -- SPI master in
---         ucb_ste             : in  std_logic;            -- SPI slave select
---         
---         -- Timer_A Interface
---         ta_clk              : in  std_logic;            -- Timer clock input
---         ta_ccr0             : out std_logic;            -- Capture/Compare 0 output
---         ta_ccr1             : out std_logic;            -- Capture/Compare 1 output
---         ta_ccr2             : out std_logic;            -- Capture/Compare 2 output
---         
---         -- ADC Interface
---         adc_vin_p           : in  std_logic_vector(7 downto 0);  -- Positive inputs
---         adc_vin_n           : in  std_logic_vector(7 downto 0);  -- Negative inputs
---         adc_vref_p          : in  std_logic;            -- Positive reference
---         adc_vref_n          : in  std_logic;            -- Negative reference
---         
---         -- Interrupt Signals
---         nmi                 : in  std_logic;            -- Non-maskable interrupt
---         irq_port1           : out std_logic;            -- Port 1 interrupt
---         irq_port2           : out std_logic;            -- Port 2 interrupt
---         irq_timer_a         : out std_logic;            -- Timer A interrupt
---         irq_usci_a          : out std_logic;            -- USCI A interrupt
---         irq_usci_b          : out std_logic;            -- USCI B interrupt
---         irq_adc             : out std_logic;            -- ADC interrupt
---         irq_wdt             : out std_logic;            -- Watchdog interrupt
---         
---         -- Power Management
---         lpm_mode            : out std_logic_vector(2 downto 0);  -- Current LPM mode
---         cpu_off             : out std_logic;            -- CPU off status
---         osc_off             : out std_logic;            -- Oscillator off status
---         scg0                : out std_logic;            -- System clock generator 0
---         scg1                : out std_logic;            -- System clock generator 1
---         
---         -- Debug Interface (JTAG)
---         tdi                 : in  std_logic;            -- Test data input
---         tdo                 : out std_logic;            -- Test data output
---         tms                 : in  std_logic;            -- Test mode select
---         tck                 : in  std_logic;            -- Test clock
---         trst_n              : in  std_logic;            -- Test reset
---         
---         -- Spy-Bi-Wire Interface
---         sbw_tdio            : inout std_logic;          -- Spy-Bi-Wire data I/O
---         sbw_tclk            : in  std_logic;            -- Spy-Bi-Wire clock
---         
---         -- Status and Configuration
---         cpu_status          : out std_logic_vector(15 downto 0);
---         power_status        : out std_logic_vector(7 downto 0)
---     );
--- end msp430_interface;
---
--- POWER OPTIMIZATION STRATEGIES:
--- • Use appropriate low-power modes based on application requirements
--- • Configure unused peripherals to low-power states
--- • Optimize clock frequencies for minimum power consumption
--- • Use interrupt-driven programming to minimize active time
--- • Implement efficient wake-up strategies from low-power modes
--- • Consider supply voltage scaling for further power reduction
---
--- PERFORMANCE OPTIMIZATION:
--- • Utilize hardware multiplier when available for math operations
--- • Optimize memory access patterns for cache efficiency
--- • Use appropriate addressing modes for code density
--- • Implement efficient interrupt service routines
--- • Consider DMA for data transfer operations (on supported variants)
---
--- DEBUGGING RECOMMENDATIONS:
--- • Use JTAG interface for comprehensive debugging capabilities
--- • Implement Spy-Bi-Wire for reduced pin count debugging
--- • Enable hardware breakpoints for real-time debugging
--- • Use emulation features for development and testing
--- • Monitor power consumption during development
---
--- PERIPHERAL CONFIGURATION GUIDELINES:
--- • Configure Timer modules for precise timing requirements
--- • Set up ADC with appropriate reference and sampling rates
--- • Configure USCI modules for required communication protocols
--- • Implement proper I/O port configuration and interrupt handling
--- • Use Watchdog Timer for system reliability and recovery
---
--- =====================================================================================
-
+-- REGISTER MAP (9-bit addr, 16-bit data):
+-- 0x020 P1IN   0x021 P1OUT  0x022 P1DIR  0x023 P1IFG  0x024 P1IES
+-- 0x025 P1IE   0x026 P1SEL  0x027 P1REN
+-- 0x028 P2IN   0x029 P2OUT  0x02A P2DIR  0x02B P2IFG  0x02C P2IES
+-- 0x02D P2IE   0x02E P2SEL  0x02F P2REN
+-- 0x060 TACTL  0x062 TAR    0x064 TACCR0 0x066 TACCR1 0x068 TAIFG/TACCTL0
+-- 0x080 ADC12CTL0 0x082 ADC12CTL1 0x090 ADC12MEM0 0x092 ADC12IFG
+-- 0x120 WDTCTL 0x122 WDTIFG
+-- 0x002 SR (Status Register: CPUOFF/SCG0/SCG1/OSCOFF/GIE/N/Z/C)
+-- ================================================================================
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity msp_interface is
+    port (
+        clk, reset  : in  std_logic;
+        -- 16-bit data bus, 9-bit address (MSP430 peripherals are 16-bit)
+        addr        : in  std_logic_vector(8 downto 0);
+        din         : in  std_logic_vector(15 downto 0);
+        dout        : out std_logic_vector(15 downto 0);
+        we, re      : in  std_logic;
+        -- Port 1
+        p1out       : out std_logic_vector(7 downto 0);
+        p1dir       : out std_logic_vector(7 downto 0);
+        p1ren       : out std_logic_vector(7 downto 0);  -- pull resistor enable
+        p1sel       : out std_logic_vector(7 downto 0);  -- function select
+        p1in        : in  std_logic_vector(7 downto 0);
+        p1int       : out std_logic;  -- Port 1 interrupt
+        -- Port 2
+        p2out       : out std_logic_vector(7 downto 0);
+        p2dir       : out std_logic_vector(7 downto 0);
+        p2ren       : out std_logic_vector(7 downto 0);
+        p2sel       : out std_logic_vector(7 downto 0);
+        p2in        : in  std_logic_vector(7 downto 0);
+        p2int       : out std_logic;
+        -- Timer_A
+        ta_out      : out std_logic;  -- Timer_A output (TAR MSB toggle)
+        ta_int      : out std_logic;  -- Timer_A interrupt
+        -- ADC12
+        adc_in      : in  std_logic_vector(11 downto 0);  -- 12-bit ADC
+        adc_int     : out std_logic;
+        -- Watchdog
+        wdt_int     : out std_logic;  -- watchdog interrupt/reset
+        -- Low-power mode
+        lpm_out     : out std_logic_vector(2 downto 0)  -- LPM mode indicator
+    );
+end entity msp_interface;
+
+architecture rtl of msp_interface is
+    -- Register address constants (9-bit)
+    constant A_P1IN   : std_logic_vector(8 downto 0) := "000100000"; -- 0x020
+    constant A_P1OUT  : std_logic_vector(8 downto 0) := "000100001"; -- 0x021
+    constant A_P1DIR  : std_logic_vector(8 downto 0) := "000100010"; -- 0x022
+    constant A_P1IFG  : std_logic_vector(8 downto 0) := "000100011"; -- 0x023
+    constant A_P1IES  : std_logic_vector(8 downto 0) := "000100100"; -- 0x024
+    constant A_P1IE   : std_logic_vector(8 downto 0) := "000100101"; -- 0x025
+    constant A_P1SEL  : std_logic_vector(8 downto 0) := "000100110"; -- 0x026
+    constant A_P1REN  : std_logic_vector(8 downto 0) := "000100111"; -- 0x027
+    constant A_P2IN   : std_logic_vector(8 downto 0) := "000101000"; -- 0x028
+    constant A_P2OUT  : std_logic_vector(8 downto 0) := "000101001"; -- 0x029
+    constant A_P2DIR  : std_logic_vector(8 downto 0) := "000101010"; -- 0x02A
+    constant A_P2IFG  : std_logic_vector(8 downto 0) := "000101011"; -- 0x02B
+    constant A_P2IES  : std_logic_vector(8 downto 0) := "000101100"; -- 0x02C
+    constant A_P2IE   : std_logic_vector(8 downto 0) := "000101101"; -- 0x02D
+    constant A_P2SEL  : std_logic_vector(8 downto 0) := "000101110"; -- 0x02E
+    constant A_P2REN  : std_logic_vector(8 downto 0) := "000101111"; -- 0x02F
+    constant A_TACTL  : std_logic_vector(8 downto 0) := "000110000"; -- 0x060
+    constant A_TAR    : std_logic_vector(8 downto 0) := "000110010"; -- 0x062
+    constant A_TACCR0 : std_logic_vector(8 downto 0) := "000110100"; -- 0x064
+    constant A_TACCR1 : std_logic_vector(8 downto 0) := "000110110"; -- 0x066
+    constant A_ADC12CTL0:std_logic_vector(8 downto 0) := "001000000"; -- 0x080
+    constant A_ADC12CTL1:std_logic_vector(8 downto 0) := "001000010"; -- 0x082
+    constant A_ADC12MEM0: std_logic_vector(8 downto 0) := "001010000"; -- 0x090
+    constant A_ADC12IFG: std_logic_vector(8 downto 0) := "001010010"; -- 0x092
+    constant A_WDTCTL : std_logic_vector(8 downto 0) := "010010000"; -- 0x120
+    constant A_SR     : std_logic_vector(8 downto 0) := "000000010"; -- 0x002
+
+    -- Port 1 registers
+    signal p1out_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1dir_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1ren_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1sel_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1ifg_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1ies_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1ie_reg  : std_logic_vector(7 downto 0) := (others => '0');
+    signal p1in_prev : std_logic_vector(7 downto 0) := (others => '0');
+
+    -- Port 2 registers
+    signal p2out_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2dir_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2ren_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2sel_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2ifg_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2ies_reg : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2ie_reg  : std_logic_vector(7 downto 0) := (others => '0');
+    signal p2in_prev : std_logic_vector(7 downto 0) := (others => '0');
+
+    -- Timer_A: 16-bit counter, control, CCR0/CCR1, prescaler
+    signal tar_reg    : unsigned(15 downto 0) := (others => '0');
+    signal tactl_reg  : std_logic_vector(15 downto 0) := (others => '0');
+    signal taccr0_reg : unsigned(15 downto 0) := (others => '0');
+    signal taccr1_reg : unsigned(15 downto 0) := (others => '0');
+    signal ta_ifg     : std_logic := '0';  -- Timer_A interrupt flag
+
+    -- ADC12: control, memory, interrupt flag
+    signal adc12ctl0_reg : std_logic_vector(15 downto 0) := (others => '0');
+    signal adc12ctl1_reg : std_logic_vector(15 downto 0) := (others => '0');
+    signal adc12mem0_reg : std_logic_vector(15 downto 0) := (others => '0');
+    signal adc12ifg_reg  : std_logic := '0';
+
+    -- Watchdog: control, down-counter, interrupt flag
+    signal wdtctl_reg : std_logic_vector(15 downto 0) := (others => '0');
+    signal wdt_cnt    : unsigned(15 downto 0) := (others => '0');
+    signal wdt_ifg    : std_logic := '0';
+
+    -- Status Register: bits [CPUOFF,SCG0,SCG1,OSCOFF,GIE,N,Z,C]
+    signal sr_reg : std_logic_vector(15 downto 0) := (others => '0');
+
+begin
+
+    -- ==================================================================
+    -- PROCESS: register_write -- all register writes + peripheral logic
+    -- ==================================================================
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            -- Active-high reset: clear all registers
+            p1out_reg<=(others=>'0'); p1dir_reg<=(others=>'0'); p1ren_reg<=(others=>'0');
+            p1sel_reg<=(others=>'0'); p1ifg_reg<=(others=>'0'); p1ies_reg<=(others=>'0');
+            p1ie_reg <=(others=>'0'); p1in_prev<=(others=>'0');
+            p2out_reg<=(others=>'0'); p2dir_reg<=(others=>'0'); p2ren_reg<=(others=>'0');
+            p2sel_reg<=(others=>'0'); p2ifg_reg<=(others=>'0'); p2ies_reg<=(others=>'0');
+            p2ie_reg <=(others=>'0'); p2in_prev<=(others=>'0');
+            tar_reg<=(others=>'0'); tactl_reg<=(others=>'0');
+            taccr0_reg<=(others=>'0'); taccr1_reg<=(others=>'0');
+            ta_ifg<='0';
+            adc12ctl0_reg<=(others=>'0'); adc12ctl1_reg<=(others=>'0');
+            adc12mem0_reg<=(others=>'0'); adc12ifg_reg<='0';
+            wdtctl_reg<=(others=>'0'); wdt_cnt<=(others=>'0'); wdt_ifg<='0';
+            sr_reg<=(others=>'0');
+        elsif rising_edge(clk) then
+            -- ---- CPU register writes ----
+            if we = '1' then
+                case addr is
+                    when A_P1OUT  => p1out_reg <= din(7 downto 0);
+                    when A_P1DIR  => p1dir_reg <= din(7 downto 0);
+                    when A_P1REN  => p1ren_reg <= din(7 downto 0);
+                    when A_P1SEL  => p1sel_reg <= din(7 downto 0);
+                    when A_P1IES  => p1ies_reg <= din(7 downto 0);
+                    when A_P1IE   => p1ie_reg  <= din(7 downto 0);
+                    -- P1IFG: writing '1' clears flag (MSP430 convention)
+                    when A_P1IFG  =>
+                        for i in 0 to 7 loop
+                            if din(i)='1' then p1ifg_reg(i)<='0'; end if;
+                        end loop;
+                    when A_P2OUT  => p2out_reg <= din(7 downto 0);
+                    when A_P2DIR  => p2dir_reg <= din(7 downto 0);
+                    when A_P2REN  => p2ren_reg <= din(7 downto 0);
+                    when A_P2SEL  => p2sel_reg <= din(7 downto 0);
+                    when A_P2IES  => p2ies_reg <= din(7 downto 0);
+                    when A_P2IE   => p2ie_reg  <= din(7 downto 0);
+                    when A_P2IFG  =>
+                        for i in 0 to 7 loop
+                            if din(i)='1' then p2ifg_reg(i)<='0'; end if;
+                        end loop;
+                    when A_TACTL  => tactl_reg <= din;
+                    when A_TAR    => tar_reg <= unsigned(din);
+                    when A_TACCR0 => taccr0_reg <= unsigned(din);
+                    when A_TACCR1 => taccr1_reg <= unsigned(din);
+                    when A_ADC12CTL0 => adc12ctl0_reg <= din;
+                    when A_ADC12CTL1 => adc12ctl1_reg <= din;
+                    when A_WDTCTL => wdtctl_reg <= din; wdt_cnt <= (others=>'0');
+                    when A_SR     => sr_reg <= din;
+                    when others => null;
+                end case;
+            end if;
+
+            -- ---- Port 1 interrupt edge detection ----
+            -- P1IES: '0'=rising edge, '1'=falling edge triggers interrupt
+            for i in 0 to 7 loop
+                if p1ie_reg(i) = '1' then
+                    if p1ies_reg(i) = '0' then  -- rising edge
+                        if p1in(i)='1' and p1in_prev(i)='0' then p1ifg_reg(i)<='1'; end if;
+                    else  -- falling edge
+                        if p1in(i)='0' and p1in_prev(i)='1' then p1ifg_reg(i)<='1'; end if;
+                    end if;
+                end if;
+            end loop;
+            p1in_prev <= p1in;
+
+            -- ---- Port 2 interrupt edge detection ----
+            for i in 0 to 7 loop
+                if p2ie_reg(i) = '1' then
+                    if p2ies_reg(i) = '0' then
+                        if p2in(i)='1' and p2in_prev(i)='0' then p2ifg_reg(i)<='1'; end if;
+                    else
+                        if p2in(i)='0' and p2in_prev(i)='1' then p2ifg_reg(i)<='1'; end if;
+                    end if;
+                end if;
+            end loop;
+            p2in_prev <= p2in;
+
+            -- ---- Timer_A: 16-bit up/continuous mode ----
+            -- TACTL bit4=MC0, bit5=MC1 (mode control): 01=up, 10=continuous, 11=up/down
+            -- Input divider: TACTL bits 7:6 (ID0:ID1): 00=/1, 01=/2, 10=/4, 11=/8
+            -- Simplified: prescaler not implemented (always /1)
+            if tactl_reg(4) = '1' or tactl_reg(5) = '1' then
+                -- Mode 01 (up): count to TACCR0, then reset
+                -- Mode 10 (continuous): count to 0xFFFF, then reset
+                if tactl_reg(5 downto 4) = "01" then  -- up mode
+                        if tar_reg = taccr0_reg then
+                            tar_reg <= (others => '0');
+                            ta_ifg <= '1';  -- set interrupt flag
+                        else
+                            tar_reg <= tar_reg + 1;
+                        end if;
+                    elsif tactl_reg(5 downto 4) = "10" then  -- continuous mode
+                        if tar_reg = x"FFFF" then
+                            tar_reg <= (others => '0');
+                            ta_ifg <= '1';
+                        else
+                            tar_reg <= tar_reg + 1;
+                        end if;
+                    end if;
+                    -- CCR1 compare match flag (simplified)
+                    if tar_reg = taccr1_reg then
+                        ta_ifg <= '1';
+                    end if;
+            end if;
+            -- Clear TAIFG when CPU writes to TACTL with bit0='1'
+            if we='1' and addr=A_TACTL and din(0)='1' then ta_ifg<='0'; end if;
+
+            -- ---- ADC12: start conversion when ENC+SC set ----
+            -- ADC12CTL0 bit4=ENC (enable), bit1=SC (start conversion)
+            if adc12ctl0_reg(4)='1' and adc12ctl0_reg(1)='1' then
+                adc12mem0_reg <= x"0" & adc_in;  -- store 12-bit result (left-justified)
+                adc12ifg_reg <= '1';  -- set conversion complete flag
+                adc12ctl0_reg(1) <= '0';  -- clear SC
+            end if;
+            -- Clear ADC12IFG on read or write '1'
+            if we='1' and addr=A_ADC12IFG then adc12ifg_reg<='0'; end if;
+
+            -- ---- Watchdog Timer: down-counter with interval ----
+            -- WDTCTL bit5=TMSEL (0=watchdog, 1=timer), bits4:3=IS (interval)
+            -- IS: 00=/32768, 01=/8192, 10=/512, 11=/64 (simplified)
+            if wdtctl_reg(5) = '0' then  -- watchdog mode
+                -- Count down; on underflow, set flag (reset in real HW)
+                if wdt_cnt = 0 then
+                    wdt_cnt <= x"FFFF";
+                    wdt_ifg <= '1';
+                else
+                    wdt_cnt <= wdt_cnt - 1;
+                end if;
+            else  -- interval timer mode
+                if wdt_cnt = 0 then
+                    wdt_cnt <= x"FFFF";
+                    wdt_ifg <= '1';
+                else
+                    wdt_cnt <= wdt_cnt - 1;
+                end if;
+            end if;
+            -- Writing to WDTCTL clears WDTIFG and reloads counter
+            if we='1' and addr=A_WDTCTL then wdt_ifg<='0'; wdt_cnt<=x"FFFF"; end if;
+        end if;
+    end process;
+
+    -- ==================================================================
+    -- PROCESS: register_read -- combinational read mux
+    -- ==================================================================
+    process(re, addr, p1in, p1out_reg, p1dir_reg, p1ren_reg, p1sel_reg,
+            p1ifg_reg, p1ies_reg, p1ie_reg,
+            p2in, p2out_reg, p2dir_reg, p2ren_reg, p2sel_reg,
+            p2ifg_reg, p2ies_reg, p2ie_reg,
+            tar_reg, tactl_reg, taccr0_reg, taccr1_reg, ta_ifg,
+            adc12ctl0_reg, adc12ctl1_reg, adc12mem0_reg, adc12ifg_reg,
+            wdtctl_reg, wdt_cnt, wdt_ifg, sr_reg)
+    begin
+        if re = '1' then
+            case addr is
+                when A_P1IN   => dout <= x"00" & p1in;
+                when A_P1OUT  => dout <= x"00" & p1out_reg;
+                when A_P1DIR  => dout <= x"00" & p1dir_reg;
+                when A_P1REN  => dout <= x"00" & p1ren_reg;
+                when A_P1SEL  => dout <= x"00" & p1sel_reg;
+                when A_P1IFG  => dout <= x"00" & p1ifg_reg;
+                when A_P1IES  => dout <= x"00" & p1ies_reg;
+                when A_P1IE   => dout <= x"00" & p1ie_reg;
+                when A_P2IN   => dout <= x"00" & p2in;
+                when A_P2OUT  => dout <= x"00" & p2out_reg;
+                when A_P2DIR  => dout <= x"00" & p2dir_reg;
+                when A_P2REN  => dout <= x"00" & p2ren_reg;
+                when A_P2SEL  => dout <= x"00" & p2sel_reg;
+                when A_P2IFG  => dout <= x"00" & p2ifg_reg;
+                when A_P2IES  => dout <= x"00" & p2ies_reg;
+                when A_P2IE   => dout <= x"00" & p2ie_reg;
+                when A_TAR    => dout <= std_logic_vector(tar_reg);
+                when A_TACTL  => dout <= tactl_reg;
+                when A_TACCR0 => dout <= std_logic_vector(taccr0_reg);
+                when A_TACCR1 => dout <= std_logic_vector(taccr1_reg);
+                when A_ADC12CTL0 => dout <= adc12ctl0_reg;
+                when A_ADC12CTL1 => dout <= adc12ctl1_reg;
+                when A_ADC12MEM0 => dout <= adc12mem0_reg;
+                when A_ADC12IFG  => dout <= x"000" & "000" & adc12ifg_reg;
+                when A_WDTCTL => dout <= wdtctl_reg;
+                when A_SR     => dout <= sr_reg;
+                when others   => dout <= (others => '0');
+            end case;
+        else
+            dout <= (others => '0');
+        end if;
+    end process;
+
+    -- ==================================================================
+    -- OUTPUT ASSIGNMENTS
+    -- ==================================================================
+    p1out <= p1out_reg; p1dir <= p1dir_reg; p1ren <= p1ren_reg; p1sel <= p1sel_reg;
+    p2out <= p2out_reg; p2dir <= p2dir_reg; p2ren <= p2ren_reg; p2sel <= p2sel_reg;
+
+    -- Port interrupts: any IFG bit set AND corresponding IE bit AND GIE
+    p1int <= '1' when (p1ifg_reg and p1ie_reg) /= "00000000" and sr_reg(3)='1' else '0';
+    p2int <= '1' when (p2ifg_reg and p2ie_reg) /= "00000000" and sr_reg(3)='1' else '0';
+
+    -- Timer_A interrupt: TAIFG AND GIE
+    ta_int <= ta_ifg and sr_reg(3);
+    -- Timer_A output: TAR MSB (simplified toggle indicator)
+    ta_out <= tar_reg(15);
+
+    -- ADC12 interrupt: ADC12IFG AND GIE
+    adc_int <= adc12ifg_reg and sr_reg(3);
+
+    -- Watchdog interrupt/reset: WDTIFG (always assert in watchdog mode)
+    wdt_int <= wdt_ifg;
+
+    -- Low-power mode: SR bits [CPUOFF(4), SCG0(5), SCG1(6), OSCOFF(7)]
+    -- LPM0=CPUOFF, LPM1=CPUOFF+SCG0, LPM2=CPUOFF+SCG1, LPM3=CPUOFF+SCG0+SCG1, LPM4=+OSCOFF
+    lpm_out <= sr_reg(7 downto 6) & sr_reg(4);  -- simplified 3-bit LPM indicator
+
+end architecture rtl;

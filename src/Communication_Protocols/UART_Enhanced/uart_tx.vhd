@@ -1,639 +1,185 @@
 -- ============================================================================
--- UART Transmitter Implementation - Programming Guidance
+-- Enhanced UART Transmitter with FIFO Buffer
 -- ============================================================================
--- 
--- PROJECT OVERVIEW:
--- This file implements a UART (Universal Asynchronous Receiver/Transmitter)
--- transmitter module in VHDL. The UART transmitter handles asynchronous serial
--- communication, including data serialization, start/stop bit generation,
--- parity bit calculation, and flow control. It supports configurable baud rates,
--- data widths, parity modes, and stop bit configurations.
---
--- LEARNING OBJECTIVES:
--- 1. Understand UART protocol and asynchronous communication
--- 2. Learn serial data transmission and bit timing
--- 3. Master state machine design for serial protocols
--- 4. Practice parallel-to-serial data conversion
--- 5. Understand baud rate generation and timing
--- 6. Learn FIFO buffer integration for data flow control
---
+-- Adds a 16-deep FIFO so the CPU can queue multiple bytes without waiting.
+-- Supports optional parity (even) and configurable baud rate.
+-- Frame: [Start (0)] [8 data bits, LSB first] [Parity (if enabled)] [Stop (1)]
+-- Beginner-friendly, synthesizable VHDL for the Cyclone III FPGA.
 -- ============================================================================
--- STEP-BY-STEP IMPLEMENTATION GUIDE:
--- ============================================================================
---
--- STEP 1: LIBRARY DECLARATIONS
--- ----------------------------------------------------------------------------
--- Required Libraries:
--- - IEEE library for standard logic types
--- - std_logic_1164 package for std_logic and logical operators
--- - numeric_std package for arithmetic operations
--- - std_logic_unsigned for unsigned arithmetic (if needed)
--- 
--- TODO: Add library IEEE;
--- TODO: Add use IEEE.std_logic_1164.all;
--- TODO: Add use IEEE.numeric_std.all;
---
--- ============================================================================
--- STEP 2: ENTITY DECLARATION
--- ============================================================================
--- Define the UART transmitter entity with appropriate ports
---
--- Input Ports:
--- - clk: System clock input
--- - reset: Asynchronous reset (active high/low)
--- - enable: Module enable signal
--- - tx_data: Parallel data input to transmit
--- - tx_valid: Data valid input signal
--- - baud_tick: Baud rate clock enable signal
--- - tx_enable: Transmitter enable control
---
--- Output Ports:
--- - tx_serial: Serial data output line
--- - tx_ready: Ready to accept next data signal
--- - tx_busy: Transmitter busy status
--- - tx_complete: Transmission complete flag
--- - tx_error: Error flag (overrun, underrun)
--- - buffer_full: Internal buffer full status
--- - buffer_empty: Internal buffer empty status
---
--- Generic Parameters:
--- - DATA_WIDTH: Width of data bits (5-9 bits)
--- - PARITY_MODE: Parity mode (none, even, odd, mark, space)
--- - STOP_BITS: Number of stop bits (1, 1.5, 2)
--- - BAUD_RATE: Target baud rate
--- - CLK_FREQ: System clock frequency
--- - BUFFER_DEPTH: Internal FIFO buffer depth
---
--- ============================================================================
--- STEP 3: UART TRANSMITTER PRINCIPLES
--- ============================================================================
---
--- UART Frame Format:
--- [IDLE][START][DATA_BITS][PARITY][STOP_BITS][IDLE]
--- - Idle state: Line held high ('1') when not transmitting
--- - Start bit: Always '0', signals beginning of frame
--- - Data bits: 5-9 bits of actual data (LSB first)
--- - Parity bit: Optional error detection bit
--- - Stop bits: 1, 1.5, or 2 bits of '1' to end frame
---
--- Transmission Strategy:
--- - Generate precise baud rate timing
--- - Serialize parallel data LSB first
--- - Calculate and insert parity bit if enabled
--- - Generate proper start and stop bits
--- - Handle continuous data transmission
---
--- State Machine States:
--- 1. IDLE: Waiting for data to transmit
--- 2. START: Transmitting start bit
--- 3. DATA: Transmitting data bits
--- 4. PARITY: Transmitting parity bit (if enabled)
--- 5. STOP: Transmitting stop bits
--- 6. COMPLETE: Transmission complete processing
---
--- ============================================================================
--- STEP 4: ARCHITECTURE OPTIONS
--- ============================================================================
---
--- OPTION 1: Basic UART Transmitter (Recommended for beginners)
--- - Simple state machine with fixed parameters
--- - 8-bit data, no parity, 1 stop bit
--- - Direct data input without buffering
--- - Basic ready/valid handshaking
---
--- OPTION 2: Configurable UART Transmitter (Intermediate)
--- - Generic parameters for flexibility
--- - Multiple parity modes
--- - Configurable data width and stop bits
--- - Enhanced status reporting
---
--- OPTION 3: Advanced UART Transmitter (Advanced)
--- - FIFO buffering for continuous transmission
--- - Flow control support
--- - Break generation capability
--- - Automatic idle pattern insertion
---
--- OPTION 4: High-Performance UART Transmitter (Expert)
--- - Multi-channel support
--- - DMA interface integration
--- - Hardware flow control (RTS/CTS)
--- - Advanced timing control
---
--- ============================================================================
--- STEP 5: IMPLEMENTATION CONSIDERATIONS
--- ============================================================================
---
--- Timing and Baud Rate:
--- - Generate accurate baud rate clock
--- - Maintain precise bit timing
--- - Handle clock domain considerations
--- - Implement proper setup/hold timing
---
--- Data Serialization:
--- - Convert parallel data to serial stream
--- - Transmit LSB first (standard UART)
--- - Handle different data widths
--- - Maintain data integrity
---
--- State Machine Design:
--- - Clear state transitions
--- - Proper reset handling
--- - Efficient bit counting
--- - Error condition handling
---
--- Flow Control:
--- - Ready/valid handshaking
--- - FIFO buffer management
--- - Backpressure handling
--- - Continuous transmission support
---
--- ============================================================================
--- STEP 6: ADVANCED FEATURES
--- ============================================================================
---
--- FIFO Buffering:
--- - Internal data buffering
--- - Continuous transmission capability
--- - Buffer status monitoring
--- - Overflow/underflow protection
---
--- Break Generation:
--- - Extended low period transmission
--- - Break duration control
--- - Break vs. normal data distinction
--- - Recovery after break
---
--- Flow Control:
--- - Hardware handshaking support
--- - Software flow control (XON/XOFF)
--- - Automatic flow control
--- - Congestion management
---
--- Error Detection:
--- - Buffer overflow detection
--- - Transmission timeout monitoring
--- - Parity generation verification
--- - Status reporting
---
--- ============================================================================
--- APPLICATIONS:
--- ============================================================================
--- 1. Serial Communication: RS-232, RS-485 interfaces
--- 2. Debug Interfaces: Console output, logging
--- 3. Sensor Communication: Command transmission to sensors
--- 4. Control Systems: Command transmission to actuators
--- 5. IoT Devices: Data transmission to communication modules
--- 6. Embedded Systems: Inter-processor communication
--- 7. Test Equipment: Stimulus generation for testing
---
--- ============================================================================
--- TESTING STRATEGY:
--- ============================================================================
--- 1. Unit Testing: Individual component validation
--- 2. Protocol Testing: UART standard compliance
--- 3. Timing Testing: Baud rate accuracy and jitter
--- 4. Data Integrity: Transmission accuracy verification
--- 5. Flow Control Testing: Handshaking validation
--- 6. Stress Testing: Continuous high-speed operation
--- 7. Integration Testing: System-level validation
---
--- ============================================================================
--- RECOMMENDED IMPLEMENTATION APPROACH:
--- ============================================================================
--- 1. Start with basic 8N1 configuration (8 data, no parity, 1 stop)
--- 2. Implement simple state machine for frame transmission
--- 3. Add baud rate generation and bit timing
--- 4. Implement parallel-to-serial conversion
--- 5. Add configurable parameters through generics
--- 6. Implement FIFO buffering for continuous operation
--- 7. Add advanced features like break generation and flow control
---
--- ============================================================================
--- EXTENSION EXERCISES:
--- ============================================================================
--- 1. Add support for 9-bit data mode
--- 2. Implement break signal generation
--- 3. Add hardware flow control (RTS/CTS)
--- 4. Implement automatic baud rate adjustment
--- 5. Add multi-drop addressing support
--- 6. Implement transmission statistics collection
--- 7. Add DMA interface for high-speed operation
---
--- ============================================================================
--- COMMON MISTAKES TO AVOID:
--- ============================================================================
--- 1. Incorrect bit timing and baud rate generation
--- 2. Wrong bit order (MSB vs LSB first)
--- 3. Missing or incorrect parity calculation
--- 4. Inadequate state machine design
--- 5. Poor buffer management
--- 6. Missing edge cases in timing
--- 7. Inadequate testing of boundary conditions
---
--- ============================================================================
--- DESIGN VERIFICATION CHECKLIST:
--- ============================================================================
--- □ Start bit generation is correct
--- □ Data bits are transmitted in correct order
--- □ Parity calculation and transmission works
--- □ Stop bit generation is proper
--- □ Baud rate timing is accurate
--- □ State machine handles all transitions
--- □ Buffer management works correctly
--- □ Reset behavior is correct
---
--- ============================================================================
--- DIGITAL DESIGN CONTEXT:
--- ============================================================================
--- This UART transmitter demonstrates several key concepts:
--- - Serial communication protocol implementation
--- - State machine design for sequential operations
--- - Timing generation and synchronization
--- - Parallel-to-serial data conversion
--- - Buffer management and flow control strategies
---
--- ============================================================================
--- PHYSICAL IMPLEMENTATION NOTES:
--- ============================================================================
--- - Consider output drive strength for line driving
--- - Implement proper ESD protection on output pins
--- - Use appropriate line drivers for long distances
--- - Consider differential signaling for noise immunity
--- - Implement proper power distribution and grounding
---
--- ============================================================================
--- ADVANCED CONCEPTS:
--- ============================================================================
--- - Pre-emphasis and equalization for high-speed transmission
--- - Multi-level signaling schemes
--- - Forward error correction (FEC) integration
--- - Adaptive transmission power control
--- - Low-power transmission modes
---
--- ============================================================================
--- SIMULATION AND VERIFICATION NOTES:
--- ============================================================================
--- - Model realistic loading and parasitic effects
--- - Include timing variations and jitter
--- - Test all data patterns and edge cases
--- - Verify timing margins and setup/hold requirements
--- - Use protocol analyzers for compliance verification
---
--- ============================================================================
--- IMPLEMENTATION TEMPLATE:
--- ============================================================================
--- Use this template as a starting point for your implementation:
---
--- library IEEE;
--- use IEEE.std_logic_1164.all;
--- use IEEE.numeric_std.all;
---
--- entity uart_tx is
---     generic (
---         DATA_WIDTH    : integer := 8;        -- Data bits (5-9)
---         PARITY_MODE   : string  := "NONE";   -- "NONE", "EVEN", "ODD", "MARK", "SPACE"
---         STOP_BITS     : integer := 1;        -- Stop bits (1 or 2)
---         BAUD_RATE     : integer := 115200;   -- Target baud rate
---         CLK_FREQ      : integer := 50000000; -- System clock frequency
---         BUFFER_DEPTH  : integer := 16;       -- FIFO buffer depth
---         IDLE_PATTERN  : std_logic := '1';    -- Idle line state
---         BREAK_BITS    : integer := 12        -- Break duration in bit periods
---     );
---     port (
---         -- Clock and reset
---         clk           : in  std_logic;
---         reset         : in  std_logic;
---         enable        : in  std_logic;
---         
---         -- Parallel data interface
---         tx_data       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
---         tx_valid      : in  std_logic;
---         tx_ready      : out std_logic;
---         
---         -- Serial interface
---         tx_serial     : out std_logic;
---         
---         -- Control and status
---         tx_enable     : in  std_logic;
---         tx_busy       : out std_logic;
---         tx_complete   : out std_logic;
---         tx_error      : out std_logic;
---         
---         -- Buffer status
---         buffer_full   : out std_logic;
---         buffer_empty  : out std_logic;
---         buffer_count  : out integer range 0 to BUFFER_DEPTH;
---         
---         -- Advanced control (optional)
---         send_break    : in  std_logic := '0';
---         break_complete: out std_logic := '0';
---         baud_tick     : in  std_logic := '0';
---         clear_buffer  : in  std_logic := '0'
---     );
--- end entity uart_tx;
---
--- architecture behavioral of uart_tx is
---     -- Constants
---     constant BAUD_DIV     : integer := CLK_FREQ / BAUD_RATE;
---     constant PARITY_EN    : boolean := (PARITY_MODE /= "NONE");
---     constant TOTAL_BITS   : integer := 1 + DATA_WIDTH + 
---                                       (if PARITY_EN then 1 else 0) + STOP_BITS;
---     
---     -- State machine type
---     type tx_state_type is (IDLE, START, DATA, PARITY, STOP, COMPLETE, BREAK_STATE);
---     signal tx_state       : tx_state_type := IDLE;
---     signal next_state     : tx_state_type;
---     
---     -- Timing generation
---     signal baud_counter   : integer range 0 to BAUD_DIV-1 := 0;
---     signal bit_counter    : integer range 0 to DATA_WIDTH-1 := 0;
---     signal stop_counter   : integer range 0 to STOP_BITS-1 := 0;
---     signal break_counter  : integer range 0 to BREAK_BITS-1 := 0;
---     signal baud_tick_int  : std_logic := '0';
---     signal bit_complete   : std_logic := '0';
---     
---     -- Data handling
---     signal shift_reg      : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
---     signal parity_bit     : std_logic := '0';
---     signal parity_calc    : std_logic := '0';
---     signal current_data   : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
---     signal data_loaded    : std_logic := '0';
---     
---     -- FIFO buffer signals
---     signal fifo_data_in   : std_logic_vector(DATA_WIDTH-1 downto 0);
---     signal fifo_write_en  : std_logic := '0';
---     signal fifo_data_out  : std_logic_vector(DATA_WIDTH-1 downto 0);
---     signal fifo_read_en   : std_logic := '0';
---     signal fifo_empty     : std_logic := '1';
---     signal fifo_full      : std_logic := '0';
---     signal fifo_count     : integer range 0 to BUFFER_DEPTH := 0;
---     
---     -- Control signals
---     signal tx_start       : std_logic := '0';
---     signal tx_done        : std_logic := '0';
---     signal break_active   : std_logic := '0';
---     signal break_done     : std_logic := '0';
---     signal error_flag     : std_logic := '0';
---     
---     -- Output control
---     signal serial_out     : std_logic := '1';
---     signal output_enable  : std_logic := '1';
---     
---     -- FIFO buffer component (if using separate component)
---     component fifo_buffer is
---         generic (
---             DATA_WIDTH : integer := 8;
---             DEPTH      : integer := 16
---         );
---         port (
---             clk        : in  std_logic;
---             reset      : in  std_logic;
---             data_in    : in  std_logic_vector(DATA_WIDTH-1 downto 0);
---             write_en   : in  std_logic;
---             data_out   : out std_logic_vector(DATA_WIDTH-1 downto 0);
---             read_en    : in  std_logic;
---             empty      : out std_logic;
---             full       : out std_logic;
---             count      : out integer range 0 to DEPTH
---         );
---     end component;
---     
--- begin
---     -- Baud rate generation
---     baud_gen_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             baud_counter <= 0;
---             baud_tick_int <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 baud_tick_int <= '0';
---                 
---                 if baud_counter = BAUD_DIV-1 then
---                     baud_counter <= 0;
---                     baud_tick_int <= '1';
---                 else
---                     baud_counter <= baud_counter + 1;
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- Use external baud tick if provided, otherwise use internal
---     bit_complete <= baud_tick when (baud_tick /= '0') else baud_tick_int;
---     
---     -- Parity calculation
---     parity_calc_proc: process(current_data)
---         variable parity_temp : std_logic;
---     begin
---         parity_temp := '0';
---         for i in 0 to DATA_WIDTH-1 loop
---             parity_temp := parity_temp xor current_data(i);
---         end loop;
---         
---         case PARITY_MODE is
---             when "EVEN" =>
---                 parity_calc <= parity_temp;
---             when "ODD" =>
---                 parity_calc <= not parity_temp;
---             when "MARK" =>
---                 parity_calc <= '1';
---             when "SPACE" =>
---                 parity_calc <= '0';
---             when others =>
---                 parity_calc <= '0';
---         end case;
---     end process;
---     
---     -- Main state machine
---     state_machine_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             tx_state <= IDLE;
---             bit_counter <= 0;
---             stop_counter <= 0;
---             break_counter <= 0;
---             shift_reg <= (others => '0');
---             current_data <= (others => '0');
---             parity_bit <= '0';
---             data_loaded <= '0';
---             tx_done <= '0';
---             break_active <= '0';
---             break_done <= '0';
---             serial_out <= IDLE_PATTERN;
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 tx_done <= '0';
---                 break_done <= '0';
---                 
---                 case tx_state is
---                     when IDLE =>
---                         serial_out <= IDLE_PATTERN;
---                         bit_counter <= 0;
---                         stop_counter <= 0;
---                         break_counter <= 0;
---                         data_loaded <= '0';
---                         
---                         if send_break = '1' then
---                             tx_state <= BREAK_STATE;
---                             break_active <= '1';
---                             serial_out <= '0';
---                         elsif tx_start = '1' and tx_enable = '1' then
---                             -- Load data from FIFO
---                             current_data <= fifo_data_out;
---                             shift_reg <= fifo_data_out;
---                             parity_bit <= parity_calc;
---                             data_loaded <= '1';
---                             tx_state <= START;
---                         end if;
---                     
---                     when START =>
---                         serial_out <= '0';  -- Start bit
---                         
---                         if bit_complete = '1' then
---                             tx_state <= DATA;
---                             bit_counter <= 0;
---                         end if;
---                     
---                     when DATA =>
---                         serial_out <= shift_reg(0);  -- LSB first
---                         
---                         if bit_complete = '1' then
---                             shift_reg <= '0' & shift_reg(DATA_WIDTH-1 downto 1);
---                             
---                             if bit_counter = DATA_WIDTH-1 then
---                                 -- All data bits transmitted
---                                 if PARITY_EN then
---                                     tx_state <= PARITY;
---                                 else
---                                     tx_state <= STOP;
---                                     stop_counter <= 0;
---                                 end if;
---                                 bit_counter <= 0;
---                             else
---                                 bit_counter <= bit_counter + 1;
---                             end if;
---                         end if;
---                     
---                     when PARITY =>
---                         serial_out <= parity_bit;
---                         
---                         if bit_complete = '1' then
---                             tx_state <= STOP;
---                             stop_counter <= 0;
---                         end if;
---                     
---                     when STOP =>
---                         serial_out <= '1';  -- Stop bit(s)
---                         
---                         if bit_complete = '1' then
---                             if stop_counter = STOP_BITS-1 then
---                                 -- All stop bits transmitted
---                                 tx_state <= COMPLETE;
---                             else
---                                 stop_counter <= stop_counter + 1;
---                             end if;
---                         end if;
---                     
---                     when COMPLETE =>
---                         serial_out <= IDLE_PATTERN;
---                         tx_done <= '1';
---                         tx_state <= IDLE;
---                     
---                     when BREAK_STATE =>
---                         serial_out <= '0';  -- Break condition
---                         
---                         if bit_complete = '1' then
---                             if break_counter = BREAK_BITS-1 then
---                                 break_done <= '1';
---                                 break_active <= '0';
---                                 tx_state <= IDLE;
---                                 break_counter <= 0;
---                             else
---                                 break_counter <= break_counter + 1;
---                             end if;
---                         end if;
---                     
---                     when others =>
---                         tx_state <= IDLE;
---                         serial_out <= IDLE_PATTERN;
---                 end case;
---             end if;
---         end if;
---     end process;
---     
---     -- FIFO buffer instantiation
---     fifo_inst: fifo_buffer
---         generic map (
---             DATA_WIDTH => DATA_WIDTH,
---             DEPTH      => BUFFER_DEPTH
---         )
---         port map (
---             clk        => clk,
---             reset      => reset,
---             data_in    => tx_data,
---             write_en   => fifo_write_en,
---             data_out   => fifo_data_out,
---             read_en    => fifo_read_en,
---             empty      => fifo_empty,
---             full       => fifo_full,
---             count      => fifo_count
---         );
---     
---     -- FIFO control logic
---     fifo_write_en <= tx_valid and not fifo_full;
---     fifo_read_en <= tx_start and not fifo_empty;
---     tx_start <= '1' when (tx_state = IDLE and not fifo_empty and tx_enable = '1' and send_break = '0') else '0';
---     
---     -- Buffer management
---     buffer_clear_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             -- Reset handled by FIFO component
---         elsif rising_edge(clk) then
---             if clear_buffer = '1' then
---                 -- Clear buffer logic (implementation depends on FIFO design)
---             end if;
---         end if;
---     end process;
---     
---     -- Error detection
---     error_detect_proc: process(clk, reset)
---     begin
---         if reset = '1' then
---             error_flag <= '0';
---         elsif rising_edge(clk) then
---             if enable = '1' then
---                 -- Detect buffer overflow
---                 if tx_valid = '1' and fifo_full = '1' then
---                     error_flag <= '1';
---                 end if;
---                 
---                 -- Clear error on successful transmission
---                 if tx_done = '1' then
---                     error_flag <= '0';
---                 end if;
---             end if;
---         end if;
---     end process;
---     
---     -- Output assignments
---     tx_serial <= serial_out when (output_enable = '1') else 'Z';
---     tx_ready <= not fifo_full;
---     tx_busy <= '1' when (tx_state /= IDLE) else '0';
---     tx_complete <= tx_done;
---     tx_error <= error_flag;
---     
---     buffer_full <= fifo_full;
---     buffer_empty <= fifo_empty;
---     buffer_count <= fifo_count;
---     break_complete <= break_done;
---     
--- end architecture behavioral;
---
--- ============================================================================
--- Remember: This UART transmitter provides a robust foundation for asynchronous
--- serial communication. Ensure proper timing analysis, thorough testing of
--- all data patterns, and consideration of real-world loading effects.
--- The design can be extended for specific application requirements.
--- ============================================================================
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity uart_tx is
+    generic (
+        BAUD_RATE    : integer := 9600;
+        CLK_FREQ     : integer := 50000000;
+        PARITY_ENABLE: boolean  := false;  -- set true to add a parity bit
+        FIFO_DEPTH   : integer  := 16      -- number of bytes the FIFO holds
+    );
+    port (
+        clk        : in  std_logic;
+        reset      : in  std_logic;
+        -- CPU write interface
+        tx_data    : in  std_logic_vector(7 downto 0);
+        tx_wr      : in  std_logic;        -- pulse high to push byte into FIFO
+        -- Serial output
+        tx_serial  : out std_logic;
+        -- Status
+        tx_ready   : out std_logic;        -- '1' when FIFO not full
+        tx_empty   : out std_logic;        -- '1' when FIFO is empty
+        tx_busy    : out std_logic         -- '1' while sending a frame
+    );
+end entity uart_tx;
+
+architecture rtl of uart_tx is
+    constant CLK_PER_BIT : integer := CLK_FREQ / BAUD_RATE;
+
+    -- ---- Simple FIFO (depth = FIFO_DEPTH, width = 8) ----
+    type fifo_array is array (0 to FIFO_DEPTH - 1) of std_logic_vector(7 downto 0);
+    signal fifo_mem  : fifo_array := (others => (others => '0'));
+    signal wr_ptr    : integer range 0 to FIFO_DEPTH - 1 := 0;
+    signal rd_ptr    : integer range 0 to FIFO_DEPTH - 1 := 0;
+    signal fifo_cnt  : integer range 0 to FIFO_DEPTH := 0;
+    signal fifo_empty: std_logic := '1';
+    signal fifo_full : std_logic := '0';
+    signal fifo_data : std_logic_vector(7 downto 0) := (others => '0');
+
+    -- ---- TX state machine ----
+    type state_t is (IDLE, START, DATA, PARITY, STOP);
+    signal state      : state_t := IDLE;
+    signal clk_count  : integer range 0 to CLK_PER_BIT - 1 := 0;
+    signal bit_index  : integer range 0 to 7 := 0;
+    signal data_reg   : std_logic_vector(7 downto 0) := (others => '0');
+    signal parity_bit : std_logic := '0';
+    signal busy_flag  : std_logic := '0';
+begin
+
+    -- =================== FIFO management ===================
+    fifo_proc : process(clk, reset)
+    begin
+        if reset = '1' then
+            wr_ptr     <= 0;
+            rd_ptr     <= 0;
+            fifo_cnt   <= 0;
+            fifo_empty <= '1';
+            fifo_full  <= '0';
+        elsif rising_edge(clk) then
+            -- Write into FIFO
+            if tx_wr = '1' and fifo_full = '0' and busy_flag = '0' then
+                fifo_mem(wr_ptr) <= tx_data;
+                if wr_ptr = FIFO_DEPTH - 1 then
+                    wr_ptr <= 0;
+                else
+                    wr_ptr <= wr_ptr + 1;
+                end if;
+                fifo_cnt <= fifo_cnt + 1;
+            end if;
+
+            -- Read from FIFO (when TX state machine consumes a byte)
+            if state = IDLE and fifo_empty = '0' and busy_flag = '0' then
+                fifo_data <= fifo_mem(rd_ptr);
+                if rd_ptr = FIFO_DEPTH - 1 then
+                    rd_ptr <= 0;
+                else
+                    rd_ptr <= rd_ptr + 1;
+                end if;
+                fifo_cnt <= fifo_cnt - 1;
+            end if;
+
+            -- Update flags
+            if fifo_cnt = 0 then
+                fifo_empty <= '1';
+            else
+                fifo_empty <= '0';
+            end if;
+            if fifo_cnt >= FIFO_DEPTH then
+                fifo_full <= '1';
+            else
+                fifo_full <= '0';
+            end if;
+        end if;
+    end process fifo_proc;
+
+    tx_ready <= not fifo_full;
+    tx_empty <= fifo_empty;
+
+    -- =================== TX state machine ===================
+    tx_proc : process(clk, reset)
+    begin
+        if reset = '1' then
+            state      <= IDLE;
+            serial_out <= '1';
+            busy_flag  <= '0';
+            clk_count  <= 0;
+            bit_index  <= 0;
+        elsif rising_edge(clk) then
+            case state is
+                when IDLE =>
+                    serial_out <= '1';
+                    busy_flag  <= '0';
+                    if fifo_empty = '0' then
+                        data_reg   <= fifo_data;
+                        -- Compute even parity
+                        parity_bit <= fifo_data(0) xor fifo_data(1) xor
+                                      fifo_data(2) xor fifo_data(3) xor
+                                      fifo_data(4) xor fifo_data(5) xor
+                                      fifo_data(6) xor fifo_data(7);
+                        busy_flag  <= '1';
+                        state      <= START;
+                        clk_count  <= 0;
+                    end if;
+
+                when START =>
+                    serial_out <= '0';
+                    if clk_count = CLK_PER_BIT - 1 then
+                        clk_count <= 0;
+                        bit_index <= 0;
+                        state     <= DATA;
+                    else
+                        clk_count <= clk_count + 1;
+                    end if;
+
+                when DATA =>
+                    serial_out <= data_reg(bit_index);
+                    if clk_count = CLK_PER_BIT - 1 then
+                        clk_count <= 0;
+                        if bit_index = 7 then
+                            if PARITY_ENABLE then
+                                state <= PARITY;
+                            else
+                                state <= STOP;
+                            end if;
+                        else
+                            bit_index <= bit_index + 1;
+                        end if;
+                    else
+                        clk_count <= clk_count + 1;
+                    end if;
+
+                when PARITY =>
+                    serial_out <= parity_bit;
+                    if clk_count = CLK_PER_BIT - 1 then
+                        clk_count <= 0;
+                        state     <= STOP;
+                    else
+                        clk_count <= clk_count + 1;
+                    end if;
+
+                when STOP =>
+                    serial_out <= '1';
+                    if clk_count = CLK_PER_BIT - 1 then
+                        clk_count <= 0;
+                        busy_flag <= '0';
+                        state     <= IDLE;
+                    else
+                        clk_count <= clk_count + 1;
+                    end if;
+            end case;
+        end if;
+    end process tx_proc;
+
+    tx_serial <= serial_out;
+    tx_busy   <= busy_flag;
+
+end architecture rtl;
