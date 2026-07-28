@@ -1,0 +1,400 @@
+# =============================================================================
+# Cyclone III FPGA - Pin Assignments for DE0 Board (EP3C16F484C6N)
+# =============================================================================
+# Target Device : EP3C16F484C6N (Cyclone III, 484-pin FBGA)
+# Board         : Terasic DE0 Development and Education Board
+# I/O Standard  : 3.3-V LVTTL (all pins)
+# Drive Strength: 8 mA default for high-speed signals
+# Top-Level     : soc_top
+# =============================================================================
+# This file is included by the main Quartus Settings File (.qsf) via:
+#   source constraints/cyclone_iii_pins.qsf
+# or by copying the assignments into the project .qsf.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Device / Family
+# -----------------------------------------------------------------------------
+set_global_assignment -name FAMILY "Cyclone III"
+set_global_assignment -name DEVICE EP3C16F484C6N
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
+
+# -----------------------------------------------------------------------------
+# 1. Clock Input
+# -----------------------------------------------------------------------------
+# 50 MHz onboard oscillator.
+set_location_assignment PIN_R8 -to CLOCK_50
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to CLOCK_50
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to CLOCK_50
+
+# -----------------------------------------------------------------------------
+# 2. Reset Button (active-low)
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_N17 -to reset_n
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to reset_n
+set_instance_assignment -name WEAK_PULL_UP "ON" -to reset_n
+
+# -----------------------------------------------------------------------------
+# 3. Status LEDs (8 LEDs)
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_R22 -to led[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[0]
+set_location_assignment PIN_R21 -to led[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[1]
+set_location_assignment PIN_R20 -to led[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[2]
+set_location_assignment PIN_R19 -to led[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[3]
+set_location_assignment PIN_R18 -to led[4]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[4]
+set_location_assignment PIN_R17 -to led[5]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[5]
+set_location_assignment PIN_R16 -to led[6]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[6]
+set_location_assignment PIN_R15 -to led[7]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to led[7]
+
+# =============================================================================
+# GPIO_0 Expansion Header - Peripheral I/O
+# =============================================================================
+# GPIO_0 provides 32 general-purpose I/O data pins plus 2 PLL clock inputs
+# and 2 PLL clock outputs. The following peripherals are mapped to GPIO_0:
+#
+#   GPIO0_D[0]     (PIN_AB16) - UART TX
+#   GPIO0_D[1]     (PIN_AA16) - UART RX
+#   GPIO0_D[2]     (PIN_AA15) - SPI MOSI
+#   GPIO0_D[3]     (PIN_AB15) - SPI MISO
+#   GPIO0_D[4]     (PIN_AA14) - SPI SCK
+#   GPIO0_D[5]     (PIN_AB14) - SPI CS_n
+#   GPIO0_D[6]     (PIN_AB13) - I2C SDA
+#   GPIO0_D[7]     (PIN_AA13) - I2C SCL
+#   GPIO0_D[8]     (PIN_AB10) - USB D+
+#   GPIO0_D[9]     (PIN_AA10) - USB D-
+#   GPIO0_D[10]    (PIN_AB8)  - SD Card CLK
+#   GPIO0_D[11]    (PIN_AA8)  - SD Card CMD
+#   GPIO0_D[12]    (PIN_AB5)  - SD Card DAT[0]
+#   GPIO0_D[13]    (PIN_AA5)  - SD Card DAT[1]
+#   GPIO0_D[14]    (PIN_AB4)  - SD Card DAT[2]
+#   GPIO0_D[15]    (PIN_AA4)  - SD Card DAT[3]
+#   GPIO0_D[16]    (PIN_V14)  - CAN TX
+#   GPIO0_D[17]    (PIN_U14)  - CAN RX
+#   GPIO0_D[18]    (PIN_Y13)  - Ethernet TXD[0]
+#   GPIO0_D[19]    (PIN_W13)  - Ethernet TXD[1]
+#   GPIO0_D[20]    (PIN_U13)  - Ethernet TXD[2]
+#   GPIO0_D[21]    (PIN_V12)  - Ethernet TXD[3]
+#   GPIO0_D[22]    (PIN_R10)  - Ethernet TX_EN
+#   GPIO0_D[23]    (PIN_V11)  - Ethernet TX_CLK
+#   GPIO0_D[24]    (PIN_Y10)  - Ethernet RXD[0]
+#   GPIO0_D[25]    (PIN_W10)  - Ethernet RXD[1]
+#   GPIO0_D[26]    (PIN_T8)   - Ethernet RXD[2]
+#   GPIO0_D[27]    (PIN_V8)   - Ethernet RXD[3]
+#   GPIO0_D[28]    (PIN_W7)   - Ethernet RX_DV
+#   GPIO0_D[29]    (PIN_W6)   - Ethernet RX_CLK
+#   GPIO0_D[30]    (PIN_V5)   - Ethernet MDC
+#   GPIO0_D[31]    (PIN_U7)   - Ethernet MDIO
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 4. UART (TX / RX) - GPIO_0
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_AB16 -to uart_tx
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to uart_tx
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to uart_tx
+
+set_location_assignment PIN_AA16 -to uart_rx
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to uart_rx
+
+# -----------------------------------------------------------------------------
+# 5. SPI (MOSI / MISO / SCK / CS_n) - GPIO_0
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_AA15 -to spi_mosi
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to spi_mosi
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to spi_mosi
+
+set_location_assignment PIN_AB15 -to spi_miso
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to spi_miso
+
+set_location_assignment PIN_AA14 -to spi_sck
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to spi_sck
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to spi_sck
+
+set_location_assignment PIN_AB14 -to spi_cs_n
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to spi_cs_n
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to spi_cs_n
+
+# -----------------------------------------------------------------------------
+# 6. I2C (SDA / SCL) - GPIO_0
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_AB13 -to i2c_sda
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to i2c_sda
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to i2c_sda
+set_instance_assignment -name WEAK_PULL_UP "ON" -to i2c_sda
+
+set_location_assignment PIN_AA13 -to i2c_scl
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to i2c_scl
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to i2c_scl
+set_instance_assignment -name WEAK_PULL_UP "ON" -to i2c_scl
+
+# -----------------------------------------------------------------------------
+# 7. USB (D+ / D-) - GPIO_0
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_AB10 -to usb_dp
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to usb_dp
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to usb_dp
+
+set_location_assignment PIN_AA10 -to usb_dm
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to usb_dm
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to usb_dm
+
+# -----------------------------------------------------------------------------
+# 8. SD Card (CLK / CMD / DAT[0..3]) - GPIO_0
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_AB8 -to sd_clk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sd_clk
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sd_clk
+
+set_location_assignment PIN_AA8 -to sd_cmd
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sd_cmd
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sd_cmd
+
+set_location_assignment PIN_AB5 -to sd_dat[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sd_dat[0]
+set_location_assignment PIN_AA5 -to sd_dat[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sd_dat[1]
+set_location_assignment PIN_AB4 -to sd_dat[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sd_dat[2]
+set_location_assignment PIN_AA4 -to sd_dat[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sd_dat[3]
+
+# -----------------------------------------------------------------------------
+# 9. CAN (TX / RX) - GPIO_0
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_V14 -to can_tx
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to can_tx
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to can_tx
+
+set_location_assignment PIN_U14 -to can_rx
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to can_rx
+
+# -----------------------------------------------------------------------------
+# 10. Ethernet MII (TX / RX / Management) - GPIO_0
+# -----------------------------------------------------------------------------
+# Transmit signals
+set_location_assignment PIN_Y13 -to eth_txd[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_txd[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_txd[0]
+set_location_assignment PIN_W13 -to eth_txd[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_txd[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_txd[1]
+set_location_assignment PIN_U13 -to eth_txd[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_txd[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_txd[2]
+set_location_assignment PIN_V12 -to eth_txd[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_txd[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_txd[3]
+
+set_location_assignment PIN_R10 -to eth_tx_en
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_tx_en
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_tx_en
+
+set_location_assignment PIN_V11 -to eth_tx_clk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_tx_clk
+
+# Receive signals
+set_location_assignment PIN_Y10 -to eth_rxd[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_rxd[0]
+set_location_assignment PIN_W10 -to eth_rxd[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_rxd[1]
+set_location_assignment PIN_T8 -to eth_rxd[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_rxd[2]
+set_location_assignment PIN_V8 -to eth_rxd[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_rxd[3]
+
+set_location_assignment PIN_W7 -to eth_rx_dv
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_rx_dv
+
+set_location_assignment PIN_W6 -to eth_rx_clk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_rx_clk
+
+# Management interface (MDC / MDIO)
+set_location_assignment PIN_V5 -to eth_mdc
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_mdc
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_mdc
+
+set_location_assignment PIN_U7 -to eth_mdio
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to eth_mdio
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to eth_mdio
+
+# =============================================================================
+# GPIO_1 Expansion Header - Memory Buses
+# =============================================================================
+# GPIO_1 provides 32 general-purpose I/O data pins plus 2 PLL clock inputs
+# and 2 PLL clock outputs. The following memory interfaces are mapped to
+# GPIO_1:
+#
+#   External SRAM Bus (27 pins):
+#     GPIO1_D[0]     (PIN_AA20) - SRAM_ADDR[0]
+#     GPIO1_D[1]     (PIN_AB20) - SRAM_ADDR[1]
+#     GPIO1_D[2]     (PIN_AA19) - SRAM_ADDR[2]
+#     GPIO1_D[3]     (PIN_AB19) - SRAM_ADDR[3]
+#     GPIO1_D[4]     (PIN_AA18) - SRAM_ADDR[4]
+#     GPIO1_D[5]     (PIN_AB18) - SRAM_ADDR[5]
+#     GPIO1_D[6]     (PIN_AA17) - SRAM_ADDR[6]
+#     GPIO1_D[7]     (PIN_AB17) - SRAM_ADDR[7]
+#     GPIO1_D[8]     (PIN_AA9)  - SRAM_ADDR[8]
+#     GPIO1_D[9]     (PIN_AB9)  - SRAM_ADDR[9]
+#     GPIO1_D[10]    (PIN_AA7)  - SRAM_ADDR[10]
+#     GPIO1_D[11]    (PIN_AB7)  - SRAM_ADDR[11]
+#     GPIO1_D[12]    (PIN_AA6)  - SRAM_ADDR[12]
+#     GPIO1_D[13]    (PIN_AB6)  - SRAM_ADDR[13]
+#     GPIO1_D[14]    (PIN_AA11) - SRAM_ADDR[14]
+#     GPIO1_D[15]    (PIN_AB11) - SRAM_ADDR[15]
+#     GPIO1_D[16]    (PIN_Y16)  - SRAM_DATA[0]
+#     GPIO1_D[17]    (PIN_W16)  - SRAM_DATA[1]
+#     GPIO1_D[18]    (PIN_V16)  - SRAM_DATA[2]
+#     GPIO1_D[19]    (PIN_U16)  - SRAM_DATA[3]
+#     GPIO1_D[20]    (PIN_Y15)  - SRAM_DATA[4]
+#     GPIO1_D[21]    (PIN_W15)  - SRAM_DATA[5]
+#     GPIO1_D[22]    (PIN_V15)  - SRAM_DATA[6]
+#     GPIO1_D[23]    (PIN_U15)  - SRAM_DATA[7]
+#     GPIO1_D[24]    (PIN_T14)  - SRAM_OE_n
+#     GPIO1_D[25]    (PIN_R14)  - SRAM_WE_n
+#     GPIO1_D[26]    (PIN_Y14)  - SRAM_CS_n
+#
+#   QSPI Flash (6 pins):
+#     GPIO1_D[27]    (PIN_W14)  - QSPI_CLK
+#     GPIO1_D[28]    (PIN_T13)  - QSPI_CS_n
+#     GPIO1_D[29]    (PIN_R13)  - QSPI_DQ[0]
+#     GPIO1_D[30]    (PIN_V13)  - QSPI_DQ[1]
+#     GPIO1_D[31]    (PIN_U12)  - QSPI_DQ[2]
+#     GPIO1_CLKIN[0] (PIN_AB21) - QSPI_DQ[3]
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 11. External SRAM Bus - GPIO_1
+# -----------------------------------------------------------------------------
+# Address lines [15:0]
+set_location_assignment PIN_AA20 -to sram_addr[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[0]
+set_location_assignment PIN_AB20 -to sram_addr[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[1]
+set_location_assignment PIN_AA19 -to sram_addr[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[2]
+set_location_assignment PIN_AB19 -to sram_addr[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[3]
+set_location_assignment PIN_AA18 -to sram_addr[4]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[4]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[4]
+set_location_assignment PIN_AB18 -to sram_addr[5]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[5]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[5]
+set_location_assignment PIN_AA17 -to sram_addr[6]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[6]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[6]
+set_location_assignment PIN_AB17 -to sram_addr[7]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[7]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[7]
+set_location_assignment PIN_AA9 -to sram_addr[8]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[8]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[8]
+set_location_assignment PIN_AB9 -to sram_addr[9]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[9]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[9]
+set_location_assignment PIN_AA7 -to sram_addr[10]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[10]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[10]
+set_location_assignment PIN_AB7 -to sram_addr[11]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[11]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[11]
+set_location_assignment PIN_AA6 -to sram_addr[12]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[12]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[12]
+set_location_assignment PIN_AB6 -to sram_addr[13]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[13]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[13]
+set_location_assignment PIN_AA11 -to sram_addr[14]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[14]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[14]
+set_location_assignment PIN_AB11 -to sram_addr[15]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_addr[15]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_addr[15]
+
+# Bidirectional data lines [7:0]
+set_location_assignment PIN_Y16 -to sram_data[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[0]
+set_location_assignment PIN_W16 -to sram_data[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[1]
+set_location_assignment PIN_V16 -to sram_data[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[2]
+set_location_assignment PIN_U16 -to sram_data[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[3]
+set_location_assignment PIN_Y15 -to sram_data[4]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[4]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[4]
+set_location_assignment PIN_W15 -to sram_data[5]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[5]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[5]
+set_location_assignment PIN_V15 -to sram_data[6]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[6]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[6]
+set_location_assignment PIN_U15 -to sram_data[7]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_data[7]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_data[7]
+
+# Control signals
+set_location_assignment PIN_T14 -to sram_oe_n
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_oe_n
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_oe_n
+
+set_location_assignment PIN_R14 -to sram_we_n
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_we_n
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_we_n
+
+set_location_assignment PIN_Y14 -to sram_cs_n
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sram_cs_n
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to sram_cs_n
+
+# -----------------------------------------------------------------------------
+# 12. QSPI Flash - GPIO_1
+# -----------------------------------------------------------------------------
+set_location_assignment PIN_W14 -to qspi_clk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to qspi_clk
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to qspi_clk
+
+set_location_assignment PIN_T13 -to qspi_cs_n
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to qspi_cs_n
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to qspi_cs_n
+
+set_location_assignment PIN_R13 -to qspi_dq[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to qspi_dq[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to qspi_dq[0]
+set_location_assignment PIN_V13 -to qspi_dq[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to qspi_dq[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to qspi_dq[1]
+set_location_assignment PIN_U12 -to qspi_dq[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to qspi_dq[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to qspi_dq[2]
+set_location_assignment PIN_AB21 -to qspi_dq[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to qspi_dq[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA"  -to qspi_dq[3]
+
+# -----------------------------------------------------------------------------
+# 13. Global I/O Settings
+# -----------------------------------------------------------------------------
+# Reserve all unused pins as tri-stated inputs with weak pull-up.
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS_WEAK_PULLUP "AS INPUT TRI-STATED"
+
+# Enable slew rate control for high-speed outputs.
+set_global_assignment -name SLOW_SLEW_RATE OFF
+
+# -----------------------------------------------------------------------------
+# End of Pin Assignments
+# -----------------------------------------------------------------------------
