@@ -80,6 +80,7 @@ architecture rtl of MCU_8_Core is
     signal flag_n_arr : flag_array_t := (others => '0');
     signal running_arr: flag_array_t := (others => '1');
     signal halted_arr : flag_array_t := (others => '0');
+    signal hlt_instr_arr : flag_array_t := (others => '0'); -- Halt caused by HLT instruction
 
     -- Priority arbiter result
     signal winner : integer range 0 to 7 := 0;
@@ -140,6 +141,7 @@ begin
             flag_z_arr <= (others => '0'); flag_c_arr <= (others => '0');
             flag_n_arr <= (others => '0');
             running_arr <= (others => '1'); halted_arr <= (others => '0');
+            hlt_instr_arr <= (others => '0');
             active_we <= '0'; active_oe <= '0'; irq_ack_reg <= '0';
             active_addr <= (others => '0'); active_data <= (others => '0');
 
@@ -229,6 +231,7 @@ begin
                         when OP_HLT =>
                             state_arr(winner) <= S_HALT;
                             running_arr(winner) <= '0'; halted_arr(winner) <= '1';
+                            hlt_instr_arr(winner) <= '1';
 
                         when OP_NOP =>
                             pc_arr(winner) <= pc_arr(winner) + 1;

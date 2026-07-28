@@ -53,6 +53,7 @@ architecture rtl of uart_tx is
     signal data_reg   : std_logic_vector(7 downto 0) := (others => '0');
     signal parity_bit : std_logic := '0';
     signal busy_flag  : std_logic := '0';
+    signal serial_out : std_logic := '1';
 begin
 
     -- =================== FIFO management ===================
@@ -119,12 +120,12 @@ begin
                     serial_out <= '1';
                     busy_flag  <= '0';
                     if fifo_empty = '0' then
-                        data_reg   <= fifo_data;
+                        data_reg   <= fifo_mem(rd_ptr);
                         -- Compute even parity
-                        parity_bit <= fifo_data(0) xor fifo_data(1) xor
-                                      fifo_data(2) xor fifo_data(3) xor
-                                      fifo_data(4) xor fifo_data(5) xor
-                                      fifo_data(6) xor fifo_data(7);
+                        parity_bit <= fifo_mem(rd_ptr)(0) xor fifo_mem(rd_ptr)(1) xor
+                                      fifo_mem(rd_ptr)(2) xor fifo_mem(rd_ptr)(3) xor
+                                      fifo_mem(rd_ptr)(4) xor fifo_mem(rd_ptr)(5) xor
+                                      fifo_mem(rd_ptr)(6) xor fifo_mem(rd_ptr)(7);
                         busy_flag  <= '1';
                         state      <= START;
                         clk_count  <= 0;

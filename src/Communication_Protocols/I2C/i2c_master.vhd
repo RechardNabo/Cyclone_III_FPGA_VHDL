@@ -37,7 +37,7 @@ architecture rtl of i2c_master is
     -- Clock divider: system clocks per I2C quarter-period (for SDA/SCL edges)
     constant DIV : integer := CLK_FREQ / (I2C_FREQ * 4);
 
-    type state_t is (IDLE, START, ADDR, ADDR_ACK, DATA, DATA_ACK, STOP);
+    type state_t is (IDLE, START, ST_ADDR, ADDR_ACK, DATA, DATA_ACK, STOP);
     signal state : state_t := IDLE;
 
     signal clk_cnt   : integer range 0 to DIV - 1 := 0;
@@ -84,14 +84,14 @@ begin
                     if clk_cnt = DIV - 1 then
                         clk_cnt <= 0;
                         sda_out <= '0';       -- pull SDA low
-                        state   <= ADDR;
+                        state   <= ST_ADDR;
                         bit_index <= 7;
                     else
                         clk_cnt <= clk_cnt + 1;
                     end if;
 
                 -- Send 7-bit address + R/W bit (MSB first)
-                when ADDR =>
+                when ST_ADDR =>
                     if clk_cnt = DIV - 1 then
                         clk_cnt <= 0;
                         scl_out <= '0';  -- pull SCL low to change SDA

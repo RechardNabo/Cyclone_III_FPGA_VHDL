@@ -62,7 +62,7 @@ begin
         wait for 1 ns;
 
         -- -------------------------------------------------------
-        -- Test 2: Start → load_en asserted, go to COMPARE
+        -- Test 2: Start -> load_en asserted, go to LOAD
         -- -------------------------------------------------------
         start <= '1';
         wait until rising_edge(clk);
@@ -74,20 +74,26 @@ begin
         report "Test 2 PASS: Start asserts load_en" severity note;
 
         -- -------------------------------------------------------
-        -- Test 3: COMPARE with b_eq_zero=1 → DONE, done=1
+        -- Test 3: LOAD -> COMPARE with b_eq_zero=1 -> DONE, done=1
         -- -------------------------------------------------------
         b_eq_zero <= '1';
         a_ge_b <= '0';
         wait until rising_edge(clk);
         wait for 1 ns;
-        -- Now in DONE state
+        -- Now in LOAD (IDLE -> LOAD)
+        wait until rising_edge(clk);
+        wait for 1 ns;
+        -- Now in COMPARE (LOAD -> COMPARE)
+        wait until rising_edge(clk);
+        wait for 1 ns;
+        -- Now in DONE (COMPARE -> DONE since b_eq_zero=1)
         assert done = '1'
             report "Test 3 FAIL: done not asserted when b_eq_zero=1"
             severity error;
-        report "Test 3 PASS: b_eq_zero → DONE, done=1" severity note;
+        report "Test 3 PASS: b_eq_zero -> DONE, done=1" severity note;
 
         -- -------------------------------------------------------
-        -- Test 4: DONE → IDLE, then start again
+        -- Test 4: DONE -> IDLE, then start again
         -- -------------------------------------------------------
         b_eq_zero <= '0';
         wait until rising_edge(clk);
@@ -99,53 +105,59 @@ begin
         report "Test 4 PASS: DONE returns to IDLE" severity note;
 
         -- -------------------------------------------------------
-        -- Test 5: COMPARE with a_ge_b=1 → SUBTRACT, sub_en=1
+        -- Test 5: Start -> LOAD -> COMPARE with a_ge_b=1 -> sub_en=1
         -- -------------------------------------------------------
         start <= '1';
         wait until rising_edge(clk);
         wait for 1 ns;
         start <= '0';
+        -- In LOAD
+        wait until rising_edge(clk);
+        wait for 1 ns;
         -- In COMPARE
         a_ge_b <= '1';
         b_eq_zero <= '0';
         wait until rising_edge(clk);
         wait for 1 ns;
-        -- In SUBTRACT
+        -- In SUBTRACT: sub_en was asserted in COMPARE
         assert sub_en = '1'
             report "Test 5 FAIL: sub_en not asserted when a_ge_b=1"
             severity error;
-        report "Test 5 PASS: a_ge_b=1 → SUBTRACT, sub_en=1" severity note;
+        report "Test 5 PASS: a_ge_b=1 -> sub_en=1 in COMPARE" severity note;
 
         -- -------------------------------------------------------
-        -- Test 6: SUBTRACT → COMPARE, then a_ge_b=0 → SWAP, swap_en=1
+        -- Test 6: SUBTRACT -> COMPARE, then a_ge_b=0 -> swap_en=1
         -- -------------------------------------------------------
         a_ge_b <= '0';
         b_eq_zero <= '0';
         wait until rising_edge(clk);
         wait for 1 ns;
-        -- In COMPARE
+        -- In SUBTRACT -> COMPARE transition
         wait until rising_edge(clk);
         wait for 1 ns;
-        -- In SWAP
+        -- In COMPARE: swap_en asserted when a_ge_b=0 and b!=0
         assert swap_en = '1'
             report "Test 6 FAIL: swap_en not asserted when a_ge_b=0 and b!=0"
             severity error;
-        report "Test 6 PASS: a_ge_b=0 → SWAP, swap_en=1" severity note;
+        report "Test 6 PASS: a_ge_b=0 -> swap_en=1 in COMPARE" severity note;
 
         -- -------------------------------------------------------
-        -- Test 7: SWAP → COMPARE → done path
+        -- Test 7: SWAP -> COMPARE -> done path
         -- -------------------------------------------------------
         b_eq_zero <= '1';
         wait until rising_edge(clk);
         wait for 1 ns;
-        -- In COMPARE
+        -- In SWAP -> COMPARE transition
+        wait until rising_edge(clk);
+        wait for 1 ns;
+        -- In COMPARE: b_eq_zero=1 -> DONE
         wait until rising_edge(clk);
         wait for 1 ns;
         -- In DONE
         assert done = '1'
-            report "Test 7 FAIL: done not asserted after swap→compare→done"
+            report "Test 7 FAIL: done not asserted after swap->compare->done"
             severity error;
-        report "Test 7 PASS: SWAP → COMPARE → DONE path correct" severity note;
+        report "Test 7 PASS: SWAP -> COMPARE -> DONE path correct" severity note;
 
         -- -------------------------------------------------------
         -- Test 8: Synchronous reset mid-computation
@@ -154,7 +166,7 @@ begin
         wait until rising_edge(clk);
         wait for 1 ns;
         start <= '0';
-        -- In COMPARE
+        -- In LOAD
         reset <= '1';
         wait until rising_edge(clk);
         wait for 1 ns;

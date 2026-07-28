@@ -65,7 +65,11 @@ begin
         res := (others => '0');
     end case;
     result <= res;
-    zero   <= '1' when res = "00000000" else '0';
+    if res = "00000000" then
+      zero <= '1';
+    else
+      zero <= '0';
+    end if;
     carry  <= c;
   end process;
 end rtl;

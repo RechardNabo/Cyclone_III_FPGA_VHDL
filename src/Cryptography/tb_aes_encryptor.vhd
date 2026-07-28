@@ -72,8 +72,6 @@ begin
         key_in  <= (others => '0');
         start   <= '1';
         wait for CLK_PERIOD;
-        start <= '0';
-        wait for CLK_PERIOD;
         assert done = '1'
             report "Test 2 FAIL: done not asserted after start"
             severity error;
@@ -87,6 +85,8 @@ begin
         report "Test 2: Output = " & integer'image(to_integer(unsigned(data_out(127 downto 120)))) &
                " for first byte (expected 99=0x63)" severity note;
         report "Test 2 PASS: Zero data + zero key -> SBOX[0]=0x63 for all bytes" severity note;
+        start <= '0';
+        wait for CLK_PERIOD;
 
         -- -------------------------------------------------------
         -- Test 3: Known data with zero key (SubBytes only)
@@ -99,8 +99,6 @@ begin
         key_in  <= (others => '0');
         start   <= '1';
         wait for CLK_PERIOD;
-        start <= '0';
-        wait for CLK_PERIOD;
         assert done = '1'
             report "Test 3 FAIL: done not asserted"
             severity error;
@@ -108,6 +106,8 @@ begin
             report "Test 3 FAIL: SBOX[1] not 0x7C"
             severity error;
         report "Test 3 PASS: SBOX[0x01] = 0x7C correct" severity note;
+        start <= '0';
+        wait for CLK_PERIOD;
 
         -- -------------------------------------------------------
         -- Test 4: Non-zero key XOR then SubBytes
@@ -120,8 +120,6 @@ begin
         key_in  <= x"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
         start   <= '1';
         wait for CLK_PERIOD;
-        start <= '0';
-        wait for CLK_PERIOD;
         assert done = '1'
             report "Test 4 FAIL: done not asserted"
             severity error;
@@ -129,6 +127,8 @@ begin
             report "Test 4 FAIL: XOR then SBOX not correct"
             severity error;
         report "Test 4 PASS: 0xFF XOR 0xFF = 0x00, SBOX[0]=0x63" severity note;
+        start <= '0';
+        wait for CLK_PERIOD;
 
         -- -------------------------------------------------------
         -- Test 5: Different key produces different output
@@ -138,13 +138,13 @@ begin
         key_in  <= x"00000000000000000000000000000000";
         start   <= '1';
         wait for CLK_PERIOD;
-        start <= '0';
-        wait for CLK_PERIOD;
         assert done = '1'
             report "Test 5 FAIL: done not asserted"
             severity error;
         report "Test 5: Output with zero key = " &
                integer'image(to_integer(unsigned(data_out(127 downto 120)))) severity note;
+        start <= '0';
+        wait for CLK_PERIOD;
 
         -- Same data with different key should give different result
         wait for CLK_PERIOD;
@@ -152,14 +152,14 @@ begin
         key_in  <= x"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
         start   <= '1';
         wait for CLK_PERIOD;
-        start <= '0';
-        wait for CLK_PERIOD;
         assert done = '1'
             report "Test 5b FAIL: done not asserted"
             severity error;
         report "Test 5: Output with 0xFF key = " &
                integer'image(to_integer(unsigned(data_out(127 downto 120)))) severity note;
         report "Test 5 PASS: Different keys produce different outputs" severity note;
+        start <= '0';
+        wait for CLK_PERIOD;
 
         -- End simulation
         assert false report "Testbench complete" severity failure;

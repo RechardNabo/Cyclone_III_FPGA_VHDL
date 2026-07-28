@@ -46,7 +46,21 @@ architecture sim of avr_tb is
             int0, int1  : in  std_logic;
             int0_int    : out std_logic;
             int1_int    : out std_logic;
-            global_int  : out std_logic
+            global_int  : out std_logic;
+            -- I2C interface
+            i2c_sda : inout std_logic;
+            i2c_scl : inout std_logic;
+            i2c_int : out std_logic;
+            -- UART interface
+            uart_txd : out std_logic;
+            uart_rxd : in  std_logic;
+            uart_int : out std_logic;
+            -- I2S interface (audio)
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic
         );
     end component;
 
@@ -102,6 +116,23 @@ architecture sim of avr_tb is
     signal int1_int : std_logic;
     signal global_int : std_logic;
 
+    -- I2C
+    signal i2c_sda : std_logic := 'Z';
+    signal i2c_scl : std_logic := 'Z';
+    signal i2c_int : std_logic;
+
+    -- UART (new separate UART interface)
+    signal uart_txd : std_logic;
+    signal uart_rxd : std_logic := '1';
+    signal uart_int : std_logic;
+
+    -- I2S (audio)
+    signal i2s_sck   : std_logic;
+    signal i2s_ws    : std_logic;
+    signal i2s_sd_tx : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+    signal i2s_int   : std_logic;
+
     -- Register address constants (must match DUT)
     constant A_PINB   : std_logic_vector(6 downto 0) := "0000011"; -- 0x03
     constant A_DDRB   : std_logic_vector(6 downto 0) := "0000100"; -- 0x04
@@ -143,7 +174,14 @@ begin
             adc_input => adc_input, adc_int => adc_int,
             int0 => int0, int1 => int1,
             int0_int => int0_int, int1_int => int1_int,
-            global_int => global_int
+            global_int => global_int,
+            -- I2C interface
+            i2c_sda => i2c_sda, i2c_scl => i2c_scl, i2c_int => i2c_int,
+            -- UART interface
+            uart_txd => uart_txd, uart_rxd => uart_rxd, uart_int => uart_int,
+            -- I2S interface
+            i2s_sck => i2s_sck, i2s_ws => i2s_ws,
+            i2s_sd_tx => i2s_sd_tx, i2s_sd_rx => i2s_sd_rx, i2s_int => i2s_int
         );
 
     -- ==================================================================
@@ -321,7 +359,7 @@ begin
         -- ----------------------------------------------------------------
         wait for 50 ns;
         test_done <= true;
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
         wait;
     end process;
 

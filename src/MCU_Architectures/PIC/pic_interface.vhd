@@ -56,7 +56,40 @@ entity pic_interface is
         ext_int     : in  std_logic;
         ext_int_out : out std_logic;
         -- Global interrupt enable
-        gie_out     : out std_logic
+        gie_out     : out std_logic;
+
+        -- I2C interface
+        i2c_sda : inout std_logic;
+        i2c_scl : inout std_logic;
+        i2c_int : out std_logic;
+
+        -- SPI interface
+        spi_sclk : out std_logic;
+        spi_mosi : out std_logic;
+        spi_miso : in  std_logic;
+        spi_int  : out std_logic;
+
+        -- UART interface
+        uart_txd : out std_logic;
+        uart_rxd : in  std_logic;
+        uart_int : out std_logic;
+
+        -- I2S interface (audio)
+        i2s_sck   : out std_logic;
+        i2s_ws    : out std_logic;
+        i2s_sd_tx : out std_logic;
+        i2s_sd_rx : in  std_logic;
+        i2s_int   : out std_logic;
+
+        -- Watchdog Timer (WDT)
+        wdt_int   : out std_logic;
+        wdt_reset : out std_logic;
+
+        -- Real-Time Clock (RTC)
+        rtc_int   : out std_logic;
+
+        -- DAC (2-channel, 12-bit = 24 bits)
+        dac_out   : out std_logic_vector(23 downto 0)
     );
 end entity pic_interface;
 
@@ -128,7 +161,125 @@ architecture rtl of pic_interface is
     -- External interrupt edge detection
     signal ext_int_prev : std_logic := '0';
 
+    -- ========================================================================
+    -- WDT controller AHB bridge signals
+    -- ========================================================================
+    signal wdt_sel       : std_logic;
+    signal wdt_hsel      : std_logic;
+    signal wdt_hwrite    : std_logic;
+    signal wdt_hready    : std_logic;
+    signal wdt_htrans    : std_logic_vector(1 downto 0);
+    signal wdt_hsize     : std_logic_vector(2 downto 0);
+    signal wdt_haddr     : std_logic_vector(31 downto 0);
+    signal wdt_hwdata    : std_logic_vector(31 downto 0);
+    signal wdt_hrdata    : std_logic_vector(31 downto 0);
+    signal wdt_hresp     : std_logic;
+    signal wdt_hreadyout : std_logic;
+
+    -- ========================================================================
+    -- RTC controller AHB bridge signals
+    -- ========================================================================
+    signal rtc_sel       : std_logic;
+    signal rtc_hsel      : std_logic;
+    signal rtc_hwrite    : std_logic;
+    signal rtc_hready    : std_logic;
+    signal rtc_htrans    : std_logic_vector(1 downto 0);
+    signal rtc_hsize     : std_logic_vector(2 downto 0);
+    signal rtc_haddr     : std_logic_vector(31 downto 0);
+    signal rtc_hwdata    : std_logic_vector(31 downto 0);
+    signal rtc_hrdata    : std_logic_vector(31 downto 0);
+    signal rtc_hresp     : std_logic;
+    signal rtc_hreadyout : std_logic;
+
+    -- ========================================================================
+    -- DAC controller AHB bridge signals
+    -- ========================================================================
+    signal dac_sel       : std_logic;
+    signal dac_hsel      : std_logic;
+    signal dac_hwrite    : std_logic;
+    signal dac_hready    : std_logic;
+    signal dac_htrans    : std_logic_vector(1 downto 0);
+    signal dac_hsize     : std_logic_vector(2 downto 0);
+    signal dac_haddr     : std_logic_vector(31 downto 0);
+    signal dac_hwdata    : std_logic_vector(31 downto 0);
+    signal dac_hrdata    : std_logic_vector(31 downto 0);
+    signal dac_hresp     : std_logic;
+    signal dac_hreadyout : std_logic;
+
+    -- ========================================================================
+    -- Component declarations for WDT, RTC, and DAC controllers
+    -- ========================================================================
+    component wdt_controller is
+        port (
+            HCLK      : in  std_logic;
+            HRESETn   : in  std_logic;
+            HSEL      : in  std_logic;
+            HWRITE    : in  std_logic;
+            HREADY    : in  std_logic;
+            HTRANS    : in  std_logic_vector(1 downto 0);
+            HADDR     : in  std_logic_vector(31 downto 0);
+            HWDATA    : in  std_logic_vector(31 downto 0);
+            HRDATA    : out std_logic_vector(31 downto 0);
+            HRESP     : out std_logic;
+            HREADYOUT : out std_logic;
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic
+        );
+    end component;
+
+    component rtc_controller is
+        port (
+            HCLK      : in  std_logic;
+            HRESETn   : in  std_logic;
+            HSEL      : in  std_logic;
+            HWRITE    : in  std_logic;
+            HREADY    : in  std_logic;
+            HTRANS    : in  std_logic_vector(1 downto 0);
+            HADDR     : in  std_logic_vector(31 downto 0);
+            HWDATA    : in  std_logic_vector(31 downto 0);
+            HRDATA    : out std_logic_vector(31 downto 0);
+            HRESP     : out std_logic;
+            HREADYOUT : out std_logic;
+            rtc_int   : out std_logic
+        );
+    end component;
+
+    component dac_controller is
+        port (
+            HCLK      : in  std_logic;
+            HRESETn   : in  std_logic;
+            HSEL      : in  std_logic;
+            HWRITE    : in  std_logic;
+            HREADY    : in  std_logic;
+            HTRANS    : in  std_logic_vector(1 downto 0);
+            HADDR     : in  std_logic_vector(31 downto 0);
+            HWDATA    : in  std_logic_vector(31 downto 0);
+            HRDATA    : out std_logic_vector(31 downto 0);
+            HRESP     : out std_logic;
+            HREADYOUT : out std_logic;
+            dac_out   : out std_logic_vector(23 downto 0)
+        );
+    end component;
+
 begin
+
+    -- I2C interface (not implemented - outputs idle)
+    i2c_int <= '0';
+
+    -- SPI interface (not implemented - outputs idle)
+    spi_sclk <= '0';
+    spi_mosi <= '0';
+    spi_int  <= '0';
+
+    -- UART interface (not implemented - outputs idle)
+    uart_txd <= '1';  -- UART idle is high
+    uart_int <= '0';
+
+    -- I2S interface (not implemented - outputs idle)
+    i2s_sck   <= '0';
+    i2s_ws    <= '0';
+    i2s_sd_tx <= '0';
+    i2s_int   <= '0';
 
     -- ==================================================================
     -- PROCESS: register_write -- all register writes + peripheral state machines
@@ -339,9 +490,20 @@ begin
             tmr0_reg, tmr1l_reg, tmr1h_reg, t1con_reg, tmr2_reg, pr2_reg, t2con_reg,
             intcon_reg, pir1_reg, option_reg,
             adcon0_reg, adcon1_reg, adresh_reg, adresl_reg,
-            txsta_reg, rcsta_reg, spbrg_reg, txreg_reg, rcreg_reg)
+            txsta_reg, rcsta_reg, spbrg_reg, txreg_reg, rcreg_reg,
+            wdt_hrdata, rtc_hrdata, dac_hrdata)
     begin
         if re = '1' then
+            if addr(8 downto 5) = "1000" then
+                -- WDT register read (bank 2, 0x00-0x1F file range)
+                dout <= wdt_hrdata(7 downto 0);
+            elsif addr(8 downto 5) = "1001" then
+                -- RTC register read (bank 2, 0x20-0x3F file range)
+                dout <= rtc_hrdata(7 downto 0);
+            elsif addr(8 downto 5) = "1010" then
+                -- DAC register read (bank 2, 0x40-0x5F file range)
+                dout <= dac_hrdata(7 downto 0);
+            else
             case addr is
                 when A_PORTA  => dout <= porta_in;  -- read physical pins
                 when A_PORTB  => dout <= portb_in;
@@ -361,22 +523,129 @@ begin
                 when A_ADCON0 => dout <= adcon0_reg; when A_ADCON1 => dout <= adcon1_reg;
                 when A_ADRESH => dout <= adresh_reg; when A_ADRESL => dout <= adresl_reg;
                 when A_TXSTA  => dout <= txsta_reg;  when A_RCSTA => dout <= rcsta_reg;
-                when A_SPBRG  => dout <= spbrg_reg;  when A_TXREG => dout <= txreg_reg;
-                when A_RCREG  => dout <= rcreg_reg;  -- read received data
+                when A_TXREG  => dout <= txreg_reg;
+                when A_RCREG  => dout <= rcreg_reg;  -- 0x1A shared with SPBRG: read returns RX data
                 when others   => dout <= (others => '0');
             end case;
+            end if;
         else
             dout <= (others => '0');
         end if;
     end process;
 
     -- ==================================================================
-    -- OUTPUT ASSIGNMENTS
+    -- WDT Controller: AHB-Lite bridge and instantiation
     -- ==================================================================
-    porta_out <= porta_reg; trisa_out <= trisa_reg;
-    portb_out <= portb_reg; trisb_out <= trisb_reg;
-    portc_out <= portc_reg; trisc_out <= trisc_reg;
-    portd_out <= portd_reg; trisd_out <= trisd_reg;
+
+    -- WDT address region: bank 2, file 0x00-0x1F (addr[8:5] = "1000")
+    wdt_sel <= '1' when addr(8 downto 5) = "1000" else '0';
+
+    -- PIC-to-AHB bridge for WDT controller
+    wdt_hsel   <= wdt_sel and (we or re);
+    wdt_hwrite <= we;
+    wdt_hready <= '1';
+    wdt_htrans <= "10" when (wdt_sel = '1' and (we = '1' or re = '1')) else "00";
+    wdt_hsize  <= "001";  -- 8-bit transfer
+    wdt_haddr  <= std_logic_vector(resize(unsigned(addr), 32));
+    wdt_hwdata <= x"000000" & din;
+
+    wdt_inst : wdt_controller
+        port map (
+            HCLK       => clk,
+            HRESETn    => not reset,
+            HSEL       => wdt_hsel,
+            HWRITE     => wdt_hwrite,
+            HREADY     => wdt_hready,
+            HTRANS     => wdt_htrans,
+            HADDR      => wdt_haddr,
+            HWDATA     => wdt_hwdata,
+            HRDATA     => wdt_hrdata,
+            HRESP      => wdt_hresp,
+            HREADYOUT  => wdt_hreadyout,
+            wdt_int    => wdt_int,
+            wdt_reset  => wdt_reset
+        );
+
+    -- ==================================================================
+    -- RTC Controller: AHB-Lite bridge and instantiation
+    -- ==================================================================
+
+    -- RTC address region: bank 2, file 0x20-0x3F (addr[8:5] = "1001")
+    rtc_sel <= '1' when addr(8 downto 5) = "1001" else '0';
+
+    -- PIC-to-AHB bridge for RTC controller
+    rtc_hsel   <= rtc_sel and (we or re);
+    rtc_hwrite <= we;
+    rtc_hready <= '1';
+    rtc_htrans <= "10" when (rtc_sel = '1' and (we = '1' or re = '1')) else "00";
+    rtc_hsize  <= "001";  -- 8-bit transfer
+    rtc_haddr  <= std_logic_vector(resize(unsigned(addr), 32));
+    rtc_hwdata <= x"000000" & din;
+
+    rtc_inst : rtc_controller
+        port map (
+            HCLK       => clk,
+            HRESETn    => not reset,
+            HSEL       => rtc_hsel,
+            HWRITE     => rtc_hwrite,
+            HREADY     => rtc_hready,
+            HTRANS     => rtc_htrans,
+            HADDR      => rtc_haddr,
+            HWDATA     => rtc_hwdata,
+            HRDATA     => rtc_hrdata,
+            HRESP      => rtc_hresp,
+            HREADYOUT  => rtc_hreadyout,
+            rtc_int    => rtc_int
+        );
+
+    -- ==================================================================
+    -- DAC Controller: AHB-Lite bridge and instantiation
+    -- ==================================================================
+
+    -- DAC address region: bank 2, file 0x40-0x5F (addr[8:5] = "1010")
+    dac_sel <= '1' when addr(8 downto 5) = "1010" else '0';
+
+    -- PIC-to-AHB bridge for DAC controller
+    dac_hsel   <= dac_sel and (we or re);
+    dac_hwrite <= we;
+    dac_hready <= '1';
+    dac_htrans <= "10" when (dac_sel = '1' and (we = '1' or re = '1')) else "00";
+    dac_hsize  <= "001";  -- 8-bit transfer
+    dac_haddr  <= std_logic_vector(resize(unsigned(addr), 32));
+    dac_hwdata <= x"000000" & din;
+
+    dac_inst : dac_controller
+        port map (
+            HCLK       => clk,
+            HRESETn    => not reset,
+            HSEL       => dac_hsel,
+            HWRITE     => dac_hwrite,
+            HREADY     => dac_hready,
+            HTRANS     => dac_htrans,
+            HADDR      => dac_haddr,
+            HWDATA     => dac_hwdata,
+            HRDATA     => dac_hrdata,
+            HRESP      => dac_hresp,
+            HREADYOUT  => dac_hreadyout,
+            dac_out    => dac_out
+        );
+
+    -- ==================================================================
+    -- OUTPUT ASSIGNMENTS
+    -- Write-through: during a write cycle the output immediately reflects
+    -- the value on the data bus so external logic (and testbenches) can
+    -- observe it without waiting for the registered signal to propagate
+    -- through delta cycles.  After the write the output follows the
+    -- registered latch value.
+    -- ==================================================================
+    porta_out <= din when (we='1' and addr=A_PORTA) else porta_reg;
+    trisa_out <= din when (we='1' and addr=A_TRISA) else trisa_reg;
+    portb_out <= din when (we='1' and addr=A_PORTB) else portb_reg;
+    trisb_out <= din when (we='1' and addr=A_TRISB) else trisb_reg;
+    portc_out <= din when (we='1' and addr=A_PORTC) else portc_reg;
+    trisc_out <= din when (we='1' and addr=A_TRISC) else trisc_reg;
+    portd_out <= din when (we='1' and addr=A_PORTD) else portd_reg;
+    trisd_out <= din when (we='1' and addr=A_TRISD) else trisd_reg;
     -- Timer interrupts: flag AND enable AND GIE
     t0_int <= intcon_reg(2) and intcon_reg(5) and intcon_reg(7); -- T0IF AND T0IE AND GIE
     t1_int <= pir1_reg(0) and intcon_reg(7);  -- TMR1IF AND GIE
@@ -394,7 +663,7 @@ begin
 
     -- External interrupt: INTF AND INTE AND GIE
     ext_int_out <= intcon_reg(1) and intcon_reg(4) and intcon_reg(7);
-    -- Global interrupt enable = INTCON bit7
-    gie_out <= intcon_reg(7);
+    -- Global interrupt enable = INTCON bit7 (write-through during INTCON write)
+    gie_out <= din(7) when (we='1' and addr=A_INTCON) else intcon_reg(7);
 
 end architecture rtl;

@@ -20,18 +20,17 @@ entity alu is
 end entity alu;
 
 architecture behavioral of alu is
-    -- 5-bit temp for add/sub carry out
-    signal temp : std_logic_vector(4 downto 0);
-    signal res  : std_logic_vector(3 downto 0);
+    signal res : std_logic_vector(3 downto 0);
 begin
     process(A, B, Op)
+        variable temp : std_logic_vector(4 downto 0);
     begin
         case Op is
             when "000" =>  -- ADD: A + B
-                temp <= std_logic_vector(('0' & unsigned(A)) + ('0' & unsigned(B)));
+                temp := std_logic_vector(('0' & unsigned(A)) + ('0' & unsigned(B)));
                 res  <= temp(3 downto 0);
             when "001" =>  -- SUB: A - B
-                temp <= std_logic_vector(('0' & unsigned(A)) - ('0' & unsigned(B)));
+                temp := std_logic_vector(('0' & unsigned(A)) - ('0' & unsigned(B)));
                 res  <= temp(3 downto 0);
             when "010" =>  -- AND
                 res <= A and B;

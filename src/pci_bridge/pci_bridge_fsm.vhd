@@ -23,7 +23,7 @@ end entity pci_bridge_fsm;
 architecture rtl of pci_bridge_fsm is
   -- FSM states for a PCI bus transaction
   type state_type is (IDLE, REQ, ADDR_PHASE, DATA_PHASE,
-                      TURN_AROUND, DONE);
+                      TURN_AROUND, ST_DONE);
   signal state : state_type := IDLE;
 begin
 
@@ -79,10 +79,10 @@ begin
           -- TURN_AROUND: release bus, allow targets to stop driving
           when TURN_AROUND =>
             req_n <= '1';          -- release bus request
-            state <= DONE;
+            state <= ST_DONE;
 
           -- DONE: assert done for one cycle, return to IDLE
-          when DONE =>
+          when ST_DONE =>
             done  <= '1';
             state <= IDLE;
 

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- GCD Calculator - FSM Controller
--- States: IDLE, COMPARE, SUBTRACT, SWAP, DONE
+-- States: IDLE, LOAD, COMPARE, SUBTRACT, WAIT_SUB, SWAP, WAIT_SWAP, DONE
 -- ============================================================================
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -21,24 +21,20 @@ entity gcd_fsm is
 end entity gcd_fsm;
 
 architecture rtl of gcd_fsm is
-  -- FSM states for the subtraction-based GCD algorithm
-  type state_type is (IDLE, COMPARE, SUBTRACT, SWAP, DONE);
+  type state_type is (IDLE, LOAD, COMPARE, SUBTRACT, SWAP, ST_DONE);
   signal state : state_type := IDLE;
 begin
 
-  -- Clocked process: state machine transitions and control output generation
   process(clk)
   begin
     if rising_edge(clk) then
       if reset = '1' then
-        -- Synchronous reset: return to IDLE, clear all control signals
         state    <= IDLE;
         load_en  <= '0';
         swap_en  <= '0';
         sub_en   <= '0';
         done     <= '0';
       else
-        -- Default values to avoid latches
         load_en <= '0';
         swap_en <= '0';
         sub_en  <= '0';
@@ -46,35 +42,39 @@ begin
 
         case state is
 
-          -- IDLE: wait for start signal
           when IDLE =>
             if start = '1' then
-              load_en <= '1';      -- load operands into datapath
-              state   <= COMPARE;
+              load_en <= '1';
+              state   <= LOAD;
             end if;
 
-          -- COMPARE: check if B is zero (done) or if A >= B
+          -- LOAD: wait one cycle for datapath to load operands
+          when LOAD =>
+            state <= COMPARE;
+
+          -- COMPARE: a_ge_b and b_eq_zero now reflect loaded/updated registers
           when COMPARE =>
             if b_eq_zero = '1' then
-              state <= DONE;       -- GCD found in A
+              state <= ST_DONE;
             elsif a_ge_b = '1' then
-              state <= SUBTRACT;   -- A >= B, subtract B from A
+              sub_en <= '1';   -- assert sub_en NOW, datapath subtracts this edge
+              state  <= SUBTRACT;
             else
-              state <= SWAP;       -- A < B, swap so A >= B
+              swap_en <= '1';  -- assert swap_en NOW, datapath swaps this edge
+              state   <= SWAP;
             end if;
 
-          -- SUBTRACT: A <= A - B, then compare again
+          -- SUBTRACT: datapath has already subtracted (sub_en was set in COMPARE).
+          -- Go back to COMPARE to check updated values.
           when SUBTRACT =>
-            sub_en <= '1';
-            state  <= COMPARE;
+            state <= COMPARE;
 
-          -- SWAP: exchange A and B so the larger value is in A
+          -- SWAP: datapath has already swapped (swap_en was set in COMPARE).
+          -- Go back to COMPARE to check updated values.
           when SWAP =>
-            swap_en <= '1';
-            state   <= COMPARE;
+            state <= COMPARE;
 
-          -- DONE: assert done for one cycle, return to IDLE
-          when DONE =>
+          when ST_DONE =>
             done  <= '1';
             state <= IDLE;
 

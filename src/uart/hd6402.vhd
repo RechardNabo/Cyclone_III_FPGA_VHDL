@@ -41,7 +41,7 @@ architecture rtl of hd6402 is
     constant CLK_PER_BIT : integer := CLK_FREQ / BAUD_RATE;
 
     -- ---- TX state machine ----
-    type tx_state_t is (TX_IDLE, TX_START, TX_DATA, TX_PARITY, TX_STOP);
+    type tx_state_t is (TX_IDLE, TX_START, TX_DATA, ST_TX_PARITY, TX_STOP);
     signal tx_state : tx_state_t := TX_IDLE;
     signal tx_clk_count : integer range 0 to CLK_PER_BIT - 1 := 0;
     signal tx_bit_index : integer range 0 to 7 := 0;
@@ -50,7 +50,7 @@ architecture rtl of hd6402 is
     signal tx_rdy       : std_logic := '1';
 
     -- ---- RX state machine ----
-    type rx_state_t is (RX_IDLE, RX_START, RX_DATA, RX_PARITY, RX_STOP);
+    type rx_state_t is (RX_IDLE, RX_START, RX_DATA, ST_RX_PARITY, RX_STOP);
     signal rx_state : rx_state_t := RX_IDLE;
     signal rx_clk_count : integer range 0 to CLK_PER_BIT - 1 := 0;
     signal rx_bit_index : integer range 0 to 7 := 0;
@@ -103,7 +103,7 @@ begin
                     if tx_clk_count = CLK_PER_BIT - 1 then
                         tx_clk_count <= 0;
                         if tx_bit_index = 7 then
-                            tx_state <= TX_PARITY;
+                            tx_state <= ST_TX_PARITY;
                         else
                             tx_bit_index <= tx_bit_index + 1;
                         end if;
@@ -111,7 +111,7 @@ begin
                         tx_clk_count <= tx_clk_count + 1;
                     end if;
 
-                when TX_PARITY =>
+                when ST_TX_PARITY =>
                     serial_out <= tx_parity;
                     if tx_clk_count = CLK_PER_BIT - 1 then
                         tx_clk_count <= 0;
@@ -181,7 +181,7 @@ begin
                         rx_data_reg(rx_bit_index) <= serial_in;
                         rx_parity <= rx_parity xor serial_in;
                         if rx_bit_index = 7 then
-                            rx_state <= RX_PARITY;
+                            rx_state <= ST_RX_PARITY;
                         else
                             rx_bit_index <= rx_bit_index + 1;
                         end if;
@@ -189,7 +189,7 @@ begin
                         rx_clk_count <= rx_clk_count + 1;
                     end if;
 
-                when RX_PARITY =>
+                when ST_RX_PARITY =>
                     if rx_clk_count = CLK_PER_BIT - 1 then
                         rx_clk_count <= 0;
                         -- Even parity: XOR of all bits + parity bit = 0

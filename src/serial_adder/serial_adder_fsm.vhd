@@ -19,7 +19,7 @@ end entity serial_adder_fsm;
 
 architecture rtl of serial_adder_fsm is
   -- FSM states for the serial adder
-  type state_type is (IDLE, SHIFTING, DONE);
+  type state_type is (IDLE, SHIFTING, ST_DONE);
   signal state : state_type := IDLE;
 
   -- Bit counter tracks how many bits have been processed (0 to 7)
@@ -59,11 +59,11 @@ begin
             shift_en <= '1';
             bit_cnt  <= bit_cnt + 1;
             if bit_cnt = to_unsigned(WIDTH - 1, 4) then
-              state <= DONE;        -- all 8 bits processed
+              state <= ST_DONE;     -- all 8 bits processed
             end if;
 
           -- DONE: assert done for one cycle, return to IDLE
-          when DONE =>
+          when ST_DONE =>
             done  <= '1';
             state <= IDLE;
 

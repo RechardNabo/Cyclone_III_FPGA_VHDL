@@ -124,6 +124,7 @@ begin
                                 state           <= DONE;
                                 rx_data_o       <= rx_shift;
                                 transfer_done_o <= '1';
+                                ss_o            <= '1';  -- De-assert SS when transfer complete
                             end if;
                         end if;
                     when DONE =>

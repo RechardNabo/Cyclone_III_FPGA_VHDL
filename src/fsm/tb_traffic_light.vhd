@@ -86,12 +86,12 @@ begin
         ----------------------------------------------------------------
         -- Test 3: Stay in YELLOW for YELLOW_TIME cycles, then -> RED
         ----------------------------------------------------------------
-        -- Already 1 cycle in yellow, wait remaining YELLOW_TIME-2 cycles
+        -- Already 1 cycle in yellow (timer=0), wait remaining YELLOW_TIME-2 cycles
         wait for CLK_PERIOD * (YELLOW_TIME - 2);
         assert yellow = '1'
             report "Test 3a failed: should still be yellow" severity error;
-        -- Next cycle should transition to red
-        wait for CLK_PERIOD;
+        -- Need 2 more cycles: one to reach timer=YELLOW_TIME-1, one to transition
+        wait for CLK_PERIOD * 2;
         assert red = '1'
             report "Test 3b failed: should transition to red" severity error;
         assert green = '0'
@@ -102,12 +102,12 @@ begin
         ----------------------------------------------------------------
         -- Test 4: Stay in RED for RED_TIME cycles, then -> GREEN
         ----------------------------------------------------------------
-        -- Already 1 cycle in red, wait remaining RED_TIME-2 cycles
+        -- Already 1 cycle in red (timer=0), wait remaining RED_TIME-2 cycles
         wait for CLK_PERIOD * (RED_TIME - 2);
         assert red = '1'
             report "Test 4a failed: should still be red" severity error;
-        -- Next cycle should transition back to green
-        wait for CLK_PERIOD;
+        -- Need 2 more cycles: one to reach timer=RED_TIME-1, one to transition
+        wait for CLK_PERIOD * 2;
         assert green = '1'
             report "Test 4b failed: should transition back to green" severity error;
         assert yellow = '0'

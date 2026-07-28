@@ -52,11 +52,15 @@ architecture rtl of fft_processor is
     -- W8^3 = -0.707 - 0.707j -> c=-11585, s=-11585
     constant TW_COS : complex_array_t := (
         to_signed(16384, 16), to_signed(11585, 16),
-        to_signed(0, 16),     to_signed(-11585, 16)
+        to_signed(0, 16),     to_signed(-11585, 16),
+        to_signed(0, 16),     to_signed(0, 16),
+        to_signed(0, 16),     to_signed(0, 16)
     );
     constant TW_SIN : complex_array_t := (
         to_signed(0, 16),      to_signed(-11585, 16),
-        to_signed(-16384, 16), to_signed(-11585, 16)
+        to_signed(-16384, 16), to_signed(-11585, 16),
+        to_signed(0, 16),      to_signed(0, 16),
+        to_signed(0, 16),      to_signed(0, 16)
     );
 
     -- State machine

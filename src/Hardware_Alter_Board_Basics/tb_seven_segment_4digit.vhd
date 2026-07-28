@@ -72,6 +72,9 @@ begin
         dp_in   <= (others => '0');
         wait for CLK_PERIOD * 4;
         reset_n <= '1';
+        -- Set inputs before first edge so they're stable
+        digits <= x"0000";
+        dp_in  <= "0000";
         wait until rising_edge(clk);
         wait for 1 ns;  -- let registered outputs settle
 
@@ -80,11 +83,6 @@ begin
         --   hex(0) = "0111111", common anode: seg = "1000000"
         --   dig_en = not "0001" = "1110"
         -- ------------------------------------------------------------------
-        digits <= x"0000";
-        dp_in  <= "0000";
-        wait until rising_edge(clk);
-        wait for 1 ns;
-
         assert seg = "1000000"
             report "Test 1 FAIL: digit 0 seg mismatch for hex 0, got " &
                    integer'image(to_integer(unsigned(seg)))

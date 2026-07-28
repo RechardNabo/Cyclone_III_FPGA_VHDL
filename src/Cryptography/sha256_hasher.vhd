@@ -178,7 +178,8 @@ begin
     end process;
 
     -- Concatenate the 8 hash words (a..h) into the 256-bit output.
-    hash_out <= std_logic_vector(a & b & c & d & e & f & g & h);
+    hash_out <= std_logic_vector(a) & std_logic_vector(b) & std_logic_vector(c) & std_logic_vector(d) &
+                std_logic_vector(e) & std_logic_vector(f) & std_logic_vector(g) & std_logic_vector(h);
     done     <= done_reg;
 
 end architecture rtl;

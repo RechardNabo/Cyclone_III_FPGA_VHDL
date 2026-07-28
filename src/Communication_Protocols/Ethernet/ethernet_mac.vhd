@@ -45,7 +45,7 @@ end entity ethernet_mac;
 architecture rtl of ethernet_mac is
     -- TX state machine
     type tx_state_t is (TX_IDLE, TX_PREAMBLE, TX_SFD, TX_DEST, TX_SRC,
-                        TX_LEN, TX_DATA, TX_CRC, TX_DONE_ST);
+                        TX_LEN, ST_TX_DATA, TX_CRC, TX_DONE_ST);
     signal tx_state : tx_state_t := TX_IDLE;
     signal tx_byte_cnt : integer range 0 to 63 := 0;
     signal tx_nibble   : std_logic := '0';  -- '0' = low nibble, '1' = high
@@ -56,7 +56,7 @@ architecture rtl of ethernet_mac is
 
     -- RX state machine
     type rx_state_t is (RX_IDLE, RX_PREAMBLE, RX_SFD, RX_DEST, RX_SRC,
-                        RX_LEN, RX_DATA, RX_CRC);
+                        RX_LEN, ST_RX_DATA, RX_CRC);
     signal rx_state : rx_state_t := RX_IDLE;
     signal rx_byte_cnt : integer range 0 to 63 := 0;
     signal rx_nibble   : std_logic := '0';
@@ -122,28 +122,27 @@ begin
                     else
                         mii_txd   <= SFD_BYTE(7 downto 4);
                         tx_nibble <= '0';
-                        tx_state  <= TX_DATA;  -- simplified: go to data
+                        tx_state  <= ST_TX_DATA;  -- simplified: go to data
                     end if;
 
                 -- DATA: send bytes from CPU, compute checksum
-                when TX_DATA =>
+                when ST_TX_DATA =>
                     if tx_nibble = '0' then
                         mii_txd     <= tx_data_reg(3 downto 0);
                         tx_nibble   <= '1';
                         tx_checksum <= tx_checksum + unsigned(tx_data_reg);
                     else
                         mii_txd       <= tx_data_reg(7 downto 4);
-                        tx_nibble     <= '0';
                         tx_ready_flag <= '1';  -- ready for next byte
                         if tx_end = '1' then
+                            tx_nibble     <= '0';
                             tx_ready_flag <= '0';
                             tx_byte_cnt   <= 0;
                             tx_state      <= TX_CRC;
-                        else
-                            if tx_valid = '1' then
-                                tx_data_reg   <= tx_data;
-                                tx_ready_flag <= '0';
-                            end if;
+                        elsif tx_valid = '1' then
+                            tx_data_reg   <= tx_data;
+                            tx_nibble     <= '0';
+                            tx_ready_flag <= '0';
                         end if;
                     end if;
 
@@ -167,6 +166,10 @@ begin
                     tx_done_flag  <= '1';
                     tx_ready_flag <= '1';
                     tx_state      <= TX_IDLE;
+
+                -- Unused states (simplified MAC skips dest/src/len)
+                when TX_DEST | TX_SRC | TX_LEN =>
+                    tx_state <= ST_TX_DATA;
             end case;
         end if;
     end process tx_proc;
@@ -204,7 +207,7 @@ begin
                             if mii_rxd = x"5" and rx_byte_reg(3 downto 0) = x"5" then
                                 null; -- still preamble
                             elsif mii_rxd = x"D" and rx_byte_reg(3 downto 0) = x"5" then
-                                rx_state <= RX_DATA; -- SFD found, go to data
+                                rx_state <= ST_RX_DATA; -- SFD found, go to data
                             end if;
                         else
                             rx_byte_reg(3 downto 0) <= mii_rxd;
@@ -212,7 +215,7 @@ begin
                         end if;
 
                     -- DATA: assemble bytes from nibbles
-                    when RX_DATA =>
+                    when ST_RX_DATA =>
                         if rx_nibble = '0' then
                             rx_byte_reg(3 downto 0) <= mii_rxd;
                             rx_nibble <= '1';
@@ -228,7 +231,7 @@ begin
                 end case;
             else
                 -- RX data not valid: if we were receiving, frame ended
-                if rx_state = RX_DATA then
+                if rx_state = ST_RX_DATA then
                     rx_end_flag <= '1';
                     rx_state    <= RX_IDLE;
                 end if;

@@ -38,7 +38,9 @@ architecture sim of tb_mcu_1_core is
 
     -- Memory model: 256-byte array
     type mem_t is array(0 to 255) of std_logic_vector(7 downto 0);
-    signal mem : mem_t := (others => (others => '0'));
+
+    -- Signal to expose mem[0x20] for Test 4 verification
+    signal mem_20 : std_logic_vector(7 downto 0) := x"00";
 
 begin
 
@@ -63,45 +65,38 @@ begin
         );
 
     -- ========================================================================
-    -- Memory Model: combinational read, synchronous write
+    -- Memory Model: synchronous write, combinational read
+    -- Uses variable for memory to avoid multi-driver signal issues
     -- ========================================================================
-    data_in <= mem(to_integer(unsigned(addr_out)));
-
-    mem_wr : process(clk)
+    mem_proc : process(clk)
+        variable mem : mem_t := (
+            0  => x"60",   -- LOAD R0, [0x10]
+            1  => x"10",
+            2  => x"64",   -- LOAD R1, [0x11]
+            3  => x"11",
+            4  => x"11",   -- ADD R0, R1
+            5  => x"70",   -- STORE R0, [0x20]
+            6  => x"20",
+            7  => x"B0",   -- HLT
+            16 => x"05",   -- Data at 0x10
+            17 => x"03",   -- Data at 0x11
+            others => (others => '0')
+        );
     begin
         if rising_edge(clk) then
             if we = '1' then
-                mem(to_integer(unsigned(addr_out))) <= data_out;
+                mem(to_integer(unsigned(addr_out))) := data_out;
             end if;
         end if;
-    end process mem_wr;
+        data_in <= mem(to_integer(unsigned(addr_out)));
+        mem_20  <= mem(32);
+    end process mem_proc;
 
     -- ========================================================================
     -- Stimulus
     -- ========================================================================
     stim : process
     begin
-        -- ------------------------------------------------------------------
-        -- Load program into memory
-        -- ------------------------------------------------------------------
-        -- Address 0x00: LOAD R0, [0x10]  (opcode=0x6, rd=0, rs=0)
-        mem(0) <= x"60";
-        mem(1) <= x"10";
-        -- Address 0x02: LOAD R1, [0x11]  (opcode=0x6, rd=1, rs=0)
-        mem(2) <= x"64";
-        mem(3) <= x"11";
-        -- Address 0x04: ADD R0, R1       (opcode=0x1, rd=0, rs=1)
-        mem(4) <= x"11";
-        -- Address 0x05: STORE R0, [0x20] (opcode=0x7, rd=0, rs=0)
-        mem(5) <= x"70";
-        mem(6) <= x"20";
-        -- Address 0x07: HLT              (opcode=0xB)
-        mem(7) <= x"B0";
-
-        -- Data values
-        mem(16) <= x"05";  -- 0x10
-        mem(17) <= x"03";  -- 0x11
-
         -- ------------------------------------------------------------------
         -- Reset
         -- ------------------------------------------------------------------
@@ -161,9 +156,9 @@ begin
         -- Test 4: Verify STORE wrote 0x08 to memory address 0x20
         -- ------------------------------------------------------------------
         wait until rising_edge(clk);
-        assert mem(32) = x"08"
+        assert mem_20 = x"08"
             report "Test 4 FAIL: mem[0x20] mismatch, expected 08 got " &
-                   integer'image(to_integer(unsigned(mem(32))))
+                   integer'image(to_integer(unsigned(mem_20)))
             severity error;
         report "Test 4 PASS: mem[0x20] = 0x08 after STORE" severity note;
 
@@ -176,11 +171,12 @@ begin
         report "Test 5 PASS: Zero flag clear for non-zero result" severity note;
 
         -- ------------------------------------------------------------------
-        -- Test 6: Resume from halt by deasserting halt (already '0')
-        --   and verify core resumes fetching
+        -- Test 6: Resume from halt by toggling external halt input
+        --   HLT instruction keeps core halted; toggling halt resumes it
         -- ------------------------------------------------------------------
-        -- Core should resume from S_HALT when halt='0'
-        -- It should fetch from current PC (after HLT)
+        halt <= '1';
+        wait until rising_edge(clk);
+        halt <= '0';
         wait until rising_edge(clk);
         wait until rising_edge(clk);
         -- Core should be running again
@@ -199,7 +195,7 @@ begin
         -- Done
         -- ------------------------------------------------------------------
         report "All MCU_1_Core tests passed" severity note;
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
 
     end process stim;
 

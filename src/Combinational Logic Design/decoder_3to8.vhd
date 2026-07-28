@@ -23,7 +23,8 @@ begin
     begin
         if Enable = '1' then
             -- Convert address to integer and set that bit high
-            Outputs <= (to_integer(unsigned(Address)) => '1', others => '0');
+            Outputs <= (others => '0');
+            Outputs(to_integer(unsigned(Address))) <= '1';
         else
             Outputs <= (others => '0');
         end if;

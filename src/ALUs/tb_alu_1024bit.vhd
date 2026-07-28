@@ -41,7 +41,7 @@ architecture test of tb_alu_1024bit is
     constant ALL_ZEROS   : std_logic_vector(1023 downto 0) := (others => '0');
     constant ALL_ONES    : std_logic_vector(1023 downto 0) := (others => '1');
     constant BIT0_SET    : std_logic_vector(1023 downto 0) :=
-        (1 => '1', others => '0');
+        (0 => '1', others => '0');
     constant BIT1023_SET : std_logic_vector(1023 downto 0) :=
         (1023 => '1', others => '0');
     constant VAL_5 : std_logic_vector(1023 downto 0) :=

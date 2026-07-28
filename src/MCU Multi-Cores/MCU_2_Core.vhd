@@ -84,6 +84,7 @@ architecture rtl of MCU_2_Core is
     signal flag_n_arr  : std_logic_vector(1 downto 0) := "00";
     signal running_arr : std_logic_vector(1 downto 0) := "11";
     signal halted_arr  : std_logic_vector(1 downto 0) := "00";
+    signal hlt_instr_arr : std_logic_vector(1 downto 0) := "00"; -- Halt caused by HLT instruction
 
     -- Bus arbiter: alternating grant (0=core0, 1=core1)
     signal grant : std_logic := '0';
@@ -130,6 +131,7 @@ begin
             regs_arr <= (others => (others => (others => '0')));
             flag_z_arr <= "00"; flag_c_arr <= "00"; flag_n_arr <= "00";
             running_arr <= "11"; halted_arr <= "00";
+            hlt_instr_arr <= "00";
             active_we <= '0'; active_oe <= '0'; irq_ack <= "00";
             active_addr <= (others => '0'); active_data <= (others => '0');
 
@@ -224,6 +226,7 @@ begin
                             when OP_HLT => -- HLT (1-byte): halt core
                                 state_arr(active) <= S_HALT;
                                 running_arr(active) <= '0'; halted_arr(active) <= '1';
+                                hlt_instr_arr(active) <= '1';
 
                             when OP_NOP => -- NOP (1-byte)
                                 pc_arr(active) <= pc_arr(active) + 1;

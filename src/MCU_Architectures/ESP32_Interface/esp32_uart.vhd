@@ -208,7 +208,7 @@ begin
                 if rxd_prev = '1' and rxd = '0' and ctrl_reg(6) = '1' then
                     rx_busy <= '1';
                     rx_bit_idx <= 0;
-                    rx_baud_cnt <= 0;
+                    rx_baud_cnt <= to_integer(baud_divisor) / 2;  -- sample at middle of start bit
                     rx_parity_calc <= '0';
                     rx_shift <= (others => '0');
                 end if;

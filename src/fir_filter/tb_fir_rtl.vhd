@@ -115,7 +115,7 @@ begin
         assert to_integer(signed(data_out)) = 0
             report "Test 3 FAIL: output not zero in steady state"
             severity error;
-        report "Test 3 PASS: Steady-state zero input → zero output" severity note;
+        report "Test 3 PASS: Steady-state zero input -> zero output" severity note;
 
         -- -------------------------------------------------------
         -- Test 4: Step response — feed all-ones, output should

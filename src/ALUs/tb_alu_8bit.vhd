@@ -67,7 +67,7 @@ begin
         wait for 10 ns;
         assert result = x"08"
             report "ADD test failed: expected 0x08, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
         assert carry = '0'
             report "ADD carry test failed: expected 0" severity error;
 
@@ -80,7 +80,7 @@ begin
         wait for 10 ns;
         assert result = x"07"
             report "SUB test failed: expected 0x07, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 3: AND  0xF0 AND 0x0F = 0x00
@@ -91,7 +91,7 @@ begin
         wait for 10 ns;
         assert result = x"00"
             report "AND test failed: expected 0x00, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
         assert zero = '1'
             report "AND zero flag failed: expected 1" severity error;
 
@@ -104,7 +104,7 @@ begin
         wait for 10 ns;
         assert result = x"FF"
             report "OR test failed: expected 0xFF, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 5: XOR  0xFF XOR 0x0F = 0xF0
@@ -115,7 +115,7 @@ begin
         wait for 10 ns;
         assert result = x"F0"
             report "XOR test failed: expected 0xF0, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 6: NOT  NOT 0x00 = 0xFF
@@ -126,7 +126,7 @@ begin
         wait for 10 ns;
         assert result = x"FF"
             report "NOT test failed: expected 0xFF, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 7: SLL  0x01 << 1 = 0x02
@@ -136,7 +136,7 @@ begin
         wait for 10 ns;
         assert result = x"02"
             report "SLL test failed: expected 0x02, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 8: SRL  0x80 >> 1 = 0x40
@@ -146,7 +146,7 @@ begin
         wait for 10 ns;
         assert result = x"40"
             report "SRL test failed: expected 0x40, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 9: SRA  0x80 >> 1 (arith) = 0xC0
@@ -156,7 +156,7 @@ begin
         wait for 10 ns;
         assert result = x"C0"
             report "SRA test failed: expected 0xC0, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 10: ROL  0x80 rotate left = 0x01
@@ -166,7 +166,7 @@ begin
         wait for 10 ns;
         assert result = x"01"
             report "ROL test failed: expected 0x01, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 11: ROR  0x01 rotate right = 0x80
@@ -176,7 +176,7 @@ begin
         wait for 10 ns;
         assert result = x"80"
             report "ROR test failed: expected 0x80, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 12: CMP  0x05 - 0x05 = 0x00, zero=1
@@ -187,7 +187,7 @@ begin
         wait for 10 ns;
         assert result = x"00"
             report "CMP test failed: expected 0x00, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
         assert zero = '1'
             report "CMP zero flag failed: expected 1" severity error;
 
@@ -199,7 +199,7 @@ begin
         wait for 10 ns;
         assert result = x"00"
             report "INC test failed: expected 0x00, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
         assert carry = '1'
             report "INC carry flag failed: expected 1" severity error;
         assert zero = '1'
@@ -213,7 +213,7 @@ begin
         wait for 10 ns;
         assert result = x"FF"
             report "DEC test failed: expected 0xFF, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 15: MUL  0x03 * 0x04 = 0x0C
@@ -224,7 +224,7 @@ begin
         wait for 10 ns;
         assert result = x"0C"
             report "MUL test failed: expected 0x0C, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 16: PASS  pass A through = 0x42
@@ -234,7 +234,7 @@ begin
         wait for 10 ns;
         assert result = x"42"
             report "PASS test failed: expected 0x42, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
 
         ----------------------------------------------------------------
         -- Test 17: ADD with carry  0xFF + 0x01 = 0x00, carry=1
@@ -245,7 +245,7 @@ begin
         wait for 10 ns;
         assert result = x"00"
             report "ADD carry test failed: expected 0x00, got " &
-                   std_logic_vector'image(result) severity error;
+                   to_hstring(result) severity error;
         assert carry = '1'
             report "ADD carry flag failed: expected 1" severity error;
 

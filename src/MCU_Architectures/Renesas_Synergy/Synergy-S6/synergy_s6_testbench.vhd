@@ -40,21 +40,53 @@ architecture sim of synergy_s6_tb is
             adc_int : out std_logic;
             dma_req : out std_logic;
             dma_done: in  std_logic;
+            -- DMA master interface
+            dma_int     : out std_logic;
+            dma_m_addr  : out std_logic_vector(31 downto 0);
+            dma_m_rdata : in  std_logic_vector(31 downto 0);
+            dma_m_wdata : out std_logic_vector(31 downto 0);
+            dma_m_we    : out std_logic;
+            dma_m_req   : out std_logic;
+            dma_m_ack   : in  std_logic;
             can_tx  : out std_logic;
             can_rx  : in  std_logic;
             can_int : out std_logic;
             eth_txd : out std_logic_vector(3 downto 0);
             eth_rxd : in  std_logic_vector(3 downto 0);
             eth_int : out std_logic;
+            -- MII interface
+            mii_tx_en  : out std_logic;
+            mii_tx_clk : in  std_logic;
+            mii_rx_clk : in  std_logic;
+            mii_rx_dv  : in  std_logic;
+            mii_tx_er  : out std_logic;
+            mii_rx_er  : in  std_logic;
+            mii_crs    : in  std_logic;
+            mii_col    : in  std_logic;
+            mdc        : out std_logic;
+            mdio       : inout std_logic;
             usb_dp  : inout std_logic;
             usb_dm  : inout std_logic;
             usb_int : out std_logic;
+            usb_clk : in  std_logic;
             lcd_data : out std_logic_vector(15 downto 0);
             lcd_hsync: out std_logic;
             lcd_vsync: out std_logic;
             lcd_clk  : out std_logic;
             trng_valid  : out std_logic;
-            secure_boot : out std_logic
+            secure_boot : out std_logic;
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic;
+            -- WDT interface
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic;
+            -- RTC interface
+            rtc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -86,11 +118,31 @@ architecture sim of synergy_s6_tb is
     signal eth_txd : std_logic_vector(3 downto 0);
     signal eth_rxd : std_logic_vector(3 downto 0) := (others => '0');
     signal eth_int : std_logic;
+    -- MII interface
+    signal mii_tx_en  : std_logic;
+    signal mii_tx_clk : std_logic := '0';
+    signal mii_rx_clk : std_logic := '0';
+    signal mii_rx_dv  : std_logic := '0';
+    signal mii_tx_er  : std_logic;
+    signal mii_rx_er  : std_logic := '0';
+    signal mii_crs    : std_logic := '0';
+    signal mii_col    : std_logic := '0';
+    signal mdc        : std_logic;
+    signal mdio       : std_logic := 'Z';
     signal usb_dp, usb_dm : std_logic := 'Z';
     signal usb_int : std_logic;
+    signal usb_clk : std_logic := '0';
     signal lcd_data : std_logic_vector(15 downto 0);
     signal lcd_hsync, lcd_vsync, lcd_clk : std_logic;
     signal trng_valid, secure_boot : std_logic;
+    signal i2s_sck, i2s_ws, i2s_sd_tx, i2s_int : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+
+    -- WDT, RTC, DAC
+    signal wdt_int   : std_logic;
+    signal wdt_reset : std_logic;
+    signal rtc_int   : std_logic;
+    signal dac_out   : std_logic_vector(23 downto 0);
 
     -- AHB-Lite transaction procedure
     procedure ahb_write(
@@ -145,11 +197,27 @@ begin
             i2c_sda => i2c_sda, i2c_scl => i2c_scl, i2c_int => i2c_int,
             adc_in => adc_in, adc_int => adc_int,
             dma_req => dma_req, dma_done => dma_done,
+            -- DMA master interface
+            dma_int => open, dma_m_addr => open,
+            dma_m_rdata => (others => '0'), dma_m_wdata => open,
+            dma_m_we => open, dma_m_req => open, dma_m_ack => '0',
             can_tx => can_tx, can_rx => can_rx, can_int => can_int,
             eth_txd => eth_txd, eth_rxd => eth_rxd, eth_int => eth_int,
+            -- MII interface
+            mii_tx_en => mii_tx_en, mii_tx_clk => mii_tx_clk,
+            mii_rx_clk => mii_rx_clk, mii_rx_dv => mii_rx_dv,
+            mii_tx_er => mii_tx_er, mii_rx_er => mii_rx_er,
+            mii_crs => mii_crs, mii_col => mii_col,
+            mdc => mdc, mdio => mdio,
             usb_dp => usb_dp, usb_dm => usb_dm, usb_int => usb_int,
+            usb_clk => usb_clk,
             lcd_data => lcd_data, lcd_hsync => lcd_hsync, lcd_vsync => lcd_vsync, lcd_clk => lcd_clk,
-            trng_valid => trng_valid, secure_boot => secure_boot
+            trng_valid => trng_valid, secure_boot => secure_boot,
+            i2s_sck => i2s_sck, i2s_ws => i2s_ws, i2s_sd_tx => i2s_sd_tx,
+            i2s_sd_rx => i2s_sd_rx, i2s_int => i2s_int,
+            -- WDT, RTC, DAC
+            wdt_int => wdt_int, wdt_reset => wdt_reset,
+            rtc_int => rtc_int, dac_out => dac_out
         );
 
     stim : process
@@ -170,13 +238,13 @@ begin
 
         -- Read GPIO_DIR back
         ahb_read(HCLK, x"40000004", HSEL, HWRITE, HREADY, HTRANS, HADDR);
-        wait for 10 ns;
         assert HRDATA = x"0000FFFF" report "S6: GPIO_DIR readback mismatch" severity error;
+        wait for 10 ns;
 
         -- Read GPIO_DATA back
         ahb_read(HCLK, x"40000000", HSEL, HWRITE, HREADY, HTRANS, HADDR);
-        wait for 10 ns;
         assert HRDATA = x"0000AAAA" report "S6: GPIO_DATA readback mismatch" severity error;
+        wait for 10 ns;
 
         -- Write TIMER_CTRL (offset 0x08): enable + interrupt enable
         ahb_write(HCLK, x"40000008", x"00000003", HSEL, HWRITE, HREADY, HTRANS, HADDR, HWDATA);
@@ -196,7 +264,7 @@ begin
         uart_rxd <= '1';
 
         report "Synergy S6 testbench stimulus complete" severity note;
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
         wait;
     end process stim;
 

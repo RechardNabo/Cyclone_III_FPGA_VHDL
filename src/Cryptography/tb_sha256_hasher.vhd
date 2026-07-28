@@ -75,8 +75,8 @@ begin
         assert done = '1'
             report "Test 2 FAIL: done not asserted for zero block"
             severity error;
-        report "Test 2: Hash of zero block = " &
-               integer'image(to_integer(unsigned(hash_out(255 downto 224)))) &
+        report "Test 2: Hash of zero block = 0x" &
+               to_hstring(unsigned(hash_out(255 downto 224))) &
                " (first 32 bits)" severity note;
         assert hash_out /= (255 downto 0 => '0')
             report "Test 2 FAIL: Hash of zero block is all zeros"
@@ -90,8 +90,7 @@ begin
         -- -------------------------------------------------------
         msg_block <= x"6162636462636465636465666465666765666768666768696768696A" &
                      x"6869696A69696A6B696A6B6C6A6B6B6C6B6B6C6D6B6C6D6E6C6D6D6E" &
-                     x"6D6D6E6F6D6E6F706E6F707170707172707172737172737472737474" &
-                     x"73747475747475767575767775767778767778797878797A79797A7B";
+                     x"6D6D6E6F6D6E6F70";
         start <= '1';
         wait for CLK_PERIOD;
         start <= '0';
@@ -99,8 +98,8 @@ begin
         assert done = '1'
             report "Test 3 FAIL: done not asserted for non-zero block"
             severity error;
-        report "Test 3: Hash of non-zero block = " &
-               integer'image(to_integer(unsigned(hash_out(255 downto 224)))) &
+        report "Test 3: Hash of non-zero block = 0x" &
+               to_hstring(unsigned(hash_out(255 downto 224))) &
                " (first 32 bits)" severity note;
         assert hash_out /= (255 downto 0 => '0')
             report "Test 3 FAIL: Hash of non-zero block is all zeros"
@@ -120,8 +119,8 @@ begin
         assert done = '1'
             report "Test 4 FAIL: done not asserted"
             severity error;
-        report "Test 4: Hash of all-ones block = " &
-               integer'image(to_integer(unsigned(hash_out(255 downto 224)))) &
+        report "Test 4: Hash of all-ones block = 0x" &
+               to_hstring(unsigned(hash_out(255 downto 224))) &
                " (first 32 bits)" severity note;
         assert hash_out /= (255 downto 0 => '0')
             report "Test 4 FAIL: Hash of all-ones block is all zeros"

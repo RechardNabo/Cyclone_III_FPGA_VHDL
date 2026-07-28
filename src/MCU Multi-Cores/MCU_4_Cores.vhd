@@ -76,6 +76,7 @@ architecture rtl of MCU_4_Cores is
     signal flag_n_arr : flag_array_t := (others => '0');
     signal running_arr: flag_array_t := (others => '1');
     signal halted_arr : flag_array_t := (others => '0');
+    signal hlt_instr_arr : flag_array_t := (others => '0'); -- Halt caused by HLT instruction
 
     -- Round-robin arbiter state
     signal turn : integer range 0 to 3 := 0;
@@ -122,6 +123,7 @@ begin
             flag_z_arr <= (others => '0'); flag_c_arr <= (others => '0');
             flag_n_arr <= (others => '0');
             running_arr <= (others => '1'); halted_arr <= (others => '0');
+            hlt_instr_arr <= (others => '0');
             active_we <= '0'; active_oe <= '0'; irq_ack_reg <= "0000";
             active_addr <= (others => '0'); active_data <= (others => '0');
 
@@ -209,6 +211,7 @@ begin
                         when OP_HLT =>
                             state_arr(turn) <= S_HALT;
                             running_arr(turn) <= '0'; halted_arr(turn) <= '1';
+                            hlt_instr_arr(turn) <= '1';
 
                         when OP_NOP =>
                             pc_arr(turn) <= pc_arr(turn) + 1;

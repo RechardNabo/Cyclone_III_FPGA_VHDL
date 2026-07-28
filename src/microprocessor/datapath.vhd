@@ -48,38 +48,105 @@ architecture rtl of datapath is
   signal alu_zero, alu_carry : std_logic;
   signal wb_data             : std_logic_vector(7 downto 0);
   signal obuf_q              : std_logic_vector(7 downto 0);
+
+  -- Component declarations (avoids GHDL "obsoleted" error when entities
+  -- are compiled after this architecture; binding is resolved at elaborate)
+  component pc is
+    port(
+      clk  : in  std_logic;
+      rst  : in  std_logic;
+      en   : in  std_logic;
+      load : in  std_logic;
+      d    : in  std_logic_vector(7 downto 0);
+      q    : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
+  component ir is
+    port(
+      clk  : in  std_logic;
+      rst  : in  std_logic;
+      load : in  std_logic;
+      d    : in  std_logic_vector(7 downto 0);
+      q    : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
+  component reg_file is
+    port(
+      clk       : in  std_logic;
+      rst       : in  std_logic;
+      wr_en     : in  std_logic;
+      rd_addr1  : in  std_logic_vector(2 downto 0);
+      rd_addr2  : in  std_logic_vector(2 downto 0);
+      wr_addr   : in  std_logic_vector(2 downto 0);
+      wr_data   : in  std_logic_vector(7 downto 0);
+      rd_data1  : out std_logic_vector(7 downto 0);
+      rd_data2  : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
+  component alu is
+    port(
+      a      : in  std_logic_vector(7 downto 0);
+      b      : in  std_logic_vector(7 downto 0);
+      op     : in  std_logic_vector(2 downto 0);
+      result : out std_logic_vector(7 downto 0);
+      zero   : out std_logic;
+      carry  : out std_logic
+    );
+  end component;
+
+  component smallmux is
+    port(
+      d0  : in  std_logic_vector(7 downto 0);
+      d1  : in  std_logic_vector(7 downto 0);
+      sel : in  std_logic;
+      y   : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
+  component obuf is
+    port(
+      clk  : in  std_logic;
+      rst  : in  std_logic;
+      load : in  std_logic;
+      d    : in  std_logic_vector(7 downto 0);
+      q    : out std_logic_vector(7 downto 0)
+    );
+  end component;
 begin
   -- Program counter drives the memory address bus for instruction fetch
-  u_pc: entity work.pc
+  u_pc: pc
     port map(clk => clk, rst => rst, en => pc_inc, load => pc_load,
              d => ir_q, q => pc_q);
   mem_addr <= pc_q;
 
   -- Instruction register latches the word read from memory
-  u_ir: entity work.ir
+  u_ir: ir
     port map(clk => clk, rst => rst, load => ir_load,
              d => mem_rd_data, q => ir_q);
   instruction <= ir_q;
 
   -- Register file: read two registers, write back one
-  u_rf: entity work.reg_file
+  u_rf: reg_file
     port map(clk => clk, rst => rst, wr_en => reg_write,
              rd_addr1 => rd_addr, rd_addr2 => rs_addr,
              wr_addr  => rd_addr, wr_data  => wb_data,
              rd_data1 => rd_data1, rd_data2 => rd_data2);
 
   -- ALU operates on the two registers just read
-  u_alu: entity work.alu
+  u_alu: alu
     port map(a => rd_data1, b => rd_data2, op => alu_op,
              result => alu_result, zero => alu_zero, carry => alu_carry);
   zero_flag <= alu_zero;
 
   -- Writeback mux: choose ALU result (normal) or immediate (LOAD)
-  u_mux: entity work.smallmux
+  u_mux: smallmux
     port map(d0 => alu_result, d1 => imm, sel => use_imm, y => wb_data);
 
   -- Output buffer captures R[rd] on an OUT instruction
-  u_obuf: entity work.obuf
+  u_obuf: obuf
     port map(clk => clk, rst => rst, load => out_load,
              d => rd_data1, q => obuf_q);
   output_port <= obuf_q;

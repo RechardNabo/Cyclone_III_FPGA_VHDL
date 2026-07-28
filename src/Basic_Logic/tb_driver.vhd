@@ -45,14 +45,14 @@ begin
         -- Test case 1: E=1, D=all-zeros -> Y=all-zeros
         E <= '1'; D <= (others => '0');
         wait for 10 ns;
-        assert Y = (others => '0')
+        assert Y = "00000000"
             report "Test 1 FAILED: E=1 D=all-zeros, expected Y=all-zeros"
             severity error;
 
         -- Test case 2: E=1, D=all-ones -> Y=all-ones
         E <= '1'; D <= (others => '1');
         wait for 10 ns;
-        assert Y = (others => '1')
+        assert Y = "11111111"
             report "Test 2 FAILED: E=1 D=all-ones, expected Y=all-ones"
             severity error;
 

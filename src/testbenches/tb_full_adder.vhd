@@ -14,16 +14,19 @@ begin
 
     stim : process
         variable exp_sum, exp_cout : std_logic;
+        variable i_a, i_b, i_cin : integer;
     begin
         -- Test all 8 input combinations
         for i in 0 to 7 loop
-            A   <= std_logic'(((i / 4) mod 2));
-            B   <= std_logic'(((i / 2) mod 2));
-            cin <= std_logic'((i mod 2));
+            i_a   := (i / 4) rem 2;
+            i_b   := (i / 2) rem 2;
+            i_cin := i rem 2;
+            if i_a = 1 then A <= '1'; else A <= '0'; end if;
+            if i_b = 1 then B <= '1'; else B <= '0'; end if;
+            if i_cin = 1 then cin <= '1'; else cin <= '0'; end if;
             wait for 20 ns;
-            exp_sum  := (std_logic'(((i / 4) mod 2))) xor (std_logic'(((i / 2) mod 2))) xor (std_logic'((i mod 2)));
-            exp_cout := ((std_logic'(((i / 4) mod 2))) and (std_logic'(((i / 2) mod 2)))) or
-                        ((std_logic'((i mod 2))) and ((std_logic'(((i / 4) mod 2))) xor (std_logic'(((i / 2) mod 2)))));
+            if ((i_a /= i_b) /= (i_cin = 1)) then exp_sum := '1'; else exp_sum := '0'; end if;
+            if ((i_a = 1 and i_b = 1) or (i_cin = 1 and (i_a /= i_b))) then exp_cout := '1'; else exp_cout := '0'; end if;
             assert sum = exp_sum
                 report "FAIL: sum mismatch for A=" & std_logic'image(A) & " B=" & std_logic'image(B) & " cin=" & std_logic'image(cin)
                 severity error;

@@ -109,7 +109,24 @@ entity synergy_s1_interface is
 
         -- Security interface (NOT present on S1)
         trng_valid  : out std_logic;
-        secure_boot : out std_logic
+        secure_boot : out std_logic;
+
+        -- WDT interface
+        wdt_int   : out std_logic;
+        wdt_reset : out std_logic;
+
+        -- RTC interface
+        rtc_int   : out std_logic;
+
+        -- DAC interface
+        dac_out   : out std_logic_vector(23 downto 0);
+
+        -- I2S interface (audio)
+        i2s_sck   : out std_logic;
+        i2s_ws    : out std_logic;
+        i2s_sd_tx : out std_logic;
+        i2s_sd_rx : in  std_logic;
+        i2s_int   : out std_logic
     );
 end entity synergy_s1_interface;
 
@@ -126,11 +143,76 @@ architecture rtl of synergy_s1_interface is
 
     -- Address decode helper: top 8 bits of address select the register
     signal reg_sel : integer range 0 to 15;
+
+    -- I2S AHB-Lite component
+    component i2s_master_ahb is
+        port (
+            HCLK      : in  std_logic;
+            HRESETn   : in  std_logic;
+            HSEL      : in  std_logic;
+            HWRITE    : in  std_logic;
+            HREADY    : in  std_logic;
+            HTRANS    : in  std_logic_vector(1 downto 0);
+            HSIZE     : in  std_logic_vector(2 downto 0);
+            HADDR     : in  std_logic_vector(31 downto 0);
+            HWDATA    : in  std_logic_vector(31 downto 0);
+            HRDATA    : out std_logic_vector(31 downto 0);
+            HRESP     : out std_logic;
+            HREADYOUT : out std_logic;
+            sck       : out std_logic;
+            ws        : out std_logic;
+            sd_tx     : out std_logic;
+            sd_rx     : in  std_logic;
+            mclk      : out std_logic;
+            i2s_int   : out std_logic
+        );
+    end component;
+
+    -- I2S AHB decode and response signals
+    signal i2s_hsel       : std_logic;
+    signal i2s_hrdata     : std_logic_vector(31 downto 0);
+    signal i2s_hresp      : std_logic;
+    signal i2s_hreadyout  : std_logic;
+    signal i2s_mclk       : std_logic;
+    signal orig_hsel      : std_logic;
+    signal reg_hrdata     : std_logic_vector(31 downto 0);
+
+    -- WDT AHB decode and response signals
+    signal wdt_hsel       : std_logic;
+    signal wdt_hrdata     : std_logic_vector(31 downto 0);
+    signal wdt_hresp      : std_logic;
+    signal wdt_hreadyout  : std_logic;
+
+    -- RTC AHB decode and response signals
+    signal rtc_hsel       : std_logic;
+    signal rtc_hrdata     : std_logic_vector(31 downto 0);
+    signal rtc_hresp      : std_logic;
+    signal rtc_hreadyout  : std_logic;
+
+    -- DAC AHB decode and response signals
+    signal dac_hsel       : std_logic;
+    signal dac_hrdata     : std_logic_vector(31 downto 0);
+    signal dac_hresp      : std_logic;
+    signal dac_hreadyout  : std_logic;
 begin
+
+    -- I2S address decode: HADDR(15 downto 12) = "0100" (base 0x4000)
+    i2s_hsel  <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "0100") else '0';
+    -- WDT address decode: HADDR(15 downto 12) = "0101" (base 0x5000)
+    wdt_hsel  <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "0101") else '0';
+    -- RTC address decode: HADDR(15 downto 12) = "0110" (base 0x6000)
+    rtc_hsel  <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "0110") else '0';
+    -- DAC address decode: HADDR(15 downto 12) = "1000" (base 0x8000)
+    dac_hsel  <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "1000") else '0';
+    -- Original peripherals: everything not decoded above
+    orig_hsel <= '1' when (HSEL = '1' and HADDR(15 downto 12) /= "0100"
+                           and HADDR(15 downto 12) /= "0101"
+                           and HADDR(15 downto 12) /= "0110"
+                           and HADDR(15 downto 12) /= "1000") else '0';
 
     -- Address decoder: map HADDR bits [7:4] to register index (16 word-aligned regs)
     -- This gives us 16 x 32-bit registers at 16-byte spacing
-    reg_sel <= to_integer(unsigned(HADDR(7 downto 4)));
+    reg_sel <= to_integer(unsigned(HADDR(5 downto 2)));
 
     -- =========================================================================
     -- AHB-LITE SLAVE REGISTER INTERFACE
@@ -150,8 +232,8 @@ begin
             uart_data_reg <= (others => '0');
             uart_status   <= x"00000001"; -- tx_ready=1 after reset
         elsif rising_edge(HCLK) then
-            -- Write transaction: HSEL=1, HREADY=1, HWRITE=1
-            if HSEL = '1' and HREADY = '1' and HWRITE = '1' then
+            -- Write transaction: orig_hsel=1, HREADY=1, HWRITE=1
+            if orig_hsel = '1' and HREADY = '1' and HWRITE = '1' then
                 case reg_sel is
                     when 0 => gpio_data_reg <= HWDATA;     -- 0x00: GPIO_DATA
                     when 1 => gpio_dir_reg  <= HWDATA;     -- 0x04: GPIO_DIR
@@ -174,28 +256,38 @@ begin
     -- AHB-LITE READ DATA MULTIPLEXER
     -- Returns the selected register value on HRDATA during read transactions
     -- =========================================================================
-    process(HSEL, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl,
+    process(orig_hsel, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl,
             timer_load, timer_count, uart_data_reg, uart_status, gpio_in)
     begin
-        if HSEL = '1' then
+        if orig_hsel = '1' then
             case reg_sel is
-                when 0 => HRDATA <= gpio_data_reg;              -- Read GPIO output data
-                when 1 => HRDATA <= gpio_dir_reg;               -- Read GPIO direction
-                when 2 => HRDATA <= timer_ctrl;                 -- Read timer control
-                when 3 => HRDATA <= std_logic_vector(timer_count); -- Read timer counter
-                when 4 => HRDATA <= uart_data_reg;              -- Read UART data (RX)
-                when 5 => HRDATA <= uart_status;                -- Read UART status
-                when 6 => HRDATA <= x"0000" & gpio_in(15 downto 0); -- Read GPIO inputs
-                when others => HRDATA <= (others => '0');       -- Unmapped: return 0
+                when 0 => reg_hrdata <= gpio_data_reg;              -- Read GPIO output data
+                when 1 => reg_hrdata <= gpio_dir_reg;               -- Read GPIO direction
+                when 2 => reg_hrdata <= timer_ctrl;                 -- Read timer control
+                when 3 => reg_hrdata <= std_logic_vector(timer_count); -- Read timer counter
+                when 4 => reg_hrdata <= uart_data_reg;              -- Read UART data (RX)
+                when 5 => reg_hrdata <= uart_status;                -- Read UART status
+                when 6 => reg_hrdata <= x"0000" & gpio_in(15 downto 0); -- Read GPIO inputs
+                when others => reg_hrdata <= (others => '0');       -- Unmapped: return 0
             end case;
         else
-            HRDATA <= (others => '0'); -- Not selected: return zeros
+            reg_hrdata <= (others => '0'); -- Not selected: return zeros
         end if;
     end process;
 
-    -- AHB-Lite response: always OK (no error conditions in this simple model)
-    HRESP     <= '0';       -- 0 = OKAY response
-    HREADYOUT <= '1';       -- Always ready (single-cycle access)
+    -- AHB-Lite response mux: select between internal registers, I2S, WDT, RTC, DAC
+    HRDATA    <= i2s_hrdata when i2s_hsel = '1' else
+                 wdt_hrdata when wdt_hsel = '1' else
+                 rtc_hrdata when rtc_hsel = '1' else
+                 dac_hrdata when dac_hsel = '1' else reg_hrdata;
+    HRESP     <= i2s_hresp  when i2s_hsel = '1' else
+                 wdt_hresp  when wdt_hsel = '1' else
+                 rtc_hresp  when rtc_hsel = '1' else
+                 dac_hresp  when dac_hsel = '1' else '0';
+    HREADYOUT <= i2s_hreadyout when i2s_hsel = '1' else
+                 wdt_hreadyout when wdt_hsel = '1' else
+                 rtc_hreadyout when rtc_hsel = '1' else
+                 dac_hreadyout when dac_hsel = '1' else '1';
 
     -- =========================================================================
     -- GPIO PERIPHERAL OUTPUT
@@ -252,5 +344,88 @@ begin
     usb_dp <= 'Z';    usb_dm <= 'Z';    usb_int <= '0';
     lcd_data <= (others => '0'); lcd_hsync <= '0'; lcd_vsync <= '0'; lcd_clk <= '0';
     trng_valid <= '0'; secure_boot <= '0';
+
+    -- =========================================================================
+    -- WDT CONTROLLER (AHB-Lite) - base address 0x5000
+    -- =========================================================================
+    u_wdt : entity work.wdt_controller
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => wdt_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => wdt_hrdata,
+            HRESP     => wdt_hresp,
+            HREADYOUT => wdt_hreadyout,
+            wdt_int   => wdt_int,
+            wdt_reset => wdt_reset
+        );
+
+    -- =========================================================================
+    -- RTC CONTROLLER (AHB-Lite) - base address 0x6000
+    -- =========================================================================
+    u_rtc : entity work.rtc_controller
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => rtc_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => rtc_hrdata,
+            HRESP     => rtc_hresp,
+            HREADYOUT => rtc_hreadyout,
+            rtc_int   => rtc_int
+        );
+
+    -- =========================================================================
+    -- DAC CONTROLLER (AHB-Lite) - base address 0x8000
+    -- =========================================================================
+    u_dac : entity work.dac_controller
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => dac_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => dac_hrdata,
+            HRESP     => dac_hresp,
+            HREADYOUT => dac_hreadyout,
+            dac_out   => dac_out
+        );
+
+    -- =========================================================================
+    -- I2S MASTER (AHB-Lite) - base address 0x4000
+    -- =========================================================================
+    u_i2s_master : i2s_master_ahb
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => i2s_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HSIZE     => HSIZE,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => i2s_hrdata,
+            HRESP     => i2s_hresp,
+            HREADYOUT => i2s_hreadyout,
+            sck       => i2s_sck,
+            ws        => i2s_ws,
+            sd_tx     => i2s_sd_tx,
+            sd_rx     => i2s_sd_rx,
+            mclk      => i2s_mclk,
+            i2s_int   => i2s_int
+        );
 
 end architecture rtl;

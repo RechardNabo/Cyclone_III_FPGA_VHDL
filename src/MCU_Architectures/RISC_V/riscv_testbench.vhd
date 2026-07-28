@@ -38,7 +38,41 @@ architecture sim of riscv_tb is
             external_int : in  std_logic_vector(31 downto 0);
             irq_out      : out std_logic;
             mepc_out     : out std_logic_vector(31 downto 0);
-            mcause_out   : out std_logic_vector(31 downto 0)
+            mcause_out   : out std_logic_vector(31 downto 0);
+
+            -- I2C interface
+            i2c_sda : inout std_logic;
+            i2c_scl : inout std_logic;
+            i2c_int : out std_logic;
+
+            -- SPI interface
+            spi_sclk : out std_logic;
+            spi_mosi : out std_logic;
+            spi_miso : in  std_logic;
+            spi_int  : out std_logic;
+
+            -- UART interface
+            uart_txd : out std_logic;
+            uart_rxd : in  std_logic;
+            uart_int : out std_logic;
+
+            -- I2S interface (audio)
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic;
+
+            -- Watchdog timer
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic;
+            -- RTC interrupt
+            rtc_int   : out std_logic;
+            -- ADC interface
+            adc_in    : in  std_logic_vector(95 downto 0) := (others => '0');
+            adc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -57,6 +91,37 @@ architecture sim of riscv_tb is
     signal irq_out      : std_logic;
     signal mepc_out     : std_logic_vector(31 downto 0);
     signal mcause_out   : std_logic_vector(31 downto 0);
+
+    -- Unused protocol interface signals
+    signal i2c_sda : std_logic := 'Z';
+    signal i2c_scl : std_logic := 'Z';
+    signal i2c_int : std_logic;
+    signal spi_sclk : std_logic;
+    signal spi_mosi : std_logic;
+    signal spi_miso : std_logic := '0';
+    signal spi_int  : std_logic;
+    signal uart_txd : std_logic;
+    signal uart_rxd : std_logic := '1';
+    signal uart_int : std_logic;
+    signal i2s_sck   : std_logic;
+    signal i2s_ws    : std_logic;
+    signal i2s_sd_tx : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+    signal i2s_int   : std_logic;
+
+    -- Watchdog timer
+    signal wdt_int   : std_logic;
+    signal wdt_reset : std_logic;
+
+    -- RTC interrupt
+    signal rtc_int   : std_logic;
+
+    -- ADC interface
+    signal adc_in    : std_logic_vector(95 downto 0) := (others => '0');
+    signal adc_int   : std_logic;
+
+    -- DAC interface
+    signal dac_out   : std_logic_vector(23 downto 0);
 
     -- Instruction memory (16 entries)
     type imem_t is array(0 to 15) of std_logic_vector(31 downto 0);
@@ -140,7 +205,19 @@ begin
             dmem_rdata => dmem_rdata, dmem_we => dmem_we, dmem_re => dmem_re,
             timer_int => timer_int, software_int => software_int,
             external_int => external_int,
-            irq_out => irq_out, mepc_out => mepc_out, mcause_out => mcause_out
+            irq_out => irq_out, mepc_out => mepc_out, mcause_out => mcause_out,
+            i2c_sda => i2c_sda, i2c_scl => i2c_scl, i2c_int => i2c_int,
+            spi_sclk => spi_sclk, spi_mosi => spi_mosi, spi_miso => spi_miso, spi_int => spi_int,
+            uart_txd => uart_txd, uart_rxd => uart_rxd, uart_int => uart_int,
+            i2s_sck => i2s_sck, i2s_ws => i2s_ws, i2s_sd_tx => i2s_sd_tx, i2s_sd_rx => i2s_sd_rx, i2s_int => i2s_int,
+            -- Watchdog timer
+            wdt_int => wdt_int, wdt_reset => wdt_reset,
+            -- RTC interrupt
+            rtc_int => rtc_int,
+            -- ADC interface
+            adc_in => adc_in, adc_int => adc_int,
+            -- DAC interface
+            dac_out => dac_out
         );
 
     -- Instruction memory model: return instruction at PC>>2
@@ -185,7 +262,7 @@ begin
         imem(4) <= lw_enc(4, 0, 0);        -- LW   x4, 0(x0)
         imem(5) <= beq_enc(1, 1, 8);       -- BEQ  x1, x1, +8 (taken)
         imem(6) <= addi_enc(7, 0, 99);     -- (skipped if branch taken)
-        imem(7) <= jal_enc(5, 16);         -- JAL  x5, +16
+        imem(7) <= jal_enc(5, 8);          -- JAL  x5, +8 (jump to ECALL at idx 9)
         imem(8) <= addi_enc(8, 0, 77);     -- (skipped by JAL)
         imem(9) <= INST_ECALL;             -- ECALL
 
@@ -230,7 +307,6 @@ begin
         wait for 40 ns;
 
         report "RISC-V testbench stimulus complete" severity note;
-        assert false report "Testbench complete" severity failure;
         wait;
     end process stim;
 

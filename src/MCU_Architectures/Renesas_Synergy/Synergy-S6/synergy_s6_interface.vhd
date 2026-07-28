@@ -9,7 +9,8 @@
 -- Peripheral set (S6 - GRAPHICS):
 --   [Y] GPIO  - 32-bit | [Y] Timer | [Y] UART | [Y] SPI | [Y] I2C | [Y] ADC
 --   [Y] LCD   - LCD controller with 16-bit RGB data, HSYNC, VSYNC, PCLK
---   [N] DMA/CAN/Ethernet/USB/Security - Not included
+--   [Y] DMA   - DMA controller for high-speed data transfers
+--   [N] CAN/Ethernet/USB/Security - Not included
 --
 -- AHB-Lite Register Map:
 --   0x00: GPIO_DATA | 0x04: GPIO_DIR | 0x08: TIMER_CTRL | 0x0C: TIMER_LOAD
@@ -50,22 +51,58 @@ entity synergy_s6_interface is
         i2c_sda : inout std_logic;  i2c_scl : inout std_logic;  i2c_int : out std_logic;
         -- ADC (present on S6)
         adc_in  : in  std_logic_vector(11 downto 0);  adc_int : out std_logic;
-        -- DMA (NOT present on S6)
+        -- DMA (present on S6 - DMA controller)
         dma_req : out std_logic;  dma_done : in std_logic;
-        -- CAN (NOT present on S6)
+        -- DMA master interface (full DMA controller)
+        dma_int     : out std_logic;
+        dma_m_addr  : out std_logic_vector(31 downto 0);
+        dma_m_rdata : in  std_logic_vector(31 downto 0);
+        dma_m_wdata : out std_logic_vector(31 downto 0);
+        dma_m_we    : out std_logic;
+        dma_m_req   : out std_logic;
+        dma_m_ack   : in  std_logic;
+        -- CAN (present on S6)
         can_tx : out std_logic;  can_rx : in std_logic;  can_int : out std_logic;
-        -- Ethernet (NOT present on S6)
+        -- Ethernet (present on S6) - MII interface
         eth_txd : out std_logic_vector(3 downto 0);  eth_rxd : in std_logic_vector(3 downto 0);
         eth_int : out std_logic;
-        -- USB (NOT present on S6)
+        mii_tx_en  : out std_logic;
+        mii_tx_clk : in  std_logic;
+        mii_rx_clk : in  std_logic;
+        mii_rx_dv  : in  std_logic;
+        mii_tx_er  : out std_logic;
+        mii_rx_er  : in  std_logic;
+        mii_crs    : in  std_logic;
+        mii_col    : in  std_logic;
+        mdc        : out std_logic;
+        mdio       : inout std_logic;
+        -- USB (present on S6) - USB 2.0 Full-Speed device
         usb_dp, usb_dm : inout std_logic;  usb_int : out std_logic;
+        usb_clk   : in  std_logic;  -- 48 MHz USB clock
         -- LCD (present on S6 - graphics feature: 16-bit RGB + sync signals)
         lcd_data : out std_logic_vector(15 downto 0);  -- 16-bit RGB565 data
         lcd_hsync: out std_logic;                      -- Horizontal sync pulse
         lcd_vsync: out std_logic;                      -- Vertical sync pulse
         lcd_clk  : out std_logic;                      -- Pixel clock
         -- Security (NOT present on S6)
-        trng_valid, secure_boot : out std_logic
+        trng_valid, secure_boot : out std_logic;
+
+        -- WDT interface
+        wdt_int   : out std_logic;
+        wdt_reset : out std_logic;
+
+        -- RTC interface
+        rtc_int   : out std_logic;
+
+        -- DAC interface
+        dac_out   : out std_logic_vector(23 downto 0);
+
+        -- I2S interface (audio)
+        i2s_sck   : out std_logic;
+        i2s_ws    : out std_logic;
+        i2s_sd_tx : out std_logic;
+        i2s_sd_rx : in  std_logic;
+        i2s_int   : out std_logic
     );
 end entity synergy_s6_interface;
 
@@ -89,9 +126,104 @@ architecture rtl of synergy_s6_interface is
     signal lcd_hcnt      : unsigned(15 downto 0) := (others => '0'); -- H pixel counter
     signal lcd_vcnt      : unsigned(15 downto 0) := (others => '0'); -- V line counter
     signal reg_sel       : integer range 0 to 15;
+    -- DMA controller signals
+    signal dma_hsel        : std_logic;
+    signal periph_hsel     : std_logic;
+    signal dma_hrdata      : std_logic_vector(31 downto 0);
+    signal dma_hresp       : std_logic;
+    signal dma_hreadyout   : std_logic;
+    signal periph_hrdata   : std_logic_vector(31 downto 0);
+    signal periph_hresp    : std_logic;
+    signal periph_hreadyout: std_logic;
+    signal dma_int_vec     : std_logic_vector(3 downto 0);
+
+    -- I2S AHB-Lite component
+    component i2s_master_ahb is
+        port (
+            HCLK      : in  std_logic;
+            HRESETn   : in  std_logic;
+            HSEL      : in  std_logic;
+            HWRITE    : in  std_logic;
+            HREADY    : in  std_logic;
+            HTRANS    : in  std_logic_vector(1 downto 0);
+            HSIZE     : in  std_logic_vector(2 downto 0);
+            HADDR     : in  std_logic_vector(31 downto 0);
+            HWDATA    : in  std_logic_vector(31 downto 0);
+            HRDATA    : out std_logic_vector(31 downto 0);
+            HRESP     : out std_logic;
+            HREADYOUT : out std_logic;
+            sck       : out std_logic;
+            ws        : out std_logic;
+            sd_tx     : out std_logic;
+            sd_rx     : in  std_logic;
+            mclk      : out std_logic;
+            i2s_int   : out std_logic
+        );
+    end component;
+
+    -- I2S AHB decode and response signals
+    signal i2s_hsel       : std_logic;
+    signal i2s_hrdata     : std_logic_vector(31 downto 0);
+    signal i2s_hresp      : std_logic;
+    signal i2s_hreadyout  : std_logic;
+    signal i2s_mclk       : std_logic;
+
+    -- WDT AHB decode and response signals
+    signal wdt_hsel       : std_logic;
+    signal wdt_hrdata     : std_logic_vector(31 downto 0);
+    signal wdt_hresp      : std_logic;
+    signal wdt_hreadyout  : std_logic;
+
+    -- RTC AHB decode and response signals
+    signal rtc_hsel       : std_logic;
+    signal rtc_hrdata     : std_logic_vector(31 downto 0);
+    signal rtc_hresp      : std_logic;
+    signal rtc_hreadyout  : std_logic;
+
+    -- DAC AHB decode and response signals
+    signal dac_hsel       : std_logic;
+    signal dac_hrdata     : std_logic_vector(31 downto 0);
+    signal dac_hresp      : std_logic;
+    signal dac_hreadyout  : std_logic;
+
+    -- CAN/ETH/USB AHB decode and response signals
+    signal can_hsel       : std_logic;
+    signal can_hrdata     : std_logic_vector(31 downto 0);
+    signal can_hresp      : std_logic;
+    signal can_hreadyout  : std_logic;
+    signal can_clkout     : std_logic;
+    signal eth_hsel       : std_logic;
+    signal eth_hrdata     : std_logic_vector(31 downto 0);
+    signal eth_hresp      : std_logic;
+    signal eth_hreadyout  : std_logic;
+    signal usb_hsel       : std_logic;
+    signal usb_hrdata     : std_logic_vector(31 downto 0);
+    signal usb_hresp      : std_logic;
+    signal usb_hreadyout  : std_logic;
 begin
 
-    reg_sel <= to_integer(unsigned(HADDR(7 downto 4)));
+    -- I2S address decode: HADDR(15 downto 12) = "0100" (base 0x4000)
+    i2s_hsel <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "0100") else '0';
+    -- WDT address decode: HADDR(15 downto 12) = "0101" (base 0x5000)
+    wdt_hsel <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "0101") else '0';
+    -- RTC address decode: HADDR(15 downto 12) = "0110" (base 0x6000)
+    rtc_hsel <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "0110") else '0';
+    -- DAC address decode: HADDR(15 downto 12) = "1000" (base 0x8000)
+    dac_hsel <= '1' when (HSEL = '1' and HADDR(15 downto 12) = "1000") else '0';
+
+    -- Block address decode: HADDR[11:8] selects peripheral block
+    --   0 = original peripherals (GPIO, Timer, UART, SPI, I2C, ADC, LCD)
+    --   1 = DMA controller
+    --   2 = CAN controller
+    --   3 = Ethernet MAC
+    --   4 = USB device
+    periph_hsel <= HSEL when HADDR(11 downto 8) = x"0" else '0';
+    dma_hsel    <= HSEL when HADDR(11 downto 8) = x"1" else '0';
+    can_hsel    <= HSEL when HADDR(11 downto 8) = x"2" else '0';
+    eth_hsel    <= HSEL when HADDR(11 downto 8) = x"3" else '0';
+    usb_hsel    <= HSEL when HADDR(11 downto 8) = x"4" else '0';
+
+    reg_sel <= to_integer(unsigned(HADDR(5 downto 2)));
 
     -- =========================================================================
     -- AHB-LITE WRITE PROCESS
@@ -109,7 +241,7 @@ begin
             lcd_ctrl <= (others => '0'); lcd_data_reg <= (others => '0');
             lcd_hcnt <= (others => '0'); lcd_vcnt <= (others => '0');
         elsif rising_edge(HCLK) then
-            if HSEL = '1' and HREADY = '1' and HWRITE = '1' then
+            if periph_hsel = '1' and HREADY = '1' and HWRITE = '1' then
                 case reg_sel is
                     when 0 => gpio_data_reg <= HWDATA;     -- GPIO_DATA
                     when 1 => gpio_dir_reg  <= HWDATA;     -- GPIO_DIR
@@ -137,35 +269,35 @@ begin
     -- =========================================================================
     -- AHB-LITE READ MULTIPLEXER
     -- =========================================================================
-    process(HSEL, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl, timer_load,
+    process(periph_hsel, reg_sel, gpio_data_reg, gpio_dir_reg, timer_ctrl, timer_load,
             timer_count, uart_data_reg, uart_status, spi_ctrl, spi_data_reg,
             i2c_ctrl, i2c_data_reg, adc_ctrl, adc_data_reg, lcd_ctrl,
             lcd_data_reg, gpio_in)
     begin
-        if HSEL = '1' then
+        if periph_hsel = '1' then
             case reg_sel is
-                when 0 => HRDATA <= gpio_data_reg;
-                when 1 => HRDATA <= gpio_dir_reg;
-                when 2 => HRDATA <= timer_ctrl;
-                when 3 => HRDATA <= std_logic_vector(timer_count);
-                when 4 => HRDATA <= uart_data_reg;
-                when 5 => HRDATA <= uart_status;
-                when 6 => HRDATA <= spi_ctrl;
-                when 7 => HRDATA <= spi_data_reg;
-                when 8 => HRDATA <= i2c_ctrl;
-                when 9 => HRDATA <= i2c_data_reg;
-                when 10 => HRDATA <= adc_ctrl;
-                when 11 => HRDATA <= adc_data_reg;
-                when 12 => HRDATA <= lcd_ctrl;
-                when 13 => HRDATA <= lcd_data_reg;
-                when others => HRDATA <= (others => '0');
+                when 0 => periph_hrdata <= gpio_data_reg;
+                when 1 => periph_hrdata <= gpio_dir_reg;
+                when 2 => periph_hrdata <= timer_ctrl;
+                when 3 => periph_hrdata <= std_logic_vector(timer_count);
+                when 4 => periph_hrdata <= uart_data_reg;
+                when 5 => periph_hrdata <= uart_status;
+                when 6 => periph_hrdata <= spi_ctrl;
+                when 7 => periph_hrdata <= spi_data_reg;
+                when 8 => periph_hrdata <= i2c_ctrl;
+                when 9 => periph_hrdata <= i2c_data_reg;
+                when 10 => periph_hrdata <= adc_ctrl;
+                when 11 => periph_hrdata <= adc_data_reg;
+                when 12 => periph_hrdata <= lcd_ctrl;
+                when 13 => periph_hrdata <= lcd_data_reg;
+                when others => periph_hrdata <= (others => '0');
             end case;
         else
-            HRDATA <= (others => '0');
+            periph_hrdata <= (others => '0');
         end if;
     end process;
 
-    HRESP <= '0'; HREADYOUT <= '1';
+    periph_hresp <= '0'; periph_hreadyout <= '1';
 
     gpio_out <= gpio_data_reg; gpio_dir <= gpio_dir_reg;
 
@@ -238,11 +370,218 @@ begin
     lcd_vsync <= '1' when (lcd_vcnt < 2) else '0';              -- VSYNC pulse (2 lines)
 
     -- =========================================================================
-    -- UNUSED PERIPHERAL OUTPUTS (S6 does not have DMA, CAN, Ethernet, USB, Security)
+    -- DMA CONTROLLER INSTANCE
     -- =========================================================================
-    dma_req <= '0'; can_tx <= '0'; can_int <= '0';
-    eth_txd <= (others => '0'); eth_int <= '0';
-    usb_dp <= 'Z'; usb_dm <= 'Z'; usb_int <= '0';
+    dma_inst : entity work.dma_controller
+        port map (
+            HCLK => HCLK, HRESETn => HRESETn,
+            HSEL => dma_hsel, HWRITE => HWRITE, HREADY => HREADY,
+            HTRANS => HTRANS, HSIZE => HSIZE,
+            HADDR => HADDR, HWDATA => HWDATA,
+            HRDATA => dma_hrdata, HRESP => dma_hresp, HREADYOUT => dma_hreadyout,
+            m_addr => dma_m_addr, m_rdata => dma_m_rdata,
+            m_wdata => dma_m_wdata, m_we => dma_m_we,
+            m_req => dma_m_req, m_ack => dma_m_ack,
+            dma_int => dma_int_vec,
+            dma_req_in => (others => '0')
+        );
+
+    -- Aggregate DMA interrupt (OR of all channel interrupts)
+    dma_int <= '0' when dma_int_vec = "0000" else '1';
+
+    -- =========================================================================
+    -- AHB BUS MULTIPLEXER: select between peripheral blocks
+    -- =========================================================================
+    HRDATA <= i2s_hrdata when i2s_hsel = '1' else
+              wdt_hrdata when wdt_hsel = '1' else
+              rtc_hrdata when rtc_hsel = '1' else
+              dac_hrdata when dac_hsel = '1' else
+              dma_hrdata when dma_hsel = '1' else
+              can_hrdata when can_hsel = '1' else
+              eth_hrdata when eth_hsel = '1' else
+              usb_hrdata when usb_hsel = '1' else periph_hrdata;
+    HRESP  <= i2s_hresp  when i2s_hsel = '1' else
+              wdt_hresp  when wdt_hsel = '1' else
+              rtc_hresp  when rtc_hsel = '1' else
+              dac_hresp  when dac_hsel = '1' else
+              dma_hresp  when dma_hsel = '1' else
+              can_hresp  when can_hsel = '1' else
+              eth_hresp  when eth_hsel = '1' else
+              usb_hresp  when usb_hsel = '1' else periph_hresp;
+    HREADYOUT <= i2s_hreadyout when i2s_hsel = '1' else
+                 wdt_hreadyout when wdt_hsel = '1' else
+                 rtc_hreadyout when rtc_hsel = '1' else
+                 dac_hreadyout when dac_hsel = '1' else
+                 dma_hreadyout when dma_hsel = '1' else
+                 can_hreadyout when can_hsel = '1' else
+                 eth_hreadyout when eth_hsel = '1' else
+                 usb_hreadyout when usb_hsel = '1' else periph_hreadyout;
+
+    -- =========================================================================
+    -- UNUSED PERIPHERAL OUTPUTS (S6 does not have Security)
+    -- =========================================================================
+    dma_req <= '0';
     trng_valid <= '0'; secure_boot <= '0';
+
+    -- =========================================================================
+    -- WDT CONTROLLER (AHB-Lite) - base address 0x5000
+    -- =========================================================================
+    u_wdt : entity work.wdt_controller
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => wdt_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => wdt_hrdata,
+            HRESP     => wdt_hresp,
+            HREADYOUT => wdt_hreadyout,
+            wdt_int   => wdt_int,
+            wdt_reset => wdt_reset
+        );
+
+    -- =========================================================================
+    -- RTC CONTROLLER (AHB-Lite) - base address 0x6000
+    -- =========================================================================
+    u_rtc : entity work.rtc_controller
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => rtc_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => rtc_hrdata,
+            HRESP     => rtc_hresp,
+            HREADYOUT => rtc_hreadyout,
+            rtc_int   => rtc_int
+        );
+
+    -- =========================================================================
+    -- DAC CONTROLLER (AHB-Lite) - base address 0x8000
+    -- =========================================================================
+    u_dac : entity work.dac_controller
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => dac_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => dac_hrdata,
+            HRESP     => dac_hresp,
+            HREADYOUT => dac_hreadyout,
+            dac_out   => dac_out
+        );
+
+    -- =========================================================================
+    -- CAN CONTROLLER INSTANCE (Block 2)
+    -- =========================================================================
+    can_inst : entity work.can_controller_ahb
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => can_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HSIZE     => HSIZE,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => can_hrdata,
+            HRESP     => can_hresp,
+            HREADYOUT => can_hreadyout,
+            can_tx    => can_tx,
+            can_rx    => can_rx,
+            can_clkout => can_clkout,
+            can_int   => can_int
+        );
+
+    -- =========================================================================
+    -- ETHERNET MAC INSTANCE (Block 3)
+    -- =========================================================================
+    eth_inst : entity work.ethernet_mac_ahb
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => eth_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HSIZE     => HSIZE,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => eth_hrdata,
+            HRESP     => eth_hresp,
+            HREADYOUT => eth_hreadyout,
+            mii_txd   => eth_txd,
+            mii_rxd   => eth_rxd,
+            mii_tx_en => mii_tx_en,
+            mii_tx_clk => mii_tx_clk,
+            mii_rx_clk => mii_rx_clk,
+            mii_rx_dv  => mii_rx_dv,
+            mii_tx_er  => mii_tx_er,
+            mii_rx_er  => mii_rx_er,
+            mii_crs    => mii_crs,
+            mii_col    => mii_col,
+            mdc        => mdc,
+            mdio       => mdio,
+            eth_int    => eth_int
+        );
+
+    -- =========================================================================
+    -- USB DEVICE CONTROLLER INSTANCE (Block 4)
+    -- =========================================================================
+    usb_inst : entity work.usb_device
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => usb_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HSIZE     => HSIZE,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => usb_hrdata,
+            HRESP     => usb_hresp,
+            HREADYOUT => usb_hreadyout,
+            usb_dp    => usb_dp,
+            usb_dm    => usb_dm,
+            usb_clk   => usb_clk,
+            usb_int   => usb_int
+        );
+
+    -- =========================================================================
+    -- I2S MASTER (AHB-Lite) - base address 0x4000
+    -- =========================================================================
+    u_i2s_master : i2s_master_ahb
+        port map (
+            HCLK      => HCLK,
+            HRESETn   => HRESETn,
+            HSEL      => i2s_hsel,
+            HWRITE    => HWRITE,
+            HREADY    => HREADY,
+            HTRANS    => HTRANS,
+            HSIZE     => HSIZE,
+            HADDR     => HADDR,
+            HWDATA    => HWDATA,
+            HRDATA    => i2s_hrdata,
+            HRESP     => i2s_hresp,
+            HREADYOUT => i2s_hreadyout,
+            sck       => i2s_sck,
+            ws        => i2s_ws,
+            sd_tx     => i2s_sd_tx,
+            sd_rx     => i2s_sd_rx,
+            mclk      => i2s_mclk,
+            i2s_int   => i2s_int
+        );
 
 end architecture rtl;

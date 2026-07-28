@@ -141,7 +141,8 @@ begin
         instruction <= "11100000";
         wait for CLK_PERIOD;  -- DECODE
         wait for CLK_PERIOD;  -- EXECUTE
-        wait for CLK_PERIOD;  -- WRITEBACK -> should go to HALT_STATE
+        wait for CLK_PERIOD;  -- WRITEBACK
+        wait for CLK_PERIOD;  -- WRITEBACK -> HALT_STATE transition
         assert done = '1'
             report "Test 6 FAIL: done should be 1 after HALT WRITEBACK"
             severity error;

@@ -41,7 +41,7 @@ architecture test of tb_alu_2048bit is
     constant ALL_ZEROS   : std_logic_vector(2047 downto 0) := (others => '0');
     constant ALL_ONES    : std_logic_vector(2047 downto 0) := (others => '1');
     constant BIT0_SET    : std_logic_vector(2047 downto 0) :=
-        (1 => '1', others => '0');
+        (0 => '1', others => '0');
     constant BIT2047_SET : std_logic_vector(2047 downto 0) :=
         (2047 => '1', others => '0');
     constant VAL_5 : std_logic_vector(2047 downto 0) :=

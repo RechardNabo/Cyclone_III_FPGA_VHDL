@@ -41,7 +41,17 @@ architecture behavior of cortex_tb is
             irq_out    : out std_logic;
             gpio_in   : in  std_logic_vector(GPIO_WIDTH-1 downto 0);
             gpio_out  : out std_logic_vector(GPIO_WIDTH-1 downto 0);
-            gpio_dir  : out std_logic_vector(GPIO_WIDTH-1 downto 0)
+            gpio_dir  : out std_logic_vector(GPIO_WIDTH-1 downto 0);
+            -- WDT interface
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic;
+            -- RTC interface
+            rtc_int   : out std_logic;
+            -- ADC interface
+            adc_in    : in  std_logic_vector(95 downto 0) := (others => '0');
+            adc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -76,6 +86,20 @@ architecture behavior of cortex_tb is
     signal gpio_in  : std_logic_vector(GPIO_WIDTH-1 downto 0) := (others => '0');
     signal gpio_out : std_logic_vector(GPIO_WIDTH-1 downto 0);
     signal gpio_dir : std_logic_vector(GPIO_WIDTH-1 downto 0);
+
+    -- WDT interface
+    signal wdt_int   : std_logic;
+    signal wdt_reset : std_logic;
+
+    -- RTC interface
+    signal rtc_int   : std_logic;
+
+    -- ADC interface
+    signal adc_in    : std_logic_vector(95 downto 0) := (others => '0');
+    signal adc_int   : std_logic;
+
+    -- DAC interface
+    signal dac_out   : std_logic_vector(23 downto 0);
 
     -- Constants
     constant CLK_PERIOD : time := 10 ns;
@@ -125,7 +149,17 @@ begin
             irq_out    => irq_out,
             gpio_in    => gpio_in,
             gpio_out   => gpio_out,
-            gpio_dir   => gpio_dir
+            gpio_dir   => gpio_dir,
+            -- WDT interface
+            wdt_int    => wdt_int,
+            wdt_reset  => wdt_reset,
+            -- RTC interface
+            rtc_int    => rtc_int,
+            -- ADC interface
+            adc_in     => adc_in,
+            adc_int    => adc_int,
+            -- DAC interface
+            dac_out    => dac_out
         );
 
     -- ============================================================================

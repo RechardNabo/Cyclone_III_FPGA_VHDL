@@ -55,8 +55,11 @@ architecture rtl of uart_rx is
     signal low_count  : integer range 0 to CLK_PER_BIT * 12 := 0; -- for break detect
 begin
 
-    -- =================== RX state machine ===================
+    -- =================== RX state machine + FIFO management ===================
+    -- Both FIFO write (from RX state machine) and FIFO read (from CPU) are
+    -- handled in this single process so that fifo_cnt has only one driver.
     rx_proc : process(clk, reset)
+        variable cnt : integer range 0 to FIFO_DEPTH;
     begin
         if reset = '1' then
             state       <= IDLE;
@@ -68,9 +71,14 @@ begin
             low_count   <= 0;
             parity_err  <= '0';
             break_detect<= '0';
+            rd_ptr      <= 0;
+            rx_data     <= (others => '0');
+            fifo_cnt    <= 0;
         elsif rising_edge(clk) then
             parity_err   <= '0';
             break_detect <= '0';
+
+            cnt := fifo_cnt;
 
             -- Break detection: line low for more than ~10 bit periods
             if rx_serial = '0' then
@@ -79,14 +87,28 @@ begin
                 end if;
                 if low_count = CLK_PER_BIT * 10 then
                     break_detect <= '1';
+                    state       <= IDLE;  -- reset state machine on break
+                    clk_count   <= 0;
                 end if;
             else
                 low_count <= 0;
             end if;
 
+            -- FIFO read side (CPU pop)
+            if rx_rd = '1' and cnt > 0 then
+                rx_data <= fifo_mem(rd_ptr);
+                if rd_ptr = FIFO_DEPTH - 1 then
+                    rd_ptr <= 0;
+                else
+                    rd_ptr <= rd_ptr + 1;
+                end if;
+                cnt := cnt - 1;
+            end if;
+
             case state is
                 when IDLE =>
-                    if rx_serial = '0' then  -- falling edge = start bit
+                    -- Only start on falling edge if not in break condition
+                    if rx_serial = '0' and low_count < CLK_PER_BIT * 10 then
                         state     <= START;
                         clk_count <= 0;
                     end if;
@@ -140,42 +162,27 @@ begin
                 when STOP =>
                     if clk_count = CLK_PER_BIT - 1 then
                         clk_count <= 0;
-                        -- Push byte into FIFO if not full
-                        if fifo_cnt < FIFO_DEPTH then
-                            fifo_mem(wr_ptr) <= data_reg;
-                            if wr_ptr = FIFO_DEPTH - 1 then
-                                wr_ptr <= 0;
-                            else
-                                wr_ptr <= wr_ptr + 1;
+                        -- Push byte into FIFO only if stop bit is valid
+                        if rx_serial = '1' then
+                            if cnt < FIFO_DEPTH then
+                                fifo_mem(wr_ptr) <= data_reg;
+                                if wr_ptr = FIFO_DEPTH - 1 then
+                                    wr_ptr <= 0;
+                                else
+                                    wr_ptr <= wr_ptr + 1;
+                                end if;
+                                cnt := cnt + 1;
                             end if;
-                            fifo_cnt <= fifo_cnt + 1;
                         end if;
                         state <= IDLE;
                     else
                         clk_count <= clk_count + 1;
                     end if;
             end case;
+
+            fifo_cnt <= cnt;
         end if;
     end process rx_proc;
-
-    -- =================== FIFO read side ===================
-    fifo_rd_proc : process(clk, reset)
-    begin
-        if reset = '1' then
-            rd_ptr   <= 0;
-            rx_data  <= (others => '0');
-        elsif rising_edge(clk) then
-            if rx_rd = '1' and fifo_cnt > 0 then
-                rx_data <= fifo_mem(rd_ptr);
-                if rd_ptr = FIFO_DEPTH - 1 then
-                    rd_ptr <= 0;
-                else
-                    rd_ptr <= rd_ptr + 1;
-                end if;
-                fifo_cnt <= fifo_cnt - 1;
-            end if;
-        end if;
-    end process fifo_rd_proc;
 
     rx_ready <= '1' when fifo_cnt > 0 else '0';
     rx_full  <= '1' when fifo_cnt = FIFO_DEPTH else '0';

@@ -2,7 +2,7 @@
 -- Testbench for FIR Filter - Dataflow Model
 -- Tests impulse response: feeding a single 1 followed by zeros should produce
 -- the coefficient sequence (1,2,3,4,4,3,2,1) at the output.
--- Also tests reset and steady-state (all-zero input → output converges to 0).
+-- Also tests reset and steady-state (all-zero input -> output converges to 0).
 -- ============================================================================
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -24,6 +24,9 @@ architecture sim of tb_fir_dataflow is
     -- Expected impulse response (filter coefficients)
     type int_array is array (0 to 7) of integer;
     constant EXPECTED : int_array := (1, 2, 3, 4, 4, 3, 2, 1);
+
+    -- Collected output samples (need 9 slots: 1 latency + 8 impulse response)
+    type collected_array is array (0 to 8) of integer;
 begin
 
     dut : entity work.fir_dataflow
@@ -50,7 +53,7 @@ begin
 
     stim_proc : process
         variable sample_idx : integer := 0;
-        variable collected  : int_array := (others => 0);
+        variable collected  : collected_array := (others => 0);
     begin
         -- -------------------------------------------------------
         -- Test 1: Reset state — valid_out low, data_out zero
@@ -80,7 +83,7 @@ begin
         wait for 1 ns;
         data_in <= (others => '0');
 
-        -- Collect 9 output samples (impulse + 8 zeros → 9 valid outputs)
+        -- Collect 9 output samples (impulse + 8 zeros -> 9 valid outputs)
         for i in 0 to 8 loop
             if valid_out = '1' then
                 collected(sample_idx) := to_integer(signed(data_out));
@@ -119,7 +122,7 @@ begin
         assert data_out = std_logic_vector(to_signed(0, 8))
             report "Test 3 FAIL: output not zero in steady state"
             severity error;
-        report "Test 3 PASS: Steady-state zero input → zero output" severity note;
+        report "Test 3 PASS: Steady-state zero input -> zero output" severity note;
 
         -- -------------------------------------------------------
         -- Test 4: Step response — feed all-ones, output should

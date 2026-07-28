@@ -38,6 +38,7 @@ architecture rtl of i2c_slave is
     signal rw_bit      : std_logic := '0';
     signal addr_match  : std_logic := '0';
     signal write_reg   : std_logic_vector(7 downto 0) := (others => '0');
+    signal ack_seen_low : std_logic := '0';  -- Tracks SCL low in ACK states
 begin
 
     -- Synchronizers for async I2C bus signals
@@ -65,17 +66,23 @@ begin
                 bit_cnt <= 0; rw_bit <= '0'; addr_match <= '0';
                 write_reg <= (others => '0'); write_strobe <= '0';
                 scl_prev <= '1';
+                ack_seen_low <= '0';
             else
                 sda_o <= '1';  -- Default: release SDA
                 write_strobe <= '0';
-                start_cond := (scl_s2 = '1') and (sda_s2 = '0') and (sda_s1 = '1');
-                stop_cond  := (scl_s2 = '1') and (sda_s2 = '1') and (sda_s1 = '0');
+                -- START: SDA falls (high->low) while SCL high
+                -- sda_s2 is older (2 cycles), sda_s1 is newer (1 cycle)
+                start_cond := (scl_s2 = '1') and (sda_s2 = '1') and (sda_s1 = '0');
+                -- STOP: SDA rises (low->high) while SCL high
+                stop_cond  := (scl_s2 = '1') and (sda_s2 = '0') and (sda_s1 = '1');
                 scl_prev <= scl_s2;
 
                 if start_cond then
                     state <= ADDR; bit_cnt <= 0;
+                    ack_seen_low <= '0';
                 elsif stop_cond then
                     state <= IDLE;
+                    ack_seen_low <= '0';
                 else
                     case state is
                         when IDLE => null;
@@ -92,14 +99,23 @@ begin
                                         addr_match <= '0';
                                     end if;
                                     bit_cnt <= 0; state <= ACK_ADDR;
+                                    ack_seen_low <= '0';
                                 end if;
                             end if;
                         when ACK_ADDR =>
                             if addr_match = '1' then sda_o <= '0'; end if;
-                            if scl_s2 = '1' and scl_prev = '0' then
+                            -- Track when SCL goes low (marks end of data bit SCL cycle)
+                            if scl_s2 = '0' then
+                                ack_seen_low <= '1';
+                            end if;
+                            -- Only transition on SCL falling edge AFTER
+                            -- seeing SCL low (i.e., the ACK clock's falling edge,
+                            -- not the data bit's falling edge)
+                            if scl_s2 = '0' and scl_prev = '1' and ack_seen_low = '1' then
                                 if rw_bit = '0' then state <= WR_DATA;
                                 else state <= RD_DATA; end if;
                                 bit_cnt <= 0;
+                                ack_seen_low <= '0';
                             end if;
                         when WR_DATA =>
                             if scl_s2 = '1' and scl_prev = '0' then
@@ -107,14 +123,21 @@ begin
                                     shift_reg(7-bit_cnt) <= sda_s2;
                                     bit_cnt <= bit_cnt + 1;
                                 end if;
-                                if bit_cnt = 7 then state <= ACK_WR; end if;
+                                if bit_cnt = 7 then
+                                    state <= ACK_WR;
+                                    ack_seen_low <= '0';
+                                end if;
                             end if;
                         when ACK_WR =>
                             sda_o <= '0';
-                            if scl_s2 = '1' and scl_prev = '0' then
+                            if scl_s2 = '0' then
+                                ack_seen_low <= '1';
+                            end if;
+                            if scl_s2 = '0' and scl_prev = '1' and ack_seen_low = '1' then
                                 write_reg <= shift_reg;
                                 write_strobe <= '1';
                                 bit_cnt <= 0; state <= WR_DATA;
+                                ack_seen_low <= '0';
                             end if;
                         when RD_DATA =>
                             if bit_cnt < 8 then

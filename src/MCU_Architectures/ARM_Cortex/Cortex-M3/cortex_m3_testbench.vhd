@@ -49,7 +49,68 @@ architecture behavior of cortex_m3_tb is
             hardfault  : out std_logic;
             busfault   : out std_logic;
             memfault   : out std_logic;
-            usagefault : out std_logic
+            usagefault : out std_logic;
+            -- DMA controller
+            dma_int    : out std_logic;
+            dma_req_in : in  std_logic_vector(3 downto 0);
+            m_addr     : out std_logic_vector(31 downto 0);
+            m_rdata    : in  std_logic_vector(31 downto 0);
+            m_wdata    : out std_logic_vector(31 downto 0);
+            m_we       : out std_logic;
+            m_req      : out std_logic;
+            m_ack      : in  std_logic;
+            -- CAN controller
+            can_tx     : out std_logic;
+            can_rx     : in  std_logic;
+            can_clkout : out std_logic;
+            can_int    : out std_logic;
+            -- Ethernet MAC (MII interface)
+            mii_txd    : out std_logic_vector(3 downto 0);
+            mii_rxd    : in  std_logic_vector(3 downto 0);
+            mii_tx_en  : out std_logic;
+            mii_tx_clk : in  std_logic;
+            mii_rx_clk : in  std_logic;
+            mii_rx_dv  : in  std_logic;
+            mii_tx_er  : out std_logic;
+            mii_rx_er  : in  std_logic;
+            mii_crs    : in  std_logic;
+            mii_col    : in  std_logic;
+            mdc        : out std_logic;
+            mdio       : inout std_logic;
+            eth_int    : out std_logic;
+            -- USB device
+            usb_dp     : inout std_logic;
+            usb_dm     : inout std_logic;
+            usb_clk    : in  std_logic;
+            usb_int    : out std_logic;
+            -- I2C interface
+            i2c_sda : inout std_logic;
+            i2c_scl : inout std_logic;
+            i2c_int : out std_logic;
+            -- UART interface
+            uart_txd : out std_logic;
+            uart_rxd : in  std_logic;
+            uart_int : out std_logic;
+            -- I2S interface (audio)
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic;
+            -- Power management
+            sleep_out     : out std_logic;
+            sleep_on_exit : out std_logic;
+            event_on      : out std_logic;
+            -- WDT interface
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic;
+            -- RTC interface
+            rtc_int   : out std_logic;
+            -- ADC interface
+            adc_in    : in  std_logic_vector(95 downto 0) := (others => '0');
+            adc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -102,6 +163,42 @@ architecture behavior of cortex_m3_tb is
     signal busfault   : std_logic;
     signal memfault   : std_logic;
     signal usagefault : std_logic;
+
+    -- I2C interface
+    signal i2c_sda : std_logic := 'Z';
+    signal i2c_scl : std_logic := 'Z';
+    signal i2c_int : std_logic;
+
+    -- UART interface
+    signal uart_txd : std_logic;
+    signal uart_rxd : std_logic := '1';
+    signal uart_int : std_logic;
+
+    -- I2S interface (audio)
+    signal i2s_sck   : std_logic;
+    signal i2s_ws    : std_logic;
+    signal i2s_sd_tx : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+    signal i2s_int   : std_logic;
+
+    -- Power management
+    signal sleep_out     : std_logic;
+    signal sleep_on_exit : std_logic;
+    signal event_on      : std_logic;
+
+    -- WDT interface
+    signal wdt_int   : std_logic;
+    signal wdt_reset : std_logic;
+
+    -- RTC interface
+    signal rtc_int   : std_logic;
+
+    -- ADC interface
+    signal adc_in    : std_logic_vector(95 downto 0) := (others => '0');
+    signal adc_int   : std_logic;
+
+    -- DAC interface
+    signal dac_out   : std_logic_vector(23 downto 0);
 
     -- Constants
     constant CLK_PERIOD : time := 10 ns;
@@ -165,7 +262,68 @@ begin
             hardfault            => hardfault,
             busfault             => busfault,
             memfault             => memfault,
-            usagefault           => usagefault
+            usagefault           => usagefault,
+            -- DMA controller
+            dma_int              => open,
+            dma_req_in           => (others => '0'),
+            m_addr               => open,
+            m_rdata              => (others => '0'),
+            m_wdata              => open,
+            m_we                 => open,
+            m_req                => open,
+            m_ack                => '0',
+            -- CAN controller
+            can_tx               => open,
+            can_rx               => '1',
+            can_clkout           => open,
+            can_int              => open,
+            -- Ethernet MAC (MII interface)
+            mii_txd              => open,
+            mii_rxd              => (others => '0'),
+            mii_tx_en            => open,
+            mii_tx_clk           => '0',
+            mii_rx_clk           => '0',
+            mii_rx_dv            => '0',
+            mii_tx_er            => open,
+            mii_rx_er            => '0',
+            mii_crs              => '0',
+            mii_col              => '0',
+            mdc                  => open,
+            mdio                 => open,
+            eth_int              => open,
+            -- USB device
+            usb_dp               => open,
+            usb_dm               => open,
+            usb_clk              => '0',
+            usb_int              => open,
+            -- I2C interface
+            i2c_sda  => i2c_sda,
+            i2c_scl  => i2c_scl,
+            i2c_int  => i2c_int,
+            -- UART interface
+            uart_txd => uart_txd,
+            uart_rxd => uart_rxd,
+            uart_int => uart_int,
+            -- I2S interface (audio)
+            i2s_sck   => i2s_sck,
+            i2s_ws    => i2s_ws,
+            i2s_sd_tx => i2s_sd_tx,
+            i2s_sd_rx => i2s_sd_rx,
+            i2s_int   => i2s_int,
+            -- Power management
+            sleep_out     => sleep_out,
+            sleep_on_exit => sleep_on_exit,
+            event_on      => event_on,
+            -- WDT interface
+            wdt_int   => wdt_int,
+            wdt_reset => wdt_reset,
+            -- RTC interface
+            rtc_int   => rtc_int,
+            -- ADC interface
+            adc_in    => adc_in,
+            adc_int   => adc_int,
+            -- DAC interface
+            dac_out   => dac_out
         );
 
     -- ============================================================================
@@ -403,7 +561,7 @@ begin
         -- ----------------------------------------------------------------
         -- Test complete
         -- ----------------------------------------------------------------
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
 
     end process;
 

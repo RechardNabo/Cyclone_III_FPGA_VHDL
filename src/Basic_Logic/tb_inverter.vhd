@@ -42,14 +42,14 @@ begin
         -- Test case 1: All zeros -> all ones
         A <= (others => '0');
         wait for 10 ns;
-        assert Y = (others => '1')
+        assert Y = "11111111"
             report "Test 1 FAILED: A=all-zeros, expected Y=all-ones"
             severity error;
 
         -- Test case 2: All ones -> all zeros
         A <= (others => '1');
         wait for 10 ns;
-        assert Y = (others => '0')
+        assert Y = "00000000"
             report "Test 2 FAILED: A=all-ones, expected Y=all-zeros"
             severity error;
 

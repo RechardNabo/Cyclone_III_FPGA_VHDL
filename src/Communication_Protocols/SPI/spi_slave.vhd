@@ -45,7 +45,7 @@ begin
         if reset = '1' then
             tx_reg    <= (others => '0');
             rx_reg    <= (others => '0');
-            miso      <= '0';
+            miso      <= 'Z';
             bit_cnt   <= 0;
             sck_prev  <= '0';
             rx_valid  <= '0';

@@ -22,7 +22,7 @@ end entity isa_controller_fsm;
 architecture rtl of isa_controller_fsm is
   -- FSM states for the ISA bus transaction
   type state_type is (IDLE, ADDRESS_PHASE, READ_DATA, WRITE_DATA,
-                      WAIT_STATE, DONE);
+                      WAIT_STATE, ST_DONE);
   signal state : state_type := IDLE;
 begin
 
@@ -73,10 +73,10 @@ begin
 
           -- WAIT_STATE: allow bus settle time before completing
           when WAIT_STATE =>
-            state <= DONE;
+            state <= ST_DONE;
 
           -- DONE: assert done for one cycle, return to IDLE
-          when DONE =>
+          when ST_DONE =>
             done  <= '1';
             state <= IDLE;
 

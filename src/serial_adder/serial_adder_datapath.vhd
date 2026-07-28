@@ -61,8 +61,8 @@ begin
           -- Shift A and B right (LSB consumed by adder)
           a_reg <= '0' & a_reg(7 downto 1);
           b_reg <= '0' & b_reg(7 downto 1);
-          -- Shift sum left, inserting new sum bit at LSB
-          sum_reg <= sum_reg(6 downto 0) & sum_bit;
+          -- Shift sum right, inserting new sum bit at MSB
+          sum_reg <= sum_bit & sum_reg(7 downto 1);
           -- Update carry flip-flop
           carry_reg <= carry_next;
         end if;

@@ -156,7 +156,7 @@ begin
                     end if;
 
                 when IDLE =>
-                    null;  -- wait for START
+                    sda_out <= '1';  -- release SDA when idle
             end case;
         end if;
     end process i2c_slave_proc;

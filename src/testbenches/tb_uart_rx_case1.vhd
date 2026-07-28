@@ -15,6 +15,7 @@ architecture sim of tb_uart_rx_case1 is
     signal rx_busy   : std_logic;
 
     constant CLK_PER_BIT : integer := 16;
+    signal rx_valid_seen : boolean := false;
 begin
     clk <= not clk after 10 ns;
 
@@ -22,6 +23,16 @@ begin
         generic map (BAUD_RATE => 10, CLK_FREQ => 160)
         port map (clk => clk, reset => reset, rx_serial => rx_serial,
                   rx_data => rx_data, rx_valid => rx_valid, rx_busy => rx_busy);
+
+    -- Capture rx_valid pulse
+    monitor : process(clk)
+    begin
+        if rising_edge(clk) then
+            if rx_valid = '1' then
+                rx_valid_seen <= true;
+            end if;
+        end if;
+    end process;
 
     stim : process
     begin
@@ -52,7 +63,7 @@ begin
         -- Wait a few extra cycles for rx_valid
         for i in 0 to 5 loop wait until rising_edge(clk); end loop;
 
-        assert rx_valid = '1' report "FAIL: rx_valid not asserted" severity error;
+        assert rx_valid_seen report "FAIL: rx_valid not asserted" severity error;
         assert rx_data = x"55" report "FAIL: rx_data should be 0x55" severity error;
         assert rx_busy = '0' report "FAIL: rx_busy should be 0 after reception" severity error;
 

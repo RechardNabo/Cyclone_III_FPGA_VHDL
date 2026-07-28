@@ -66,8 +66,9 @@ begin
         ----------------------------------------------------------------
         -- Test 3: After COUNT_MAX+1 cycles, LED should toggle to '1'
         ----------------------------------------------------------------
-        -- We already waited 1 cycle, need COUNT_MAX more to reach toggle
-        wait for CLK_PERIOD * COUNT_MAX;
+        -- We already waited 1 cycle (counter=1), need COUNT_MAX-1 more
+        -- to reach counter=COUNT_MAX-1, then one more edge toggles
+        wait for CLK_PERIOD * (COUNT_MAX - 1);
         assert led_out = '0'
             report "Test 3a failed: led_out should still be 0 before toggle" severity error;
         -- Next clock edge should toggle

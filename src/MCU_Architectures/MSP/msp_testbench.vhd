@@ -35,7 +35,38 @@ architecture sim of msp_tb is
             adc_in      : in  std_logic_vector(11 downto 0);
             adc_int     : out std_logic;
             wdt_int     : out std_logic;
-            lpm_out     : out std_logic_vector(2 downto 0)
+            lpm_out     : out std_logic_vector(2 downto 0);
+            -- DMA controller interface
+            dma_int     : out std_logic;
+            dma_m_addr  : out std_logic_vector(15 downto 0);
+            dma_m_rdata : in  std_logic_vector(15 downto 0);
+            dma_m_wdata : out std_logic_vector(15 downto 0);
+            dma_m_we    : out std_logic;
+            dma_m_req   : out std_logic;
+            dma_m_ack   : in  std_logic;
+            -- I2C interface
+            i2c_sda : inout std_logic;
+            i2c_scl : inout std_logic;
+            i2c_int : out std_logic;
+            -- SPI interface
+            spi_sclk : out std_logic;
+            spi_mosi : out std_logic;
+            spi_miso : in  std_logic;
+            spi_int  : out std_logic;
+            -- UART interface
+            uart_txd : out std_logic;
+            uart_rxd : in  std_logic;
+            uart_int : out std_logic;
+            -- I2S interface (audio)
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic;
+            -- RTC interrupt
+            rtc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -81,6 +112,35 @@ architecture sim of msp_tb is
     -- LPM
     signal lpm_out : std_logic_vector(2 downto 0);
 
+    -- I2C
+    signal i2c_sda : std_logic := 'Z';
+    signal i2c_scl : std_logic := 'Z';
+    signal i2c_int : std_logic;
+
+    -- SPI
+    signal spi_sclk : std_logic;
+    signal spi_mosi : std_logic;
+    signal spi_miso : std_logic := '0';
+    signal spi_int  : std_logic;
+
+    -- UART
+    signal uart_txd : std_logic;
+    signal uart_rxd : std_logic := '1';
+    signal uart_int : std_logic;
+
+    -- I2S (audio)
+    signal i2s_sck   : std_logic;
+    signal i2s_ws    : std_logic;
+    signal i2s_sd_tx : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+    signal i2s_int   : std_logic;
+
+    -- RTC interrupt
+    signal rtc_int   : std_logic;
+
+    -- DAC interface
+    signal dac_out   : std_logic_vector(23 downto 0);
+
     -- Register address constants (9-bit)
     constant A_P1IN   : std_logic_vector(8 downto 0) := "000100000"; -- 0x020
     constant A_P1OUT  : std_logic_vector(8 downto 0) := "000100001"; -- 0x021
@@ -124,7 +184,29 @@ begin
             ta_out => ta_out, ta_int => ta_int,
             adc_in => adc_in, adc_int => adc_int,
             wdt_int => wdt_int,
-            lpm_out => lpm_out
+            lpm_out => lpm_out,
+            -- DMA controller interface
+            dma_int => open,
+            dma_m_addr => open,
+            dma_m_rdata => (others => '0'),
+            dma_m_wdata => open,
+            dma_m_we => open,
+            dma_m_req => open,
+            dma_m_ack => '0',
+            -- I2C interface
+            i2c_sda => i2c_sda, i2c_scl => i2c_scl, i2c_int => i2c_int,
+            -- SPI interface
+            spi_sclk => spi_sclk, spi_mosi => spi_mosi,
+            spi_miso => spi_miso, spi_int => spi_int,
+            -- UART interface
+            uart_txd => uart_txd, uart_rxd => uart_rxd, uart_int => uart_int,
+            -- I2S interface
+            i2s_sck => i2s_sck, i2s_ws => i2s_ws,
+            i2s_sd_tx => i2s_sd_tx, i2s_sd_rx => i2s_sd_rx, i2s_int => i2s_int,
+            -- RTC interrupt
+            rtc_int => rtc_int,
+            -- DAC interface
+            dac_out => dac_out
         );
 
     -- ==================================================================
@@ -323,7 +405,7 @@ begin
         -- ----------------------------------------------------------------
         wait for 50 ns;
         test_done <= true;
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
         wait;
     end process;
 

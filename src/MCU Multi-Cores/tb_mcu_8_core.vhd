@@ -32,7 +32,6 @@ architecture sim of tb_mcu_8_core is
 
     -- Memory model: 256-byte array
     type mem_t is array(0 to 255) of std_logic_vector(7 downto 0);
-    signal mem : mem_t := (others => '0');
 
 begin
 
@@ -58,18 +57,23 @@ begin
         );
 
     -- ========================================================================
-    -- Memory Model: combinational read, synchronous write
+    -- Memory Model: synchronous write, combinational read
+    -- Uses variable for memory to avoid multi-driver signal issues
     -- ========================================================================
-    data_in <= mem(to_integer(unsigned(addr_out)));
-
-    mem_wr : process(clk)
+    mem_proc : process(clk)
+        variable mem : mem_t := (others => (others => '0'));
+        variable initialized : boolean := false;
     begin
         if rising_edge(clk) then
-            if we = '1' then
-                mem(to_integer(unsigned(addr_out))) <= data_out;
+            if reset = '1' or not initialized then
+                mem(0) := x"B0";  -- HLT
+                initialized := true;
+            elsif we = '1' then
+                mem(to_integer(unsigned(addr_out))) := data_out;
             end if;
         end if;
-    end process mem_wr;
+        data_in <= mem(to_integer(unsigned(addr_out)));
+    end process mem_proc;
 
     -- ========================================================================
     -- Stimulus
@@ -79,7 +83,7 @@ begin
         -- ------------------------------------------------------------------
         -- Load program: HLT at address 0
         -- ------------------------------------------------------------------
-        mem(0) <= x"B0";  -- HLT
+        -- (handled by mem_proc on reset)
 
         -- ------------------------------------------------------------------
         -- Reset
@@ -196,7 +200,7 @@ begin
         -- Done
         -- ------------------------------------------------------------------
         report "All MCU_8_Core tests passed" severity note;
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
 
     end process stim;
 

@@ -109,6 +109,7 @@ architecture rtl of MCU_1_Core is
     signal flag_n : std_logic := '0'; -- Negative flag
     signal running : std_logic := '1'; -- Core is running
     signal halted  : std_logic := '0'; -- Core is halted
+    signal hlt_instr : std_logic := '0'; -- Halt was caused by HLT instruction
 
 begin
 
@@ -131,6 +132,7 @@ begin
             regs <= (others => (others => '0'));
             flag_z <= '0'; flag_c <= '0'; flag_n <= '0';
             running <= '1'; halted <= '0';
+            hlt_instr <= '0';
             we <= '0'; oe <= '0'; irq_ack <= '0';
             addr_out <= (others => '0');
             data_out <= (others => '0');
@@ -143,8 +145,11 @@ begin
             if halt = '1' and state /= S_HALT then
                 state <= S_HALT;
                 running <= '0'; halted <= '1';
-            elsif halt = '0' and state = S_HALT then
-                -- Resume from halt
+                hlt_instr <= '0';  -- external halt, not instruction
+            elsif halt = '1' and state = S_HALT then
+                hlt_instr <= '0';  -- Clear HLT instruction flag on external halt
+            elsif halt = '0' and state = S_HALT and hlt_instr = '0' then
+                -- Resume from external halt only (not HLT instruction)
                 state <= S_FETCH;
                 running <= '1'; halted <= '0';
                 addr_out <= std_logic_vector(pc);
@@ -246,6 +251,7 @@ begin
                         when OP_HLT =>
                             state <= S_HALT;
                             running <= '0'; halted <= '1';
+                            hlt_instr <= '1';
 
                         when OP_NOP =>
                             pc <= pc + 1;

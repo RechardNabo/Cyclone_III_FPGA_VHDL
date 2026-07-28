@@ -41,8 +41,8 @@ architecture rtl of can_controller is
     constant CLK_PER_BIT : integer := CLK_FREQ / BIT_RATE;
 
     -- TX state machine
-    type tx_state_t is (TX_IDLE, TX_SOF, TX_ID, TX_RTR, TX_DLC, TX_DATA,
-                        TX_CRC, TX_ACK, TX_EOF);
+    type tx_state_t is (TX_IDLE, TX_SOF, ST_TX_ID, TX_RTR, TX_DLC, ST_TX_DATA,
+                        ST_TX_CRC, TX_ACK, TX_EOF);
     signal tx_state : tx_state_t := TX_IDLE;
     signal tx_clk_cnt : integer range 0 to CLK_PER_BIT - 1 := 0;
     signal tx_bit_idx : integer range 0 to 15 := 0;
@@ -53,7 +53,7 @@ architecture rtl of can_controller is
     signal tx_done_flag: std_logic := '0';
 
     -- RX state machine
-    type rx_state_t is (RX_IDLE, RX_SOF, RX_ID, RX_RTR, RX_DLC, RX_DATA,
+    type rx_state_t is (RX_IDLE, RX_SOF, ST_RX_ID, RX_RTR, RX_DLC, ST_RX_DATA,
                         RX_CRC, RX_ACK, RX_EOF);
     signal rx_state : rx_state_t := RX_IDLE;
     signal rx_clk_cnt : integer range 0 to CLK_PER_BIT - 1 := 0;
@@ -99,13 +99,13 @@ begin
                     if tx_clk_cnt = CLK_PER_BIT - 1 then
                         tx_clk_cnt <= 0;
                         tx_bit_idx <= 10;
-                        tx_state   <= TX_ID;
+                        tx_state   <= ST_TX_ID;
                     else
                         tx_clk_cnt <= tx_clk_cnt + 1;
                     end if;
 
                 -- ID: 11-bit identifier (MSB first)
-                when TX_ID =>
+                when ST_TX_ID =>
                     can_tx <= tx_id_reg(tx_bit_idx);
                     if tx_clk_cnt = CLK_PER_BIT - 1 then
                         tx_clk_cnt <= 0;
@@ -136,7 +136,7 @@ begin
                         tx_clk_cnt <= 0;
                         if tx_bit_idx = 0 then
                             tx_bit_idx <= 7;
-                            tx_state   <= TX_DATA;
+                            tx_state   <= ST_TX_DATA;
                         else
                             tx_bit_idx <= tx_bit_idx - 1;
                         end if;
@@ -145,13 +145,13 @@ begin
                     end if;
 
                 -- DATA: 8-bit payload (MSB first)
-                when TX_DATA =>
+                when ST_TX_DATA =>
                     can_tx <= tx_data_reg(tx_bit_idx);
                     if tx_clk_cnt = CLK_PER_BIT - 1 then
                         tx_clk_cnt <= 0;
                         if tx_bit_idx = 0 then
                             tx_bit_idx <= 7;
-                            tx_state   <= TX_CRC;
+                            tx_state   <= ST_TX_CRC;
                         else
                             tx_bit_idx <= tx_bit_idx - 1;
                         end if;
@@ -160,7 +160,7 @@ begin
                     end if;
 
                 -- CRC: 8-bit checksum (MSB first)
-                when TX_CRC =>
+                when ST_TX_CRC =>
                     can_tx <= tx_crc(tx_bit_idx);
                     if tx_clk_cnt = CLK_PER_BIT - 1 then
                         tx_clk_cnt <= 0;
@@ -225,12 +225,12 @@ begin
                     if rx_clk_cnt = CLK_PER_BIT - 1 then
                         rx_clk_cnt <= 0;
                         rx_bit_idx <= 10;
-                        rx_state   <= RX_ID;
+                        rx_state   <= ST_RX_ID;
                     else
                         rx_clk_cnt <= rx_clk_cnt + 1;
                     end if;
 
-                when RX_ID =>
+                when ST_RX_ID =>
                     if rx_clk_cnt = CLK_PER_BIT - 1 then
                         rx_id_reg(rx_bit_idx) <= can_rx;
                         rx_clk_cnt <= 0;
@@ -257,7 +257,7 @@ begin
                         rx_clk_cnt <= 0;
                         if rx_bit_idx = 0 then
                             rx_bit_idx <= 7;
-                            rx_state   <= RX_DATA;
+                            rx_state   <= ST_RX_DATA;
                         else
                             rx_bit_idx <= rx_bit_idx - 1;
                         end if;
@@ -265,7 +265,7 @@ begin
                         rx_clk_cnt <= rx_clk_cnt + 1;
                     end if;
 
-                when RX_DATA =>
+                when ST_RX_DATA =>
                     if rx_clk_cnt = CLK_PER_BIT - 1 then
                         rx_data_reg(rx_bit_idx) <= can_rx;
                         rx_clk_cnt <= 0;

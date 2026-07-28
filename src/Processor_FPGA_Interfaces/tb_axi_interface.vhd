@@ -160,7 +160,7 @@ begin
         assert RDATA = x"CAFEF00D"
             report "Test 3 FAIL: RDATA not 0xCAFEF00D"
             severity error;
-        report "Test 3: Read back = 0x" & integer'image(to_integer(unsigned(RDATA))) severity note;
+        report "Test 3: Read back = 0x" & to_hstring(unsigned(RDATA)) severity note;
         wait for CLK_PERIOD;
         RREADY <= '0';
         report "Test 3 PASS: Read back 0xCAFEF00D correctly" severity note;

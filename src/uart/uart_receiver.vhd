@@ -73,15 +73,17 @@ begin
                         sample_count <= 0;
                         if oversample_count = OVERSAMPLE / 2 - 1 then
                             -- Check the middle of the start bit
-                            if rx_serial = '0' then
-                                oversample_count <= 0;
-                                bit_index        <= 0;
-                                state            <= DATA;
-                            else
+                            if rx_serial = '1' then
                                 -- False start, go back to idle
                                 state    <= IDLE;
                                 rx_busy  <= '0';
                             end if;
+                            oversample_count <= oversample_count + 1;
+                        elsif oversample_count = OVERSAMPLE - 1 then
+                            -- End of start bit, transition to DATA
+                            oversample_count <= 0;
+                            bit_index        <= 0;
+                            state            <= DATA;
                         else
                             oversample_count <= oversample_count + 1;
                         end if;
@@ -96,12 +98,15 @@ begin
                         if oversample_count = OVERSAMPLE / 2 - 1 then
                             -- Sample in the middle of the bit
                             data_reg(bit_index) <= rx_serial;
+                            oversample_count <= oversample_count + 1;
+                        elsif oversample_count = OVERSAMPLE - 1 then
+                            -- End of bit period, advance to next bit
+                            oversample_count <= 0;
                             if bit_index = 7 then
                                 state <= STOP;
                             else
                                 bit_index <= bit_index + 1;
                             end if;
-                            oversample_count <= 0;
                         else
                             oversample_count <= oversample_count + 1;
                         end if;
@@ -114,10 +119,15 @@ begin
                     if sample_count = SAMPLES_PER_BIT - 1 then
                         sample_count <= 0;
                         if oversample_count = OVERSAMPLE / 2 - 1 then
+                            -- Middle of stop bit: data is ready
                             rx_data  <= data_reg;
                             rx_valid <= '1';
                             rx_busy  <= '0';
-                            state    <= IDLE;
+                            oversample_count <= oversample_count + 1;
+                        elsif oversample_count = OVERSAMPLE - 1 then
+                            -- End of stop bit
+                            oversample_count <= 0;
+                            state <= IDLE;
                         else
                             oversample_count <= oversample_count + 1;
                         end if;

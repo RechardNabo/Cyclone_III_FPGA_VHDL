@@ -44,14 +44,70 @@ architecture rtl of microprocessor is
   signal rd_addr     : std_logic_vector(2 downto 0);
   signal rs_addr     : std_logic_vector(2 downto 0);
   signal imm         : std_logic_vector(7 downto 0);
+
+  -- Component declarations (avoids GHDL "obsoleted" error when entities
+  -- are compiled after this architecture; binding is resolved at elaborate)
+  component memory is
+    port(
+      clk     : in  std_logic;
+      addr    : in  std_logic_vector(7 downto 0);
+      wr_en   : in  std_logic;
+      wr_data : in  std_logic_vector(7 downto 0);
+      rd_data : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
+  component datapath is
+    port(
+      clk         : in  std_logic;
+      rst         : in  std_logic;
+      ir_load     : in  std_logic;
+      pc_load     : in  std_logic;
+      pc_inc      : in  std_logic;
+      reg_write   : in  std_logic;
+      alu_op      : in  std_logic_vector(2 downto 0);
+      out_load    : in  std_logic;
+      use_imm     : in  std_logic;
+      rd_addr     : in  std_logic_vector(2 downto 0);
+      rs_addr     : in  std_logic_vector(2 downto 0);
+      imm         : in  std_logic_vector(7 downto 0);
+      mem_addr    : out std_logic_vector(7 downto 0);
+      mem_rd_data : in  std_logic_vector(7 downto 0);
+      instruction : out std_logic_vector(7 downto 0);
+      zero_flag   : out std_logic;
+      output_port : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
+  component ctrl_unit is
+    port(
+      clk          : in  std_logic;
+      rst          : in  std_logic;
+      instruction  : in  std_logic_vector(7 downto 0);
+      zero_flag    : in  std_logic;
+      ir_load      : out std_logic;
+      pc_load      : out std_logic;
+      pc_inc       : out std_logic;
+      reg_write    : out std_logic;
+      alu_op       : out std_logic_vector(2 downto 0);
+      mem_read     : out std_logic;
+      mem_write    : out std_logic;
+      out_load     : out std_logic;
+      use_imm      : out std_logic;
+      rd_addr      : out std_logic_vector(2 downto 0);
+      rs_addr      : out std_logic_vector(2 downto 0);
+      imm          : out std_logic_vector(7 downto 0);
+      done         : out std_logic
+    );
+  end component;
 begin
   -- Instruction/data memory (write port unused for this ISA)
-  u_mem: entity work.memory
+  u_mem: memory
     port map(clk => clk, addr => mem_addr, wr_en => mem_write,
              wr_data => (others => '0'), rd_data => mem_rd_data);
 
   -- Datapath: all data registers and the ALU
-  u_dp: entity work.datapath
+  u_dp: datapath
     port map(clk => clk, rst => reset, ir_load => ir_load, pc_load => pc_load,
              pc_inc => pc_inc, reg_write => reg_write, alu_op => alu_op,
              out_load => out_load, use_imm => use_imm,
@@ -61,7 +117,7 @@ begin
              output_port => output_port);
 
   -- Control unit: FSM + decoder
-  u_ctrl: entity work.ctrl_unit
+  u_ctrl: ctrl_unit
     port map(clk => clk, rst => reset, instruction => instruction,
              zero_flag => zero_flag,
              ir_load => ir_load, pc_load => pc_load, pc_inc => pc_inc,

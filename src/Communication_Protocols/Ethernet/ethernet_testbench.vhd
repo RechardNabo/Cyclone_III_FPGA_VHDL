@@ -80,27 +80,44 @@ begin
             report "FAIL: tx_ready not asserted after reset"
             severity error;
 
-        -- Send a short frame: 4 data bytes
+        -- Send a short frame: 4 data bytes using tx_ready handshake
         -- Byte 1
         wait until rising_edge(clk);
         tx_data  <= x"AA";
         tx_valid <= '1';
         wait until rising_edge(clk);
+        tx_valid <= '0';
 
-        -- Byte 2
+        -- Byte 2: wait for MAC to be ready
+        wait until tx_ready = '1' for 5 us;
+        wait until rising_edge(clk);
         tx_data  <= x"BB";
-        wait until rising_edge(clk);
-
-        -- Byte 3
-        tx_data  <= x"CC";
-        wait until rising_edge(clk);
-
-        -- Byte 4 (last byte, assert tx_end)
-        tx_data <= x"DD";
-        tx_end  <= '1';
+        tx_valid <= '1';
         wait until rising_edge(clk);
         tx_valid <= '0';
-        tx_end   <= '0';
+
+        -- Byte 3
+        wait until tx_ready = '1' for 5 us;
+        wait until rising_edge(clk);
+        tx_data  <= x"CC";
+        tx_valid <= '1';
+        wait until rising_edge(clk);
+        tx_valid <= '0';
+
+        -- Byte 4
+        wait until tx_ready = '1' for 5 us;
+        wait until rising_edge(clk);
+        tx_data  <= x"DD";
+        tx_valid <= '1';
+        wait until rising_edge(clk);
+        tx_valid <= '0';
+
+        -- Assert tx_end after last byte's high nibble is sent
+        wait until tx_ready = '1' for 5 us;
+        wait until rising_edge(clk);
+        tx_end <= '1';
+        wait until rising_edge(clk);
+        tx_end <= '0';
 
         -- Wait for frame transmission to complete
         -- Preamble(7) + SFD(1) + Data(4) + CRC(2) = 14 bytes = 28 nibbles

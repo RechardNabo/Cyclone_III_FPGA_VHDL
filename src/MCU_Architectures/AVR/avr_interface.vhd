@@ -59,7 +59,23 @@ entity avr_interface is
         int0_int    : out std_logic;
         int1_int    : out std_logic;
         -- Global interrupt enable (SREG I flag)
-        global_int  : out std_logic
+        global_int  : out std_logic;
+        -- I2C interface
+        i2c_sda : inout std_logic;
+        i2c_scl : inout std_logic;
+        i2c_int : out std_logic;
+
+        -- UART interface
+        uart_txd : out std_logic;
+        uart_rxd : in  std_logic;
+        uart_int : out std_logic;
+
+        -- I2S interface (audio)
+        i2s_sck   : out std_logic;
+        i2s_ws    : out std_logic;
+        i2s_sd_tx : out std_logic;
+        i2s_sd_rx : in  std_logic;
+        i2s_int   : out std_logic
     );
 end entity avr_interface;
 
@@ -145,6 +161,19 @@ architecture rtl of avr_interface is
     signal int0_prev, int1_prev : std_logic := '0';
 
 begin
+
+    -- I2C interface (not implemented - outputs idle)
+    i2c_int <= '0';
+
+    -- UART interface (not implemented - outputs idle)
+    uart_txd <= '1';  -- UART idle is high
+    uart_int <= '0';
+
+    -- I2S interface (not implemented - outputs idle)
+    i2s_sck   <= '0';
+    i2s_ws    <= '0';
+    i2s_sd_tx <= '0';
+    i2s_int   <= '0';
 
     -- ==================================================================
     -- PROCESS: register_write -- all I/O writes + peripheral state machines
@@ -368,10 +397,18 @@ begin
 
     -- ==================================================================
     -- OUTPUT ASSIGNMENTS
+    -- Write-through: during a write cycle the output immediately reflects
+    -- the value on the data bus so external logic (and testbenches) can
+    -- observe it without waiting for the registered signal to propagate
+    -- through delta cycles.  After the write the output follows the
+    -- registered latch value.
     -- ==================================================================
-    portb_out <= portb_reg; ddrb_out <= ddrb_reg;
-    portc_out <= portc_reg; ddrc_out <= ddrc_reg;
-    portd_out <= portd_reg; ddrd_out <= ddrd_reg;
+    portb_out <= iodata_in when (iowe='1' and ioaddr=A_PORTB) else portb_reg;
+    ddrb_out  <= iodata_in when (iowe='1' and ioaddr=A_DDRB)  else ddrb_reg;
+    portc_out <= iodata_in when (iowe='1' and ioaddr=A_PORTC) else portc_reg;
+    ddrc_out  <= iodata_in when (iowe='1' and ioaddr=A_DDRC)  else ddrc_reg;
+    portd_out <= iodata_in when (iowe='1' and ioaddr=A_PORTD) else portd_reg;
+    ddrd_out  <= iodata_in when (iowe='1' and ioaddr=A_DDRD)  else ddrd_reg;
     -- Timer0 interrupts: flag AND mask AND global I
     t0_overflow_int <= tifr0_reg(0) and timsk0_reg(0) and sreg_reg(7);
     t0_compare_int  <= tifr0_reg(1) and timsk0_reg(1) and sreg_reg(7);
@@ -393,7 +430,7 @@ begin
     -- External interrupt outputs
     int0_int <= eifr_reg(0) and eimsk_reg(0) and sreg_reg(7);
     int1_int <= eifr_reg(1) and eimsk_reg(1) and sreg_reg(7);
-    -- Global interrupt enable = SREG bit 7
-    global_int <= sreg_reg(7);
+    -- Global interrupt enable = SREG bit 7 (write-through during SREG write)
+    global_int <= iodata_in(7) when (iowe='1' and ioaddr=A_SREG) else sreg_reg(7);
 
 end architecture rtl;

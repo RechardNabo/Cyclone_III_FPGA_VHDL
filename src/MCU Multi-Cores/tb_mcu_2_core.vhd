@@ -34,7 +34,9 @@ architecture sim of tb_mcu_2_core is
 
     -- Memory model: 256-byte array
     type mem_t is array(0 to 255) of std_logic_vector(7 downto 0);
-    signal mem : mem_t := (others => (others => '0'));
+
+    -- Program select signal (0=HLT at 0, 1=NOP at 0 + HLT at 1)
+    signal prog_sel : integer := 0;
 
 begin
 
@@ -62,18 +64,27 @@ begin
         );
 
     -- ========================================================================
-    -- Memory Model: combinational read, synchronous write
+    -- Memory Model: synchronous write, combinational read
+    -- Uses variable for memory to avoid multi-driver signal issues
     -- ========================================================================
-    data_in <= mem(to_integer(unsigned(addr_out)));
-
-    mem_wr : process(clk)
+    mem_proc : process(clk)
+        variable mem : mem_t := (others => (others => '0'));
+        variable cur_prog : integer := -1;
     begin
         if rising_edge(clk) then
-            if we = '1' then
-                mem(to_integer(unsigned(addr_out))) <= data_out;
+            if reset = '1' or cur_prog /= prog_sel then
+                case prog_sel is
+                    when 0 => mem(0) := x"B0";  -- HLT
+                    when 1 => mem(0) := x"C0"; mem(1) := x"B0"; -- NOP, HLT
+                    when others => null;
+                end case;
+                cur_prog := prog_sel;
+            elsif we = '1' then
+                mem(to_integer(unsigned(addr_out))) := data_out;
             end if;
         end if;
-    end process mem_wr;
+        data_in <= mem(to_integer(unsigned(addr_out)));
+    end process mem_proc;
 
     -- ========================================================================
     -- Stimulus
@@ -83,7 +94,7 @@ begin
         -- ------------------------------------------------------------------
         -- Load program: HLT at address 0
         -- ------------------------------------------------------------------
-        mem(0) <= x"B0";  -- HLT
+        prog_sel <= 0;
 
         -- ------------------------------------------------------------------
         -- Reset
@@ -158,8 +169,7 @@ begin
         -- ------------------------------------------------------------------
         reset <= '1';
         bus_grant <= '0';
-        mem(0) <= x"C0";  -- NOP
-        mem(1) <= x"B0";  -- HLT
+        prog_sel <= 1;  -- NOP at 0, HLT at 1
         wait for CLK_PERIOD * 4;
         reset <= '0';
         wait until rising_edge(clk);
@@ -182,7 +192,7 @@ begin
         -- Done
         -- ------------------------------------------------------------------
         report "All MCU_2_Core tests passed" severity note;
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
 
     end process stim;
 

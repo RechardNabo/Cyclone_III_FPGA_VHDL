@@ -53,7 +53,44 @@ architecture behavior of cortex_m0plus_tb is
             sleep_out : out std_logic;
             mtb_en    : in  std_logic;
             swclk : in  std_logic;
-            swdio : inout std_logic
+            swdio : inout std_logic;
+            -- DMA controller
+            dma_int    : out std_logic;
+            dma_m_addr : out std_logic_vector(31 downto 0);
+            dma_m_rdata : in  std_logic_vector(31 downto 0);
+            dma_m_wdata : out std_logic_vector(31 downto 0);
+            dma_m_we   : out std_logic;
+            dma_m_req  : out std_logic;
+            dma_m_ack  : in  std_logic;
+            -- I2C interface
+            i2c_sda : inout std_logic;
+            i2c_scl : inout std_logic;
+            i2c_int : out std_logic;
+            -- SPI interface
+            spi_sclk : out std_logic;
+            spi_mosi : out std_logic;
+            spi_miso : in  std_logic;
+            spi_int  : out std_logic;
+            -- UART interface
+            uart_txd : out std_logic;
+            uart_rxd : in  std_logic;
+            uart_int : out std_logic;
+            -- I2S interface (audio)
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic;
+            -- WDT interface
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic;
+            -- RTC interface
+            rtc_int   : out std_logic;
+            -- ADC interface
+            adc_in    : in  std_logic_vector(95 downto 0) := (others => '0');
+            adc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -107,6 +144,43 @@ architecture behavior of cortex_m0plus_tb is
     -- SWD
     signal swclk : std_logic := '0';
     signal swdio : std_logic := 'Z';
+
+    -- I2C interface
+    signal i2c_sda : std_logic := 'Z';
+    signal i2c_scl : std_logic := 'Z';
+    signal i2c_int : std_logic;
+
+    -- SPI interface
+    signal spi_sclk : std_logic;
+    signal spi_mosi : std_logic;
+    signal spi_miso : std_logic := '0';
+    signal spi_int  : std_logic;
+
+    -- UART interface
+    signal uart_txd : std_logic;
+    signal uart_rxd : std_logic := '1';
+    signal uart_int : std_logic;
+
+    -- I2S interface (audio)
+    signal i2s_sck   : std_logic;
+    signal i2s_ws    : std_logic;
+    signal i2s_sd_tx : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+    signal i2s_int   : std_logic;
+
+    -- WDT interface
+    signal wdt_int   : std_logic;
+    signal wdt_reset : std_logic;
+
+    -- RTC interface
+    signal rtc_int   : std_logic;
+
+    -- ADC interface
+    signal adc_in    : std_logic_vector(95 downto 0) := (others => '0');
+    signal adc_int   : std_logic;
+
+    -- DAC interface
+    signal dac_out   : std_logic_vector(23 downto 0);
 
     -- Constants
     constant CLK_PERIOD : time := 10 ns;
@@ -163,7 +237,44 @@ begin
             sleep_out   => sleep_out,
             mtb_en      => mtb_en,
             swclk       => swclk,
-            swdio       => swdio
+            swdio       => swdio,
+            -- DMA controller
+            dma_int     => open,
+            dma_m_addr  => open,
+            dma_m_rdata => (others => '0'),
+            dma_m_wdata => open,
+            dma_m_we    => open,
+            dma_m_req   => open,
+            dma_m_ack   => '0',
+            -- I2C interface
+            i2c_sda  => i2c_sda,
+            i2c_scl  => i2c_scl,
+            i2c_int  => i2c_int,
+            -- SPI interface
+            spi_sclk => spi_sclk,
+            spi_mosi => spi_mosi,
+            spi_miso => spi_miso,
+            spi_int  => spi_int,
+            -- UART interface
+            uart_txd => uart_txd,
+            uart_rxd => uart_rxd,
+            uart_int => uart_int,
+            -- I2S interface (audio)
+            i2s_sck   => i2s_sck,
+            i2s_ws    => i2s_ws,
+            i2s_sd_tx => i2s_sd_tx,
+            i2s_sd_rx => i2s_sd_rx,
+            i2s_int   => i2s_int,
+            -- WDT interface
+            wdt_int   => wdt_int,
+            wdt_reset => wdt_reset,
+            -- RTC interface
+            rtc_int   => rtc_int,
+            -- ADC interface
+            adc_in    => adc_in,
+            adc_int   => adc_int,
+            -- DAC interface
+            dac_out   => dac_out
         );
 
     -- ============================================================================
@@ -416,7 +527,7 @@ begin
         -- ----------------------------------------------------------------
         -- Test complete
         -- ----------------------------------------------------------------
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
 
     end process;
 

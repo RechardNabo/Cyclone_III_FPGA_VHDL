@@ -56,7 +56,68 @@ architecture behavior of cortex_m4_tb is
             dwt_cmp1_match : out std_logic;
             itm_stim0 : in std_logic_vector(31 downto 0);
             itm_stim1 : in std_logic_vector(31 downto 0);
-            itm_atb   : out std_logic
+            itm_atb   : out std_logic;
+            -- DMA controller
+            dma_int    : out std_logic;
+            dma_req_in : in  std_logic_vector(3 downto 0);
+            m_addr     : out std_logic_vector(31 downto 0);
+            m_rdata    : in  std_logic_vector(31 downto 0);
+            m_wdata    : out std_logic_vector(31 downto 0);
+            m_we       : out std_logic;
+            m_req      : out std_logic;
+            m_ack      : in  std_logic;
+            -- CAN controller
+            can_tx     : out std_logic;
+            can_rx     : in  std_logic;
+            can_clkout : out std_logic;
+            can_int    : out std_logic;
+            -- Ethernet MAC (MII interface)
+            mii_txd    : out std_logic_vector(3 downto 0);
+            mii_rxd    : in  std_logic_vector(3 downto 0);
+            mii_tx_en  : out std_logic;
+            mii_tx_clk : in  std_logic;
+            mii_rx_clk : in  std_logic;
+            mii_rx_dv  : in  std_logic;
+            mii_tx_er  : out std_logic;
+            mii_rx_er  : in  std_logic;
+            mii_crs    : in  std_logic;
+            mii_col    : in  std_logic;
+            mdc        : out std_logic;
+            mdio       : inout std_logic;
+            eth_int    : out std_logic;
+            -- USB device
+            usb_dp     : inout std_logic;
+            usb_dm     : inout std_logic;
+            usb_clk    : in  std_logic;
+            usb_int    : out std_logic;
+            -- I2C interface
+            i2c_sda : inout std_logic;
+            i2c_scl : inout std_logic;
+            i2c_int : out std_logic;
+            -- UART interface
+            uart_txd : out std_logic;
+            uart_rxd : in  std_logic;
+            uart_int : out std_logic;
+            -- I2S interface (audio)
+            i2s_sck   : out std_logic;
+            i2s_ws    : out std_logic;
+            i2s_sd_tx : out std_logic;
+            i2s_sd_rx : in  std_logic;
+            i2s_int   : out std_logic;
+            -- Power management
+            sleep_out     : out std_logic;
+            sleep_on_exit : out std_logic;
+            event_on      : out std_logic;
+            -- WDT interface
+            wdt_int   : out std_logic;
+            wdt_reset : out std_logic;
+            -- RTC interface
+            rtc_int   : out std_logic;
+            -- ADC interface
+            adc_in    : in  std_logic_vector(95 downto 0) := (others => '0');
+            adc_int   : out std_logic;
+            -- DAC interface
+            dac_out   : out std_logic_vector(23 downto 0)
         );
     end component;
 
@@ -126,6 +187,42 @@ architecture behavior of cortex_m4_tb is
     signal itm_stim1 : std_logic_vector(31 downto 0) := (others => '0');
     signal itm_atb   : std_logic;
 
+    -- I2C interface
+    signal i2c_sda : std_logic := 'Z';
+    signal i2c_scl : std_logic := 'Z';
+    signal i2c_int : std_logic;
+
+    -- UART interface
+    signal uart_txd : std_logic;
+    signal uart_rxd : std_logic := '1';
+    signal uart_int : std_logic;
+
+    -- I2S interface (audio)
+    signal i2s_sck   : std_logic;
+    signal i2s_ws    : std_logic;
+    signal i2s_sd_tx : std_logic;
+    signal i2s_sd_rx : std_logic := '0';
+    signal i2s_int   : std_logic;
+
+    -- Power management
+    signal sleep_out     : std_logic;
+    signal sleep_on_exit : std_logic;
+    signal event_on      : std_logic;
+
+    -- WDT interface
+    signal wdt_int   : std_logic;
+    signal wdt_reset : std_logic;
+
+    -- RTC interface
+    signal rtc_int   : std_logic;
+
+    -- ADC interface
+    signal adc_in    : std_logic_vector(95 downto 0) := (others => '0');
+    signal adc_int   : std_logic;
+
+    -- DAC interface
+    signal dac_out   : std_logic_vector(23 downto 0);
+
     -- Constants
     constant CLK_PERIOD : time := 10 ns;
 
@@ -136,14 +233,14 @@ architecture behavior of cortex_m4_tb is
     constant ADDR_NVIC_ISER   : std_logic_vector(31 downto 0) := x"40000200";
     constant ADDR_SCB_CPUID   : std_logic_vector(31 downto 0) := x"40000400";
     constant ADDR_SCB_VTOR    : std_logic_vector(31 downto 0) := x"40000408";
-    constant ADDR_SCB_CPACR   : std_logic_vector(31 downto 0) := x"40000418";
+    constant ADDR_SCB_CPACR   : std_logic_vector(31 downto 0) := x"4000040C";
     constant ADDR_MPU_CTRL    : std_logic_vector(31 downto 0) := x"40000604";
     constant ADDR_FAULT_HFSR  : std_logic_vector(31 downto 0) := x"40000800";
     constant ADDR_FPU_FPSCR   : std_logic_vector(31 downto 0) := x"40000A0C";
     constant ADDR_FPU_FPCCR   : std_logic_vector(31 downto 0) := x"40000A00";
     constant ADDR_DWT_CTRL    : std_logic_vector(31 downto 0) := x"40000B00";
-    constant ADDR_DWT_COMP0   : std_logic_vector(31 downto 0) := x"40000B10";
-    constant ADDR_ITM_CTRL    : std_logic_vector(31 downto 0) := x"40000C20";
+    constant ADDR_DWT_COMP0   : std_logic_vector(31 downto 0) := x"40000B04";
+    constant ADDR_ITM_CTRL    : std_logic_vector(31 downto 0) := x"40000C08";
 
     -- Expected CPUID for Cortex-M4
     constant EXPECTED_CPUID : std_logic_vector(31 downto 0) := x"410FC240";
@@ -198,7 +295,68 @@ begin
             dwt_cmp1_match       => dwt_cmp1_match,
             itm_stim0            => itm_stim0,
             itm_stim1            => itm_stim1,
-            itm_atb              => itm_atb
+            itm_atb              => itm_atb,
+            -- DMA controller
+            dma_int              => open,
+            dma_req_in           => (others => '0'),
+            m_addr               => open,
+            m_rdata              => (others => '0'),
+            m_wdata              => open,
+            m_we                 => open,
+            m_req                => open,
+            m_ack                => '0',
+            -- CAN controller
+            can_tx               => open,
+            can_rx               => '1',
+            can_clkout           => open,
+            can_int              => open,
+            -- Ethernet MAC (MII interface)
+            mii_txd              => open,
+            mii_rxd              => (others => '0'),
+            mii_tx_en            => open,
+            mii_tx_clk           => '0',
+            mii_rx_clk           => '0',
+            mii_rx_dv            => '0',
+            mii_tx_er            => open,
+            mii_rx_er            => '0',
+            mii_crs              => '0',
+            mii_col              => '0',
+            mdc                  => open,
+            mdio                 => open,
+            eth_int              => open,
+            -- USB device
+            usb_dp               => open,
+            usb_dm               => open,
+            usb_clk              => '0',
+            usb_int              => open,
+            -- I2C interface
+            i2c_sda  => i2c_sda,
+            i2c_scl  => i2c_scl,
+            i2c_int  => i2c_int,
+            -- UART interface
+            uart_txd => uart_txd,
+            uart_rxd => uart_rxd,
+            uart_int => uart_int,
+            -- I2S interface (audio)
+            i2s_sck   => i2s_sck,
+            i2s_ws    => i2s_ws,
+            i2s_sd_tx => i2s_sd_tx,
+            i2s_sd_rx => i2s_sd_rx,
+            i2s_int   => i2s_int,
+            -- Power management
+            sleep_out     => sleep_out,
+            sleep_on_exit => sleep_on_exit,
+            event_on      => event_on,
+            -- WDT interface
+            wdt_int   => wdt_int,
+            wdt_reset => wdt_reset,
+            -- RTC interface
+            rtc_int   => rtc_int,
+            -- ADC interface
+            adc_in    => adc_in,
+            adc_int   => adc_int,
+            -- DAC interface
+            dac_out   => dac_out
         );
 
     -- ============================================================================
@@ -398,7 +556,8 @@ begin
         ahb_write(ADDR_DWT_CTRL, x"00000001");  -- Enable DWT
         ahb_write(ADDR_DWT_COMP0, x"40000004");  -- Watch GPIO_DIR address
         dwt_cmp0_addr <= x"40000004";
-        wait for 1 ns;
+        -- Trigger a bus access to the watched address to generate a match
+        ahb_read(ADDR_GPIO_DIR, read_data);
         assert dwt_cmp0_match = '1'
             report "DWT cmp0 FAIL: expected match for address 0x40000004"
             severity error;
@@ -484,7 +643,7 @@ begin
         -- ----------------------------------------------------------------
         -- Test complete
         -- ----------------------------------------------------------------
-        assert false report "Testbench complete" severity failure;
+        report "Testbench complete" severity note;
 
     end process;
 
